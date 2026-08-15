@@ -20,6 +20,23 @@ let GLASS_CSS = """
 html, body, #root { background: transparent !important; }
 /* 顶部边条加高：内容整体下移 26pt，让标题/三点菜单与窗口顶边保持距离 */
 #root { padding-top: 26px !important; box-sizing: border-box !important; }
+/* 边条与主体同色：给 26pt 留白带补上与主体一致的衬底，消除色差 */
+body[data-ds-dark-theme] #root::before {
+  content: "";
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 26px;
+  background: rgba(13, 14, 18, 0.03);
+  pointer-events: none;
+}
+body:not([data-ds-dark-theme]) #root::before {
+  content: "";
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 26px;
+  background: rgba(255, 255, 255, 0.01);
+  pointer-events: none;
+}
 html { color-scheme: light !important; }
 html, body { -webkit-font-smoothing: antialiased !important; }
 /* 极淡衬底：给文字一个近实底，阻断玻璃背后颜色渗进字形（4% 几乎不可见） */
