@@ -53,6 +53,12 @@ picked up automatically.
 - **Layered frosting** — the composer, popovers, menus, and hover cards carry
   per-layer translucent tints and a `backdrop-filter` sweep, so elevated
   surfaces read as glass stacked on glass.
+- **Smart port reuse** — if a dsh instance is already running on
+  127.0.0.1:3080, the shell attaches to it instead of spawning a duplicate.
+- **Crash recovery** — the embedded backend restarts once automatically;
+  a second consecutive failure shows a retry page with the log path.
+- **Tray-resident** — closing the window hides it; the menu-bar item keeps
+  show / restart / open-in-browser / open-home / quit actions available.
 - **Clean lifecycle** — quitting, closing the window, or killing the process
   all terminate the embedded backend; no orphan processes.
 

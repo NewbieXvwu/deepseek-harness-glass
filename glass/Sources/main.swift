@@ -104,7 +104,7 @@ body:not([data-ds-dark-theme]) {
 }
 """
 
-// MARK: - 后端控制器（spawn 内置 dsh，解析 URL，管理生命周期）
+// MARK: - 后端控制器（实例复用 + spawn 内置 dsh + 崩溃自动恢复 + 生命周期）
 
 final class BackendController: NSObject, ObservableObject {
     static let shared = BackendController()
@@ -114,6 +114,11 @@ final class BackendController: NSObject, ObservableObject {
 
     private var process: Process?
     private var captured = ""
+    private var restartCount = 0
+    private var suppressNextExit = false
+    private var isQuitting = false
+    /// 该实例是否由我们拉起（复用外部 dsh 时不拥有、退出时不能杀）。
+    private(set) var ownsBackend = true
 
     var homePath: String {
         if let env = ProcessInfo.processInfo.environment["DSH_HOME"], !env.isEmpty {
@@ -140,9 +145,10 @@ final class BackendController: NSObject, ObservableObject {
         shutdown()
     }
 
-    /// 终止后端子进程（退出/被杀时调用，避免孤儿进程）。
+    /// 终止我们自己的后端子进程（复用外部实例时不杀它）。
     func shutdown() {
-        if let p = process, p.isRunning {
+        isQuitting = true
+        if ownsBackend, let p = process, p.isRunning {
             p.terminate()
         }
     }
@@ -157,8 +163,55 @@ final class BackendController: NSObject, ObservableObject {
         }
     }
 
-    func start() {
+    /// 启动后端。先探测 127.0.0.1:3080 上是否已有 dsh 实例：
+    /// 有则直接挂接（不重复起实例），没有才拉起内置引擎。
+    func start(autoRestart: Bool = false) {
         guard process == nil else { return }
+        if !autoRestart { restartCount = 0 }
+        errorText = nil
+        captured = ""
+
+        checkForExistingInstance { [weak self] found in
+            guard let self else { return }
+            if found {
+                self.ownsBackend = false
+                self.url = URL(string: "http://127.0.0.1:3080/")
+                self.appendLog("[backend] 检测到 127.0.0.1:3080 已有 dsh 实例，直接挂接\n")
+            } else {
+                self.spawnBackend()
+            }
+        }
+    }
+
+    /// 手动重启后端（菜单/托盘入口）。
+    func restart() {
+        url = nil
+        captured = ""
+        restartCount = 0
+        if ownsBackend, let p = process, p.isRunning {
+            suppressNextExit = true
+            p.terminate()
+        }
+        process = nil
+        start()
+    }
+
+    /// 探测 3080 端口上是否为 dsh（响应体含 __DSH_BOOT__ 才算）。
+    private func checkForExistingInstance(completion: @escaping (Bool) -> Void) {
+        guard let probe = URL(string: "http://127.0.0.1:3080/") else {
+            completion(false); return
+        }
+        var request = URLRequest(url: probe)
+        request.timeoutInterval = 1.5
+        URLSession.shared.dataTask(with: request) { data, response, _ in
+            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+            let body = data.flatMap { String(data: $0, encoding: .utf8) } ?? ""
+            let ok = status == 200 && body.contains("__DSH_BOOT__")
+            DispatchQueue.main.async { completion(ok) }
+        }.resume()
+    }
+
+    private func spawnBackend() {
         let resources = Bundle.main.resourceURL!
         let node = resources.appendingPathComponent("node/node")
         let bin = resources
@@ -197,16 +250,25 @@ final class BackendController: NSObject, ObservableObject {
         proc.terminationHandler = { [weak self] p in
             DispatchQueue.main.async {
                 guard let self else { return }
-                if self.url == nil {
-                    self.errorText = "后端启动失败（code=\(p.terminationStatus)）。日志：\(self.logPath)"
+                self.process = nil
+                if self.isQuitting { return }
+                if self.suppressNextExit { self.suppressNextExit = false; return }
+                if self.restartCount < 1 {
+                    self.restartCount += 1
+                    self.url = nil
+                    self.appendLog("[backend] 后端退出（code=\(p.terminationStatus)），0.6 秒后自动重启（1/1）\n")
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+                        self?.start(autoRestart: true)
+                    }
                 } else {
                     self.url = nil
-                    self.errorText = "后端意外退出（code=\(p.terminationStatus)）。请重新打开应用。日志：\(self.logPath)"
+                    self.errorText = "后端连续两次退出（code=\(p.terminationStatus)）。"
+                        + "请点「重新启动」，或运行 glass/repair-backend.sh 重装后端。日志：\(self.logPath)"
                 }
-                self.process = nil
             }
         }
 
+        ownsBackend = true
         do {
             try proc.run()
             process = proc
@@ -471,8 +533,9 @@ final class ZeroSafeAreaHostingView<Content: View>: NSHostingView<Content> {
 //         确保内容+玻璃顶到窗口最顶端，覆盖标题栏拖动条）
 
 @main
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var window: NSWindow!
+    private var statusItem: NSStatusItem!
 
     static func main() {
         let app = NSApplication.shared
@@ -488,6 +551,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         installSignalHandlers()
         buildMenu()
         buildWindow()
+        setupTray()
         startBackdropSampling()
         NSApp.activate(ignoringOtherApps: true)
     }
@@ -514,6 +578,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.hasShadow = true
         window.contentMinSize = NSSize(width: 880, height: 600)
         window.contentView = hosting
+        window.delegate = self
         window.center()
         window.makeKeyAndOrderFront(nil)
 
@@ -647,6 +712,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         mainMenu.addItem(harnessMenuItem)
         let harnessMenu = NSMenu(title: "Harness")
         harnessMenu.addItem(
+            withTitle: "重启后端服务",
+            action: #selector(AppDelegate.restartBackend(_:)),
+            keyEquivalent: "r")
+        harnessMenu.addItem(
+            withTitle: "在浏览器中打开",
+            action: #selector(AppDelegate.openInBrowser(_:)),
+            keyEquivalent: "")
+        harnessMenu.addItem(.separator())
+        harnessMenu.addItem(
             withTitle: "打开配置目录（DSH_HOME）",
             action: #selector(AppDelegate.openHome(_:)),
             keyEquivalent: "")
@@ -681,7 +755,64 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    // MARK: 托盘常驻 + 关窗隐藏
+
+    /// 关闭窗口只是隐藏，后端继续在后台运行（托盘常驻）。
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        sender.orderOut(nil)
+        return false
+    }
+
+    /// 点击 Dock 图标重新显示窗口。
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        showWindow()
+        return true
+    }
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        true
+        false
+    }
+
+    private func setupTray() {
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        if let button = statusItem.button {
+            button.image = NSApp.applicationIconImage
+            button.image?.size = NSSize(width: 18, height: 18)
+        }
+        let menu = NSMenu()
+        menu.addItem(withTitle: "显示 DeepSeek Harness",
+                     action: #selector(showWindowAction(_:)), keyEquivalent: "")
+        menu.addItem(withTitle: "在浏览器中打开",
+                     action: #selector(openInBrowser(_:)), keyEquivalent: "")
+        menu.addItem(withTitle: "重启后端服务",
+                     action: #selector(restartBackend(_:)), keyEquivalent: "")
+        menu.addItem(.separator())
+        menu.addItem(withTitle: "打开配置目录（DSH_HOME）",
+                     action: #selector(openHome(_:)), keyEquivalent: "")
+        menu.addItem(withTitle: "打开后端日志",
+                     action: #selector(openLog(_:)), keyEquivalent: "")
+        menu.addItem(.separator())
+        menu.addItem(withTitle: "退出 DeepSeek Harness",
+                     action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        statusItem.menu = menu
+    }
+
+    private func showWindow() {
+        guard let w = window else { return }
+        w.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    @objc private func showWindowAction(_ sender: Any?) {
+        showWindow()
+    }
+
+    @objc private func openInBrowser(_ sender: Any?) {
+        guard let u = BackendController.shared.url else { return }
+        NSWorkspace.shared.open(u)
+    }
+
+    @objc private func restartBackend(_ sender: Any?) {
+        BackendController.shared.restart()
     }
 }
