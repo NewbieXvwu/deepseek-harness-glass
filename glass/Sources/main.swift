@@ -521,6 +521,11 @@ struct ContentView: View {
     }
 }
 
+/// 顶部拖动条：加宽标题栏拖动区（44pt），左端避开交通灯按钮。
+final class DragStripView: NSView {
+    override var mouseDownCanMoveWindow: Bool { true }
+}
+
 /// NSHostingView 子类：安全区归零，SwiftUI 内容与玻璃效果铺满整个窗口，
 /// 覆盖标题栏拖动条区域（诊断显示系统默认报 safeAreaInsets.top = 32）。
 final class ZeroSafeAreaHostingView<Content: View>: NSHostingView<Content> {
@@ -564,6 +569,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             .frame(minWidth: 880, minHeight: 600)
 
         let hosting = ZeroSafeAreaHostingView(rootView: content)
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 1280, height: 840))
+        hosting.frame = container.bounds
+        hosting.autoresizingMask = [.width, .height]
+        container.addSubview(hosting)
+        let dragStrip = DragStripView(frame: NSRect(
+            x: 76, y: container.bounds.height - 44,
+            width: container.bounds.width - 76, height: 44))
+        dragStrip.autoresizingMask = [.width, .minYMargin]
+        container.addSubview(dragStrip)
         window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1280, height: 840),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
@@ -577,7 +591,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         window.backgroundColor = .clear
         window.hasShadow = true
         window.contentMinSize = NSSize(width: 880, height: 600)
-        window.contentView = hosting
+        window.contentView = container
         window.delegate = self
         window.center()
         window.makeKeyAndOrderFront(nil)
