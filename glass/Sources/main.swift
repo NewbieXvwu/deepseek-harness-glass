@@ -18,6 +18,8 @@ import AppKit
 
 let GLASS_CSS = """
 html, body, #root { background: transparent !important; }
+/* 顶部边条加高：内容整体下移 26pt，让标题/三点菜单与窗口顶边保持距离 */
+#root { padding-top: 26px !important; box-sizing: border-box !important; }
 html { color-scheme: light !important; }
 html, body { -webkit-font-smoothing: antialiased !important; }
 /* 极淡衬底：给文字一个近实底，阻断玻璃背后颜色渗进字形（4% 几乎不可见） */
@@ -367,7 +369,7 @@ final class DynamicContrast {
 
 // MARK: - WKWebView（透明 + CSS 注入）
 
-final class GlassWebViewController: NSViewController, WKNavigationDelegate {
+final class GlassWebViewController: NSViewController, WKNavigationDelegate, WKDownloadDelegate {
     private let webView: WKWebView
     private var loaded = false
     private var contrastObserver: NSObjectProtocol?
@@ -449,6 +451,60 @@ final class GlassWebViewController: NSViewController, WKNavigationDelegate {
         applyContrast()
     }
 
+    // MARK: 下载支持（Session log 等文件直接落盘到"下载"文件夹）
+
+    func webView(
+        _ webView: WKWebView,
+        decidePolicyFor navigationResponse: WKNavigationResponse,
+        decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void
+    ) {
+        if navigationResponse.canShowMIMEType {
+            decisionHandler(.allow)
+        } else {
+            decisionHandler(.download)
+        }
+    }
+
+    func download(
+        _ download: WKDownload,
+        decideDestinationUsing response: URLResponse,
+        suggestedFilename: String,
+        completionHandler: @escaping (URL?) -> Void
+    ) {
+        let dir = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
+            ?? FileManager.default.temporaryDirectory
+        var dest = dir.appendingPathComponent(suggestedFilename)
+        // 同名文件自动加序号，避免覆盖
+        var counter = 2
+        while FileManager.default.fileExists(atPath: dest.path) {
+            let base = (suggestedFilename as NSString).deletingPathExtension
+            let ext = (suggestedFilename as NSString).pathExtension
+            dest = dir.appendingPathComponent(
+                ext.isEmpty ? "\(base)-\(counter)" : "\(base)-\(counter).\(ext)")
+            counter += 1
+        }
+        completionHandler(dest)
+    }
+
+    func downloadDidFinish(_ download: WKDownload) {
+        appendLog("[download] 完成：\(download.originalRequest?.url?.lastPathComponent ?? "file")\n")
+    }
+
+    func download(_ download: WKDownload, didFailWithError error: Error, resumeData: Data?) {
+        appendLog("[download] 失败：\(error.localizedDescription)\n")
+    }
+
+    private func appendLog(_ text: String) {
+        let path = BackendController.shared.logPath
+        if let h = FileHandle(forWritingAtPath: path) {
+            h.seekToEndOfFile()
+            h.write(Data(text.utf8))
+            try? h.close()
+        } else {
+            try? Data(text.utf8).write(to: URL(fileURLWithPath: path))
+        }
+    }
+
     /// 把动态反色文字颜色推进页面（初始 + 每次背景亮度变化）。
     private func applyContrast() {
         let js = DynamicContrast.shared.jsPayload
@@ -521,11 +577,6 @@ struct ContentView: View {
     }
 }
 
-/// 顶部拖动条：加宽标题栏拖动区（44pt），左端避开交通灯按钮。
-final class DragStripView: NSView {
-    override var mouseDownCanMoveWindow: Bool { true }
-}
-
 /// NSHostingView 子类：安全区归零，SwiftUI 内容与玻璃效果铺满整个窗口，
 /// 覆盖标题栏拖动条区域（诊断显示系统默认报 safeAreaInsets.top = 32）。
 final class ZeroSafeAreaHostingView<Content: View>: NSHostingView<Content> {
@@ -569,15 +620,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             .frame(minWidth: 880, minHeight: 600)
 
         let hosting = ZeroSafeAreaHostingView(rootView: content)
-        let container = NSView(frame: NSRect(x: 0, y: 0, width: 1280, height: 840))
-        hosting.frame = container.bounds
-        hosting.autoresizingMask = [.width, .height]
-        container.addSubview(hosting)
-        let dragStrip = DragStripView(frame: NSRect(
-            x: 76, y: container.bounds.height - 44,
-            width: container.bounds.width - 76, height: 44))
-        dragStrip.autoresizingMask = [.width, .minYMargin]
-        container.addSubview(dragStrip)
         window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1280, height: 840),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
@@ -591,7 +633,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         window.backgroundColor = .clear
         window.hasShadow = true
         window.contentMinSize = NSSize(width: 880, height: 600)
-        window.contentView = container
+        window.contentView = hosting
         window.delegate = self
         window.center()
         window.makeKeyAndOrderFront(nil)
