@@ -776,8 +776,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func setupTray() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         if let button = statusItem.button {
-            button.image = NSApp.applicationIconImage
-            button.image?.size = NSSize(width: 18, height: 18)
+            // 托盘图标：dsh 官方小鱼 logo（模板图，自动适配菜单栏深浅色）
+            if let fishURL = Bundle.main.url(forResource: "fish", withExtension: "svg"),
+               let fish = NSImage(contentsOf: fishURL) {
+                fish.size = NSSize(width: 19, height: 19 * 17.04 / 23.16)
+                fish.isTemplate = true
+                button.image = fish
+            } else {
+                button.image = NSApp.applicationIconImage
+                button.image?.size = NSSize(width: 18, height: 18)
+            }
         }
         let menu = NSMenu()
         menu.addItem(withTitle: "显示 DeepSeek Harness",
