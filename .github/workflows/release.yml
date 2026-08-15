@@ -1,0 +1,83 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download bundled Node (pinned)
+        run: |
+          curl -fsSL https://nodejs.org/dist/v24.19.0/node-v24.19.0-darwin-arm64.tar.gz -o /tmp/node.tgz
+          tar -xzf /tmp/node.tgz -C /tmp
+          mkdir -p glass/build/node
+          cp /tmp/node-v24.19.0-darwin-arm64/bin/node glass/build/node/node
+          chmod +x glass/build/node/node
+
+      - name: Install backend payload (pinned)
+        run: |
+          mkdir -p glass/build/backend
+          cd glass/build/backend
+          cat > package.json <<'EOF'
+          {
+            "name": "dsh-backend-payload",
+            "private": true,
+            "description": "Pinned dsh backend payload for DeepSeek Harness Glass",
+            "dependencies": {
+              "@deepseek-ai/dsh": "0.1.0-rc.6",
+              "@deepseek-ai/dsh-web-frontend": "0.1.0-rc.6"
+            }
+          }
+          EOF
+          npm install --no-audit --no-fund
+
+      - name: Smoke-test backend
+        run: |
+          TMP_HOME=$(mktemp -d)
+          DSH_HOME="$TMP_HOME" glass/build/node/node --expose-internals \
+            glass/build/backend/node_modules/@deepseek-ai/dsh/lib/bin.js web --port 0 \
+            > /tmp/dsh-smoke.log 2>&1 &
+          BACKEND_PID=$!
+          sleep 12
+          if kill -0 "$BACKEND_PID" 2>/dev/null; then
+            echo "backend OK: $(grep -o 'dsh web: http://[0-9.:]*' /tmp/dsh-smoke.log | head -1)"
+            kill "$BACKEND_PID"
+          else
+            echo "backend failed:"; tail -20 /tmp/dsh-smoke.log; exit 1
+          fi
+
+      - name: Assemble app
+        run: |
+          export APP_PATH="$PWD/glass/dist/DeepSeek Harness.app"
+          cd glass && ./assemble.sh
+
+      - name: Verify signature
+        run: |
+          codesign -v "glass/dist/DeepSeek Harness.app"
+          test -z "$(find 'glass/dist/DeepSeek Harness.app' -type l)" \
+            && echo "no symlinks (dmg-safe)" || { echo "symlinks present"; exit 1; }
+
+      - name: Make DMG
+        run: |
+          mkdir -p dmg-stage
+          cp -R "glass/dist/DeepSeek Harness.app" dmg-stage/
+          ln -s /Applications dmg-stage/Applications
+          hdiutil create -volname "DeepSeek Harness Glass" -srcfolder dmg-stage \
+            -ov -format UDZO "DeepSeek Harness Glass-${GITHUB_REF_NAME}.dmg"
+          rm -rf dmg-stage
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: "DeepSeek Harness Glass-*.dmg"
+          draft: false
+          generate_release_notes: true
