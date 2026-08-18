@@ -5,7 +5,7 @@ struct NativeSidebarView: View {
     let collapsed: Bool
     let setCollapsed: (Bool) -> Void
     let workspaceActions: WorkspaceBrowserView.Actions
-    let workspaceSnapshotDialog: WorkspaceBrowserView.SnapshotDialog = .none
+    let workspaceSnapshotDialog: WorkspaceBrowserView.SnapshotDialog
     let onNewSession: () -> Void
     let onOpenSettings: () -> Void
 
