@@ -1,5 +1,39 @@
 import SwiftUI
 
+private struct NativeCappedContentHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
+/// Mirrors the official CSS `max-height` policy: content stays intrinsic below
+/// the cap, then becomes vertically scrollable above it.
+private struct NativeCappedVerticalScroll<Content: View>: View {
+    let maximumHeight: CGFloat
+    let content: Content
+    @State private var measuredHeight: CGFloat = 1
+
+    init(maximumHeight: CGFloat, @ViewBuilder content: () -> Content) {
+        self.maximumHeight = maximumHeight
+        self.content = content()
+    }
+
+    var body: some View {
+        ScrollView {
+            content
+                .background(
+                    GeometryReader { proxy in
+                        Color.clear.preference(key: NativeCappedContentHeightKey.self, value: proxy.size.height)
+                    }
+                )
+        }
+        .frame(height: min(maximumHeight, max(1, measuredHeight)))
+        .onPreferenceChange(NativeCappedContentHeightKey.self) { measuredHeight = $0 }
+    }
+}
+
 /// Native counterpart of `ApprovalPanel.tsx`: an approval request replaces the
 /// normal composer until the Host broadcasts its resolved frame.
 struct NativeApprovalPanel: View {
@@ -23,7 +57,7 @@ struct NativeApprovalPanel: View {
             .background(OfficialUISpec.Token.warningTertiary)
             .foregroundStyle(OfficialUISpec.Token.warningPrimary)
 
-            ScrollView {
+            NativeCappedVerticalScroll(maximumHeight: OfficialUISpec.Layout.approvalBodyMaximumHeight) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(approval.reason ?? OfficialUISpec.Text.approvalEscalation(toolName: approval.toolName))
                         .font(.system(size: 15, weight: .medium))
@@ -41,7 +75,6 @@ struct NativeApprovalPanel: View {
                 .padding(.top, 12)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxHeight: OfficialUISpec.Layout.approvalBodyMaximumHeight)
             .accessibilityLabel(OfficialUISpec.Text.approvalDetailsAccessibility)
 
             HStack(spacing: OfficialUISpec.Layout.approvalActionGap) {
@@ -192,7 +225,7 @@ struct NativeQuestionComposer: View {
     }
 
     private var bodyContent: some View {
-        ScrollView {
+        NativeCappedVerticalScroll(maximumHeight: OfficialUISpec.Layout.approvalBodyMaximumHeight) {
             VStack(alignment: .leading, spacing: 10) {
                 if let detail = current.detail {
                     Text(detail)
@@ -211,7 +244,6 @@ struct NativeQuestionComposer: View {
             .padding(.bottom, 12)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(maxHeight: OfficialUISpec.Layout.approvalBodyMaximumHeight)
     }
 
     private func optionButton(_ option: NativeSessionStore.PendingQuestion.Option, position: Int) -> some View {
