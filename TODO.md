@@ -177,9 +177,9 @@
 
 官方 Web profile 由 Node Host 提供 API、SSE、静态页面与 plugin graph。原生客户端应只使用前两者来承载业务，前端静态资源仅在 WebView 插件 fallback POC 时出现。[1] [7]
 
-- [ ] **T3.1：拆出 `HarnessHostController`。** 从现有 `BackendController` 迁移 Node 定位、payload 定位、`DSH_HOME`、`dsh web --port 0` 启动、stdout URL 解析、端口检测、日志写入、一次自动重启和退出清理。
+- [x] **T3.1：拆出 `HarnessHostController`。** `GlassCore` 的 `HarnessHostController` 现独立管理 Node/payload 位置、运行时 DSH_HOME/log 目录、`dsh web --port 0`、受限 127.0.0.1+port announcement 解析、`host.describe` ready probe、20 秒启动 announcement timeout、日志、手动/异常终止的一次恢复、停止抑制恢复和退出清理；UI target 不包含进程启动逻辑。
   - 依赖：T1.2。
-  - 验收：无任何 UI target 的命令行测试可启动、复用、停止 Host；退出后无孤儿 Node/dsh 进程。
+  - 验收证据：新增无 UI `GlassCoreTests` target 与 `HarnessHostControllerTests.testOwnedHostStartsReusesAndStopsWithoutLeavingProcess`，使用 CI 已验证 rc.7 Node/payload 真实启动、ready、重复 start 同 PID 复用、stop、PID 不存在、DSH_HOME/log 落盘。macOS-26 [run 32175400591](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32175400591)（commit `229d0d9`）执行该测试成功（3.488s），并完成全门禁、SwiftPM/Swiftc 编译、原生截图与官方配对；人工复核记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`，Host-only 改动未新增可观察 renderer 回归，既有 welcome `report-only` 差异仍由后续 UI TODO 关闭。
 
 - [ ] **T3.2：实现 Host build 验证。** 通过捆绑 manifest、package metadata 或 Host 可用的描述信息确认当前 payload 属于 `SupportedHostBuilds.json`；不要根据 URL 或端口猜测兼容性。
   - 依赖：T0.2、T3.1。

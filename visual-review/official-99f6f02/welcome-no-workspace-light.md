@@ -44,3 +44,9 @@
 证据：macOS-26 [run 32173433660](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32173433660)，commit `09afcc5`，工件中的锁定官方 PNG、原生 PNG、comparison、amplified diff 与报告 JSON。该 run 成功校验 `official-interaction-scenes.json` 的 13 个必覆盖场景均具备实际官方 e2e 来源、Host fixture/seed、视口、颜色与辅助功能状态、动作序列、文本、布局树、ARIA baseline 和 PNG baseline contract；随后完成完整 SwiftPM 编译、app 组装与现有 screenshot pairing。
 
 人工复核 comparison 确认：本提交只增加版本化场景目录和来源 gate，不修改 SwiftUI renderer；既有 welcome 结构和已登记 report-only 差异保持不变。当前指标为 materially changed ratio `0.02959449`、mean absolute channel difference `2.814778`、exact changed ratio `0.30825986`，没有对应的 renderer、asset、文案或布局变更。T2.5 已完成“目录覆盖与可复现 capture contract”验收；目录中的每个下游 renderer 场景仍须在其所属 UI TODO 完成时使用同状态官方/原生 PNG 和差异报告关闭，不能把本条目录验收误作这些界面的像素验收。
+
+## 2026-08-19 — T3.1 Host lifecycle review
+
+证据：macOS-26 [run 32175400591](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32175400591)，commit `229d0d9`。该 run 的 `HarnessHostControllerTests.testOwnedHostStartsReusesAndStopsWithoutLeavingProcess` 在 arm64e macOS runner 上以真实固定 rc.7 Node/payload 通过（3.488 秒）：验证 Host 启动、官方 `dsh web: http://127.0.0.1:<port>` announcement、`host.describe` ready、重复 start 复用同一 PID、stop 后 PID 消失、DSH_HOME 和日志落盘。完整 SwiftPM target 编译、直接 Swiftc app 装配、原生 snapshot 与官方 capture 亦成功。
+
+人工检查 comparison 确认 T3.1 只涉及 Core Host 进程监督、无 UI XCTest 和 CI 注入，不改变 native renderer；侧栏、hero、composer、文本顺序和主要可见边界没有新增变化。报告为既有 `report-only`：materially changed ratio `0.02923084`、mean absolute channel difference `2.737691`、exact changed ratio `0.30920666`。这些波动没有关联的 UI diff，且不构成 welcome 场景视觉完成；已有材质、composer 描边和几何差异继续由后续界面 TODO 关闭。
