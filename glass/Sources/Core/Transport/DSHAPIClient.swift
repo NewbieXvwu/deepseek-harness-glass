@@ -177,7 +177,7 @@ struct DSHAPIClient: Sendable {
 struct EmptyPayload: Codable, Sendable {}
 
 /// Source: `sessions.schema.ts:sessionHistoryRequestSchema`.
-struct SessionHistoryRequest: Encodable, Sendable {
+struct SessionHistoryRequest: Codable, Sendable {
     let sessionId: String
     let beforeSeq: Int?
     let maxMessages: Int?
@@ -215,18 +215,32 @@ struct ToolEventViewDTO: Decodable, Sendable {
 }
 
 /// Source: `sessions.schema.ts:sessionPromptRequestSchema`.
-enum SessionPromptMode: String, Encodable, Sendable {
+enum SessionPromptMode: String, Codable, Sendable {
     case queue
     case steer
 }
 
 /// Source: `sessions.schema.ts:promptContentPartSchema`.
-enum SessionPromptContent: Encodable, Sendable {
+enum SessionPromptContent: Codable, Sendable {
     case text(text: String)
     case image(mediaType: String, data: String, name: String?)
 
     private enum CodingKeys: String, CodingKey { case type, text, mediaType, data, name }
-    private enum Kind: String, Encodable { case text, image }
+    private enum Kind: String, Codable { case text, image }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        switch try container.decode(Kind.self, forKey: .type) {
+        case .text:
+            self = .text(text: try container.decode(String.self, forKey: .text))
+        case .image:
+            self = .image(
+                mediaType: try container.decode(String.self, forKey: .mediaType),
+                data: try container.decode(String.self, forKey: .data),
+                name: try container.decodeIfPresent(String.self, forKey: .name)
+            )
+        }
+    }
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
@@ -244,7 +258,7 @@ enum SessionPromptContent: Encodable, Sendable {
 }
 
 /// Source: `sessions.schema.ts:sessionPromptRequestSchema`.
-struct SessionPromptRequest: Encodable, Sendable {
+struct SessionPromptRequest: Codable, Sendable {
     let sessionId: String
     let mode: SessionPromptMode
     let content: [SessionPromptContent]
@@ -257,7 +271,7 @@ struct SessionPromptResponse: Decodable, Sendable {
 }
 
 /// Source: `sessions.schema.ts:sessionCancelRequestSchema`.
-struct SessionCancelRequest: Encodable, Sendable {
+struct SessionCancelRequest: Codable, Sendable {
     let sessionId: String
 }
 
@@ -267,8 +281,23 @@ struct SessionCancelResponse: Decodable, Sendable {
 }
 
 /// Source: `sessions.schema.ts:sessionCreateRequestSchema`.
-struct SessionCreateRequest: Encodable, Sendable {
+struct SessionCreateRequest: Codable, Sendable {
     let workspaceId: String?
+    let cwd: String?
+    let sessionId: String?
+    let agentPreset: String?
+
+    init(
+        workspaceId: String? = nil,
+        cwd: String? = nil,
+        sessionId: String? = nil,
+        agentPreset: String? = nil
+    ) {
+        self.workspaceId = workspaceId
+        self.cwd = cwd
+        self.sessionId = sessionId
+        self.agentPreset = agentPreset
+    }
 }
 
 /// Source: `sessions.schema.ts:sessionCreateValueSchema`.
@@ -278,7 +307,7 @@ struct SessionCreateResponse: Decodable, Sendable {
 }
 
 /// Source: `workspace.schema.ts:workspaceCreateRequestSchema`.
-struct WorkspaceCreateRequest: Encodable, Sendable {
+struct WorkspaceCreateRequest: Codable, Sendable {
     let path: String
 }
 
@@ -289,7 +318,7 @@ struct WorkspaceCreateResponse: Decodable, Sendable {
 }
 
 /// Source: `sessions.schema.ts:sessionSearchRequestSchema`.
-struct SessionSearchRequest: Encodable, Sendable {
+struct SessionSearchRequest: Codable, Sendable {
     let query: String
 }
 
@@ -308,7 +337,7 @@ struct SessionSearchItemDTO: Decodable, Sendable, Identifiable, Equatable {
 }
 
 /// Source: `sessions.schema.ts:sessionRenameRequestSchema`.
-struct SessionRenameRequest: Encodable, Sendable {
+struct SessionRenameRequest: Codable, Sendable {
     let sessionId: String
     let title: String
 }
@@ -320,7 +349,7 @@ struct SessionRenameResponse: Decodable, Sendable {
 }
 
 /// Source: `sessions.schema.ts:sessionForkRequestSchema`.
-struct SessionForkRequest: Encodable, Sendable {
+struct SessionForkRequest: Codable, Sendable {
     let sessionId: String
     let atSeq: Int?
 }
@@ -331,7 +360,7 @@ struct SessionForkResponse: Decodable, Sendable {
 }
 
 /// Source: `workspace.schema.ts:workspaceRenameRequestSchema`.
-struct WorkspaceRenameRequest: Encodable, Sendable {
+struct WorkspaceRenameRequest: Codable, Sendable {
     let workspaceId: String
     let title: String
 }
@@ -342,7 +371,7 @@ struct WorkspaceRenameResponse: Decodable, Sendable {
 }
 
 /// Source: `workspace.schema.ts:workspaceDeleteRequestSchema`.
-struct WorkspaceDeleteRequest: Encodable, Sendable {
+struct WorkspaceDeleteRequest: Codable, Sendable {
     let workspaceId: String
 }
 
@@ -352,7 +381,7 @@ struct WorkspaceDeleteResponse: Decodable, Sendable {
 }
 
 /// Source: `workspace.schema.ts:workspaceArchiveSessionRequestSchema`.
-struct WorkspaceArchiveSessionRequest: Encodable, Sendable {
+struct WorkspaceArchiveSessionRequest: Codable, Sendable {
     let sessionId: String
 }
 
@@ -447,12 +476,25 @@ struct SettingsSecretDTO: Codable, Sendable, Equatable {
 }
 
 /// Source: `settings.schema.ts:settingsPathOpSchema`.
-enum SettingsPathOperationDTO: Encodable, Sendable {
+enum SettingsPathOperationDTO: Codable, Sendable {
     case set(path: [String], value: JSONValue)
     case unset(path: [String])
 
     private enum CodingKeys: String, CodingKey { case op, path, value }
-    private enum Operation: String, Encodable { case set, unset }
+    private enum Operation: String, Codable { case set, unset }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        switch try container.decode(Operation.self, forKey: .op) {
+        case .set:
+            self = .set(
+                path: try container.decode([String].self, forKey: .path),
+                value: try container.decode(JSONValue.self, forKey: .value)
+            )
+        case .unset:
+            self = .unset(path: try container.decode([String].self, forKey: .path))
+        }
+    }
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
@@ -469,7 +511,7 @@ enum SettingsPathOperationDTO: Encodable, Sendable {
 }
 
 /// Source: `settings.schema.ts:settingsMutateRequestSchema`.
-struct SettingsMutateRequest: Encodable, Sendable {
+struct SettingsMutateRequest: Codable, Sendable {
     let ns: String
     let ops: [SettingsPathOperationDTO]
     let expectedRevision: Int?

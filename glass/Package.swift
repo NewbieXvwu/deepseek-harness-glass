@@ -22,6 +22,7 @@ let package = Package(
             name: "GlassCore",
             dependencies: ["GlassSpec"],
             path: "Sources/Core",
+            resources: [.process("Resources")],
             swiftSettings: [.define("DEEPSEEK_HARNESS_PACKAGE"), .unsafeFlags(["-enable-testing"])]
         ),
         .target(

@@ -60,11 +60,32 @@ enum JSONValue: Codable, Equatable, Sendable {
 }
 
 /// Matches the official `ClientRequest` wire form sent as POST `/api/<method>`.
-struct RPCClientRequest: Encodable, Equatable, Sendable {
-    let type = "client-request"
+struct RPCClientRequest: Codable, Equatable, Sendable {
+    let type: String
     let rpcId: String
     let method: String
     let payload: JSONValue
+
+    init(rpcId: String, method: String, payload: JSONValue) {
+        self.type = "client-request"
+        self.rpcId = rpcId
+        self.method = method
+        self.payload = payload
+    }
+
+    private enum CodingKeys: String, CodingKey { case type, rpcId, method, payload }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let type = try container.decode(String.self, forKey: .type)
+        guard type == "client-request" else {
+            throw DecodingError.dataCorruptedError(forKey: .type, in: container, debugDescription: "Expected client-request envelope")
+        }
+        self.type = type
+        self.rpcId = try container.decode(String.self, forKey: .rpcId)
+        self.method = try container.decode(String.self, forKey: .method)
+        self.payload = try container.decode(JSONValue.self, forKey: .payload)
+    }
 }
 
 /// Mirrors the official closed business-error branch. `details` is deliberately
@@ -159,10 +180,29 @@ struct RPCServerRequest: Codable, Equatable, Sendable {
 }
 
 /// Matches official `ClientResponse` sent to POST `/api/respond`.
-struct RPCClientResponse: Encodable, Equatable, Sendable {
-    let type = "client-response"
+struct RPCClientResponse: Codable, Equatable, Sendable {
+    let type: String
     let rpcId: String
     let result: RPCResult
+
+    init(rpcId: String, result: RPCResult) {
+        self.type = "client-response"
+        self.rpcId = rpcId
+        self.result = result
+    }
+
+    private enum CodingKeys: String, CodingKey { case type, rpcId, result }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let type = try container.decode(String.self, forKey: .type)
+        guard type == "client-response" else {
+            throw DecodingError.dataCorruptedError(forKey: .type, in: container, debugDescription: "Expected client-response envelope")
+        }
+        self.type = type
+        self.rpcId = try container.decode(String.self, forKey: .rpcId)
+        self.result = try container.decode(RPCResult.self, forKey: .result)
+    }
 }
 
 struct RPCReceipt: Codable, Equatable, Sendable {
