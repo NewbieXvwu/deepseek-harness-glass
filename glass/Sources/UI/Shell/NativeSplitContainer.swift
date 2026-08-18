@@ -193,6 +193,15 @@ class NativeSplitViewController: NSSplitViewController {
         hasAppliedInitialLayout = true
     }
 
+    /// CI-only geometry evidence; no user-visible text or rendering behavior.
+    func snapshotLayoutDescription() -> String {
+        let itemStates = splitViewItems.enumerated().map { index, item in
+            let frame = item.viewController.view.frame
+            return "item=\(index),collapsed=\(item.isCollapsed),frame=\(NSStringFromRect(frame)),hidden=\(item.viewController.view.isHidden),subviews=\(item.viewController.view.subviews.count)"
+        }
+        return "split=\(NSStringFromRect(splitView.frame)); \(itemStates.joined(separator: "; "))"
+    }
+
     override func splitView(
         _ splitView: NSSplitView,
         constrainSplitPosition proposedPosition: CGFloat,
