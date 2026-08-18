@@ -521,49 +521,103 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 [12]: https://github.com/deepseek-ai/deepseek-harness/blob/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca/packages/client/ui-sidebar/README.md "官方 Sidebar 模块说明"
 [13]: https://github.com/deepseek-ai/deepseek-harness/blob/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca/packages/client/ui-conversation/README.md "官方 Conversation UI 模块说明"
 [14]: https://github.com/deepseek-ai/deepseek-harness/blob/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca/packages/client/ui-settings-plugins/README.md "官方插件设置机制"
-## 当前进度与跨会话续跑说明（2026-08-18）
 
-本文件现作为**唯一跨会话续跑入口**。新的会话不应依赖外部 `CONTINUE_NEXT_SESSION.md`；开始工作时只需阅读本文件、检查当前分支并运行本节列出的门禁。仓库当前目标分支为 `main`，最新已推送提交为 `9fe78655d5bf7578a033f4af1d8c6699756578be`，对应阶段4设置基础提交；官方规格仍锁定在 `deepseek-ai/deepseek-harness@99f6f02fecdb7dff40c3fbc9470f5907c29f74ca`。
+## 当前进度：完整可审计状态与唯一续跑入口（2026-08-18）
 
-### 已完全完成并已勾选的闭环
+本节是仓库内**唯一有效的跨会话状态记录**。新会话必须以本节和前文“项目宪章”为起点，不得依赖外部 `CONTINUE_NEXT_SESSION.md`、聊天摘要或未提交的本地笔记。所有状态均以代码、官方来源、视觉证据、门禁和GitHub Actions为准；“部分实现”“能编译”“单一fixture通过”均不等于完成。
 
-下列条目只有在**代码实现、官方来源、D0/D1门禁和GitHub Actions证据**同时存在时才被勾选。最新成功回归为 [GitHub Actions run 32146828998](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32146828998)，其HEAD为 `9fe7865`，D1报告为91个text、77个layout、29个asset和10个visual scene，D0 native-only gate通过。
+### A. 当前快照
 
-| TODO条目 | 完成证据 |
+| 项目 | 当前事实 |
 |---|---|
-| T1.3 | 核心Swift UI路径通过无WebView静态门禁；主应用不依赖WebUI渲染、DOM脚本或CSS注入。 |
-| T2.6 | 已建立官方/原生同状态同视口配对规则、放大局部核验记录、差异修复记录和CI截图存在性门禁。 |
-| T7.3 | workspace-search、workspace rename、session rename、workspace delete场景均已接入官方配对契约；搜索、行操作和管理Dialog在macOS-26截图回归中生成并验收。 |
+| 远端仓库 | `NewbieXvwu/deepseek-harness-glass` |
+| 分支 | `main` |
+| 最新HEAD | `1cd6e49b8d0d4b9ed681f90d91152571efbd828f` — `docs: codify native migration quality charter` |
+| 上一个功能提交 | `9fe78655d5bf7578a033f4af1d8c6699756578be` — `feat: add host-driven native settings store` |
+| 锁定官方来源 | `deepseek-ai/deepseek-harness@99f6f02fecdb7dff40c3fbc9470f5907c29f74ca` |
+| 目标平台 | macOS 26+、Xcode 26+、Apple Silicon、Swift 6 |
+| D1规格门禁 | 通过：91 text、77 layout、29 assets、10 visual scenes |
+| D0原生门禁 | 通过：核心UI无WebView、DOM脚本和CSS注入 |
+| 最新已完成CI | [run 32147888544](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32147888544)，HEAD `61574f0`，success |
+| 当前HEAD CI | [run 32148249434](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32148249434)，HEAD `1cd6e49`；记录时仍为 `in_progress`，不可把它当作完成证据 |
+| 当前主阶段 | 阶段4：原生Settings Root与插件兼容基础，尚未完成 |
+| 已勾选TODO条目 | 仅T1.3、T2.6、T7.3；其余条目保持未勾选 |
 
-### 最近已完成的视觉修复
+### B. 阶段状态矩阵
 
-管理Dialog动作按钮曾出现用户指出的左右端帽重复、断裂或方形残留描边。提交 `eca42c2` 将按钮改为单一胶囊绘制路径；提交 `7db32ed` 将禁用primary按钮映射到官方中性品牌token；提交 `082ddfb` 用AppKit桥接复刻官方打开时自动全选预填rename文本。最新配对截图确认workspace/session rename和workspace delete三类场景的按钮端帽、描边、禁用颜色以及输入全选状态已收敛。
+| 阶段 | 状态 | 已完成事实 | 尚未完成或不可勾选的内容 |
+|---|---|---|---|
+| 0. 原则与边界 | 部分完成 | 项目宪章、D0/D1规则、三条已验证任务已写入本文件 | README/贡献指南、支持矩阵、完整D0–D5产品边界仍未形成独立验收闭环 |
+| 1. 仓库与模块化基础 | 部分完成 | Host、Transport、Session、UI、Spec、Snapshot等源码职责已拆分；T1.3已勾选 | 运行时资产迁移清单、独立target/package结构、旧路径全量审计仍未完成 |
+| 2. 官方规格 | 部分完成 | `OfficialUISpec.swift`、official-ui-catalog、visual-scenes、D1校验和来源映射已存在；T2.6已勾选 | locale/token全量生成、布局solver完整夹具、全覆盖场景规格与辅助功能矩阵仍未完成 |
+| 3. Host生命周期 | 部分完成 | `HarnessHostController`、`HostBuildVerifier`、payload缓存和运行时启动路径已实现 | 未验证Host策略、完整诊断页、生命周期混沌测试、下载导出与全面恢复仍未完成 |
+| 4. RPC/SSE | 部分完成 | RPC envelope、URLSession transport、SSE reducer、多个session/workspace/settings DTO已实现；最新新增settings.describe/mutate类型 | 全域facade、round-trip/真实Host契约测试、revision冲突和完整重连测试尚未闭环 |
+| 5. 窗口、三栏与Liquid Glass | 部分完成 | AppKit三栏根容器、根包装overlay、sidebar控制和部分Liquid Glass导航控件已实现 | WindowCoordinator恢复、完整列宽算法测试、材质策略、Reduce Transparency/Contrast与无障碍验证未完成 |
+| 6. 会话状态机 | 部分完成 | NativeSessionStore、history/mux SSE reducer、approval/question pending状态和fixture投影已实现 | 全部ConversationNode、raw-event replay、projection乱序/reconnect、cold/live一致性仍未完成 |
+| 7. 侧栏、工作区与会话浏览 | 阶段性完成 | Sidebar、workspace/session列表、搜索、行操作、rename/delete/fork/archive和Host RPC已实现；T7.3已勾选 | reorder、完整archive/ungrouped语义、所有窄窗口/键盘焦点和全场景回归尚未完成 |
+| 8. Conversation主界面与Composer | 部分完成 | welcome、composer、model/permission控制行和部分prompt/cancel路径已实现；approval/question composer已配对验收 | 完整ChatView、Markdown安全策略、queue/steer、附件、model discovery、stats/todo/goal dock尚未完成 |
+| 9. 工具与复杂节点 | 部分完成 | ApprovalPanel、QuestionComposer和部分tooling inspector fixture存在 | generic tool及bash/read/search/diff/web/workflow/subagent/trajectory/deliverables全套renderer未完成 |
+| 10. 官方设置 | 进行中 | `DSHAPIClient.settingsDescribe/settingsMutate`、`SettingsNamespaceDTO`、secret slot DTO和`NativeSettingsStore`基础已提交 | Settings Root、schema form、draft/dirty/discard、openDocument、General、Models、Credentials、Plugin、Agent Presets和设置视觉回归均未完成 |
+| 11. 插件兼容 | 未开始 | 仅在架构与TODO中规定NativeUIManifest/SwiftAdapter/PluginWebHost分级 | manifest schema/signature、adapter registry、compatibility matrix和隔离Web fallback尚未实现 |
+| 12. 测试与审计 | 部分完成 | D0/D1、视觉场景存在性、macOS-26截图门禁已运行 | reducer、transport chaos、布局golden、UI/accessibility、性能、安全和secret泄露测试未完成 |
+| 13. 发布 | 未开始 | native-ui workflow、缓存和固定payload构建链存在 | 签名、公证、升级流程、支持矩阵、feature flags和发布候选审计未完成 |
 
-### 当前已实现但仍未勾选的部分
+### C. TODO勾选的完整证据边界
 
-`settings.describe` / `settings.mutate` 的类型化DTO已在 `DSHAPIClient.swift` 中接入，`UI/Settings/NativeSettingsStore.swift` 已提供Host驱动的redacted namespace加载、secret槽位状态和revision保护的mutate基础。但它尚未完成Settings Root、draft/dirty/discard、schema表单、credentials/models页面、插件Manifest/Adapter Registry及视觉回归，因此T10.x和T11.x必须继续保持未勾选。
+当前只允许以下三项保持勾选。任何新会话都不得为了“看起来更完整”额外勾选其他条目：
 
-同理，完整的窗口恢复、官方全部会话节点、完整工具renderer、General/Models/Credentials/Plugin设置页、无障碍/性能/契约测试、签名公证和发布审计均未完成；不能因为部分fixture或单一场景通过而勾选对应高层任务。阶段3的管理操作已完成视觉闭环，下一工作焦点是阶段4的原生设置中心。
+| 条目 | 状态 | 证据与边界 |
+|---|---|---|
+| T1.3 | `[x]` 完成 | `check-no-webview.sh` 通过；核心Swift路径不依赖WKWebView、DOM、JavaScript或CSS注入。此勾选不代表PluginWebHost例外已实现。 |
+| T2.6 | `[x]` 完成 | 已建立官方/原生同状态同视口配对、放大局部检查、差异记录、立即修复和CI截图存在性规则。此勾选不代表所有视觉场景都已人工验收。 |
+| T7.3 | `[x]` 完成 | workspace-search、workspace rename、session rename、workspace delete已接入官方场景契约和Host行操作；管理Dialog按钮端帽/描边/禁用色/输入全选已在run 32142821176配对核验。此勾选不代表全部sidebar功能完成。 |
 
-### 新会话首要命令
+### D. 视觉场景矩阵
+
+场景目录来源为 `glass/Sources/Spec/Fixtures/visual-scenes.json`，固定官方commit为 `99f6f02...`。所有场景要求light、DPR 1、同状态、同视口；管理Dialog和workspace search使用1280×1100视口。
+
+| 场景 | 当前证据状态 | 下一步 |
+|---|---|---|
+| `welcome-no-workspace-light` | CI存在性与原生fixture已建立 | 补全完整官方/原生人工差异闭环 |
+| `conversation-details-light` | CI场景契约存在 | 补全RPC fixture、完整node和配对核验 |
+| `tooling-inspector-light` | CI场景契约存在 | 补全tool renderer与详情栏核验 |
+| `workspace-search-light` | 官方/原生配对已验收，WS-01–WS-07已关闭 | 继续纳入全场景回归 |
+| `workspace-rename-light` | 官方/原生配对已验收；run 32142821176确认输入全选和按钮端帽 | 继续纳入全场景回归 |
+| `session-rename-light` | 官方/原生配对已验收；复用官方382×208 Dialog规格 | 继续纳入全场景回归 |
+| `workspace-delete-light` | 官方/原生配对已验收；230px卡片、描述换行、危险按钮已核对 | 继续纳入全场景回归 |
+| `approval-composer-light` | 阶段2配对验收；ApprovalPanel 140px裁切已固定 | 补充更广泛approval状态与RPC测试 |
+| `question-composer-light` | 阶段2配对验收；QuestionComposer 310px卡片已固定 | 补充选择/提交/重连测试 |
+| `sidebar-rail-narrow-light` | 场景契约与CI存在性已建立 | 完成1023px阈值、焦点和官方motion配对 |
+
+### E. 最近修复与可复用经验
+
+管理Dialog的按钮两侧曾出现重复、断裂或方形残留描边。`eca42c2` 将动作按钮改为单一胶囊绘制路径，`7db32ed` 将禁用primary映射到官方中性brand token，`082ddfb` 用AppKit桥接复刻官方打开时自动全选预填rename文本。修复方法和证据保存在 `visual-review/stage3-native/management-modal-review.md`。这一经验必须推广到所有局部控件：先放大检查真实像素，再判断是Shape合成、token、几何、状态还是系统渲染问题，不能先假定是平台差异。
+
+### F. 当前代码入口与下一步顺序
+
+新会话必须按以下顺序开始，不得跳到更下游页面：
+
+1. 阅读本TODO的项目宪章和本“当前进度”章节，确认只剩T1.3、T2.6、T7.3为已勾选项。
+2. 执行 `git status --short`、`git log -10 --oneline`、`python3 glass/ci/check-official-spec.py` 和 `bash glass/ci/check-no-webview.sh`。
+3. 阅读锁定官方的 `packages/client/ui-settings-general/src/client/SettingsRoot.tsx`、`SettingsRoot.module.css`、`packages/host/apiproxy/src/api/settings.ts`、`settings.schema.ts`。
+4. 将Settings侧栏入口连接到全窗口原生Settings Root；复刻800px面板、188px导航轨、54px header、24px圆角、24% mask、section顺序和关闭/焦点行为。
+5. 在同一fixture下捕获官方设置页面基线，再生成原生截图；任何可观察差异立即修复，随后加入visual-scenes和macOS-26门禁。
+6. 实现schema驱动NativeSchemaForm、secret configured/写入/清除、revision conflict、draft/dirty/discard和`settings.openDocument`，再推进General、Models/Credentials和内置插件设置卡片。
+7. 只有阶段4完整视觉与契约验收后，才进入窗口恢复、全场景审计和发布工作；不得以当前Settings DTO/Store基础勾选T10.x或T11.x。
+
+### G. 当前验证命令与远端证据
 
 ```bash
 cd /path/to/deepseek-harness-glass/glass
-# 确认只从本TODO继续
-sed -n '1,520p' TODO.md
 python3 glass/ci/check-official-spec.py
 bash glass/ci/check-no-webview.sh
 git status --short
-git log -8 --oneline
+git log -10 --oneline
+gh run list --repo NewbieXvwu/deepseek-harness-glass --limit 10
 ```
 
-如果继续实现设置中心，应先读取锁定官方源码中的 `packages/client/ui-settings-general/src/client/SettingsRoot.tsx`、`SettingsRoot.module.css`、`packages/host/apiproxy/src/api/settings.ts` 和 `settings.schema.ts`，再为原生实现新增视觉场景；每一轮必须同时捕获同状态官方截图和原生截图，发现任何可观察差异立即修复。
+最新已完成的全门禁回归为 [run 32147888544](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32147888544)，对应提交 `61574f0`。当前TODO宪章提交的 [run 32148249434](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32148249434) 在本记录生成时尚处于运行中；新会话必须重新查询其状态，不得假设成功。
 
-### 明确未完成的主要阶段
+### H. 明确的未完成范围
 
-| 阶段 | 当前状态 |
-|---|---|
-| 阶段4：原生Settings Root、schema form、models/credentials与插件设置 | 进行中，仅RPC/Store基础已完成 |
-| 阶段5：命令、窗口偏好与恢复 | 未开始 |
-| 阶段6：全场景视觉、无障碍、性能与回归门禁 | 未完成 |
-| 阶段7：签名、公证、升级流程与发布候选审计 | 未完成 |
+完整Settings Root、schema form、General/Models/Credentials/Plugin pages、NativeUIManifest、SwiftAdapterRegistry、PluginWebHost隔离POC、完整ConversationNode和tool renderer、window recovery、commands、accessibility/performance/security tests、签名公证、升级支持矩阵和发布候选审计均未完成。任何新会话必须保持这些任务未勾选，直到代码、官方来源、测试、配对截图和macOS-26回归全部闭环。
