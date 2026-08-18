@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "glass/Sources/**"
+      - "glass/Tests/**"
       - "glass/assemble.sh"
       - "glass/Info.plist"
       - "glass/Package.swift"
@@ -23,6 +24,7 @@ on:
   pull_request:
     paths:
       - "glass/Sources/**"
+      - "glass/Tests/**"
       - "glass/assemble.sh"
       - "glass/Info.plist"
       - "glass/Package.swift"
