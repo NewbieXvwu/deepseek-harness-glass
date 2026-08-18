@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// 受支持的官方 WebUI 基线。所有首屏文字、三栏几何与主题色均从该基线的
-/// locale、ui-layout 和 ui-theme 源码提取；核心 View 不得自行硬编码产品文本。
+/// 已锁定 DeepSeek Harness WebUI 基线的原生规格。
+/// 首屏文本、token 和布局值只来自该基线的 locale/CSS/组件源码，禁止由 View 自行创造产品文案。
 enum OfficialUISpec {
     static let deepSeekHarnessCommit = "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
 
@@ -16,52 +16,65 @@ enum OfficialUISpec {
         static let detailsDefault: CGFloat = 360
         static let detailsMinimum: CGFloat = 300
         static let detailsMaximum: CGFloat = 520
+
+        // Source: ConversationRoot.module.css / HeroShell.module.css / InputBar.module.css
+        static let chatContentMaximum: CGFloat = 748
+        static let composerMaximum: CGFloat = 780
+        static let composerClearance: CGFloat = 16
+        static let composerCornerRadius: CGFloat = 22
+        static let heroGap: CGFloat = 12
+        static let sidebarInlinePadding: CGFloat = 12
     }
 
     enum Text {
-        // Source: packages/client/ui-sidebar/src/client/locales.ts (zh)
-        static let newSession = "新会话"
-        static let newSessionAccessibility = "新建会话"
-        static let collapseSidebarAccessibility = "收起侧边栏"
-        static let openSidebarAccessibility = "打开侧边栏"
+        // Source: packages/client/ui-sidebar/src/client/locales.ts (en)
+        static let newSession = "New Session"
+        static let newSessionAccessibility = "New session"
+        static let collapseSidebarAccessibility = "Collapse sidebar"
+        static let openSidebarAccessibility = "Open sidebar"
 
-        // Source: packages/client/ui-workspace/src/client/locales.ts (zh)
-        static let workspaces = "工作区"
-        static let addWorkspace = "添加工作区"
+        // Source: packages/client/ui-workspace/src/client/locales.ts (en)
+        static let workspaces = "Workspaces"
+        static let noSessionsYet = "No sessions yet"
+        static let addWorkspace = "Add workspace"
 
-        // Source: packages/client/ui-settings-general/src/client/locales.ts (zh)
-        static let settings = "设置"
+        // Source: packages/client/ui-settings-general/src/client/locales.ts (en)
+        static let settings = "Settings"
 
-        // Source: packages/client/ui-conversation/src/client/locales.ts (zh)
-        static let chat = "对话"
-        static let heroHeadline = "探索未至之境"
-        static let preview = "预览版"
-        static let chooseWorkspace = "选择工作区"
-        static let composerWorkspacePlaceholder = "选择一个工作区开始"
-        static let composerDefaultPlaceholder = "给智能体发消息"
-        static let sendMessageAccessibility = "发送消息"
-        static let details = "详情"
-        static let closeDetailsAccessibility = "关闭详情"
-        static let detailsEmpty = "点击消息流中的工具行查看详情"
+        // Source: packages/client/ui-agent-preset/src/client/locales.ts (en)
+        static let standardMode = "Standard mode"
+
+        // Source: packages/client/ui-conversation/src/client/locales.ts (en)
+        static let chat = "Chat"
+        static let heroHeadline = "Into the Unknown"
+        static let preview = "Preview"
+        static let chooseWorkspace = "Choose workspace"
+        static let composerWorkspacePlaceholder = "Choose a workspace to start"
+        static let composerDefaultPlaceholder = "Message the agent"
+        static let sendMessageAccessibility = "Send message"
+        static let details = "Details"
+        static let closeDetailsAccessibility = "Close details"
+        static let detailsEmpty = "Click a tool row in the message flow to view its details"
     }
 
     enum Token {
         // Source: packages/client/ui-theme/src/styles/design-platform.css
-        static let baseDark = Color(red: 21 / 255, green: 21 / 255, blue: 23 / 255)
-        static let layerDark = Color(red: 35 / 255, green: 35 / 255, blue: 36 / 255)
-        static let sidebarDark = Color(red: 27 / 255, green: 27 / 255, blue: 28 / 255)
-        static let controlDark = Color(red: 44 / 255, green: 44 / 255, blue: 46 / 255)
-        static let labelPrimaryDark = Color(red: 249 / 255, green: 250 / 255, blue: 251 / 255)
-        static let labelSecondaryDark = Color(red: 207 / 255, green: 211 / 255, blue: 214 / 255)
-        static let labelTertiaryDark = Color(red: 151 / 255, green: 157 / 255, blue: 166 / 255)
-        static let separatorDark = Color.white.opacity(0.12)
-        static let separatorThinDark = Color.white.opacity(0.06)
-        static let activeFillDark = Color(red: 44 / 255, green: 44 / 255, blue: 46 / 255)
-        static let brandLight = Color(red: 249 / 255, green: 250 / 255, blue: 251 / 255)
+        static let base = Color.white
+        static let sidebar = Color(red: 249 / 255, green: 250 / 255, blue: 251 / 255)
+        static let elevated = Color.white
+        static let primary = Color(red: 15 / 255, green: 17 / 255, blue: 21 / 255)
+        static let secondary = Color(red: 97 / 255, green: 102 / 255, blue: 107 / 255)
+        static let caption = Color(red: 151 / 255, green: 157 / 255, blue: 166 / 255)
+        static let hairline = Color.black.opacity(0.04)
+        static let border = Color.black.opacity(0.10)
+        static let interactiveHover = Color(red: 235 / 255, green: 238 / 255, blue: 242 / 255)
+        static let businessBlue = Color(red: 65 / 255, green: 118 / 255, blue: 230 / 255)
+        static let businessBlueSoft = Color(red: 228 / 255, green: 237 / 255, blue: 253 / 255)
+        static let businessBlueGlow = Color(red: 97 / 255, green: 135 / 255, blue: 216 / 255).opacity(0.08)
     }
 }
 
-/// 与官方 `computeColumns` 相同的三栏 concession chain。
+/// 与官方 `computeColumns` 保持相同让步顺序：先压缩详情列、再关闭详情列，侧栏不让步。
 struct OfficialColumnLayout: Equatable {
     let sidebar: CGFloat
     let center: CGFloat
@@ -76,22 +89,14 @@ struct OfficialColumnLayout: Equatable {
             : min(max(detailsPreference.rounded(), OfficialUISpec.Layout.detailsMinimum), OfficialUISpec.Layout.detailsMaximum)
 
         if sidebar + preferredDetails + OfficialUISpec.Layout.centerMinimum <= viewport {
-            return OfficialColumnLayout(
-                sidebar: sidebar,
-                center: viewport - sidebar - preferredDetails,
-                details: preferredDetails
-            )
+            return OfficialColumnLayout(sidebar: sidebar, center: viewport - sidebar - preferredDetails, details: preferredDetails)
         }
 
         let reducedDetails = preferredDetails == 0
             ? 0
             : max(OfficialUISpec.Layout.detailsMinimum, viewport - sidebar - OfficialUISpec.Layout.centerMinimum)
         if sidebar + reducedDetails + OfficialUISpec.Layout.centerMinimum <= viewport {
-            return OfficialColumnLayout(
-                sidebar: sidebar,
-                center: OfficialUISpec.Layout.centerMinimum,
-                details: reducedDetails
-            )
+            return OfficialColumnLayout(sidebar: sidebar, center: OfficialUISpec.Layout.centerMinimum, details: reducedDetails)
         }
 
         return OfficialColumnLayout(sidebar: sidebar, center: max(0, viewport - sidebar), details: 0)

@@ -27,7 +27,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             return
         }
 
-        let root = NativeAppShell(mode: .welcome, viewportWidth: 1280, darkAppearance: true)
+        let root = NativeAppShell(mode: .welcome, viewportWidth: 1280, darkAppearance: false)
         let hostingView = NSHostingView(rootView: root)
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1280, height: 840),
