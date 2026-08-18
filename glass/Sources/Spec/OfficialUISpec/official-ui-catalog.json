@@ -82,7 +82,19 @@
     "stopGeneratingAccessibility": { "value": "Stop generating", "source": "packages/client/ui-conversation/src/client/locales.ts:input.stop" },
     "commandsAccessibility": { "value": "Commands", "source": "packages/client/ui-conversation/src/client/locales.ts:input.commands" },
     "pendingImages": { "value": "Pending images", "source": "packages/client/ui-conversation/src/client/locales.ts:image.pending" },
-    "removeImageTemplate": { "value": "Remove image {name}", "source": "packages/client/ui-conversation/src/client/locales.ts:image.remove" }
+    "removeImageTemplate": { "value": "Remove image {name}", "source": "packages/client/ui-conversation/src/client/locales.ts:image.remove" },
+    "toolSearch": { "value": "Search", "source": "packages/client/ui-tool/src/client/tool/models/tool-call-model.ts:VARIANT_TITLES" },
+    "toolRead": { "value": "Read", "source": "packages/client/ui-tool/src/client/tool/models/tool-call-model.ts:VARIANT_TITLES" },
+    "toolBash": { "value": "Bash", "source": "packages/client/ui-tool/src/client/tool/models/tool-call-model.ts:VARIANT_TITLES" },
+    "toolWrite": { "value": "Write", "source": "packages/client/ui-tool/src/client/tool/models/tool-call-model.ts:VARIANT_TITLES" },
+    "toolEdit": { "value": "Edit", "source": "packages/client/ui-tool/src/client/tool/models/tool-call-model.ts:VARIANT_TITLES" },
+    "toolCode": { "value": "Code", "source": "packages/client/ui-tool/src/client/tool/models/tool-call-model.ts:VARIANT_TITLES" },
+    "toolCall": { "value": "Tool call", "source": "packages/client/ui-tool/src/client/tool/models/tool-call-model.ts:VARIANT_TITLES" },
+    "toolRunning": { "value": "Running", "source": "packages/client/ui-conversation/src/client/locales.ts:row.running" },
+    "toolFailed": { "value": "Failed", "source": "packages/client/ui-conversation/src/client/locales.ts:row.failed" },
+    "toolStopped": { "value": "Stopped", "source": "packages/client/ui-conversation/src/client/locales.ts:row.stopped" },
+    "toolDetailsRunning": { "value": "Running…", "source": "packages/client/ui-conversation/src/client/locales.ts:details.running" },
+    "toolSummarySeparator": { "value": "·", "source": "packages/client/ui-tool/src/client/tool/models/tool-call-model.ts:toolRowModel" }
   },
   "assets": {
     "brand-wordmark": { "source": "packages/client/ui-primitives/src/BrandWordmark.tsx" },
@@ -103,6 +115,12 @@
     "icon-ellipsis": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconEllipsisOutline16" },
     "icon-branch": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconBranchOutline16" },
     "icon-archive": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconArchiveOutline20" },
-    "icon-stop": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconStopFill16" }
+    "icon-stop": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconStopFill16" },
+    "icon-tool-search": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconSearchOutline16" },
+    "icon-tool-read": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconBrowseOutline16" },
+    "icon-tool-bash": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconApiOutline14" },
+    "icon-tool-edit": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconEditOutline16" },
+    "icon-tool-code": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconCodeOutline16" },
+    "icon-tool-others": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconSparkle16" }
   }
 }

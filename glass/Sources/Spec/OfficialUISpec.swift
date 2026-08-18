@@ -94,6 +94,18 @@ enum OfficialUISpec {
         static let chatLoadingHistory = "Loading history…"
         static let chatLoadOlder = "Load earlier"
         static let chatToBottom = "Back to bottom"
+        static let toolSearch = "Search"
+        static let toolRead = "Read"
+        static let toolBash = "Bash"
+        static let toolWrite = "Write"
+        static let toolEdit = "Edit"
+        static let toolCode = "Code"
+        static let toolCall = "Tool call"
+        static let toolRunning = "Running"
+        static let toolFailed = "Failed"
+        static let toolStopped = "Stopped"
+        static let toolDetailsRunning = "Running…"
+        static let toolSummarySeparator = "·"
     }
 
     enum Token {

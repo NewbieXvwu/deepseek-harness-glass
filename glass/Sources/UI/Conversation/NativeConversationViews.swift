@@ -55,9 +55,12 @@ private struct NativeActiveConversationSurface: View {
         case .ready:
             NativeTranscriptScrollView(
                 items: sessionStore.items,
+                toolInvocations: sessionStore.toolInvocations,
+                selectedToolCallID: sessionStore.selectedToolCallID,
                 hasMoreHistory: sessionStore.hasMoreHistory,
                 isLoadingOlderHistory: sessionStore.isLoadingOlderHistory,
-                loadOlderHistory: sessionStore.loadOlderHistory
+                loadOlderHistory: sessionStore.loadOlderHistory,
+                selectToolCall: sessionStore.selectToolCall
             )
         }
     }
@@ -79,10 +82,37 @@ private struct NativeConversationHeader: View {
 }
 
 private struct NativeTranscriptScrollView: View {
+    private enum TimelineItem: Identifiable {
+        case message(NativeSessionStore.TranscriptItem)
+        case tool(NativeSessionStore.ToolInvocation)
+
+        var id: String {
+            switch self {
+            case let .message(item): item.id
+            case let .tool(invocation): "tool-\(invocation.id)"
+            }
+        }
+
+        var sequence: Int {
+            switch self {
+            case let .message(item): item.sequence
+            case let .tool(invocation): invocation.sequence
+            }
+        }
+    }
+
     let items: [NativeSessionStore.TranscriptItem]
+    let toolInvocations: [NativeSessionStore.ToolInvocation]
+    let selectedToolCallID: String?
     let hasMoreHistory: Bool
     let isLoadingOlderHistory: Bool
     let loadOlderHistory: () -> Void
+    let selectToolCall: (String?) -> Void
+
+    private var timeline: [TimelineItem] {
+        (items.map(TimelineItem.message) + toolInvocations.map(TimelineItem.tool))
+            .sorted { $0.sequence < $1.sequence }
+    }
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -100,9 +130,19 @@ private struct NativeTranscriptScrollView: View {
                         .disabled(isLoadingOlderHistory)
                         .accessibilityLabel(OfficialUISpec.Text.chatLoadOlder)
                     }
-                    ForEach(items) { item in
-                        NativeTranscriptBubble(item: item)
-                            .id(item.id)
+                    ForEach(timeline) { entry in
+                        switch entry {
+                        case let .message(item):
+                            NativeTranscriptBubble(item: item)
+                                .id(item.id)
+                        case let .tool(invocation):
+                            NativeToolRow(
+                                invocation: invocation,
+                                selected: selectedToolCallID == invocation.id,
+                                inspect: { selectToolCall(invocation.id) }
+                            )
+                            .id(entry.id)
+                        }
                     }
                 }
                 .frame(maxWidth: OfficialUISpec.Layout.chatContentMaximum, alignment: .leading)
@@ -110,7 +150,7 @@ private struct NativeTranscriptScrollView: View {
                 .padding(.horizontal, OfficialUISpec.Layout.composerClearance)
                 .padding(.vertical, OfficialUISpec.Layout.chatTranscriptInset)
             }
-            .onChange(of: items.last?.id) { _, itemID in
+            .onChange(of: timeline.last?.id) { _, itemID in
                 guard let itemID else { return }
                 withAnimation(.easeOut(duration: 0.18)) {
                     proxy.scrollTo(itemID, anchor: .bottom)
@@ -437,7 +477,13 @@ private struct NativeSendButtonStyle: ButtonStyle {
 }
 
 struct NativeDetailsView: View {
+    @ObservedObject var sessionStore: NativeSessionStore
     let close: () -> Void
+
+    private var selectedInvocation: NativeSessionStore.ToolInvocation? {
+        guard let selectedID = sessionStore.selectedToolCallID else { return nil }
+        return sessionStore.toolInvocations.first { $0.id == selectedID }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -459,13 +505,8 @@ struct NativeDetailsView: View {
                 Rectangle().fill(OfficialUISpec.Token.hairline).frame(height: 1)
             }
 
-            Spacer(minLength: 0)
-            Text(OfficialUISpec.Text.detailsEmpty)
-                .font(.system(size: 13, weight: .regular))
-                .foregroundStyle(OfficialUISpec.Token.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 28)
-            Spacer(minLength: 0)
+            NativeToolDetailsBody(invocation: selectedInvocation)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(OfficialUISpec.Token.base)
     }

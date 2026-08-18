@@ -40,6 +40,26 @@ final class NativeSessionStore: ObservableObject {
         let data: Data
     }
 
+    /// Source: `SessionEventMap['tool/call'|'tool/result']`. This generic native
+    /// model preserves raw Host fields and optional view carrier without guessing
+    /// a plugin-specific card schema.
+    struct ToolInvocation: Identifiable {
+        enum State: Equatable {
+            case running
+            case completed
+            case failed
+            case stopped
+        }
+
+        let id: String
+        let name: String
+        let arguments: String
+        var output: String?
+        var state: State
+        let sequence: Int
+        var view: JSONValue?
+    }
+
     @Published private(set) var phase: Phase = .idle
     @Published private(set) var items: [TranscriptItem] = []
     @Published private(set) var hasMoreHistory = false
@@ -48,6 +68,8 @@ final class NativeSessionStore: ObservableObject {
     @Published private(set) var isSubmittingPrompt = false
     @Published var draft = ""
     @Published private(set) var pendingImages: [PendingImage] = []
+    @Published private(set) var toolInvocations: [ToolInvocation] = []
+    @Published private(set) var selectedToolCallID: String?
     @Published private(set) var lastError: DSHTransportError?
 
     private var historyTask: Task<Void, Never>?
@@ -81,6 +103,8 @@ final class NativeSessionStore: ObservableObject {
         self.endpoint = endpoint
         activeSessionID = sessionID
         items = []
+        toolInvocations = []
+        selectedToolCallID = nil
         appliedSequences = []
         hasMoreHistory = false
         isLoadingOlderHistory = false
@@ -122,6 +146,8 @@ final class NativeSessionStore: ObservableObject {
         activeSessionID = nil
         phase = .idle
         items = []
+        toolInvocations = []
+        selectedToolCallID = nil
         appliedSequences = []
         hasMoreHistory = false
         isLoadingOlderHistory = false
@@ -247,7 +273,7 @@ final class NativeSessionStore: ObservableObject {
 
     private func applyHistory(_ entries: [SessionHistoryEntryDTO]) {
         for entry in entries.sorted(by: { $0.event.seq < $1.event.seq }) {
-            apply(event: entry.event)
+            apply(event: entry.event, view: entry.view?.view)
         }
     }
 
@@ -260,10 +286,10 @@ final class NativeSessionStore: ObservableObject {
               let eventValue = object["event"],
               let event = decode(SessionEventDTO.self, from: eventValue)
         else { return }
-        apply(event: event)
+        apply(event: event, view: object["view"]?.objectValue?["view"])
     }
 
-    private func apply(event: SessionEventDTO) {
+    private func apply(event: SessionEventDTO, view: JSONValue? = nil) {
         if event.type != "assistant/chunk" {
             guard appliedSequences.insert(event.seq).inserted else { return }
         }
@@ -293,6 +319,10 @@ final class NativeSessionStore: ObservableObject {
         case "assistant/chunk":
             isRunning = true
             applyAssistantChunk(event)
+        case "tool/call":
+            applyToolCall(event, view: view)
+        case "tool/result":
+            applyToolResult(event, view: view)
         case "turn/end":
             isRunning = false
             settleStreaming()
@@ -328,6 +358,43 @@ final class NativeSessionStore: ObservableObject {
         }
     }
 
+    private func applyToolCall(_ event: SessionEventDTO, view: JSONValue?) {
+        guard let data = event.data.objectValue,
+              let callID = data["callId"]?.stringValue,
+              let name = data["name"]?.stringValue,
+              let arguments = data["arguments"]?.stringValue
+        else { return }
+        guard !toolInvocations.contains(where: { $0.id == callID }) else { return }
+        toolInvocations.append(ToolInvocation(
+            id: callID,
+            name: name,
+            arguments: arguments,
+            output: nil,
+            state: .running,
+            sequence: event.seq,
+            view: view
+        ))
+        toolInvocations.sort { $0.sequence < $1.sequence }
+    }
+
+    private func applyToolResult(_ event: SessionEventDTO, view: JSONValue?) {
+        guard let data = event.data.objectValue,
+              let message = data["message"]?.objectValue,
+              let source = message["source"]?.objectValue,
+              let callID = source["callId"]?.stringValue
+        else { return }
+        let errorCode = data["error"]?.objectValue?["code"]?.stringValue
+        let output = textContent(in: .object(message)) ?? prettyContent(in: message)
+        guard let index = toolInvocations.firstIndex(where: { $0.id == callID }) else { return }
+        toolInvocations[index].output = output
+        toolInvocations[index].state = errorCode == "interrupted" ? .stopped : (errorCode == nil ? .completed : .failed)
+        toolInvocations[index].view = view ?? toolInvocations[index].view
+    }
+
+    func selectToolCall(_ callID: String?) {
+        selectedToolCallID = callID
+    }
+
     private func settleStreaming() {
         for index in items.indices where items[index].isStreaming {
             items[index].isStreaming = false
@@ -341,6 +408,15 @@ final class NativeSessionStore: ObservableObject {
             items.append(item)
             items.sort { $0.sequence < $1.sequence || ($0.sequence == $1.sequence && $0.id < $1.id) }
         }
+    }
+
+    private func prettyContent(in message: [String: JSONValue]) -> String? {
+        guard let content = message["content"]?.arrayValue,
+              let data = try? JSONEncoder().encode(content),
+              let rendered = String(data: data, encoding: .utf8),
+              !rendered.isEmpty
+        else { return nil }
+        return rendered
     }
 
     /// Source: `sessions.schema.ts:contentBlockSchema`; the native transcript

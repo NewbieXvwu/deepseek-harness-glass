@@ -174,7 +174,10 @@ final class NativeShellController: NativeSplitViewController {
     }
 
     private static func details(for presentation: NativeShellPresentation) -> NativeDetailsView {
-        NativeDetailsView(close: { presentation.detailsVisible = false })
+        NativeDetailsView(
+            sessionStore: presentation.sessionStore,
+            close: { presentation.detailsVisible = false }
+        )
     }
 }
 
