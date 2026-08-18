@@ -707,21 +707,30 @@ private struct NativeWorkspaceManagementDialogOverlay: View {
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            Text(title)
-                .font(.system(size: 14, weight: .regular))
-                .frame(width: width, height: OfficialUISpec.Layout.modalActionButtonHeight)
+            ZStack {
+                Capsule()
+                    .fill(actionBackground(emphasis: emphasis))
+                if let border = actionBorder(emphasis: emphasis) {
+                    Capsule()
+                        .stroke(border, lineWidth: OfficialUISpec.Layout.modalCardBorder)
+                }
+                Text(title)
+                    .font(.system(size: 14, weight: .regular))
+                    .foregroundStyle(actionForeground(emphasis: emphasis))
+            }
+            .frame(width: width, height: OfficialUISpec.Layout.modalActionButtonHeight)
+            .clipShape(Capsule())
+            .compositingGroup()
+            // Source: Button.module.css:.button:disabled — opacity applies to
+            // the complete button, not to separately substituted fill/border tokens.
+            .opacity(disabled ? 0.4 : 1)
         }
         .buttonStyle(.plain)
-        .foregroundStyle(actionForeground(emphasis: emphasis, disabled: disabled))
-        .background(actionBackground(emphasis: emphasis, disabled: disabled), in: Capsule())
-        .overlay {
-            Capsule().stroke(actionBorder(emphasis: emphasis, disabled: disabled), lineWidth: OfficialUISpec.Layout.modalCardBorder)
-        }
+        .contentShape(Capsule())
         .disabled(disabled)
     }
 
-    private func actionForeground(emphasis: ModalActionEmphasis, disabled: Bool) -> Color {
-        if disabled { return OfficialUISpec.Token.elevated }
+    private func actionForeground(emphasis: ModalActionEmphasis) -> Color {
         switch emphasis {
         case .outline:
             return OfficialUISpec.Token.primary
@@ -732,8 +741,7 @@ private struct NativeWorkspaceManagementDialogOverlay: View {
         }
     }
 
-    private func actionBackground(emphasis: ModalActionEmphasis, disabled: Bool) -> Color {
-        if disabled { return OfficialUISpec.Token.caption }
+    private func actionBackground(emphasis: ModalActionEmphasis) -> Color {
         switch emphasis {
         case .outline, .danger:
             return Color.clear
@@ -742,10 +750,11 @@ private struct NativeWorkspaceManagementDialogOverlay: View {
         }
     }
 
-    private func actionBorder(emphasis: ModalActionEmphasis, disabled: Bool) -> Color {
+    private func actionBorder(emphasis: ModalActionEmphasis) -> Color? {
         switch emphasis {
         case .primary:
-            return disabled ? OfficialUISpec.Token.caption : OfficialUISpec.Token.businessBlue
+            // Source: Button.module.css:.primary — fill only, with no border.
+            return nil
         case .outline, .danger:
             return OfficialUISpec.Token.border
         }
