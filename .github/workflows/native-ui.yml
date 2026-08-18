@@ -146,6 +146,11 @@ jobs:
           python3 glass/ci/check-official-locale-literals.py
           python3 glass/ci/test-official-locale-literals.py
 
+      - name: Validate generated official theme tokens
+        run: |
+          python3 glass/ci/check-official-theme-tokens.py \
+            --official-root .reference/deepseek-harness
+
       - name: Enforce native-only core UI
         run: ./glass/ci/check-no-webview.sh
 
@@ -230,6 +235,8 @@ jobs:
             glass/Sources/Spec/OfficialUISpecBuild.swift
             glass/Sources/Spec/Locales/official-locales.json
             glass/Sources/Spec/OfficialLocaleCatalog.swift
+            glass/Sources/Spec/Tokens/official-theme-tokens.json
+            glass/Sources/Spec/OfficialThemeCatalog.swift
             glass/Package.swift
           if-no-files-found: error
           retention-days: 14

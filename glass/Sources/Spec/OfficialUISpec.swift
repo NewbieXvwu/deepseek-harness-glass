@@ -23,6 +23,7 @@ enum OfficialUISpec {
         static let composerMaximum: CGFloat = 780
         static let composerClearance: CGFloat = 16
         static let composerSeatTrailingGutter: CGFloat = 8
+        static let composerControlHeight: CGFloat = 28
         static let composerCornerRadius: CGFloat = 22
         static let heroGap: CGFloat = 12
         // Source: ui-conversation/chat/MessageItem.module.css
@@ -31,6 +32,9 @@ enum OfficialUISpec {
         static let chatUserMessageMaximum: CGFloat = 525
         static let chatMessageCornerRadius: CGFloat = 22
         static let sidebarInlinePadding: CGFloat = 12
+        // Source: packages/client/ui-primitives/src/BrandWordmark.tsx → official SVG viewBox.
+        static let sidebarWordmarkWidth: CGFloat = 182
+        static let sidebarWordmarkHeight: CGFloat = 24
 
         // Source: packages/client/ui-workspace/src/client/WorkspaceBrowser.module.css
         static let workspaceSectionHeaderHeight: CGFloat = 36
@@ -241,30 +245,147 @@ enum OfficialUISpec {
         }
     }
 
+    /// Backward-compatible native aliases. Every value resolves through the generated,
+    /// provenance-carrying `Theme` catalog instead of a hand-authored RGB literal.
     enum Token {
-        // Source: packages/client/ui-theme/src/styles/design-platform.css
-        static let base = Color.white
-        static let sidebar = Color(red: 249 / 255, green: 250 / 255, blue: 251 / 255)
-        static let elevated = Color.white
-        static let primary = Color(red: 15 / 255, green: 17 / 255, blue: 21 / 255)
-        static let secondary = Color(red: 97 / 255, green: 102 / 255, blue: 107 / 255)
-        static let caption = Color(red: 151 / 255, green: 157 / 255, blue: 166 / 255)
-        static let hairline = Color.black.opacity(0.04)
-        static let border = Color.black.opacity(0.10)
-        static let interactiveHover = Color(red: 235 / 255, green: 238 / 255, blue: 242 / 255)
-        static let businessBlue = Color(red: 65 / 255, green: 118 / 255, blue: 230 / 255)
-        static let businessBlueSoft = Color(red: 228 / 255, green: 237 / 255, blue: 253 / 255)
-        static let businessBlueGlow = Color(red: 97 / 255, green: 135 / 255, blue: 216 / 255).opacity(0.08)
-        // Source: ui-theme/src/styles/design-platform.css (`--dsw-specific-bubble`)
-        static let conversationBubble = Color(red: 225 / 255, green: 235 / 255, blue: 253 / 255)
-        // Source: ui-theme/src/styles/design-platform.css (`--dsw-alias-state-warn-*`)
-        static let warningPrimary = Color(red: 181 / 255, green: 112 / 255, blue: 0 / 255)
-        static let warningTertiary = Color(red: 255 / 255, green: 244 / 255, blue: 218 / 255)
-        static let warningBorder = Color(red: 235 / 255, green: 188 / 255, blue: 97 / 255)
-        // Source: ui-theme design-platform.css (--dsw-alias-bg-mask-1 light)
-        static let modalMask = Color.black.opacity(0.24)
-        // Source: ui-theme design-platform.css (--dsw-alias-state-error-primary)
-        static let errorPrimary = Color(red: 209 / 255, green: 56 / 255, blue: 69 / 255)
+        static let base = Theme.aliasBgBase.adaptiveColor
+        static let sidebar = Theme.specificSidebarFill.adaptiveColor
+        static let elevated = Theme.aliasBgLayer1.adaptiveColor
+        static let primary = Theme.aliasLabelPrimary.adaptiveColor
+        static let primaryForeground = Theme.aliasLabelPrimaryForeground.adaptiveColor
+        static let primaryInverted = Theme.aliasLabelPrimaryInverted.adaptiveColor
+        static let secondary = Theme.aliasLabelSecondary.adaptiveColor
+        static let caption = Theme.aliasLabelCaption.adaptiveColor
+        static let hairline = Theme.aliasBorderL1.adaptiveColor
+        static let border = Theme.aliasBorderL2.adaptiveColor
+        static let interactiveHover = Theme.aliasInteractiveBgHover.adaptiveColor
+        static let businessBlue = Theme.aliasStateBusinessPrimary.adaptiveColor
+        static let businessBlueSoft = Theme.aliasStateBusinessTertiary.adaptiveColor
+        static let conversationBubble = Theme.specificBubble.adaptiveColor
+        static let warningPrimary = Theme.aliasStateWarnPrimary.adaptiveColor
+        static let warningTertiary = Theme.aliasStateWarnTertiary.adaptiveColor
+        static let warningBorder = Theme.aliasStateWarnSecondary.adaptiveColor
+        static let modalMask = Theme.aliasBgMask1.adaptiveColor
+        static let modalMask2 = Theme.aliasBgMask2.adaptiveColor
+        static let modalMask3 = Theme.aliasBgMask3.adaptiveColor
+        static let errorPrimary = Theme.aliasStateErrorPrimary.adaptiveColor
+    }
+
+    /// Source: packages/client/ui-theme/src/styles/gradient-shadow-text.css:7
+    enum Shadow {
+        /// `--dsw-shadow-lv2`: 0 4px 12px rgba(0,0,0,.02), 0 2px 8px rgba(0,0,0,.04).
+        static let level2OuterColor = Theme.aliasBgMask2.adaptiveColor
+        static let level2OuterRadius: CGFloat = 6
+        static let level2OuterY: CGFloat = 4
+        static let level2InnerColor = Theme.aliasBorderL1.adaptiveColor
+        static let level2InnerRadius: CGFloat = 4
+        static let level2InnerY: CGFloat = 2
+    }
+
+    /// Official CSS repeatedly uses this 2px-based rhythm across InputBar, Modal,
+    /// SidebarRoot, WorkspaceBrowser, and conversation components. Source values are
+    /// verified in their corresponding locked `*.module.css` declarations.
+    enum Spacing {
+        static let p0: CGFloat = 0
+        static let p1: CGFloat = 1
+        static let p2: CGFloat = 2
+        static let p4: CGFloat = 4
+        static let p5: CGFloat = 5
+        static let p6: CGFloat = 6
+        static let p7: CGFloat = 7
+        static let p8: CGFloat = 8
+        static let p10: CGFloat = 10
+        static let p12: CGFloat = 12
+        static let p14: CGFloat = 14
+        static let p16: CGFloat = 16
+        static let p18: CGFloat = 18
+        static let p20: CGFloat = 20
+        static let p22: CGFloat = 22
+        static let p24: CGFloat = 24
+        static let p28: CGFloat = 28
+        static let p32: CGFloat = 32
+        static let p34: CGFloat = 34
+        static let p36: CGFloat = 36
+        static let p56: CGFloat = 56
+        static let p60: CGFloat = 60
+    }
+
+    /// Official radii from the locked component CSS; names preserve their px roles.
+    enum Radius {
+        static let r1: CGFloat = 1
+        static let r2: CGFloat = 2
+        static let r3: CGFloat = 3
+        static let r4: CGFloat = 4
+        static let r6: CGFloat = 6
+        static let r8: CGFloat = 8
+        static let r12: CGFloat = 12
+        static let r14: CGFloat = 14
+        static let r18: CGFloat = 18
+        static let r20: CGFloat = 20
+        static let r22: CGFloat = 22
+        static let r24: CGFloat = 24
+        static let pill: CGFloat = 999
+    }
+
+    /// Non-spacing geometric values with explicit upstream CSS or asset sources.
+    enum Geometry {
+        static let px0: CGFloat = 0
+        static let px1: CGFloat = 1
+        static let px2: CGFloat = 2
+        static let px6: CGFloat = 6
+        static let px8: CGFloat = 8
+        static let px10: CGFloat = 10
+        static let px12: CGFloat = 12
+        static let px14: CGFloat = 14
+        static let px16: CGFloat = 16
+        static let px17: CGFloat = 17
+        static let px18: CGFloat = 18
+        static let px20: CGFloat = 20
+        static let px22: CGFloat = 22
+        static let px24: CGFloat = 24
+        static let px25: CGFloat = 25
+        static let px26: CGFloat = 26
+        static let px28: CGFloat = 28
+        static let px32: CGFloat = 32
+        static let px34: CGFloat = 34
+        static let px36: CGFloat = 36
+        static let px40: CGFloat = 40
+        static let px42: CGFloat = 42
+        static let px44: CGFloat = 44
+        static let px48: CGFloat = 48
+        static let px52: CGFloat = 52
+        static let px56: CGFloat = 56
+        static let px60: CGFloat = 60
+        static let px66: CGFloat = 66
+        static let px112: CGFloat = 112
+        static let px140: CGFloat = 140
+        static let px220: CGFloat = 220
+        static let px224: CGFloat = 224
+        static let px260: CGFloat = 260
+        static let px336: CGFloat = 336
+        static let px360: CGFloat = 360
+        static let px400: CGFloat = 400
+    }
+
+    /// Locked typography projection. The standard roles are generated from the
+    /// `--dsw-font-*` declarations in gradient-shadow-text.css:142–231; `heroTitle`
+    /// is the explicit HeroShell component declaration at lines 35–37.
+    enum Typography {
+        static let xxxs11 = Font.system(size: 11, weight: .regular)
+        static let xxxsStrong11 = Font.system(size: 11, weight: .medium)
+        static let xxs12 = Font.system(size: 12, weight: .regular)
+        static let xxsStrong12 = Font.system(size: 12, weight: .medium)
+        static let xs13 = Font.system(size: 13, weight: .regular)
+        static let xsStrong13 = Font.system(size: 13, weight: .medium)
+        static let s14 = Font.system(size: 14, weight: .regular)
+        static let sStrong14 = Font.system(size: 14, weight: .medium)
+        static let markdownTableHead15 = Font.system(size: 15, weight: .medium)
+        static let base16 = Font.system(size: 16, weight: .regular)
+        static let baseStrong16 = Font.system(size: 16, weight: .medium)
+        static let codeSmall12 = Font.system(size: 12, weight: .regular, design: .monospaced)
+        static let codeSmallStrong12 = Font.system(size: 12, weight: .medium, design: .monospaced)
+        static let codeBlock13 = Font.system(size: 13, weight: .regular, design: .monospaced)
+        static let heroTitle = Font.system(size: 26, weight: .medium)
     }
 }
 

@@ -576,9 +576,9 @@ private struct NativeWorkspaceManagementDialogOverlay: View {
 
             if let operationError {
                 Text(operationError)
-                    .font(.system(size: 12, weight: .regular))
+                    .font(OfficialUISpec.Typography.xxs12)
                     .foregroundStyle(OfficialUISpec.Token.errorPrimary)
-                    .padding(.top, 8)
+                    .padding(.top, OfficialUISpec.Spacing.p8)
                     .padding(.horizontal, OfficialUISpec.Layout.modalContentHorizontalPadding)
             }
         } footer: {
@@ -605,10 +605,10 @@ private struct NativeWorkspaceManagementDialogOverlay: View {
     private func deleteCard(workspaceTitle: String) -> some View {
         modalSurface(title: OfficialUISpec.Text.deleteWorkspace, height: 230) {
             Text(OfficialUISpec.Text.deleteWorkspaceDescription(name: workspaceTitle))
-                .font(.system(size: 14, weight: .regular))
+                .font(OfficialUISpec.Typography.s14)
                 .foregroundStyle(OfficialUISpec.Token.primary)
                 .lineSpacing(0)
-                .frame(maxWidth: .infinity, minHeight: 66, alignment: .topLeading)
+                .frame(maxWidth: .infinity, minHeight: OfficialUISpec.Geometry.px66, alignment: .topLeading)
                 .padding(.horizontal, OfficialUISpec.Layout.modalContentHorizontalPadding)
 
             // The official Modal receives a conditional (empty) body, whose
@@ -643,16 +643,16 @@ private struct NativeWorkspaceManagementDialogOverlay: View {
         @ViewBuilder footer: () -> Footer
     ) -> some View {
         VStack(spacing: OfficialUISpec.Layout.modalInterSectionGap) {
-            VStack(spacing: 0) {
+            VStack(spacing: OfficialUISpec.Spacing.p0) {
                 HStack(alignment: .center, spacing: 8) {
                     Text(title)
-                        .font(.system(size: 16, weight: .medium))
+                        .font(OfficialUISpec.Typography.baseStrong16)
                         .foregroundStyle(OfficialUISpec.Token.primary)
-                        .frame(height: 24, alignment: .leading)
+                        .frame(height: OfficialUISpec.Geometry.px24, alignment: .leading)
                     Spacer(minLength: 0)
                     Button(action: dismiss) {
                         OfficialAssetImage(name: "icon-close", template: true)
-                            .frame(width: 14, height: 14)
+                            .frame(width: OfficialUISpec.Geometry.px14, height: OfficialUISpec.Geometry.px14)
                             .frame(
                                 width: OfficialUISpec.Layout.modalCloseControl,
                                 height: OfficialUISpec.Layout.modalCloseControl
@@ -670,7 +670,7 @@ private struct NativeWorkspaceManagementDialogOverlay: View {
                 content()
             }
 
-            HStack(spacing: 0) {
+            HStack(spacing: OfficialUISpec.Spacing.p0) {
                 footer()
             }
             .padding(.horizontal, OfficialUISpec.Layout.modalContentHorizontalPadding)
@@ -686,7 +686,7 @@ private struct NativeWorkspaceManagementDialogOverlay: View {
             RoundedRectangle(cornerRadius: OfficialUISpec.Layout.modalCardCornerRadius, style: .continuous)
                 .stroke(OfficialUISpec.Token.hairline, lineWidth: OfficialUISpec.Layout.modalCardBorder)
         }
-        .shadow(color: Color.black.opacity(0.16), radius: 24, x: 0, y: 12)
+        .shadow(color: OfficialUISpec.Token.modalMask3, radius: 24, x: 0, y: 12)
     }
 
     private enum ModalActionEmphasis {
@@ -711,7 +711,7 @@ private struct NativeWorkspaceManagementDialogOverlay: View {
                         .stroke(border, lineWidth: OfficialUISpec.Layout.modalCardBorder)
                 }
                 Text(title)
-                    .font(.system(size: 14, weight: .regular))
+                    .font(OfficialUISpec.Typography.s14)
                     .foregroundStyle(actionForeground(emphasis: emphasis))
             }
             .frame(width: width, height: OfficialUISpec.Layout.modalActionButtonHeight)

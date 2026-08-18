@@ -26,3 +26,29 @@ final class OfficialUISpecBuildTests: XCTestCase {
         XCTAssertNil(OfficialUISpec.LocaleCatalog.value(namespace: "ui-sidebar", key: "not.registered", language: "en"))
     }
 }
+
+
+extension OfficialUISpecBuildTests {
+    func testGeneratedOfficialThemeCatalogMatchesLockedBuildAndResolvesSchemes() {
+        XCTAssertEqual(OfficialUISpec.Theme.sourceCommit, OfficialUISpec.Build.sourceCommit)
+        XCTAssertEqual(OfficialUISpec.Theme.sourceInputRevision, OfficialUISpec.Build.tokenRevision)
+        XCTAssertTrue(OfficialUISpec.Theme.revision.hasPrefix("sha256:"))
+        XCTAssertEqual(OfficialUISpec.Theme.colorTokens.count, 162)
+
+        let base = OfficialUISpec.Theme.value("--dsw-alias-bg-base")
+        XCTAssertEqual(base.light, OfficialRGBA(red: 1, green: 1, blue: 1, alpha: 1))
+        XCTAssertEqual(
+            base.dark,
+            OfficialRGBA(
+                red: 21.0 / 255.0,
+                green: 21.0 / 255.0,
+                blue: 23.0 / 255.0,
+                alpha: 1
+            )
+        )
+
+        let warning = OfficialUISpec.Theme.aliasStateWarnPrimary
+        XCTAssertEqual(warning.light, OfficialRGBA(red: 245.0 / 255.0, green: 158.0 / 255.0, blue: 11.0 / 255.0, alpha: 1))
+        XCTAssertEqual(warning.dark, warning.light)
+    }
+}

@@ -23,17 +23,17 @@ struct NativeToolRow: View {
                 expanded.toggle()
                 inspect()
             } label: {
-                HStack(spacing: 8) {
+                HStack(spacing: OfficialUISpec.Spacing.p8) {
                     leading
-                        .frame(width: 16, height: 16)
+                        .frame(width: OfficialUISpec.Geometry.px16, height: OfficialUISpec.Geometry.px16)
                     Text(title)
-                        .font(.system(size: 13, weight: .medium))
+                        .font(OfficialUISpec.Typography.xsStrong13)
                         .foregroundStyle(OfficialUISpec.Token.primary)
                     Text(OfficialUISpec.Text.toolSummarySeparator)
                         .foregroundStyle(OfficialUISpec.Token.caption)
                     Text(summary)
-                        .font(.system(size: 13, weight: .regular))
-                        .foregroundStyle(state == .failed ? Color.red : OfficialUISpec.Token.secondary)
+                        .font(OfficialUISpec.Typography.xs13)
+                        .foregroundStyle(state == .failed ? OfficialUISpec.Token.errorPrimary : OfficialUISpec.Token.secondary)
                         .lineLimit(1)
                     Spacer(minLength: 0)
                 }
@@ -46,26 +46,26 @@ struct NativeToolRow: View {
             if expanded {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(invocation.arguments)
-                        .font(.system(size: 12, design: .monospaced))
+                        .font(OfficialUISpec.Typography.codeSmall12)
                         .foregroundStyle(OfficialUISpec.Token.secondary)
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     if let output = invocation.output {
                         Divider()
                         Text(output)
-                            .font(.system(size: 12, design: .monospaced))
-                            .foregroundStyle(state == .failed ? Color.red : OfficialUISpec.Token.secondary)
+                            .font(OfficialUISpec.Typography.codeSmall12)
+                            .foregroundStyle(state == .failed ? OfficialUISpec.Token.errorPrimary : OfficialUISpec.Token.secondary)
                             .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
-                .padding(10)
-                .background(OfficialUISpec.Token.elevated, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .padding(OfficialUISpec.Spacing.p10)
+                .background(OfficialUISpec.Token.elevated, in: RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r8, style: .continuous))
             }
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 5)
-        .background(selected ? OfficialUISpec.Token.interactiveHover : Color.clear, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .padding(.horizontal, OfficialUISpec.Spacing.p8)
+        .padding(.vertical, OfficialUISpec.Spacing.p5)
+        .background(selected ? OfficialUISpec.Token.interactiveHover : Color.clear, in: RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r6, style: .continuous))
         .contentShape(Rectangle())
         .onTapGesture { inspect() }
     }
@@ -106,12 +106,12 @@ struct NativeToolRow: View {
         case .running:
             ProgressView().controlSize(.mini)
         case .failed:
-            Circle().fill(Color.red).frame(width: 8, height: 8)
+            Circle().fill(OfficialUISpec.Token.errorPrimary).frame(width: OfficialUISpec.Geometry.px8, height: OfficialUISpec.Geometry.px8)
         case .stopped:
-            Circle().fill(Color.orange).frame(width: 8, height: 8)
+            Circle().fill(OfficialUISpec.Token.warningPrimary).frame(width: OfficialUISpec.Geometry.px8, height: OfficialUISpec.Geometry.px8)
         case .completed:
             OfficialAssetImage(name: iconName, template: true)
-                .frame(width: 14, height: 14)
+                .frame(width: OfficialUISpec.Geometry.px14, height: OfficialUISpec.Geometry.px14)
                 .foregroundStyle(OfficialUISpec.Token.secondary)
         }
     }
@@ -155,26 +155,26 @@ struct NativeToolDetailsBody: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
                         Text(title(for: invocation.name))
-                            .font(.system(size: 13, weight: .medium))
+                            .font(OfficialUISpec.Typography.xsStrong13)
                             .foregroundStyle(OfficialUISpec.Token.primary)
                         if invocation.state == .running {
                             Text(OfficialUISpec.Text.toolDetailsRunning)
-                                .font(.system(size: 13, weight: .regular))
+                                .font(OfficialUISpec.Typography.xs13)
                                 .foregroundStyle(OfficialUISpec.Token.secondary)
                         }
                         Text(invocation.output ?? invocation.arguments)
-                            .font(.system(size: 12, design: .monospaced))
-                            .foregroundStyle(invocation.state == .failed ? Color.red : OfficialUISpec.Token.secondary)
+                            .font(OfficialUISpec.Typography.codeSmall12)
+                            .foregroundStyle(invocation.state == .failed ? OfficialUISpec.Token.errorPrimary : OfficialUISpec.Token.secondary)
                             .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(10)
-                            .background(OfficialUISpec.Token.elevated, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .padding(OfficialUISpec.Spacing.p10)
+                            .background(OfficialUISpec.Token.elevated, in: RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r12, style: .continuous))
                     }
-                    .padding(16)
+                    .padding(OfficialUISpec.Spacing.p16)
                 }
             } else {
                 Text(OfficialUISpec.Text.detailsEmpty)
-                    .font(.system(size: 13, weight: .regular))
+                    .font(OfficialUISpec.Typography.xs13)
                     .foregroundStyle(OfficialUISpec.Token.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             }

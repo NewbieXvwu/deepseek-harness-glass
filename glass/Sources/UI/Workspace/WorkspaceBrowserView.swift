@@ -107,7 +107,7 @@ struct WorkspaceBrowserView: View {
                 addWorkspace: actions.addWorkspace
             )
         } else {
-            VStack(spacing: 0) {
+            VStack(spacing: OfficialUISpec.Spacing.p0) {
                 sectionHeader
                 listArea
             }
@@ -163,10 +163,10 @@ struct WorkspaceBrowserView: View {
     }
 
     private var sectionHeader: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: OfficialUISpec.Spacing.p4) {
             if !searchExpanded {
                 Text(OfficialUISpec.Text.workspaces)
-                    .font(.system(size: 14, weight: .regular))
+                    .font(OfficialUISpec.Typography.s14)
                     .foregroundStyle(OfficialUISpec.Token.caption)
                     .lineLimit(1)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -177,7 +177,7 @@ struct WorkspaceBrowserView: View {
             if !searchExpanded {
                 Button(action: {}) {
                     OfficialAssetImage(name: "icon-personalization", template: true)
-                        .frame(width: 16, height: 16)
+                        .frame(width: OfficialUISpec.Geometry.px16, height: OfficialUISpec.Geometry.px16)
                         .frame(
                             width: OfficialUISpec.Layout.workspaceIconControl,
                             height: OfficialUISpec.Layout.workspaceIconControl
@@ -188,7 +188,7 @@ struct WorkspaceBrowserView: View {
 
                 Button(action: actions.addWorkspace) {
                     OfficialAssetImage(name: "icon-project-add", template: true)
-                        .frame(width: 16, height: 16)
+                        .frame(width: OfficialUISpec.Geometry.px16, height: OfficialUISpec.Geometry.px16)
                         .frame(
                             width: OfficialUISpec.Layout.workspaceIconControl,
                             height: OfficialUISpec.Layout.workspaceIconControl
@@ -199,15 +199,15 @@ struct WorkspaceBrowserView: View {
             }
         }
         .frame(height: OfficialUISpec.Layout.workspaceSectionHeaderHeight)
-        .padding(.leading, 4)
-        .padding(.bottom, 4)
+        .padding(.leading, OfficialUISpec.Spacing.p4)
+        .padding(.bottom, OfficialUISpec.Spacing.p4)
     }
 
     private var searchControl: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: OfficialUISpec.Spacing.p0) {
             Button(action: toggleSearch) {
                 OfficialAssetImage(name: "icon-search", template: true)
-                    .frame(width: 16, height: 16)
+                    .frame(width: OfficialUISpec.Geometry.px16, height: OfficialUISpec.Geometry.px16)
                     .frame(
                         width: OfficialUISpec.Layout.workspaceIconControl,
                         height: searchExpanded
@@ -221,15 +221,15 @@ struct WorkspaceBrowserView: View {
             if searchExpanded {
                 TextField(OfficialUISpec.Text.searchSessionsPlaceholder, text: $store.searchQuery)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 13, weight: .regular))
+                    .font(OfficialUISpec.Typography.xs13)
                     .foregroundStyle(OfficialUISpec.Token.primary)
                     .accessibilityLabel(OfficialUISpec.Text.searchSessionsAccessibility)
 
                 if !store.searchQuery.isEmpty {
                     Button(action: { store.searchQuery = "" }) {
                         OfficialAssetImage(name: "icon-close", template: true)
-                            .frame(width: 12, height: 12)
-                            .frame(width: 24, height: 24)
+                            .frame(width: OfficialUISpec.Geometry.px12, height: OfficialUISpec.Geometry.px12)
+                            .frame(width: OfficialUISpec.Geometry.px24, height: OfficialUISpec.Geometry.px24)
                     }
                     .buttonStyle(OfficialCircleIconButtonStyle())
                     .accessibilityLabel(OfficialUISpec.Text.clearSearch)
@@ -255,9 +255,9 @@ struct WorkspaceBrowserView: View {
                     workspaceGroups
                 }
             }
-            .padding(.leading, 4)
-            .padding(.trailing, 2)
-            .padding(.bottom, 16)
+            .padding(.leading, OfficialUISpec.Spacing.p4)
+            .padding(.trailing, OfficialUISpec.Spacing.p2)
+            .padding(.bottom, OfficialUISpec.Spacing.p16)
         }
         .accessibilityLabel(searchIsActive
             ? OfficialUISpec.Text.searchSessionsAccessibility
@@ -396,16 +396,16 @@ struct WorkspaceBrowserView: View {
     private func nativeSearchResultRow(_ result: SearchResult, selected: Bool) -> some View {
         Button(action: { actions.selectSession(result.session.sessionId, result.workspaceID) }) {
             VStack(alignment: .leading, spacing: 0) {
-                HStack(spacing: 0) {
+                HStack(spacing: OfficialUISpec.Spacing.p0) {
                     NativeSessionStatusDot(state: NativeSessionVisualState.resolve(result.session))
-                        .frame(width: 16, height: 20)
+                        .frame(width: OfficialUISpec.Geometry.px16, height: OfficialUISpec.Geometry.px20)
                     Text(sessionTitle(result.session))
-                        .font(.system(size: 14, weight: .regular))
+                        .font(OfficialUISpec.Typography.s14)
                         .lineLimit(1)
-                        .frame(height: 20, alignment: .leading)
-                        .padding(.leading, 4)
+                        .frame(height: OfficialUISpec.Geometry.px20, alignment: .leading)
+                        .padding(.leading, OfficialUISpec.Spacing.p4)
                 }
-                HStack(spacing: 6) {
+                HStack(spacing: OfficialUISpec.Spacing.p6) {
                     Text(result.workspaceTitle)
                         .lineLimit(1)
                         .fixedSize(horizontal: true, vertical: false)
@@ -417,16 +417,16 @@ struct WorkspaceBrowserView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
-                .font(.system(size: 12, weight: .regular))
-                .frame(height: 17, alignment: .leading)
-                .padding(.leading, 20)
+                .font(OfficialUISpec.Typography.xxs12)
+                .frame(height: OfficialUISpec.Geometry.px17, alignment: .leading)
+                .padding(.leading, OfficialUISpec.Spacing.p20)
             }
             .foregroundStyle(OfficialUISpec.Token.primary)
-            .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
-            .padding(.horizontal, 8)
+            .frame(maxWidth: .infinity, minHeight: OfficialUISpec.Geometry.px48, alignment: .leading)
+            .padding(.horizontal, OfficialUISpec.Spacing.p8)
             .background(
                 selected ? OfficialUISpec.Token.interactiveHover : Color.clear,
-                in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                in: RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r8, style: .continuous)
             )
         }
         .buttonStyle(.plain)
@@ -555,11 +555,11 @@ private struct NativeWorkspaceSearchStatus: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: 12, weight: .regular))
+            .font(OfficialUISpec.Typography.xxs12)
             .foregroundStyle(warning ? OfficialUISpec.Token.warningPrimary : OfficialUISpec.Token.caption)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
+            .padding(.horizontal, OfficialUISpec.Spacing.p8)
+            .padding(.vertical, OfficialUISpec.Spacing.p4)
     }
 }
 
@@ -578,7 +578,7 @@ private struct NativeRenameSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text(title)
-                .font(.system(size: 16, weight: .medium))
+                .font(OfficialUISpec.Typography.baseStrong16)
                 .foregroundStyle(OfficialUISpec.Token.primary)
             TextField(fieldLabel, text: $draft)
                 .textFieldStyle(.roundedBorder)
@@ -587,15 +587,15 @@ private struct NativeRenameSheet: View {
                 .onSubmit(confirm)
             if let conflict {
                 Text(conflict)
-                    .font(.system(size: 12, weight: .regular))
+                    .font(OfficialUISpec.Typography.xxs12)
                     .foregroundStyle(OfficialUISpec.Token.warningPrimary)
             }
             if let error {
                 Text(error)
-                    .font(.system(size: 12, weight: .regular))
+                    .font(OfficialUISpec.Typography.xxs12)
                     .foregroundStyle(OfficialUISpec.Token.warningPrimary)
             }
-            HStack(spacing: 8) {
+            HStack(spacing: OfficialUISpec.Spacing.p8) {
                 Spacer(minLength: 0)
                 Button(OfficialUISpec.Text.cancel, action: cancel)
                     .disabled(submitting)
@@ -603,8 +603,8 @@ private struct NativeRenameSheet: View {
                     .disabled(blocked)
             }
         }
-        .padding(20)
-        .frame(width: 360)
+        .padding(OfficialUISpec.Spacing.p20)
+        .frame(width: OfficialUISpec.Geometry.px360)
         .onAppear { focused = true }
     }
 }
@@ -619,23 +619,23 @@ private struct NativeWorkspaceDeleteSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text(OfficialUISpec.Text.deleteWorkspace)
-                .font(.system(size: 16, weight: .medium))
+                .font(OfficialUISpec.Typography.baseStrong16)
                 .foregroundStyle(OfficialUISpec.Token.primary)
             Text(description)
-                .font(.system(size: 14, weight: .regular))
+                .font(OfficialUISpec.Typography.s14)
                 .foregroundStyle(OfficialUISpec.Token.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             if submitting {
                 Text(OfficialUISpec.Text.deletingWorkspace)
-                    .font(.system(size: 12, weight: .regular))
+                    .font(OfficialUISpec.Typography.xxs12)
                     .foregroundStyle(OfficialUISpec.Token.caption)
             }
             if let error {
                 Text(error)
-                    .font(.system(size: 12, weight: .regular))
+                    .font(OfficialUISpec.Typography.xxs12)
                     .foregroundStyle(OfficialUISpec.Token.warningPrimary)
             }
-            HStack(spacing: 8) {
+            HStack(spacing: OfficialUISpec.Spacing.p8) {
                 Spacer(minLength: 0)
                 Button(OfficialUISpec.Text.cancel, action: cancel)
                     .disabled(submitting)
@@ -643,8 +643,8 @@ private struct NativeWorkspaceDeleteSheet: View {
                     .disabled(submitting)
             }
         }
-        .padding(20)
-        .frame(width: 400)
+        .padding(OfficialUISpec.Spacing.p20)
+        .frame(width: OfficialUISpec.Geometry.px400)
     }
 }
 
@@ -653,10 +653,10 @@ private struct WorkspaceBrowserRail: View {
     let addWorkspace: () -> Void
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: OfficialUISpec.Spacing.p12) {
             Button(action: requestSidebarExpansion) {
                 OfficialAssetImage(name: "icon-search", template: true)
-                    .frame(width: 16, height: 16)
+                    .frame(width: OfficialUISpec.Geometry.px16, height: OfficialUISpec.Geometry.px16)
                     .frame(
                         width: OfficialUISpec.Layout.workspaceRailControl,
                         height: OfficialUISpec.Layout.workspaceRailControl
@@ -667,7 +667,7 @@ private struct WorkspaceBrowserRail: View {
 
             Button(action: addWorkspace) {
                 OfficialAssetImage(name: "icon-project-add", template: true)
-                    .frame(width: 16, height: 16)
+                    .frame(width: OfficialUISpec.Geometry.px16, height: OfficialUISpec.Geometry.px16)
                     .frame(
                         width: OfficialUISpec.Layout.workspaceRailControl,
                         height: OfficialUISpec.Layout.workspaceRailControl
@@ -677,7 +677,7 @@ private struct WorkspaceBrowserRail: View {
             .accessibilityLabel(OfficialUISpec.Text.addWorkspace)
             Spacer(minLength: 0)
         }
-        .padding(.top, 12)
+        .padding(.top, OfficialUISpec.Spacing.p12)
     }
 }
 
@@ -757,17 +757,17 @@ private struct NativeWorkspaceRow: View {
     let workspaceID: String?
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: OfficialUISpec.Spacing.p6) {
             Button(action: onToggle) {
                 OfficialAssetImage(name: expanded ? "icon-folder-open" : "icon-folder-close", template: true)
-                    .frame(width: 16, height: 16)
-                    .frame(width: 16, height: 20)
+                    .frame(width: OfficialUISpec.Geometry.px16, height: OfficialUISpec.Geometry.px16)
+                    .frame(width: OfficialUISpec.Geometry.px16, height: OfficialUISpec.Geometry.px20)
             }
             .buttonStyle(.plain)
             .accessibilityLabel(title)
 
             Text(title)
-                .font(.system(size: 14, weight: .regular))
+                .font(OfficialUISpec.Typography.s14)
                 .foregroundStyle(OfficialUISpec.Token.primary)
                 .lineLimit(1)
             Spacer(minLength: 0)
@@ -778,8 +778,8 @@ private struct NativeWorkspaceRow: View {
                     Button(OfficialUISpec.Text.deleteWorkspace) { actions.deleteWorkspace(workspaceID, title) }
                 } label: {
                     OfficialAssetImage(name: "icon-ellipsis", template: true)
-                        .frame(width: 16, height: 16)
-                        .frame(width: 20, height: 20)
+                        .frame(width: OfficialUISpec.Geometry.px16, height: OfficialUISpec.Geometry.px16)
+                        .frame(width: OfficialUISpec.Geometry.px20, height: OfficialUISpec.Geometry.px20)
                 }
                 .menuStyle(.borderlessButton)
                 .accessibilityLabel(OfficialUISpec.Text.workspaceActionsAccessibilityPrefix + title)
@@ -787,14 +787,14 @@ private struct NativeWorkspaceRow: View {
 
             Button(action: onCreateSession) {
                 OfficialAssetImage(name: "icon-plus", template: true)
-                    .frame(width: 16, height: 16)
-                    .frame(width: 20, height: 20)
+                    .frame(width: OfficialUISpec.Geometry.px16, height: OfficialUISpec.Geometry.px16)
+                    .frame(width: OfficialUISpec.Geometry.px20, height: OfficialUISpec.Geometry.px20)
             }
             .buttonStyle(OfficialCircleIconButtonStyle())
         }
-        .frame(height: 34)
-        .padding(.horizontal, 8)
-        .background(OfficialUISpec.Token.base.opacity(0.001), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .frame(height: OfficialUISpec.Geometry.px34)
+        .padding(.horizontal, OfficialUISpec.Spacing.p8)
+        .background(Color.clear, in: RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r8, style: .continuous))
     }
 }
 
@@ -811,15 +811,15 @@ private struct NativeSessionRow: View {
 
     var body: some View {
         Button(action: onSelect) {
-            HStack(spacing: 0) {
+            HStack(spacing: OfficialUISpec.Spacing.p0) {
                 NativeSessionStatusDot(state: status)
-                    .frame(width: 16, height: 20)
+                    .frame(width: OfficialUISpec.Geometry.px16, height: OfficialUISpec.Geometry.px20)
                 Text(sessionTitle(session))
-                    .font(.system(size: 14, weight: .regular))
+                    .font(OfficialUISpec.Typography.s14)
                     .lineLimit(1)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.leading, 4)
-                    .padding(.trailing, 6)
+                    .padding(.leading, OfficialUISpec.Spacing.p4)
+                    .padding(.trailing, OfficialUISpec.Spacing.p6)
                 if !session.blank {
                     if isHovering {
                         Menu {
@@ -828,14 +828,14 @@ private struct NativeSessionRow: View {
                             Button(OfficialUISpec.Text.archiveSession) { actions.archiveSession(session.sessionId) }
                         } label: {
                             OfficialAssetImage(name: "icon-ellipsis", template: true)
-                                .frame(width: 16, height: 16)
-                                .frame(width: 20, height: 20)
+                                .frame(width: OfficialUISpec.Geometry.px16, height: OfficialUISpec.Geometry.px16)
+                                .frame(width: OfficialUISpec.Geometry.px20, height: OfficialUISpec.Geometry.px20)
                         }
                         .menuStyle(.borderlessButton)
                         .accessibilityLabel(OfficialUISpec.Text.sessionActionsAccessibilityPrefix + sessionTitle(session))
                     } else {
                         Text(NativeRelativeTime.label(updatedAt: session.updatedAt))
-                            .font(.system(size: 12, weight: .regular))
+                            .font(OfficialUISpec.Typography.xxs12)
                             .foregroundStyle(OfficialUISpec.Token.caption)
                             .lineLimit(1)
                             .fixedSize(horizontal: true, vertical: false)
@@ -843,11 +843,11 @@ private struct NativeSessionRow: View {
                 }
             }
             .foregroundStyle(OfficialUISpec.Token.primary)
-            .frame(height: 32)
-            .padding(.horizontal, 8)
+            .frame(height: OfficialUISpec.Geometry.px32)
+            .padding(.horizontal, OfficialUISpec.Spacing.p8)
             .background(
                 selected ? OfficialUISpec.Token.interactiveHover : Color.clear,
-                in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                in: RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r8, style: .continuous)
             )
         }
         .buttonStyle(.plain)
@@ -897,26 +897,26 @@ private struct NativeSessionStatusDot: View {
     var body: some View {
         switch state {
         case .idle:
-            Color.clear.frame(width: 0, height: 0)
+            Color.clear.frame(width: OfficialUISpec.Geometry.px0, height: OfficialUISpec.Geometry.px0)
         case .warning:
             ZStack {
                 Circle().fill(OfficialUISpec.Token.warningPrimary.opacity(0.1))
-                    .frame(width: 10, height: 10)
+                    .frame(width: OfficialUISpec.Geometry.px10, height: OfficialUISpec.Geometry.px10)
                 Circle().fill(OfficialUISpec.Token.warningPrimary)
-                    .frame(width: 6, height: 6)
+                    .frame(width: OfficialUISpec.Geometry.px6, height: OfficialUISpec.Geometry.px6)
             }
-            .frame(width: 10, height: 10)
+            .frame(width: OfficialUISpec.Geometry.px10, height: OfficialUISpec.Geometry.px10)
             .accessibilityLabel(state.accessibilityLabel)
         case .ongoing:
             ZStack(alignment: .topLeading) {
                 ForEach(Array(matrixCells.enumerated()), id: \.offset) { index, point in
                     Rectangle()
                         .fill(OfficialUISpec.Token.businessBlue.opacity(index == 0 ? 1 : index < 4 ? 0.6 : index < 6 ? 0.35 : 0.15))
-                        .frame(width: 2, height: 2)
+                        .frame(width: OfficialUISpec.Geometry.px2, height: OfficialUISpec.Geometry.px2)
                         .offset(x: point.0, y: point.1)
                 }
             }
-            .frame(width: 10, height: 10)
+            .frame(width: OfficialUISpec.Geometry.px10, height: OfficialUISpec.Geometry.px10)
             .accessibilityLabel(state.accessibilityLabel)
         }
     }
@@ -950,11 +950,11 @@ private struct NativeWorkspaceEmptyState: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: 12, weight: .regular))
+            .font(OfficialUISpec.Typography.xxs12)
             .foregroundStyle(OfficialUISpec.Token.caption)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.top, 8)
-            .padding(.leading, 4)
+            .padding(.top, OfficialUISpec.Spacing.p8)
+            .padding(.leading, OfficialUISpec.Spacing.p4)
     }
 }
 

@@ -54,10 +54,10 @@ struct OfficialNewSessionButtonStyle: ButtonStyle {
             .foregroundStyle(OfficialUISpec.Token.primary)
             .background(
                 configuration.isPressed ? OfficialUISpec.Token.interactiveHover : OfficialUISpec.Token.elevated,
-                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                in: RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r12, style: .continuous)
             )
             .overlay {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r12, style: .continuous)
                     .stroke(OfficialUISpec.Token.border, lineWidth: 1)
             }
     }
@@ -69,7 +69,7 @@ struct OfficialSidebarRowButtonStyle: ButtonStyle {
             .foregroundStyle(OfficialUISpec.Token.secondary)
             .background(
                 configuration.isPressed ? OfficialUISpec.Token.interactiveHover : Color.clear,
-                in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                in: RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r8, style: .continuous)
             )
     }
 }
@@ -93,9 +93,26 @@ struct NativeGlassNavigationButtonStyle: ButtonStyle {
             .foregroundStyle(OfficialUISpec.Token.primary)
             .background(.thinMaterial, in: Circle())
             .overlay {
-                Circle().strokeBorder(Color.white.opacity(0.72), lineWidth: 0.8)
+                Circle().strokeBorder(OfficialUISpec.Token.primaryForeground.opacity(0.72), lineWidth: 0.8)
             }
             .glassEffect(.regular, in: .circle)
             .opacity(configuration.isPressed ? 0.82 : 1)
+    }
+}
+
+/// Exact two-layer projection of `--dsw-shadow-lv2` from the locked official
+/// `gradient-shadow-text.css`. `radius` is CSS blur / 2 under SwiftUI's shadow API.
+extension View {
+    func officialLevel2Shadow() -> some View {
+        shadow(
+            color: OfficialUISpec.Shadow.level2OuterColor,
+            radius: OfficialUISpec.Shadow.level2OuterRadius,
+            y: OfficialUISpec.Shadow.level2OuterY
+        )
+        .shadow(
+            color: OfficialUISpec.Shadow.level2InnerColor,
+            radius: OfficialUISpec.Shadow.level2InnerRadius,
+            y: OfficialUISpec.Shadow.level2InnerY
+        )
     }
 }

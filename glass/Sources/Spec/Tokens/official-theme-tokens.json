@@ -1,0 +1,4711 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca",
+  "themeRevision": "sha256:7fbb81d2b7879c75c9fb6a9a5ec15435df9f916036fa925a70ca197a78bee42c",
+  "sourceInputRevision": "sha256:2d1743337b8fbba4bd052e8f1ecd24e490c2b5707faf8c185bfeae78fa702989",
+  "generatedAt": "2026-08-17T19:03:17+08:00",
+  "generator": {
+    "name": "generate_official_theme_tokens.py",
+    "version": "1.0.0"
+  },
+  "tokens": [
+    {
+      "cssName": "--dsw-alias-bg-base",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-00)",
+        "resolvedValue": "rgb(255, 255, 255)",
+        "resolvedRGBA": {
+          "red": 1.0,
+          "green": 1.0,
+          "blue": 1.0,
+          "alpha": 1
+        },
+        "sourceLine": 157
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-950)",
+        "resolvedValue": "rgb(21, 21, 23)",
+        "resolvedRGBA": {
+          "red": 0.08235294117647059,
+          "green": 0.08235294117647059,
+          "blue": 0.09019607843137255,
+          "alpha": 1
+        },
+        "sourceLine": 249
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-bg-layer-1",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-00)",
+        "resolvedValue": "rgb(255, 255, 255)",
+        "resolvedRGBA": {
+          "red": 1.0,
+          "green": 1.0,
+          "blue": 1.0,
+          "alpha": 1
+        },
+        "sourceLine": 158
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-875)",
+        "resolvedValue": "rgb(35, 35, 36)",
+        "resolvedRGBA": {
+          "red": 0.13725490196078433,
+          "green": 0.13725490196078433,
+          "blue": 0.1411764705882353,
+          "alpha": 1
+        },
+        "sourceLine": 250
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-bg-layer-2",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-00)",
+        "resolvedValue": "rgb(255, 255, 255)",
+        "resolvedRGBA": {
+          "red": 1.0,
+          "green": 1.0,
+          "blue": 1.0,
+          "alpha": 1
+        },
+        "sourceLine": 159
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-850)",
+        "resolvedValue": "rgb(44, 44, 46)",
+        "resolvedRGBA": {
+          "red": 0.17254901960784313,
+          "green": 0.17254901960784313,
+          "blue": 0.1803921568627451,
+          "alpha": 1
+        },
+        "sourceLine": 251
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-bg-layer-3",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-00)",
+        "resolvedValue": "rgb(255, 255, 255)",
+        "resolvedRGBA": {
+          "red": 1.0,
+          "green": 1.0,
+          "blue": 1.0,
+          "alpha": 1
+        },
+        "sourceLine": 160
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-800)",
+        "resolvedValue": "rgb(53, 54, 56)",
+        "resolvedRGBA": {
+          "red": 0.20784313725490197,
+          "green": 0.21176470588235294,
+          "blue": 0.2196078431372549,
+          "alpha": 1
+        },
+        "sourceLine": 252
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-bg-mask-1",
+      "light": {
+        "rawValue": "rgba(0, 0, 0, 0.24)",
+        "resolvedValue": "rgba(0, 0, 0, 0.24)",
+        "resolvedRGBA": {
+          "red": 0.0,
+          "green": 0.0,
+          "blue": 0.0,
+          "alpha": 0.24
+        },
+        "sourceLine": 161
+      },
+      "dark": {
+        "rawValue": "rgba(0, 0, 0, 0.5)",
+        "resolvedValue": "rgba(0, 0, 0, 0.5)",
+        "resolvedRGBA": {
+          "red": 0.0,
+          "green": 0.0,
+          "blue": 0.0,
+          "alpha": 0.5
+        },
+        "sourceLine": 253
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-bg-mask-2",
+      "light": {
+        "rawValue": "rgba(0, 0, 0, 0.12)",
+        "resolvedValue": "rgba(0, 0, 0, 0.12)",
+        "resolvedRGBA": {
+          "red": 0.0,
+          "green": 0.0,
+          "blue": 0.0,
+          "alpha": 0.12
+        },
+        "sourceLine": 162
+      },
+      "dark": {
+        "rawValue": "rgba(0, 0, 0, 0.2)",
+        "resolvedValue": "rgba(0, 0, 0, 0.2)",
+        "resolvedRGBA": {
+          "red": 0.0,
+          "green": 0.0,
+          "blue": 0.0,
+          "alpha": 0.2
+        },
+        "sourceLine": 254
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-bg-mask-3",
+      "light": {
+        "rawValue": "rgba(0, 0, 0, 0.48)",
+        "resolvedValue": "rgba(0, 0, 0, 0.48)",
+        "resolvedRGBA": {
+          "red": 0.0,
+          "green": 0.0,
+          "blue": 0.0,
+          "alpha": 0.48
+        },
+        "sourceLine": 163
+      },
+      "dark": {
+        "rawValue": "rgba(0, 0, 0, 0.48)",
+        "resolvedValue": "rgba(0, 0, 0, 0.48)",
+        "resolvedRGBA": {
+          "red": 0.0,
+          "green": 0.0,
+          "blue": 0.0,
+          "alpha": 0.48
+        },
+        "sourceLine": 255
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-bg-mask-drop",
+      "light": {
+        "rawValue": "rgba(255, 255, 255, 0.7)",
+        "resolvedValue": "rgba(255, 255, 255, 0.7)",
+        "resolvedRGBA": {
+          "red": 1.0,
+          "green": 1.0,
+          "blue": 1.0,
+          "alpha": 0.7
+        },
+        "sourceLine": 165
+      },
+      "dark": {
+        "rawValue": "rgba(39, 39, 48, 0.7)",
+        "resolvedValue": "rgba(39, 39, 48, 0.7)",
+        "resolvedRGBA": {
+          "red": 0.15294117647058825,
+          "green": 0.15294117647058825,
+          "blue": 0.18823529411764706,
+          "alpha": 0.7
+        },
+        "sourceLine": 257
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-bg-mask-photo",
+      "light": {
+        "rawValue": "rgba(0, 0, 0, 0.88)",
+        "resolvedValue": "rgba(0, 0, 0, 0.88)",
+        "resolvedRGBA": {
+          "red": 0.0,
+          "green": 0.0,
+          "blue": 0.0,
+          "alpha": 0.88
+        },
+        "sourceLine": 164
+      },
+      "dark": {
+        "rawValue": "rgba(0, 0, 0, 0.88)",
+        "resolvedValue": "rgba(0, 0, 0, 0.88)",
+        "resolvedRGBA": {
+          "red": 0.0,
+          "green": 0.0,
+          "blue": 0.0,
+          "alpha": 0.88
+        },
+        "sourceLine": 256
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-bg-module-platform",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-60)",
+        "resolvedValue": "rgb(245, 246, 247)",
+        "resolvedRGBA": {
+          "red": 0.9607843137254902,
+          "green": 0.9647058823529412,
+          "blue": 0.9686274509803922,
+          "alpha": 1
+        },
+        "sourceLine": 166
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-800)",
+        "resolvedValue": "rgb(53, 54, 56)",
+        "resolvedRGBA": {
+          "red": 0.20784313725490197,
+          "green": 0.21176470588235294,
+          "blue": 0.2196078431372549,
+          "alpha": 1
+        },
+        "sourceLine": 258
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-bg-multi-select",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-60)",
+        "resolvedValue": "rgb(245, 246, 247)",
+        "resolvedRGBA": {
+          "red": 0.9607843137254902,
+          "green": 0.9647058823529412,
+          "blue": 0.9686274509803922,
+          "alpha": 1
+        },
+        "sourceLine": 167
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-850)",
+        "resolvedValue": "rgb(33, 33, 35)",
+        "resolvedRGBA": {
+          "red": 0.12941176470588237,
+          "green": 0.12941176470588237,
+          "blue": 0.13725490196078433,
+          "alpha": 1
+        },
+        "sourceLine": 259
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-bg-overlay",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-150)",
+        "resolvedValue": "rgb(233, 236, 242)",
+        "resolvedRGBA": {
+          "red": 0.9137254901960784,
+          "green": 0.9254901960784314,
+          "blue": 0.9490196078431372,
+          "alpha": 1
+        },
+        "sourceLine": 168
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-700)",
+        "resolvedValue": "rgb(97, 102, 107)",
+        "resolvedRGBA": {
+          "red": 0.3803921568627451,
+          "green": 0.4,
+          "blue": 0.4196078431372549,
+          "alpha": 1
+        },
+        "sourceLine": 260
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-bg-skeleton",
+      "light": {
+        "rawValue": "rgba(0, 0, 0, 0.04)",
+        "resolvedValue": "rgba(0, 0, 0, 0.04)",
+        "resolvedRGBA": {
+          "red": 0.0,
+          "green": 0.0,
+          "blue": 0.0,
+          "alpha": 0.04
+        },
+        "sourceLine": 169
+      },
+      "dark": {
+        "rawValue": "rgba(255, 255, 255, 0.08)",
+        "resolvedValue": "rgba(255, 255, 255, 0.08)",
+        "resolvedRGBA": {
+          "red": 1.0,
+          "green": 1.0,
+          "blue": 1.0,
+          "alpha": 0.08
+        },
+        "sourceLine": 261
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-border-inverted",
+      "light": {
+        "rawValue": "rgba(0, 0, 0, 0)",
+        "resolvedValue": "rgba(0, 0, 0, 0)",
+        "resolvedRGBA": {
+          "red": 0.0,
+          "green": 0.0,
+          "blue": 0.0,
+          "alpha": 0.0
+        },
+        "sourceLine": 171
+      },
+      "dark": {
+        "rawValue": "rgba(255, 255, 255, 0.06)",
+        "resolvedValue": "rgba(255, 255, 255, 0.06)",
+        "resolvedRGBA": {
+          "red": 1.0,
+          "green": 1.0,
+          "blue": 1.0,
+          "alpha": 0.06
+        },
+        "sourceLine": 263
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-border-inverted2",
+      "light": {
+        "rawValue": "rgba(0, 0, 0, 0)",
+        "resolvedValue": "rgba(0, 0, 0, 0)",
+        "resolvedRGBA": {
+          "red": 0.0,
+          "green": 0.0,
+          "blue": 0.0,
+          "alpha": 0.0
+        },
+        "sourceLine": 170
+      },
+      "dark": {
+        "rawValue": "rgba(255, 255, 255, 0.08)",
+        "resolvedValue": "rgba(255, 255, 255, 0.08)",
+        "resolvedRGBA": {
+          "red": 1.0,
+          "green": 1.0,
+          "blue": 1.0,
+          "alpha": 0.08
+        },
+        "sourceLine": 262
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-border-l1",
+      "light": {
+        "rawValue": "rgba(0, 0, 0, 0.04)",
+        "resolvedValue": "rgba(0, 0, 0, 0.04)",
+        "resolvedRGBA": {
+          "red": 0.0,
+          "green": 0.0,
+          "blue": 0.0,
+          "alpha": 0.04
+        },
+        "sourceLine": 172
+      },
+      "dark": {
+        "rawValue": "rgba(255, 255, 255, 0.06)",
+        "resolvedValue": "rgba(255, 255, 255, 0.06)",
+        "resolvedRGBA": {
+          "red": 1.0,
+          "green": 1.0,
+          "blue": 1.0,
+          "alpha": 0.06
+        },
+        "sourceLine": 264
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-border-l2",
+      "light": {
+        "rawValue": "rgba(0, 0, 0, 0.1)",
+        "resolvedValue": "rgba(0, 0, 0, 0.1)",
+        "resolvedRGBA": {
+          "red": 0.0,
+          "green": 0.0,
+          "blue": 0.0,
+          "alpha": 0.1
+        },
+        "sourceLine": 174
+      },
+      "dark": {
+        "rawValue": "rgba(255, 255, 255, 0.12)",
+        "resolvedValue": "rgba(255, 255, 255, 0.12)",
+        "resolvedRGBA": {
+          "red": 1.0,
+          "green": 1.0,
+          "blue": 1.0,
+          "alpha": 0.12
+        },
+        "sourceLine": 266
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-border-l2-darkmode-thin",
+      "light": {
+        "rawValue": "rgba(0, 0, 0, 0.1)",
+        "resolvedValue": "rgba(0, 0, 0, 0.1)",
+        "resolvedRGBA": {
+          "red": 0.0,
+          "green": 0.0,
+          "blue": 0.0,
+          "alpha": 0.1
+        },
+        "sourceLine": 173
+      },
+      "dark": {
+        "rawValue": "rgba(255, 255, 255, 0.06)",
+        "resolvedValue": "rgba(255, 255, 255, 0.06)",
+        "resolvedRGBA": {
+          "red": 1.0,
+          "green": 1.0,
+          "blue": 1.0,
+          "alpha": 0.06
+        },
+        "sourceLine": 265
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-border-l3",
+      "light": {
+        "rawValue": "rgba(0, 0, 0, 0.12)",
+        "resolvedValue": "rgba(0, 0, 0, 0.12)",
+        "resolvedRGBA": {
+          "red": 0.0,
+          "green": 0.0,
+          "blue": 0.0,
+          "alpha": 0.12
+        },
+        "sourceLine": 175
+      },
+      "dark": {
+        "rawValue": "rgba(255, 255, 255, 0.16)",
+        "resolvedValue": "rgba(255, 255, 255, 0.16)",
+        "resolvedRGBA": {
+          "red": 1.0,
+          "green": 1.0,
+          "blue": 1.0,
+          "alpha": 0.16
+        },
+        "sourceLine": 267
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-border-l4",
+      "light": {
+        "rawValue": "rgba(0, 0, 0, 0.16)",
+        "resolvedValue": "rgba(0, 0, 0, 0.16)",
+        "resolvedRGBA": {
+          "red": 0.0,
+          "green": 0.0,
+          "blue": 0.0,
+          "alpha": 0.16
+        },
+        "sourceLine": 176
+      },
+      "dark": {
+        "rawValue": "rgba(255, 255, 255, 0.2)",
+        "resolvedValue": "rgba(255, 255, 255, 0.2)",
+        "resolvedRGBA": {
+          "red": 1.0,
+          "green": 1.0,
+          "blue": 1.0,
+          "alpha": 0.2
+        },
+        "sourceLine": 268
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-brand-primary",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-1000)",
+        "resolvedValue": "rgb(15, 17, 21)",
+        "resolvedRGBA": {
+          "red": 0.058823529411764705,
+          "green": 0.06666666666666667,
+          "blue": 0.08235294117647059,
+          "alpha": 1
+        },
+        "sourceLine": 179
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-50)",
+        "resolvedValue": "rgb(249, 250, 251)",
+        "resolvedRGBA": {
+          "red": 0.9764705882352941,
+          "green": 0.9803921568627451,
+          "blue": 0.984313725490196,
+          "alpha": 1
+        },
+        "sourceLine": 271
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-brand-primary-invert",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-1000)",
+        "resolvedValue": "rgb(15, 17, 21)",
+        "resolvedRGBA": {
+          "red": 0.058823529411764705,
+          "green": 0.06666666666666667,
+          "blue": 0.08235294117647059,
+          "alpha": 1
+        },
+        "sourceLine": 177
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-50)",
+        "resolvedValue": "rgb(249, 250, 251)",
+        "resolvedRGBA": {
+          "red": 0.9764705882352941,
+          "green": 0.9803921568627451,
+          "blue": 0.984313725490196,
+          "alpha": 1
+        },
+        "sourceLine": 269
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-brand-primary-new-colorprimary-new-color",
+      "light": {
+        "rawValue": "rgb(65, 118, 230)",
+        "resolvedValue": "rgb(65, 118, 230)",
+        "resolvedRGBA": {
+          "red": 0.2549019607843137,
+          "green": 0.4627450980392157,
+          "blue": 0.9019607843137255,
+          "alpha": 1
+        },
+        "sourceLine": 178
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-deepseek-450)",
+        "resolvedValue": "rgb(86, 134, 254)",
+        "resolvedRGBA": {
+          "red": 0.33725490196078434,
+          "green": 0.5254901960784314,
+          "blue": 0.996078431372549,
+          "alpha": 1
+        },
+        "sourceLine": 270
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-brand-text",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-1000)",
+        "resolvedValue": "rgb(15, 17, 21)",
+        "resolvedRGBA": {
+          "red": 0.058823529411764705,
+          "green": 0.06666666666666667,
+          "blue": 0.08235294117647059,
+          "alpha": 1
+        },
+        "sourceLine": 180
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-50)",
+        "resolvedValue": "rgb(249, 250, 251)",
+        "resolvedRGBA": {
+          "red": 0.9764705882352941,
+          "green": 0.9803921568627451,
+          "blue": 0.984313725490196,
+          "alpha": 1
+        },
+        "sourceLine": 272
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-button-contrast-fill",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-700)",
+        "resolvedValue": "rgb(97, 102, 107)",
+        "resolvedRGBA": {
+          "red": 0.3803921568627451,
+          "green": 0.4,
+          "blue": 0.4196078431372549,
+          "alpha": 1
+        },
+        "sourceLine": 181
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-50)",
+        "resolvedValue": "rgb(249, 250, 251)",
+        "resolvedRGBA": {
+          "red": 0.9764705882352941,
+          "green": 0.9803921568627451,
+          "blue": 0.984313725490196,
+          "alpha": 1
+        },
+        "sourceLine": 273
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-button-elevated-fill",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-00)",
+        "resolvedValue": "rgb(255, 255, 255)",
+        "resolvedRGBA": {
+          "red": 1.0,
+          "green": 1.0,
+          "blue": 1.0,
+          "alpha": 1
+        },
+        "sourceLine": 182
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-750)",
+        "resolvedValue": "rgb(67, 69, 74)",
+        "resolvedRGBA": {
+          "red": 0.2627450980392157,
+          "green": 0.27058823529411763,
+          "blue": 0.2901960784313726,
+          "alpha": 1
+        },
+        "sourceLine": 274
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-button-floating-fill",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-00)",
+        "resolvedValue": "rgb(255, 255, 255)",
+        "resolvedRGBA": {
+          "red": 1.0,
+          "green": 1.0,
+          "blue": 1.0,
+          "alpha": 1
+        },
+        "sourceLine": 183
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-850)",
+        "resolvedValue": "rgb(44, 44, 46)",
+        "resolvedRGBA": {
+          "red": 0.17254901960784313,
+          "green": 0.17254901960784313,
+          "blue": 0.1803921568627451,
+          "alpha": 1
+        },
+        "sourceLine": 275
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-button-floating-hover",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-75)",
+        "resolvedValue": "rgb(241, 243, 245)",
+        "resolvedRGBA": {
+          "red": 0.9450980392156862,
+          "green": 0.9529411764705882,
+          "blue": 0.9607843137254902,
+          "alpha": 1
+        },
+        "sourceLine": 184
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-800)",
+        "resolvedValue": "rgb(53, 54, 56)",
+        "resolvedRGBA": {
+          "red": 0.20784313725490197,
+          "green": 0.21176470588235294,
+          "blue": 0.2196078431372549,
+          "alpha": 1
+        },
+        "sourceLine": 276
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-button-ghost-active-border",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-500)",
+        "resolvedValue": "rgb(151, 157, 166)",
+        "resolvedRGBA": {
+          "red": 0.592156862745098,
+          "green": 0.615686274509804,
+          "blue": 0.6509803921568628,
+          "alpha": 1
+        },
+        "sourceLine": 185
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-600)",
+        "resolvedValue": "rgb(129, 133, 140)",
+        "resolvedRGBA": {
+          "red": 0.5058823529411764,
+          "green": 0.5215686274509804,
+          "blue": 0.5490196078431373,
+          "alpha": 1
+        },
+        "sourceLine": 277
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-button-ghost-active-fill",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-100)",
+        "resolvedValue": "rgb(235, 238, 242)",
+        "resolvedRGBA": {
+          "red": 0.9215686274509803,
+          "green": 0.9333333333333333,
+          "blue": 0.9490196078431372,
+          "alpha": 1
+        },
+        "sourceLine": 186
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-750)",
+        "resolvedValue": "rgb(67, 69, 74)",
+        "resolvedRGBA": {
+          "red": 0.2627450980392157,
+          "green": 0.27058823529411763,
+          "blue": 0.2901960784313726,
+          "alpha": 1
+        },
+        "sourceLine": 278
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-button-ghost-active-hover",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-150)",
+        "resolvedValue": "rgb(233, 236, 242)",
+        "resolvedRGBA": {
+          "red": 0.9137254901960784,
+          "green": 0.9254901960784314,
+          "blue": 0.9490196078431372,
+          "alpha": 1
+        },
+        "sourceLine": 187
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-700)",
+        "resolvedValue": "rgb(97, 102, 107)",
+        "resolvedRGBA": {
+          "red": 0.3803921568627451,
+          "green": 0.4,
+          "blue": 0.4196078431372549,
+          "alpha": 1
+        },
+        "sourceLine": 279
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-button-info-fill",
+      "light": {
+        "rawValue": "var(--dsw-static-deepseek-500)",
+        "resolvedValue": "rgb(65, 118, 230)",
+        "resolvedRGBA": {
+          "red": 0.2549019607843137,
+          "green": 0.4627450980392157,
+          "blue": 0.9019607843137255,
+          "alpha": 1
+        },
+        "sourceLine": 188
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-deepseek-400)",
+        "resolvedValue": "rgb(103, 158, 254)",
+        "resolvedRGBA": {
+          "red": 0.403921568627451,
+          "green": 0.6196078431372549,
+          "blue": 0.996078431372549,
+          "alpha": 1
+        },
+        "sourceLine": 280
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-button-info-hover",
+      "light": {
+        "rawValue": "var(--dsw-static-deepseek-400)",
+        "resolvedValue": "rgb(103, 158, 254)",
+        "resolvedRGBA": {
+          "red": 0.403921568627451,
+          "green": 0.6196078431372549,
+          "blue": 0.996078431372549,
+          "alpha": 1
+        },
+        "sourceLine": 189
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-deepseek-500)",
+        "resolvedValue": "rgb(65, 118, 230)",
+        "resolvedRGBA": {
+          "red": 0.2549019607843137,
+          "green": 0.4627450980392157,
+          "blue": 0.9019607843137255,
+          "alpha": 1
+        },
+        "sourceLine": 281
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-button-primary-dimmed",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-100)",
+        "resolvedValue": "rgb(235, 238, 242)",
+        "resolvedRGBA": {
+          "red": 0.9215686274509803,
+          "green": 0.9333333333333333,
+          "blue": 0.9490196078431372,
+          "alpha": 1
+        },
+        "sourceLine": 190
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-750)",
+        "resolvedValue": "rgb(67, 69, 74)",
+        "resolvedRGBA": {
+          "red": 0.2627450980392157,
+          "green": 0.27058823529411763,
+          "blue": 0.2901960784313726,
+          "alpha": 1
+        },
+        "sourceLine": 282
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-button-primary-fill",
+      "light": {
+        "rawValue": "var(--dsw-alias-brand-primary)",
+        "resolvedValue": "rgb(15, 17, 21)",
+        "resolvedRGBA": {
+          "red": 0.058823529411764705,
+          "green": 0.06666666666666667,
+          "blue": 0.08235294117647059,
+          "alpha": 1
+        },
+        "sourceLine": 191
+      },
+      "dark": {
+        "rawValue": "var(--dsw-alias-brand-primary)",
+        "resolvedValue": "rgb(249, 250, 251)",
+        "resolvedRGBA": {
+          "red": 0.9764705882352941,
+          "green": 0.9803921568627451,
+          "blue": 0.984313725490196,
+          "alpha": 1
+        },
+        "sourceLine": 283
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-button-primary-hover",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-750)",
+        "resolvedValue": "rgb(67, 69, 74)",
+        "resolvedRGBA": {
+          "red": 0.2627450980392157,
+          "green": 0.27058823529411763,
+          "blue": 0.2901960784313726,
+          "alpha": 1
+        },
+        "sourceLine": 192
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-100)",
+        "resolvedValue": "rgb(235, 238, 242)",
+        "resolvedRGBA": {
+          "red": 0.9215686274509803,
+          "green": 0.9333333333333333,
+          "blue": 0.9490196078431372,
+          "alpha": 1
+        },
+        "sourceLine": 284
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-button-tool-bar-fill",
+      "light": {
+        "rawValue": "rgba(84, 85, 87, 0.5)",
+        "resolvedValue": "rgba(84, 85, 87, 0.5)",
+        "resolvedRGBA": {
+          "red": 0.32941176470588235,
+          "green": 0.3333333333333333,
+          "blue": 0.3411764705882353,
+          "alpha": 0.5
+        },
+        "sourceLine": 194
+      },
+      "dark": {
+        "rawValue": "rgba(84, 85, 87, 0.5)",
+        "resolvedValue": "rgba(84, 85, 87, 0.5)",
+        "resolvedRGBA": {
+          "red": 0.32941176470588235,
+          "green": 0.3333333333333333,
+          "blue": 0.3411764705882353,
+          "alpha": 0.5
+        },
+        "sourceLine": 286
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-button-tool-bar-fill-invisible",
+      "light": {
+        "rawValue": "rgba(31, 31, 31, 0.36)",
+        "resolvedValue": "rgba(31, 31, 31, 0.36)",
+        "resolvedRGBA": {
+          "red": 0.12156862745098039,
+          "green": 0.12156862745098039,
+          "blue": 0.12156862745098039,
+          "alpha": 0.36
+        },
+        "sourceLine": 193
+      },
+      "dark": {
+        "rawValue": "rgba(31, 31, 31, 0.36)",
+        "resolvedValue": "rgba(31, 31, 31, 0.36)",
+        "resolvedRGBA": {
+          "red": 0.12156862745098039,
+          "green": 0.12156862745098039,
+          "blue": 0.12156862745098039,
+          "alpha": 0.36
+        },
+        "sourceLine": 285
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-button-tool-bar-hover",
+      "light": {
+        "rawValue": "rgba(84, 85, 87, 0.6)",
+        "resolvedValue": "rgba(84, 85, 87, 0.6)",
+        "resolvedRGBA": {
+          "red": 0.32941176470588235,
+          "green": 0.3333333333333333,
+          "blue": 0.3411764705882353,
+          "alpha": 0.6
+        },
+        "sourceLine": 195
+      },
+      "dark": {
+        "rawValue": "rgba(84, 85, 87, 0.6)",
+        "resolvedValue": "rgba(84, 85, 87, 0.6)",
+        "resolvedRGBA": {
+          "red": 0.32941176470588235,
+          "green": 0.3333333333333333,
+          "blue": 0.3411764705882353,
+          "alpha": 0.6
+        },
+        "sourceLine": 287
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-interactive-bg-active",
+      "light": {
+        "rawValue": "rgba(38, 49, 72, 0.1)",
+        "resolvedValue": "rgba(38, 49, 72, 0.1)",
+        "resolvedRGBA": {
+          "red": 0.14901960784313725,
+          "green": 0.19215686274509805,
+          "blue": 0.2823529411764706,
+          "alpha": 0.1
+        },
+        "sourceLine": 196
+      },
+      "dark": {
+        "rawValue": "rgba(255, 255, 255, 0.14)",
+        "resolvedValue": "rgba(255, 255, 255, 0.14)",
+        "resolvedRGBA": {
+          "red": 1.0,
+          "green": 1.0,
+          "blue": 1.0,
+          "alpha": 0.14
+        },
+        "sourceLine": 288
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-interactive-bg-hover",
+      "light": {
+        "rawValue": "rgba(38, 49, 72, 0.06)",
+        "resolvedValue": "rgba(38, 49, 72, 0.06)",
+        "resolvedRGBA": {
+          "red": 0.14901960784313725,
+          "green": 0.19215686274509805,
+          "blue": 0.2823529411764706,
+          "alpha": 0.06
+        },
+        "sourceLine": 200
+      },
+      "dark": {
+        "rawValue": "rgba(255, 255, 255, 0.08)",
+        "resolvedValue": "rgba(255, 255, 255, 0.08)",
+        "resolvedRGBA": {
+          "red": 1.0,
+          "green": 1.0,
+          "blue": 1.0,
+          "alpha": 0.08
+        },
+        "sourceLine": 292
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-interactive-bg-hover-accent",
+      "light": {
+        "rawValue": "rgba(38, 49, 72, 0.14)",
+        "resolvedValue": "rgba(38, 49, 72, 0.14)",
+        "resolvedRGBA": {
+          "red": 0.14901960784313725,
+          "green": 0.19215686274509805,
+          "blue": 0.2823529411764706,
+          "alpha": 0.14
+        },
+        "sourceLine": 197
+      },
+      "dark": {
+        "rawValue": "rgba(255, 255, 255, 0.24)",
+        "resolvedValue": "rgba(255, 255, 255, 0.24)",
+        "resolvedRGBA": {
+          "red": 1.0,
+          "green": 1.0,
+          "blue": 1.0,
+          "alpha": 0.24
+        },
+        "sourceLine": 289
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-interactive-bg-hover-danger",
+      "light": {
+        "rawValue": "rgba(236, 19, 19, 0.05)",
+        "resolvedValue": "rgba(236, 19, 19, 0.05)",
+        "resolvedRGBA": {
+          "red": 0.9254901960784314,
+          "green": 0.07450980392156863,
+          "blue": 0.07450980392156863,
+          "alpha": 0.05
+        },
+        "sourceLine": 198
+      },
+      "dark": {
+        "rawValue": "rgba(242, 90, 90, 0.15)",
+        "resolvedValue": "rgba(242, 90, 90, 0.15)",
+        "resolvedRGBA": {
+          "red": 0.9490196078431372,
+          "green": 0.35294117647058826,
+          "blue": 0.35294117647058826,
+          "alpha": 0.15
+        },
+        "sourceLine": 290
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-interactive-bg-hover-solid",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-75)",
+        "resolvedValue": "rgb(241, 243, 245)",
+        "resolvedRGBA": {
+          "red": 0.9450980392156862,
+          "green": 0.9529411764705882,
+          "blue": 0.9607843137254902,
+          "alpha": 1
+        },
+        "sourceLine": 199
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-800)",
+        "resolvedValue": "rgb(53, 54, 56)",
+        "resolvedRGBA": {
+          "red": 0.20784313725490197,
+          "green": 0.21176470588235294,
+          "blue": 0.2196078431372549,
+          "alpha": 1
+        },
+        "sourceLine": 291
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-label-caption",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-400)",
+        "resolvedValue": "rgb(173, 178, 184)",
+        "resolvedRGBA": {
+          "red": 0.6784313725490196,
+          "green": 0.6980392156862745,
+          "blue": 0.7215686274509804,
+          "alpha": 1
+        },
+        "sourceLine": 201
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-600)",
+        "resolvedValue": "rgb(129, 133, 140)",
+        "resolvedRGBA": {
+          "red": 0.5058823529411764,
+          "green": 0.5215686274509804,
+          "blue": 0.5490196078431373,
+          "alpha": 1
+        },
+        "sourceLine": 293
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-label-dimmed",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-200)",
+        "resolvedValue": "rgb(225, 229, 238)",
+        "resolvedRGBA": {
+          "red": 0.8823529411764706,
+          "green": 0.8980392156862745,
+          "blue": 0.9333333333333333,
+          "alpha": 1
+        },
+        "sourceLine": 202
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-750)",
+        "resolvedValue": "rgb(67, 69, 74)",
+        "resolvedRGBA": {
+          "red": 0.2627450980392157,
+          "green": 0.27058823529411763,
+          "blue": 0.2901960784313726,
+          "alpha": 1
+        },
+        "sourceLine": 294
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-label-primary",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-1000)",
+        "resolvedValue": "rgb(15, 17, 21)",
+        "resolvedRGBA": {
+          "red": 0.058823529411764705,
+          "green": 0.06666666666666667,
+          "blue": 0.08235294117647059,
+          "alpha": 1
+        },
+        "sourceLine": 207
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-50)",
+        "resolvedValue": "rgb(249, 250, 251)",
+        "resolvedRGBA": {
+          "red": 0.9764705882352941,
+          "green": 0.9803921568627451,
+          "blue": 0.984313725490196,
+          "alpha": 1
+        },
+        "sourceLine": 299
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-label-primary-bluish",
+      "light": {
+        "rawValue": "var(--dsw-static-blue-900)",
+        "resolvedValue": "rgb(14, 48, 116)",
+        "resolvedRGBA": {
+          "red": 0.054901960784313725,
+          "green": 0.18823529411764706,
+          "blue": 0.4549019607843137,
+          "alpha": 1
+        },
+        "sourceLine": 203
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-50)",
+        "resolvedValue": "rgb(249, 250, 251)",
+        "resolvedRGBA": {
+          "red": 0.9764705882352941,
+          "green": 0.9803921568627451,
+          "blue": 0.984313725490196,
+          "alpha": 1
+        },
+        "sourceLine": 295
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-label-primary-dimmed",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-950)",
+        "resolvedValue": "rgb(21, 21, 23)",
+        "resolvedRGBA": {
+          "red": 0.08235294117647059,
+          "green": 0.08235294117647059,
+          "blue": 0.09019607843137255,
+          "alpha": 1
+        },
+        "sourceLine": 204
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-100)",
+        "resolvedValue": "rgb(235, 238, 242)",
+        "resolvedRGBA": {
+          "red": 0.9215686274509803,
+          "green": 0.9333333333333333,
+          "blue": 0.9490196078431372,
+          "alpha": 1
+        },
+        "sourceLine": 296
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-label-primary-foreground",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-00)",
+        "resolvedValue": "rgb(255, 255, 255)",
+        "resolvedRGBA": {
+          "red": 1.0,
+          "green": 1.0,
+          "blue": 1.0,
+          "alpha": 1
+        },
+        "sourceLine": 205
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-1000)",
+        "resolvedValue": "rgb(15, 17, 21)",
+        "resolvedRGBA": {
+          "red": 0.058823529411764705,
+          "green": 0.06666666666666667,
+          "blue": 0.08235294117647059,
+          "alpha": 1
+        },
+        "sourceLine": 297
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-label-primary-inverted",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-00)",
+        "resolvedValue": "rgb(255, 255, 255)",
+        "resolvedRGBA": {
+          "red": 1.0,
+          "green": 1.0,
+          "blue": 1.0,
+          "alpha": 1
+        },
+        "sourceLine": 206
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-800)",
+        "resolvedValue": "rgb(53, 54, 56)",
+        "resolvedRGBA": {
+          "red": 0.20784313725490197,
+          "green": 0.21176470588235294,
+          "blue": 0.2196078431372549,
+          "alpha": 1
+        },
+        "sourceLine": 298
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-label-secondary",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-700)",
+        "resolvedValue": "rgb(97, 102, 107)",
+        "resolvedRGBA": {
+          "red": 0.3803921568627451,
+          "green": 0.4,
+          "blue": 0.4196078431372549,
+          "alpha": 1
+        },
+        "sourceLine": 208
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-300)",
+        "resolvedValue": "rgb(207, 211, 214)",
+        "resolvedRGBA": {
+          "red": 0.8117647058823529,
+          "green": 0.8274509803921568,
+          "blue": 0.8392156862745098,
+          "alpha": 1
+        },
+        "sourceLine": 300
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-label-tertiary",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-600)",
+        "resolvedValue": "rgb(129, 133, 140)",
+        "resolvedRGBA": {
+          "red": 0.5058823529411764,
+          "green": 0.5215686274509804,
+          "blue": 0.5490196078431373,
+          "alpha": 1
+        },
+        "sourceLine": 209
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-400)",
+        "resolvedValue": "rgb(173, 178, 184)",
+        "resolvedRGBA": {
+          "red": 0.6784313725490196,
+          "green": 0.6980392156862745,
+          "blue": 0.7215686274509804,
+          "alpha": 1
+        },
+        "sourceLine": 301
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-markdown-citation",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-100)",
+        "resolvedValue": "rgb(235, 238, 242)",
+        "resolvedRGBA": {
+          "red": 0.9215686274509803,
+          "green": 0.9333333333333333,
+          "blue": 0.9490196078431372,
+          "alpha": 1
+        },
+        "sourceLine": 210
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-800)",
+        "resolvedValue": "rgb(53, 54, 56)",
+        "resolvedRGBA": {
+          "red": 0.20784313725490197,
+          "green": 0.21176470588235294,
+          "blue": 0.2196078431372549,
+          "alpha": 1
+        },
+        "sourceLine": 302
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-markdown-code-block",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-50)",
+        "resolvedValue": "rgb(249, 250, 251)",
+        "resolvedRGBA": {
+          "red": 0.9764705882352941,
+          "green": 0.9803921568627451,
+          "blue": 0.984313725490196,
+          "alpha": 1
+        },
+        "sourceLine": 212
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-900)",
+        "resolvedValue": "rgb(27, 27, 28)",
+        "resolvedRGBA": {
+          "red": 0.10588235294117647,
+          "green": 0.10588235294117647,
+          "blue": 0.10980392156862745,
+          "alpha": 1
+        },
+        "sourceLine": 304
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-markdown-code-block-banner",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-50)",
+        "resolvedValue": "rgb(249, 250, 251)",
+        "resolvedRGBA": {
+          "red": 0.9764705882352941,
+          "green": 0.9803921568627451,
+          "blue": 0.984313725490196,
+          "alpha": 1
+        },
+        "sourceLine": 211
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-850)",
+        "resolvedValue": "rgb(44, 44, 46)",
+        "resolvedRGBA": {
+          "red": 0.17254901960784313,
+          "green": 0.17254901960784313,
+          "blue": 0.1803921568627451,
+          "alpha": 1
+        },
+        "sourceLine": 303
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-markdown-code-segment-selected",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-00)",
+        "resolvedValue": "rgb(255, 255, 255)",
+        "resolvedRGBA": {
+          "red": 1.0,
+          "green": 1.0,
+          "blue": 1.0,
+          "alpha": 1
+        },
+        "sourceLine": 213
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-800)",
+        "resolvedValue": "rgb(53, 54, 56)",
+        "resolvedRGBA": {
+          "red": 0.20784313725490197,
+          "green": 0.21176470588235294,
+          "blue": 0.2196078431372549,
+          "alpha": 1
+        },
+        "sourceLine": 305
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-markdown-code-segment-unselected",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-75)",
+        "resolvedValue": "rgb(241, 243, 245)",
+        "resolvedRGBA": {
+          "red": 0.9450980392156862,
+          "green": 0.9529411764705882,
+          "blue": 0.9607843137254902,
+          "alpha": 1
+        },
+        "sourceLine": 214
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-900)",
+        "resolvedValue": "rgb(27, 27, 28)",
+        "resolvedRGBA": {
+          "red": 0.10588235294117647,
+          "green": 0.10588235294117647,
+          "blue": 0.10980392156862745,
+          "alpha": 1
+        },
+        "sourceLine": 306
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-markdown-inline-code",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-100)",
+        "resolvedValue": "rgb(235, 238, 242)",
+        "resolvedRGBA": {
+          "red": 0.9215686274509803,
+          "green": 0.9333333333333333,
+          "blue": 0.9490196078431372,
+          "alpha": 1
+        },
+        "sourceLine": 215
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-850)",
+        "resolvedValue": "rgb(44, 44, 46)",
+        "resolvedRGBA": {
+          "red": 0.17254901960784313,
+          "green": 0.17254901960784313,
+          "blue": 0.1803921568627451,
+          "alpha": 1
+        },
+        "sourceLine": 307
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-markdown-placeholder",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-60)",
+        "resolvedValue": "rgb(245, 246, 247)",
+        "resolvedRGBA": {
+          "red": 0.9607843137254902,
+          "green": 0.9647058823529412,
+          "blue": 0.9686274509803922,
+          "alpha": 1
+        },
+        "sourceLine": 216
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-850)",
+        "resolvedValue": "rgb(44, 44, 46)",
+        "resolvedRGBA": {
+          "red": 0.17254901960784313,
+          "green": 0.17254901960784313,
+          "blue": 0.1803921568627451,
+          "alpha": 1
+        },
+        "sourceLine": 308
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-markdown-tag",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-75)",
+        "resolvedValue": "rgb(241, 243, 245)",
+        "resolvedRGBA": {
+          "red": 0.9450980392156862,
+          "green": 0.9529411764705882,
+          "blue": 0.9607843137254902,
+          "alpha": 1
+        },
+        "sourceLine": 217
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-850)",
+        "resolvedValue": "rgb(44, 44, 46)",
+        "resolvedRGBA": {
+          "red": 0.17254901960784313,
+          "green": 0.17254901960784313,
+          "blue": 0.1803921568627451,
+          "alpha": 1
+        },
+        "sourceLine": 309
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-scrollbar-bg-l1",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-200)",
+        "resolvedValue": "rgb(229, 229, 229)",
+        "resolvedRGBA": {
+          "red": 0.8980392156862745,
+          "green": 0.8980392156862745,
+          "blue": 0.8980392156862745,
+          "alpha": 1
+        },
+        "sourceLine": 218
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-700)",
+        "resolvedValue": "rgb(60, 60, 61)",
+        "resolvedRGBA": {
+          "red": 0.23529411764705882,
+          "green": 0.23529411764705882,
+          "blue": 0.23921568627450981,
+          "alpha": 1
+        },
+        "sourceLine": 310
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-scrollbar-bg-l2",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-200)",
+        "resolvedValue": "rgb(229, 229, 229)",
+        "resolvedRGBA": {
+          "red": 0.8980392156862745,
+          "green": 0.8980392156862745,
+          "blue": 0.8980392156862745,
+          "alpha": 1
+        },
+        "sourceLine": 219
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-600)",
+        "resolvedValue": "rgb(84, 85, 87)",
+        "resolvedRGBA": {
+          "red": 0.32941176470588235,
+          "green": 0.3333333333333333,
+          "blue": 0.3411764705882353,
+          "alpha": 1
+        },
+        "sourceLine": 311
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-scrollbar-hover-l1",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-300)",
+        "resolvedValue": "rgb(212, 212, 212)",
+        "resolvedRGBA": {
+          "red": 0.8313725490196079,
+          "green": 0.8313725490196079,
+          "blue": 0.8313725490196079,
+          "alpha": 1
+        },
+        "sourceLine": 220
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-600)",
+        "resolvedValue": "rgb(84, 85, 87)",
+        "resolvedRGBA": {
+          "red": 0.32941176470588235,
+          "green": 0.3333333333333333,
+          "blue": 0.3411764705882353,
+          "alpha": 1
+        },
+        "sourceLine": 312
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-scrollbar-hover-l2",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-300)",
+        "resolvedValue": "rgb(212, 212, 212)",
+        "resolvedRGBA": {
+          "red": 0.8313725490196079,
+          "green": 0.8313725490196079,
+          "blue": 0.8313725490196079,
+          "alpha": 1
+        },
+        "sourceLine": 221
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-550)",
+        "resolvedValue": "rgb(101, 103, 107)",
+        "resolvedRGBA": {
+          "red": 0.396078431372549,
+          "green": 0.403921568627451,
+          "blue": 0.4196078431372549,
+          "alpha": 1
+        },
+        "sourceLine": 313
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-state-business-primary",
+      "light": {
+        "rawValue": "var(--dsw-static-deepseek-500)",
+        "resolvedValue": "rgb(65, 118, 230)",
+        "resolvedRGBA": {
+          "red": 0.2549019607843137,
+          "green": 0.4627450980392157,
+          "blue": 0.9019607843137255,
+          "alpha": 1
+        },
+        "sourceLine": 222
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-deepseek-400)",
+        "resolvedValue": "rgb(103, 158, 254)",
+        "resolvedRGBA": {
+          "red": 0.403921568627451,
+          "green": 0.6196078431372549,
+          "blue": 0.996078431372549,
+          "alpha": 1
+        },
+        "sourceLine": 314
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-state-business-tertiary",
+      "light": {
+        "rawValue": "var(--dsw-static-deepseek-100)",
+        "resolvedValue": "rgb(228, 237, 253)",
+        "resolvedRGBA": {
+          "red": 0.8941176470588236,
+          "green": 0.9294117647058824,
+          "blue": 0.9921568627450981,
+          "alpha": 1
+        },
+        "sourceLine": 223
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-deepseek-800)",
+        "resolvedValue": "rgb(52, 65, 91)",
+        "resolvedRGBA": {
+          "red": 0.20392156862745098,
+          "green": 0.2549019607843137,
+          "blue": 0.3568627450980392,
+          "alpha": 1
+        },
+        "sourceLine": 315
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-state-error-primary",
+      "light": {
+        "rawValue": "var(--dsw-static-red-600)",
+        "resolvedValue": "rgb(236, 19, 19)",
+        "resolvedRGBA": {
+          "red": 0.9254901960784314,
+          "green": 0.07450980392156863,
+          "blue": 0.07450980392156863,
+          "alpha": 1
+        },
+        "sourceLine": 224
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-red-400)",
+        "resolvedValue": "rgb(242, 90, 90)",
+        "resolvedRGBA": {
+          "red": 0.9490196078431372,
+          "green": 0.35294117647058826,
+          "blue": 0.35294117647058826,
+          "alpha": 1
+        },
+        "sourceLine": 316
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-state-error-secondary",
+      "light": {
+        "rawValue": "var(--dsw-static-red-400)",
+        "resolvedValue": "rgb(242, 90, 90)",
+        "resolvedRGBA": {
+          "red": 0.9490196078431372,
+          "green": 0.35294117647058826,
+          "blue": 0.35294117647058826,
+          "alpha": 1
+        },
+        "sourceLine": 225
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-red-400)",
+        "resolvedValue": "rgb(242, 90, 90)",
+        "resolvedRGBA": {
+          "red": 0.9490196078431372,
+          "green": 0.35294117647058826,
+          "blue": 0.35294117647058826,
+          "alpha": 1
+        },
+        "sourceLine": 317
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-state-success-primary",
+      "light": {
+        "rawValue": "var(--dsw-static-green-500)",
+        "resolvedValue": "rgb(34, 197, 94)",
+        "resolvedRGBA": {
+          "red": 0.13333333333333333,
+          "green": 0.7725490196078432,
+          "blue": 0.3686274509803922,
+          "alpha": 1
+        },
+        "sourceLine": 226
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-green-500)",
+        "resolvedValue": "rgb(34, 197, 94)",
+        "resolvedRGBA": {
+          "red": 0.13333333333333333,
+          "green": 0.7725490196078432,
+          "blue": 0.3686274509803922,
+          "alpha": 1
+        },
+        "sourceLine": 318
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-state-success-secondary",
+      "light": {
+        "rawValue": "var(--dsw-static-green-400)",
+        "resolvedValue": "rgb(78, 209, 126)",
+        "resolvedRGBA": {
+          "red": 0.3058823529411765,
+          "green": 0.8196078431372549,
+          "blue": 0.49411764705882355,
+          "alpha": 1
+        },
+        "sourceLine": 227
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-green-400)",
+        "resolvedValue": "rgb(78, 209, 126)",
+        "resolvedRGBA": {
+          "red": 0.3058823529411765,
+          "green": 0.8196078431372549,
+          "blue": 0.49411764705882355,
+          "alpha": 1
+        },
+        "sourceLine": 319
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-state-success-tertiary",
+      "light": {
+        "rawValue": "var(--dsw-static-green-100)",
+        "resolvedValue": "rgb(230, 250, 237)",
+        "resolvedRGBA": {
+          "red": 0.9019607843137255,
+          "green": 0.9803921568627451,
+          "blue": 0.9294117647058824,
+          "alpha": 1
+        },
+        "sourceLine": 228
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-green-900)",
+        "resolvedValue": "rgb(35, 60, 44)",
+        "resolvedRGBA": {
+          "red": 0.13725490196078433,
+          "green": 0.23529411764705882,
+          "blue": 0.17254901960784313,
+          "alpha": 1
+        },
+        "sourceLine": 320
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-state-warn-label",
+      "light": {
+        "rawValue": "var(--dsw-static-amber-600)",
+        "resolvedValue": "rgb(221, 134, 41)",
+        "resolvedRGBA": {
+          "red": 0.8666666666666667,
+          "green": 0.5254901960784314,
+          "blue": 0.1607843137254902,
+          "alpha": 1
+        },
+        "sourceLine": 229
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-amber-600)",
+        "resolvedValue": "rgb(221, 134, 41)",
+        "resolvedRGBA": {
+          "red": 0.8666666666666667,
+          "green": 0.5254901960784314,
+          "blue": 0.1607843137254902,
+          "alpha": 1
+        },
+        "sourceLine": 321
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-state-warn-primary",
+      "light": {
+        "rawValue": "var(--dsw-static-amber-500)",
+        "resolvedValue": "rgb(245, 158, 11)",
+        "resolvedRGBA": {
+          "red": 0.9607843137254902,
+          "green": 0.6196078431372549,
+          "blue": 0.043137254901960784,
+          "alpha": 1
+        },
+        "sourceLine": 230
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-amber-500)",
+        "resolvedValue": "rgb(245, 158, 11)",
+        "resolvedRGBA": {
+          "red": 0.9607843137254902,
+          "green": 0.6196078431372549,
+          "blue": 0.043137254901960784,
+          "alpha": 1
+        },
+        "sourceLine": 322
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-state-warn-secondary",
+      "light": {
+        "rawValue": "var(--dsw-static-amber-400)",
+        "resolvedValue": "rgb(247, 173, 49)",
+        "resolvedRGBA": {
+          "red": 0.9686274509803922,
+          "green": 0.6784313725490196,
+          "blue": 0.19215686274509805,
+          "alpha": 1
+        },
+        "sourceLine": 231
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-amber-400)",
+        "resolvedValue": "rgb(247, 173, 49)",
+        "resolvedRGBA": {
+          "red": 0.9686274509803922,
+          "green": 0.6784313725490196,
+          "blue": 0.19215686274509805,
+          "alpha": 1
+        },
+        "sourceLine": 323
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-state-warn-tertiary",
+      "light": {
+        "rawValue": "var(--dsw-static-amber-100)",
+        "resolvedValue": "rgb(254, 245, 231)",
+        "resolvedRGBA": {
+          "red": 0.996078431372549,
+          "green": 0.9607843137254902,
+          "blue": 0.9058823529411765,
+          "alpha": 1
+        },
+        "sourceLine": 232
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-amber-900)",
+        "resolvedValue": "rgb(39, 36, 31)",
+        "resolvedRGBA": {
+          "red": 0.15294117647058825,
+          "green": 0.1411764705882353,
+          "blue": 0.12156862745098039,
+          "alpha": 1
+        },
+        "sourceLine": 324
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-toast-bg",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-800)",
+        "resolvedValue": "rgb(53, 54, 56)",
+        "resolvedRGBA": {
+          "red": 0.20784313725490197,
+          "green": 0.21176470588235294,
+          "blue": 0.2196078431372549,
+          "alpha": 1
+        },
+        "sourceLine": 233
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-750)",
+        "resolvedValue": "rgb(67, 69, 74)",
+        "resolvedRGBA": {
+          "red": 0.2627450980392157,
+          "green": 0.27058823529411763,
+          "blue": 0.2901960784313726,
+          "alpha": 1
+        },
+        "sourceLine": 325
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-alias-tooltip-bg",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-850)",
+        "resolvedValue": "rgb(44, 44, 46)",
+        "resolvedRGBA": {
+          "red": 0.17254901960784313,
+          "green": 0.17254901960784313,
+          "blue": 0.1803921568627451,
+          "alpha": 1
+        },
+        "sourceLine": 234
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-750)",
+        "resolvedValue": "rgb(67, 69, 74)",
+        "resolvedRGBA": {
+          "red": 0.2627450980392157,
+          "green": 0.27058823529411763,
+          "blue": 0.2901960784313726,
+          "alpha": 1
+        },
+        "sourceLine": 326
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-specific-bubble",
+      "light": {
+        "rawValue": "var(--dsw-static-deepseek-50)",
+        "resolvedValue": "rgb(237, 243, 254)",
+        "resolvedRGBA": {
+          "red": 0.9294117647058824,
+          "green": 0.9529411764705882,
+          "blue": 0.996078431372549,
+          "alpha": 1
+        },
+        "sourceLine": 236
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-850)",
+        "resolvedValue": "rgb(44, 44, 46)",
+        "resolvedRGBA": {
+          "red": 0.17254901960784313,
+          "green": 0.17254901960784313,
+          "blue": 0.1803921568627451,
+          "alpha": 1
+        },
+        "sourceLine": 328
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-specific-bubble-highlight",
+      "light": {
+        "rawValue": "var(--dsw-static-deepseek-200)",
+        "resolvedValue": "rgb(211, 226, 255)",
+        "resolvedRGBA": {
+          "red": 0.8274509803921568,
+          "green": 0.8862745098039215,
+          "blue": 1.0,
+          "alpha": 1
+        },
+        "sourceLine": 235
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-750)",
+        "resolvedValue": "rgb(67, 69, 74)",
+        "resolvedRGBA": {
+          "red": 0.2627450980392157,
+          "green": 0.27058823529411763,
+          "blue": 0.2901960784313726,
+          "alpha": 1
+        },
+        "sourceLine": 327
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-specific-input-major",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-00)",
+        "resolvedValue": "rgb(255, 255, 255)",
+        "resolvedRGBA": {
+          "red": 1.0,
+          "green": 1.0,
+          "blue": 1.0,
+          "alpha": 1
+        },
+        "sourceLine": 237
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-850)",
+        "resolvedValue": "rgb(44, 44, 46)",
+        "resolvedRGBA": {
+          "red": 0.17254901960784313,
+          "green": 0.17254901960784313,
+          "blue": 0.1803921568627451,
+          "alpha": 1
+        },
+        "sourceLine": 329
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-specific-login-input",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-50)",
+        "resolvedValue": "rgb(249, 250, 251)",
+        "resolvedRGBA": {
+          "red": 0.9764705882352941,
+          "green": 0.9803921568627451,
+          "blue": 0.984313725490196,
+          "alpha": 1
+        },
+        "sourceLine": 238
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-900)",
+        "resolvedValue": "rgb(27, 27, 28)",
+        "resolvedRGBA": {
+          "red": 0.10588235294117647,
+          "green": 0.10588235294117647,
+          "blue": 0.10980392156862745,
+          "alpha": 1
+        },
+        "sourceLine": 330
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-specific-menu",
+      "light": {
+        "rawValue": "var(--dsw-alias-bg-layer-3)",
+        "resolvedValue": "rgb(255, 255, 255)",
+        "resolvedRGBA": {
+          "red": 1.0,
+          "green": 1.0,
+          "blue": 1.0,
+          "alpha": 1
+        },
+        "sourceLine": 239
+      },
+      "dark": {
+        "rawValue": "var(--dsw-alias-bg-layer-3)",
+        "resolvedValue": "rgb(53, 54, 56)",
+        "resolvedRGBA": {
+          "red": 0.20784313725490197,
+          "green": 0.21176470588235294,
+          "blue": 0.2196078431372549,
+          "alpha": 1
+        },
+        "sourceLine": 331
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-specific-selector",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-60)",
+        "resolvedValue": "rgb(245, 246, 247)",
+        "resolvedRGBA": {
+          "red": 0.9607843137254902,
+          "green": 0.9647058823529412,
+          "blue": 0.9686274509803922,
+          "alpha": 1
+        },
+        "sourceLine": 240
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-800)",
+        "resolvedValue": "rgb(53, 54, 56)",
+        "resolvedRGBA": {
+          "red": 0.20784313725490197,
+          "green": 0.21176470588235294,
+          "blue": 0.2196078431372549,
+          "alpha": 1
+        },
+        "sourceLine": 332
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-specific-sidebar-fill",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-50)",
+        "resolvedValue": "rgb(249, 250, 251)",
+        "resolvedRGBA": {
+          "red": 0.9764705882352941,
+          "green": 0.9803921568627451,
+          "blue": 0.984313725490196,
+          "alpha": 1
+        },
+        "sourceLine": 241
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-900)",
+        "resolvedValue": "rgb(27, 27, 28)",
+        "resolvedRGBA": {
+          "red": 0.10588235294117647,
+          "green": 0.10588235294117647,
+          "blue": 0.10980392156862745,
+          "alpha": 1
+        },
+        "sourceLine": 333
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-specific-sidebar-nav-item-active",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-100)",
+        "resolvedValue": "rgb(235, 238, 242)",
+        "resolvedRGBA": {
+          "red": 0.9215686274509803,
+          "green": 0.9333333333333333,
+          "blue": 0.9490196078431372,
+          "alpha": 1
+        },
+        "sourceLine": 243
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-750)",
+        "resolvedValue": "rgb(67, 69, 74)",
+        "resolvedRGBA": {
+          "red": 0.2627450980392157,
+          "green": 0.27058823529411763,
+          "blue": 0.2901960784313726,
+          "alpha": 1
+        },
+        "sourceLine": 335
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-specific-sidebar-nav-item-active-accent",
+      "light": {
+        "rawValue": "var(--dsw-static-deepseek-100)",
+        "resolvedValue": "rgb(228, 237, 253)",
+        "resolvedRGBA": {
+          "red": 0.8941176470588236,
+          "green": 0.9294117647058824,
+          "blue": 0.9921568627450981,
+          "alpha": 1
+        },
+        "sourceLine": 242
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-800)",
+        "resolvedValue": "rgb(53, 54, 56)",
+        "resolvedRGBA": {
+          "red": 0.20784313725490197,
+          "green": 0.21176470588235294,
+          "blue": 0.2196078431372549,
+          "alpha": 1
+        },
+        "sourceLine": 334
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-specific-sidebar-nav-item-hover",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-75)",
+        "resolvedValue": "rgb(241, 243, 245)",
+        "resolvedRGBA": {
+          "red": 0.9450980392156862,
+          "green": 0.9529411764705882,
+          "blue": 0.9607843137254902,
+          "alpha": 1
+        },
+        "sourceLine": 244
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-850)",
+        "resolvedValue": "rgb(44, 44, 46)",
+        "resolvedRGBA": {
+          "red": 0.17254901960784313,
+          "green": 0.17254901960784313,
+          "blue": 0.1803921568627451,
+          "alpha": 1
+        },
+        "sourceLine": 336
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-specific-tip",
+      "light": {
+        "rawValue": "var(--dsw-static-neutral-bluish-60)",
+        "resolvedValue": "rgb(245, 246, 247)",
+        "resolvedRGBA": {
+          "red": 0.9607843137254902,
+          "green": 0.9647058823529412,
+          "blue": 0.9686274509803922,
+          "alpha": 1
+        },
+        "sourceLine": 245
+      },
+      "dark": {
+        "rawValue": "var(--dsw-static-neutral-bluish-800)",
+        "resolvedValue": "rgb(53, 54, 56)",
+        "resolvedRGBA": {
+          "red": 0.20784313725490197,
+          "green": 0.21176470588235294,
+          "blue": 0.2196078431372549,
+          "alpha": 1
+        },
+        "sourceLine": 337
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-amber-100",
+      "light": {
+        "rawValue": "rgb(254, 245, 231)",
+        "resolvedValue": "rgb(254, 245, 231)",
+        "resolvedRGBA": {
+          "red": 0.996078431372549,
+          "green": 0.9607843137254902,
+          "blue": 0.9058823529411765,
+          "alpha": 1
+        },
+        "sourceLine": 5
+      },
+      "dark": {
+        "rawValue": "rgb(254, 245, 231)",
+        "resolvedValue": "rgb(254, 245, 231)",
+        "resolvedRGBA": {
+          "red": 0.996078431372549,
+          "green": 0.9607843137254902,
+          "blue": 0.9058823529411765,
+          "alpha": 1
+        },
+        "sourceLine": 81
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-amber-400",
+      "light": {
+        "rawValue": "rgb(247, 173, 49)",
+        "resolvedValue": "rgb(247, 173, 49)",
+        "resolvedRGBA": {
+          "red": 0.9686274509803922,
+          "green": 0.6784313725490196,
+          "blue": 0.19215686274509805,
+          "alpha": 1
+        },
+        "sourceLine": 6
+      },
+      "dark": {
+        "rawValue": "rgb(247, 173, 49)",
+        "resolvedValue": "rgb(247, 173, 49)",
+        "resolvedRGBA": {
+          "red": 0.9686274509803922,
+          "green": 0.6784313725490196,
+          "blue": 0.19215686274509805,
+          "alpha": 1
+        },
+        "sourceLine": 82
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-amber-500",
+      "light": {
+        "rawValue": "rgb(245, 158, 11)",
+        "resolvedValue": "rgb(245, 158, 11)",
+        "resolvedRGBA": {
+          "red": 0.9607843137254902,
+          "green": 0.6196078431372549,
+          "blue": 0.043137254901960784,
+          "alpha": 1
+        },
+        "sourceLine": 7
+      },
+      "dark": {
+        "rawValue": "rgb(245, 158, 11)",
+        "resolvedValue": "rgb(245, 158, 11)",
+        "resolvedRGBA": {
+          "red": 0.9607843137254902,
+          "green": 0.6196078431372549,
+          "blue": 0.043137254901960784,
+          "alpha": 1
+        },
+        "sourceLine": 83
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-amber-600",
+      "light": {
+        "rawValue": "rgb(221, 134, 41)",
+        "resolvedValue": "rgb(221, 134, 41)",
+        "resolvedRGBA": {
+          "red": 0.8666666666666667,
+          "green": 0.5254901960784314,
+          "blue": 0.1607843137254902,
+          "alpha": 1
+        },
+        "sourceLine": 8
+      },
+      "dark": {
+        "rawValue": "rgb(221, 134, 41)",
+        "resolvedValue": "rgb(221, 134, 41)",
+        "resolvedRGBA": {
+          "red": 0.8666666666666667,
+          "green": 0.5254901960784314,
+          "blue": 0.1607843137254902,
+          "alpha": 1
+        },
+        "sourceLine": 84
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-amber-900",
+      "light": {
+        "rawValue": "rgb(39, 36, 31)",
+        "resolvedValue": "rgb(39, 36, 31)",
+        "resolvedRGBA": {
+          "red": 0.15294117647058825,
+          "green": 0.1411764705882353,
+          "blue": 0.12156862745098039,
+          "alpha": 1
+        },
+        "sourceLine": 9
+      },
+      "dark": {
+        "rawValue": "rgb(39, 36, 31)",
+        "resolvedValue": "rgb(39, 36, 31)",
+        "resolvedRGBA": {
+          "red": 0.15294117647058825,
+          "green": 0.1411764705882353,
+          "blue": 0.12156862745098039,
+          "alpha": 1
+        },
+        "sourceLine": 85
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-blue-100",
+      "light": {
+        "rawValue": "rgb(219, 234, 254)",
+        "resolvedValue": "rgb(219, 234, 254)",
+        "resolvedRGBA": {
+          "red": 0.8588235294117647,
+          "green": 0.9176470588235294,
+          "blue": 0.996078431372549,
+          "alpha": 1
+        },
+        "sourceLine": 10
+      },
+      "dark": {
+        "rawValue": "rgb(219, 234, 254)",
+        "resolvedValue": "rgb(219, 234, 254)",
+        "resolvedRGBA": {
+          "red": 0.8588235294117647,
+          "green": 0.9176470588235294,
+          "blue": 0.996078431372549,
+          "alpha": 1
+        },
+        "sourceLine": 86
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-blue-300",
+      "light": {
+        "rawValue": "rgb(147, 197, 253)",
+        "resolvedValue": "rgb(147, 197, 253)",
+        "resolvedRGBA": {
+          "red": 0.5764705882352941,
+          "green": 0.7725490196078432,
+          "blue": 0.9921568627450981,
+          "alpha": 1
+        },
+        "sourceLine": 11
+      },
+      "dark": {
+        "rawValue": "rgb(147, 197, 253)",
+        "resolvedValue": "rgb(147, 197, 253)",
+        "resolvedRGBA": {
+          "red": 0.5764705882352941,
+          "green": 0.7725490196078432,
+          "blue": 0.9921568627450981,
+          "alpha": 1
+        },
+        "sourceLine": 87
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-blue-400",
+      "light": {
+        "rawValue": "rgb(96, 165, 250)",
+        "resolvedValue": "rgb(96, 165, 250)",
+        "resolvedRGBA": {
+          "red": 0.3764705882352941,
+          "green": 0.6470588235294118,
+          "blue": 0.9803921568627451,
+          "alpha": 1
+        },
+        "sourceLine": 12
+      },
+      "dark": {
+        "rawValue": "rgb(96, 165, 250)",
+        "resolvedValue": "rgb(96, 165, 250)",
+        "resolvedRGBA": {
+          "red": 0.3764705882352941,
+          "green": 0.6470588235294118,
+          "blue": 0.9803921568627451,
+          "alpha": 1
+        },
+        "sourceLine": 88
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-blue-450",
+      "light": {
+        "rawValue": "rgb(77, 147, 248)",
+        "resolvedValue": "rgb(77, 147, 248)",
+        "resolvedRGBA": {
+          "red": 0.30196078431372547,
+          "green": 0.5764705882352941,
+          "blue": 0.9725490196078431,
+          "alpha": 1
+        },
+        "sourceLine": 13
+      },
+      "dark": {
+        "rawValue": "rgb(77, 147, 248)",
+        "resolvedValue": "rgb(77, 147, 248)",
+        "resolvedRGBA": {
+          "red": 0.30196078431372547,
+          "green": 0.5764705882352941,
+          "blue": 0.9725490196078431,
+          "alpha": 1
+        },
+        "sourceLine": 89
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-blue-50",
+      "light": {
+        "rawValue": "rgb(239, 246, 255)",
+        "resolvedValue": "rgb(239, 246, 255)",
+        "resolvedRGBA": {
+          "red": 0.9372549019607843,
+          "green": 0.9647058823529412,
+          "blue": 1.0,
+          "alpha": 1
+        },
+        "sourceLine": 15
+      },
+      "dark": {
+        "rawValue": "rgb(239, 246, 255)",
+        "resolvedValue": "rgb(239, 246, 255)",
+        "resolvedRGBA": {
+          "red": 0.9372549019607843,
+          "green": 0.9647058823529412,
+          "blue": 1.0,
+          "alpha": 1
+        },
+        "sourceLine": 91
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-blue-500",
+      "light": {
+        "rawValue": "rgb(59, 130, 246)",
+        "resolvedValue": "rgb(59, 130, 246)",
+        "resolvedRGBA": {
+          "red": 0.23137254901960785,
+          "green": 0.5098039215686274,
+          "blue": 0.9647058823529412,
+          "alpha": 1
+        },
+        "sourceLine": 14
+      },
+      "dark": {
+        "rawValue": "rgb(59, 130, 246)",
+        "resolvedValue": "rgb(59, 130, 246)",
+        "resolvedRGBA": {
+          "red": 0.23137254901960785,
+          "green": 0.5098039215686274,
+          "blue": 0.9647058823529412,
+          "alpha": 1
+        },
+        "sourceLine": 90
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-blue-50p",
+      "light": {
+        "rawValue": "rgb(234, 243, 255)",
+        "resolvedValue": "rgb(234, 243, 255)",
+        "resolvedRGBA": {
+          "red": 0.9176470588235294,
+          "green": 0.9529411764705882,
+          "blue": 1.0,
+          "alpha": 1
+        },
+        "sourceLine": 16
+      },
+      "dark": {
+        "rawValue": "rgb(234, 243, 255)",
+        "resolvedValue": "rgb(234, 243, 255)",
+        "resolvedRGBA": {
+          "red": 0.9176470588235294,
+          "green": 0.9529411764705882,
+          "blue": 1.0,
+          "alpha": 1
+        },
+        "sourceLine": 92
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-blue-600",
+      "light": {
+        "rawValue": "rgb(37, 99, 235)",
+        "resolvedValue": "rgb(37, 99, 235)",
+        "resolvedRGBA": {
+          "red": 0.1450980392156863,
+          "green": 0.38823529411764707,
+          "blue": 0.9215686274509803,
+          "alpha": 1
+        },
+        "sourceLine": 17
+      },
+      "dark": {
+        "rawValue": "rgb(37, 99, 235)",
+        "resolvedValue": "rgb(37, 99, 235)",
+        "resolvedRGBA": {
+          "red": 0.1450980392156863,
+          "green": 0.38823529411764707,
+          "blue": 0.9215686274509803,
+          "alpha": 1
+        },
+        "sourceLine": 93
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-blue-75",
+      "light": {
+        "rawValue": "rgb(229, 240, 255)",
+        "resolvedValue": "rgb(229, 240, 255)",
+        "resolvedRGBA": {
+          "red": 0.8980392156862745,
+          "green": 0.9411764705882353,
+          "blue": 1.0,
+          "alpha": 1
+        },
+        "sourceLine": 18
+      },
+      "dark": {
+        "rawValue": "rgb(229, 240, 255)",
+        "resolvedValue": "rgb(229, 240, 255)",
+        "resolvedRGBA": {
+          "red": 0.8980392156862745,
+          "green": 0.9411764705882353,
+          "blue": 1.0,
+          "alpha": 1
+        },
+        "sourceLine": 94
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-blue-800",
+      "light": {
+        "rawValue": "rgb(30, 64, 175)",
+        "resolvedValue": "rgb(30, 64, 175)",
+        "resolvedRGBA": {
+          "red": 0.11764705882352941,
+          "green": 0.25098039215686274,
+          "blue": 0.6862745098039216,
+          "alpha": 1
+        },
+        "sourceLine": 19
+      },
+      "dark": {
+        "rawValue": "rgb(30, 64, 175)",
+        "resolvedValue": "rgb(30, 64, 175)",
+        "resolvedRGBA": {
+          "red": 0.11764705882352941,
+          "green": 0.25098039215686274,
+          "blue": 0.6862745098039216,
+          "alpha": 1
+        },
+        "sourceLine": 95
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-blue-900",
+      "light": {
+        "rawValue": "rgb(14, 48, 116)",
+        "resolvedValue": "rgb(14, 48, 116)",
+        "resolvedRGBA": {
+          "red": 0.054901960784313725,
+          "green": 0.18823529411764706,
+          "blue": 0.4549019607843137,
+          "alpha": 1
+        },
+        "sourceLine": 20
+      },
+      "dark": {
+        "rawValue": "rgb(14, 48, 116)",
+        "resolvedValue": "rgb(14, 48, 116)",
+        "resolvedRGBA": {
+          "red": 0.054901960784313725,
+          "green": 0.18823529411764706,
+          "blue": 0.4549019607843137,
+          "alpha": 1
+        },
+        "sourceLine": 96
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-blue-950",
+      "light": {
+        "rawValue": "rgb(23, 37, 84)",
+        "resolvedValue": "rgb(23, 37, 84)",
+        "resolvedRGBA": {
+          "red": 0.09019607843137255,
+          "green": 0.1450980392156863,
+          "blue": 0.32941176470588235,
+          "alpha": 1
+        },
+        "sourceLine": 21
+      },
+      "dark": {
+        "rawValue": "rgb(23, 37, 84)",
+        "resolvedValue": "rgb(23, 37, 84)",
+        "resolvedRGBA": {
+          "red": 0.09019607843137255,
+          "green": 0.1450980392156863,
+          "blue": 0.32941176470588235,
+          "alpha": 1
+        },
+        "sourceLine": 97
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-deepseek-100",
+      "light": {
+        "rawValue": "rgb(228, 237, 253)",
+        "resolvedValue": "rgb(228, 237, 253)",
+        "resolvedRGBA": {
+          "red": 0.8941176470588236,
+          "green": 0.9294117647058824,
+          "blue": 0.9921568627450981,
+          "alpha": 1
+        },
+        "sourceLine": 22
+      },
+      "dark": {
+        "rawValue": "rgb(228, 237, 253)",
+        "resolvedValue": "rgb(228, 237, 253)",
+        "resolvedRGBA": {
+          "red": 0.8941176470588236,
+          "green": 0.9294117647058824,
+          "blue": 0.9921568627450981,
+          "alpha": 1
+        },
+        "sourceLine": 98
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-deepseek-200",
+      "light": {
+        "rawValue": "rgb(211, 226, 255)",
+        "resolvedValue": "rgb(211, 226, 255)",
+        "resolvedRGBA": {
+          "red": 0.8274509803921568,
+          "green": 0.8862745098039215,
+          "blue": 1.0,
+          "alpha": 1
+        },
+        "sourceLine": 23
+      },
+      "dark": {
+        "rawValue": "rgb(211, 226, 255)",
+        "resolvedValue": "rgb(211, 226, 255)",
+        "resolvedRGBA": {
+          "red": 0.8274509803921568,
+          "green": 0.8862745098039215,
+          "blue": 1.0,
+          "alpha": 1
+        },
+        "sourceLine": 99
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-deepseek-300",
+      "light": {
+        "rawValue": "rgb(183, 200, 254)",
+        "resolvedValue": "rgb(183, 200, 254)",
+        "resolvedRGBA": {
+          "red": 0.7176470588235294,
+          "green": 0.7843137254901961,
+          "blue": 0.996078431372549,
+          "alpha": 1
+        },
+        "sourceLine": 24
+      },
+      "dark": {
+        "rawValue": "rgb(183, 200, 254)",
+        "resolvedValue": "rgb(183, 200, 254)",
+        "resolvedRGBA": {
+          "red": 0.7176470588235294,
+          "green": 0.7843137254901961,
+          "blue": 0.996078431372549,
+          "alpha": 1
+        },
+        "sourceLine": 100
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-deepseek-400",
+      "light": {
+        "rawValue": "rgb(103, 158, 254)",
+        "resolvedValue": "rgb(103, 158, 254)",
+        "resolvedRGBA": {
+          "red": 0.403921568627451,
+          "green": 0.6196078431372549,
+          "blue": 0.996078431372549,
+          "alpha": 1
+        },
+        "sourceLine": 25
+      },
+      "dark": {
+        "rawValue": "rgb(103, 158, 254)",
+        "resolvedValue": "rgb(103, 158, 254)",
+        "resolvedRGBA": {
+          "red": 0.403921568627451,
+          "green": 0.6196078431372549,
+          "blue": 0.996078431372549,
+          "alpha": 1
+        },
+        "sourceLine": 101
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-deepseek-450",
+      "light": {
+        "rawValue": "rgb(86, 134, 254)",
+        "resolvedValue": "rgb(86, 134, 254)",
+        "resolvedRGBA": {
+          "red": 0.33725490196078434,
+          "green": 0.5254901960784314,
+          "blue": 0.996078431372549,
+          "alpha": 1
+        },
+        "sourceLine": 26
+      },
+      "dark": {
+        "rawValue": "rgb(86, 134, 254)",
+        "resolvedValue": "rgb(86, 134, 254)",
+        "resolvedRGBA": {
+          "red": 0.33725490196078434,
+          "green": 0.5254901960784314,
+          "blue": 0.996078431372549,
+          "alpha": 1
+        },
+        "sourceLine": 102
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-deepseek-50",
+      "light": {
+        "rawValue": "rgb(237, 243, 254)",
+        "resolvedValue": "rgb(237, 243, 254)",
+        "resolvedRGBA": {
+          "red": 0.9294117647058824,
+          "green": 0.9529411764705882,
+          "blue": 0.996078431372549,
+          "alpha": 1
+        },
+        "sourceLine": 28
+      },
+      "dark": {
+        "rawValue": "rgb(237, 243, 254)",
+        "resolvedValue": "rgb(237, 243, 254)",
+        "resolvedRGBA": {
+          "red": 0.9294117647058824,
+          "green": 0.9529411764705882,
+          "blue": 0.996078431372549,
+          "alpha": 1
+        },
+        "sourceLine": 104
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-deepseek-500",
+      "light": {
+        "rawValue": "rgb(65, 118, 230)",
+        "resolvedValue": "rgb(65, 118, 230)",
+        "resolvedRGBA": {
+          "red": 0.2549019607843137,
+          "green": 0.4627450980392157,
+          "blue": 0.9019607843137255,
+          "alpha": 1
+        },
+        "sourceLine": 27
+      },
+      "dark": {
+        "rawValue": "rgb(65, 118, 230)",
+        "resolvedValue": "rgb(65, 118, 230)",
+        "resolvedRGBA": {
+          "red": 0.2549019607843137,
+          "green": 0.4627450980392157,
+          "blue": 0.9019607843137255,
+          "alpha": 1
+        },
+        "sourceLine": 103
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-deepseek-600",
+      "light": {
+        "rawValue": "rgb(72, 104, 178)",
+        "resolvedValue": "rgb(72, 104, 178)",
+        "resolvedRGBA": {
+          "red": 0.2823529411764706,
+          "green": 0.40784313725490196,
+          "blue": 0.6980392156862745,
+          "alpha": 1
+        },
+        "sourceLine": 29
+      },
+      "dark": {
+        "rawValue": "rgb(72, 104, 178)",
+        "resolvedValue": "rgb(72, 104, 178)",
+        "resolvedRGBA": {
+          "red": 0.2823529411764706,
+          "green": 0.40784313725490196,
+          "blue": 0.6980392156862745,
+          "alpha": 1
+        },
+        "sourceLine": 105
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-deepseek-700-delete",
+      "light": {
+        "rawValue": "rgb(47, 76, 143)",
+        "resolvedValue": "rgb(47, 76, 143)",
+        "resolvedRGBA": {
+          "red": 0.1843137254901961,
+          "green": 0.2980392156862745,
+          "blue": 0.5607843137254902,
+          "alpha": 1
+        },
+        "sourceLine": 30
+      },
+      "dark": {
+        "rawValue": "rgb(47, 76, 143)",
+        "resolvedValue": "rgb(47, 76, 143)",
+        "resolvedRGBA": {
+          "red": 0.1843137254901961,
+          "green": 0.2980392156862745,
+          "blue": 0.5607843137254902,
+          "alpha": 1
+        },
+        "sourceLine": 106
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-deepseek-800",
+      "light": {
+        "rawValue": "rgb(52, 65, 91)",
+        "resolvedValue": "rgb(52, 65, 91)",
+        "resolvedRGBA": {
+          "red": 0.20392156862745098,
+          "green": 0.2549019607843137,
+          "blue": 0.3568627450980392,
+          "alpha": 1
+        },
+        "sourceLine": 31
+      },
+      "dark": {
+        "rawValue": "rgb(52, 65, 91)",
+        "resolvedValue": "rgb(52, 65, 91)",
+        "resolvedRGBA": {
+          "red": 0.20392156862745098,
+          "green": 0.2549019607843137,
+          "blue": 0.3568627450980392,
+          "alpha": 1
+        },
+        "sourceLine": 107
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-deepseek-900",
+      "light": {
+        "rawValue": "rgb(40, 49, 66)",
+        "resolvedValue": "rgb(40, 49, 66)",
+        "resolvedRGBA": {
+          "red": 0.1568627450980392,
+          "green": 0.19215686274509805,
+          "blue": 0.25882352941176473,
+          "alpha": 1
+        },
+        "sourceLine": 32
+      },
+      "dark": {
+        "rawValue": "rgb(40, 49, 66)",
+        "resolvedValue": "rgb(40, 49, 66)",
+        "resolvedRGBA": {
+          "red": 0.1568627450980392,
+          "green": 0.19215686274509805,
+          "blue": 0.25882352941176473,
+          "alpha": 1
+        },
+        "sourceLine": 108
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-green-100",
+      "light": {
+        "rawValue": "rgb(230, 250, 237)",
+        "resolvedValue": "rgb(230, 250, 237)",
+        "resolvedRGBA": {
+          "red": 0.9019607843137255,
+          "green": 0.9803921568627451,
+          "blue": 0.9294117647058824,
+          "alpha": 1
+        },
+        "sourceLine": 33
+      },
+      "dark": {
+        "rawValue": "rgb(230, 250, 237)",
+        "resolvedValue": "rgb(230, 250, 237)",
+        "resolvedRGBA": {
+          "red": 0.9019607843137255,
+          "green": 0.9803921568627451,
+          "blue": 0.9294117647058824,
+          "alpha": 1
+        },
+        "sourceLine": 109
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-green-400",
+      "light": {
+        "rawValue": "rgb(78, 209, 126)",
+        "resolvedValue": "rgb(78, 209, 126)",
+        "resolvedRGBA": {
+          "red": 0.3058823529411765,
+          "green": 0.8196078431372549,
+          "blue": 0.49411764705882355,
+          "alpha": 1
+        },
+        "sourceLine": 34
+      },
+      "dark": {
+        "rawValue": "rgb(78, 209, 126)",
+        "resolvedValue": "rgb(78, 209, 126)",
+        "resolvedRGBA": {
+          "red": 0.3058823529411765,
+          "green": 0.8196078431372549,
+          "blue": 0.49411764705882355,
+          "alpha": 1
+        },
+        "sourceLine": 110
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-green-500",
+      "light": {
+        "rawValue": "rgb(34, 197, 94)",
+        "resolvedValue": "rgb(34, 197, 94)",
+        "resolvedRGBA": {
+          "red": 0.13333333333333333,
+          "green": 0.7725490196078432,
+          "blue": 0.3686274509803922,
+          "alpha": 1
+        },
+        "sourceLine": 35
+      },
+      "dark": {
+        "rawValue": "rgb(34, 197, 94)",
+        "resolvedValue": "rgb(34, 197, 94)",
+        "resolvedRGBA": {
+          "red": 0.13333333333333333,
+          "green": 0.7725490196078432,
+          "blue": 0.3686274509803922,
+          "alpha": 1
+        },
+        "sourceLine": 111
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-green-900",
+      "light": {
+        "rawValue": "rgb(35, 60, 44)",
+        "resolvedValue": "rgb(35, 60, 44)",
+        "resolvedRGBA": {
+          "red": 0.13725490196078433,
+          "green": 0.23529411764705882,
+          "blue": 0.17254901960784313,
+          "alpha": 1
+        },
+        "sourceLine": 36
+      },
+      "dark": {
+        "rawValue": "rgb(35, 60, 44)",
+        "resolvedValue": "rgb(35, 60, 44)",
+        "resolvedRGBA": {
+          "red": 0.13725490196078433,
+          "green": 0.23529411764705882,
+          "blue": 0.17254901960784313,
+          "alpha": 1
+        },
+        "sourceLine": 112
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-neutral-00",
+      "light": {
+        "rawValue": "rgb(255, 255, 255)",
+        "resolvedValue": "rgb(255, 255, 255)",
+        "resolvedRGBA": {
+          "red": 1.0,
+          "green": 1.0,
+          "blue": 1.0,
+          "alpha": 1
+        },
+        "sourceLine": 37
+      },
+      "dark": {
+        "rawValue": "rgb(255, 255, 255)",
+        "resolvedValue": "rgb(255, 255, 255)",
+        "resolvedRGBA": {
+          "red": 1.0,
+          "green": 1.0,
+          "blue": 1.0,
+          "alpha": 1
+        },
+        "sourceLine": 113
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-neutral-100",
+      "light": {
+        "rawValue": "rgb(245, 245, 245)",
+        "resolvedValue": "rgb(245, 245, 245)",
+        "resolvedRGBA": {
+          "red": 0.9607843137254902,
+          "green": 0.9607843137254902,
+          "blue": 0.9607843137254902,
+          "alpha": 1
+        },
+        "sourceLine": 39
+      },
+      "dark": {
+        "rawValue": "rgb(245, 245, 245)",
+        "resolvedValue": "rgb(245, 245, 245)",
+        "resolvedRGBA": {
+          "red": 0.9607843137254902,
+          "green": 0.9607843137254902,
+          "blue": 0.9607843137254902,
+          "alpha": 1
+        },
+        "sourceLine": 115
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-neutral-1000",
+      "light": {
+        "rawValue": "rgb(0, 0, 0)",
+        "resolvedValue": "rgb(0, 0, 0)",
+        "resolvedRGBA": {
+          "red": 0.0,
+          "green": 0.0,
+          "blue": 0.0,
+          "alpha": 1
+        },
+        "sourceLine": 38
+      },
+      "dark": {
+        "rawValue": "rgb(0, 0, 0)",
+        "resolvedValue": "rgb(0, 0, 0)",
+        "resolvedRGBA": {
+          "red": 0.0,
+          "green": 0.0,
+          "blue": 0.0,
+          "alpha": 1
+        },
+        "sourceLine": 114
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-neutral-150",
+      "light": {
+        "rawValue": "rgb(237, 237, 237)",
+        "resolvedValue": "rgb(237, 237, 237)",
+        "resolvedRGBA": {
+          "red": 0.9294117647058824,
+          "green": 0.9294117647058824,
+          "blue": 0.9294117647058824,
+          "alpha": 1
+        },
+        "sourceLine": 40
+      },
+      "dark": {
+        "rawValue": "rgb(237, 237, 237)",
+        "resolvedValue": "rgb(237, 237, 237)",
+        "resolvedRGBA": {
+          "red": 0.9294117647058824,
+          "green": 0.9294117647058824,
+          "blue": 0.9294117647058824,
+          "alpha": 1
+        },
+        "sourceLine": 116
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-neutral-200",
+      "light": {
+        "rawValue": "rgb(229, 229, 229)",
+        "resolvedValue": "rgb(229, 229, 229)",
+        "resolvedRGBA": {
+          "red": 0.8980392156862745,
+          "green": 0.8980392156862745,
+          "blue": 0.8980392156862745,
+          "alpha": 1
+        },
+        "sourceLine": 41
+      },
+      "dark": {
+        "rawValue": "rgb(229, 229, 229)",
+        "resolvedValue": "rgb(229, 229, 229)",
+        "resolvedRGBA": {
+          "red": 0.8980392156862745,
+          "green": 0.8980392156862745,
+          "blue": 0.8980392156862745,
+          "alpha": 1
+        },
+        "sourceLine": 117
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-neutral-250",
+      "light": {
+        "rawValue": "rgb(220, 220, 220)",
+        "resolvedValue": "rgb(220, 220, 220)",
+        "resolvedRGBA": {
+          "red": 0.8627450980392157,
+          "green": 0.8627450980392157,
+          "blue": 0.8627450980392157,
+          "alpha": 1
+        },
+        "sourceLine": 42
+      },
+      "dark": {
+        "rawValue": "rgb(220, 220, 220)",
+        "resolvedValue": "rgb(220, 220, 220)",
+        "resolvedRGBA": {
+          "red": 0.8627450980392157,
+          "green": 0.8627450980392157,
+          "blue": 0.8627450980392157,
+          "alpha": 1
+        },
+        "sourceLine": 118
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-neutral-300",
+      "light": {
+        "rawValue": "rgb(212, 212, 212)",
+        "resolvedValue": "rgb(212, 212, 212)",
+        "resolvedRGBA": {
+          "red": 0.8313725490196079,
+          "green": 0.8313725490196079,
+          "blue": 0.8313725490196079,
+          "alpha": 1
+        },
+        "sourceLine": 43
+      },
+      "dark": {
+        "rawValue": "rgb(212, 212, 212)",
+        "resolvedValue": "rgb(212, 212, 212)",
+        "resolvedRGBA": {
+          "red": 0.8313725490196079,
+          "green": 0.8313725490196079,
+          "blue": 0.8313725490196079,
+          "alpha": 1
+        },
+        "sourceLine": 119
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-neutral-400",
+      "light": {
+        "rawValue": "rgb(162, 164, 166)",
+        "resolvedValue": "rgb(162, 164, 166)",
+        "resolvedRGBA": {
+          "red": 0.6352941176470588,
+          "green": 0.6431372549019608,
+          "blue": 0.6509803921568628,
+          "alpha": 1
+        },
+        "sourceLine": 44
+      },
+      "dark": {
+        "rawValue": "rgb(162, 164, 166)",
+        "resolvedValue": "rgb(162, 164, 166)",
+        "resolvedRGBA": {
+          "red": 0.6352941176470588,
+          "green": 0.6431372549019608,
+          "blue": 0.6509803921568628,
+          "alpha": 1
+        },
+        "sourceLine": 120
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-neutral-50",
+      "light": {
+        "rawValue": "rgb(250, 250, 250)",
+        "resolvedValue": "rgb(250, 250, 250)",
+        "resolvedRGBA": {
+          "red": 0.9803921568627451,
+          "green": 0.9803921568627451,
+          "blue": 0.9803921568627451,
+          "alpha": 1
+        },
+        "sourceLine": 46
+      },
+      "dark": {
+        "rawValue": "rgb(250, 250, 250)",
+        "resolvedValue": "rgb(250, 250, 250)",
+        "resolvedRGBA": {
+          "red": 0.9803921568627451,
+          "green": 0.9803921568627451,
+          "blue": 0.9803921568627451,
+          "alpha": 1
+        },
+        "sourceLine": 122
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-neutral-500",
+      "light": {
+        "rawValue": "rgb(127, 130, 135)",
+        "resolvedValue": "rgb(127, 130, 135)",
+        "resolvedRGBA": {
+          "red": 0.4980392156862745,
+          "green": 0.5098039215686274,
+          "blue": 0.5294117647058824,
+          "alpha": 1
+        },
+        "sourceLine": 45
+      },
+      "dark": {
+        "rawValue": "rgb(127, 130, 135)",
+        "resolvedValue": "rgb(127, 130, 135)",
+        "resolvedRGBA": {
+          "red": 0.4980392156862745,
+          "green": 0.5098039215686274,
+          "blue": 0.5294117647058824,
+          "alpha": 1
+        },
+        "sourceLine": 121
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-neutral-550",
+      "light": {
+        "rawValue": "rgb(101, 103, 107)",
+        "resolvedValue": "rgb(101, 103, 107)",
+        "resolvedRGBA": {
+          "red": 0.396078431372549,
+          "green": 0.403921568627451,
+          "blue": 0.4196078431372549,
+          "alpha": 1
+        },
+        "sourceLine": 47
+      },
+      "dark": {
+        "rawValue": "rgb(101, 103, 107)",
+        "resolvedValue": "rgb(101, 103, 107)",
+        "resolvedRGBA": {
+          "red": 0.396078431372549,
+          "green": 0.403921568627451,
+          "blue": 0.4196078431372549,
+          "alpha": 1
+        },
+        "sourceLine": 123
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-neutral-600",
+      "light": {
+        "rawValue": "rgb(84, 85, 87)",
+        "resolvedValue": "rgb(84, 85, 87)",
+        "resolvedRGBA": {
+          "red": 0.32941176470588235,
+          "green": 0.3333333333333333,
+          "blue": 0.3411764705882353,
+          "alpha": 1
+        },
+        "sourceLine": 48
+      },
+      "dark": {
+        "rawValue": "rgb(84, 85, 87)",
+        "resolvedValue": "rgb(84, 85, 87)",
+        "resolvedRGBA": {
+          "red": 0.32941176470588235,
+          "green": 0.3333333333333333,
+          "blue": 0.3411764705882353,
+          "alpha": 1
+        },
+        "sourceLine": 124
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-neutral-700",
+      "light": {
+        "rawValue": "rgb(60, 60, 61)",
+        "resolvedValue": "rgb(60, 60, 61)",
+        "resolvedRGBA": {
+          "red": 0.23529411764705882,
+          "green": 0.23529411764705882,
+          "blue": 0.23921568627450981,
+          "alpha": 1
+        },
+        "sourceLine": 49
+      },
+      "dark": {
+        "rawValue": "rgb(60, 60, 61)",
+        "resolvedValue": "rgb(60, 60, 61)",
+        "resolvedRGBA": {
+          "red": 0.23529411764705882,
+          "green": 0.23529411764705882,
+          "blue": 0.23921568627450981,
+          "alpha": 1
+        },
+        "sourceLine": 125
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-neutral-800",
+      "light": {
+        "rawValue": "rgb(41, 41, 41)",
+        "resolvedValue": "rgb(41, 41, 41)",
+        "resolvedRGBA": {
+          "red": 0.1607843137254902,
+          "green": 0.1607843137254902,
+          "blue": 0.1607843137254902,
+          "alpha": 1
+        },
+        "sourceLine": 50
+      },
+      "dark": {
+        "rawValue": "rgb(41, 41, 41)",
+        "resolvedValue": "rgb(41, 41, 41)",
+        "resolvedRGBA": {
+          "red": 0.1607843137254902,
+          "green": 0.1607843137254902,
+          "blue": 0.1607843137254902,
+          "alpha": 1
+        },
+        "sourceLine": 126
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-neutral-850",
+      "light": {
+        "rawValue": "rgb(33, 33, 35)",
+        "resolvedValue": "rgb(33, 33, 35)",
+        "resolvedRGBA": {
+          "red": 0.12941176470588237,
+          "green": 0.12941176470588237,
+          "blue": 0.13725490196078433,
+          "alpha": 1
+        },
+        "sourceLine": 51
+      },
+      "dark": {
+        "rawValue": "rgb(33, 33, 35)",
+        "resolvedValue": "rgb(33, 33, 35)",
+        "resolvedRGBA": {
+          "red": 0.12941176470588237,
+          "green": 0.12941176470588237,
+          "blue": 0.13725490196078433,
+          "alpha": 1
+        },
+        "sourceLine": 127
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-neutral-900",
+      "light": {
+        "rawValue": "rgb(15, 15, 15)",
+        "resolvedValue": "rgb(15, 15, 15)",
+        "resolvedRGBA": {
+          "red": 0.058823529411764705,
+          "green": 0.058823529411764705,
+          "blue": 0.058823529411764705,
+          "alpha": 1
+        },
+        "sourceLine": 52
+      },
+      "dark": {
+        "rawValue": "rgb(15, 15, 15)",
+        "resolvedValue": "rgb(15, 15, 15)",
+        "resolvedRGBA": {
+          "red": 0.058823529411764705,
+          "green": 0.058823529411764705,
+          "blue": 0.058823529411764705,
+          "alpha": 1
+        },
+        "sourceLine": 128
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-neutral-bluish-00",
+      "light": {
+        "rawValue": "rgb(255, 255, 255)",
+        "resolvedValue": "rgb(255, 255, 255)",
+        "resolvedRGBA": {
+          "red": 1.0,
+          "green": 1.0,
+          "blue": 1.0,
+          "alpha": 1
+        },
+        "sourceLine": 53
+      },
+      "dark": {
+        "rawValue": "rgb(255, 255, 255)",
+        "resolvedValue": "rgb(255, 255, 255)",
+        "resolvedRGBA": {
+          "red": 1.0,
+          "green": 1.0,
+          "blue": 1.0,
+          "alpha": 1
+        },
+        "sourceLine": 129
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-neutral-bluish-100",
+      "light": {
+        "rawValue": "rgb(235, 238, 242)",
+        "resolvedValue": "rgb(235, 238, 242)",
+        "resolvedRGBA": {
+          "red": 0.9215686274509803,
+          "green": 0.9333333333333333,
+          "blue": 0.9490196078431372,
+          "alpha": 1
+        },
+        "sourceLine": 55
+      },
+      "dark": {
+        "rawValue": "rgb(235, 238, 242)",
+        "resolvedValue": "rgb(235, 238, 242)",
+        "resolvedRGBA": {
+          "red": 0.9215686274509803,
+          "green": 0.9333333333333333,
+          "blue": 0.9490196078431372,
+          "alpha": 1
+        },
+        "sourceLine": 131
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-neutral-bluish-1000",
+      "light": {
+        "rawValue": "rgb(15, 17, 21)",
+        "resolvedValue": "rgb(15, 17, 21)",
+        "resolvedRGBA": {
+          "red": 0.058823529411764705,
+          "green": 0.06666666666666667,
+          "blue": 0.08235294117647059,
+          "alpha": 1
+        },
+        "sourceLine": 54
+      },
+      "dark": {
+        "rawValue": "rgb(15, 17, 21)",
+        "resolvedValue": "rgb(15, 17, 21)",
+        "resolvedRGBA": {
+          "red": 0.058823529411764705,
+          "green": 0.06666666666666667,
+          "blue": 0.08235294117647059,
+          "alpha": 1
+        },
+        "sourceLine": 130
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-neutral-bluish-150",
+      "light": {
+        "rawValue": "rgb(233, 236, 242)",
+        "resolvedValue": "rgb(233, 236, 242)",
+        "resolvedRGBA": {
+          "red": 0.9137254901960784,
+          "green": 0.9254901960784314,
+          "blue": 0.9490196078431372,
+          "alpha": 1
+        },
+        "sourceLine": 56
+      },
+      "dark": {
+        "rawValue": "rgb(233, 236, 242)",
+        "resolvedValue": "rgb(233, 236, 242)",
+        "resolvedRGBA": {
+          "red": 0.9137254901960784,
+          "green": 0.9254901960784314,
+          "blue": 0.9490196078431372,
+          "alpha": 1
+        },
+        "sourceLine": 132
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-neutral-bluish-200",
+      "light": {
+        "rawValue": "rgb(225, 229, 238)",
+        "resolvedValue": "rgb(225, 229, 238)",
+        "resolvedRGBA": {
+          "red": 0.8823529411764706,
+          "green": 0.8980392156862745,
+          "blue": 0.9333333333333333,
+          "alpha": 1
+        },
+        "sourceLine": 57
+      },
+      "dark": {
+        "rawValue": "rgb(225, 229, 238)",
+        "resolvedValue": "rgb(225, 229, 238)",
+        "resolvedRGBA": {
+          "red": 0.8823529411764706,
+          "green": 0.8980392156862745,
+          "blue": 0.9333333333333333,
+          "alpha": 1
+        },
+        "sourceLine": 133
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-neutral-bluish-300",
+      "light": {
+        "rawValue": "rgb(207, 211, 214)",
+        "resolvedValue": "rgb(207, 211, 214)",
+        "resolvedRGBA": {
+          "red": 0.8117647058823529,
+          "green": 0.8274509803921568,
+          "blue": 0.8392156862745098,
+          "alpha": 1
+        },
+        "sourceLine": 58
+      },
+      "dark": {
+        "rawValue": "rgb(207, 211, 214)",
+        "resolvedValue": "rgb(207, 211, 214)",
+        "resolvedRGBA": {
+          "red": 0.8117647058823529,
+          "green": 0.8274509803921568,
+          "blue": 0.8392156862745098,
+          "alpha": 1
+        },
+        "sourceLine": 134
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-neutral-bluish-400",
+      "light": {
+        "rawValue": "rgb(173, 178, 184)",
+        "resolvedValue": "rgb(173, 178, 184)",
+        "resolvedRGBA": {
+          "red": 0.6784313725490196,
+          "green": 0.6980392156862745,
+          "blue": 0.7215686274509804,
+          "alpha": 1
+        },
+        "sourceLine": 59
+      },
+      "dark": {
+        "rawValue": "rgb(173, 178, 184)",
+        "resolvedValue": "rgb(173, 178, 184)",
+        "resolvedRGBA": {
+          "red": 0.6784313725490196,
+          "green": 0.6980392156862745,
+          "blue": 0.7215686274509804,
+          "alpha": 1
+        },
+        "sourceLine": 135
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-neutral-bluish-50",
+      "light": {
+        "rawValue": "rgb(249, 250, 251)",
+        "resolvedValue": "rgb(249, 250, 251)",
+        "resolvedRGBA": {
+          "red": 0.9764705882352941,
+          "green": 0.9803921568627451,
+          "blue": 0.984313725490196,
+          "alpha": 1
+        },
+        "sourceLine": 61
+      },
+      "dark": {
+        "rawValue": "rgb(249, 250, 251)",
+        "resolvedValue": "rgb(249, 250, 251)",
+        "resolvedRGBA": {
+          "red": 0.9764705882352941,
+          "green": 0.9803921568627451,
+          "blue": 0.984313725490196,
+          "alpha": 1
+        },
+        "sourceLine": 137
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-neutral-bluish-500",
+      "light": {
+        "rawValue": "rgb(151, 157, 166)",
+        "resolvedValue": "rgb(151, 157, 166)",
+        "resolvedRGBA": {
+          "red": 0.592156862745098,
+          "green": 0.615686274509804,
+          "blue": 0.6509803921568628,
+          "alpha": 1
+        },
+        "sourceLine": 60
+      },
+      "dark": {
+        "rawValue": "rgb(151, 157, 166)",
+        "resolvedValue": "rgb(151, 157, 166)",
+        "resolvedRGBA": {
+          "red": 0.592156862745098,
+          "green": 0.615686274509804,
+          "blue": 0.6509803921568628,
+          "alpha": 1
+        },
+        "sourceLine": 136
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-neutral-bluish-60",
+      "light": {
+        "rawValue": "rgb(245, 246, 247)",
+        "resolvedValue": "rgb(245, 246, 247)",
+        "resolvedRGBA": {
+          "red": 0.9607843137254902,
+          "green": 0.9647058823529412,
+          "blue": 0.9686274509803922,
+          "alpha": 1
+        },
+        "sourceLine": 63
+      },
+      "dark": {
+        "rawValue": "rgb(249, 250, 251)",
+        "resolvedValue": "rgb(249, 250, 251)",
+        "resolvedRGBA": {
+          "red": 0.9764705882352941,
+          "green": 0.9803921568627451,
+          "blue": 0.984313725490196,
+          "alpha": 1
+        },
+        "sourceLine": 139
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-neutral-bluish-600",
+      "light": {
+        "rawValue": "rgb(129, 133, 140)",
+        "resolvedValue": "rgb(129, 133, 140)",
+        "resolvedRGBA": {
+          "red": 0.5058823529411764,
+          "green": 0.5215686274509804,
+          "blue": 0.5490196078431373,
+          "alpha": 1
+        },
+        "sourceLine": 62
+      },
+      "dark": {
+        "rawValue": "rgb(129, 133, 140)",
+        "resolvedValue": "rgb(129, 133, 140)",
+        "resolvedRGBA": {
+          "red": 0.5058823529411764,
+          "green": 0.5215686274509804,
+          "blue": 0.5490196078431373,
+          "alpha": 1
+        },
+        "sourceLine": 138
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-neutral-bluish-700",
+      "light": {
+        "rawValue": "rgb(97, 102, 107)",
+        "resolvedValue": "rgb(97, 102, 107)",
+        "resolvedRGBA": {
+          "red": 0.3803921568627451,
+          "green": 0.4,
+          "blue": 0.4196078431372549,
+          "alpha": 1
+        },
+        "sourceLine": 64
+      },
+      "dark": {
+        "rawValue": "rgb(97, 102, 107)",
+        "resolvedValue": "rgb(97, 102, 107)",
+        "resolvedRGBA": {
+          "red": 0.3803921568627451,
+          "green": 0.4,
+          "blue": 0.4196078431372549,
+          "alpha": 1
+        },
+        "sourceLine": 140
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-neutral-bluish-75",
+      "light": {
+        "rawValue": "rgb(241, 243, 245)",
+        "resolvedValue": "rgb(241, 243, 245)",
+        "resolvedRGBA": {
+          "red": 0.9450980392156862,
+          "green": 0.9529411764705882,
+          "blue": 0.9607843137254902,
+          "alpha": 1
+        },
+        "sourceLine": 66
+      },
+      "dark": {
+        "rawValue": "rgb(241, 243, 245)",
+        "resolvedValue": "rgb(241, 243, 245)",
+        "resolvedRGBA": {
+          "red": 0.9450980392156862,
+          "green": 0.9529411764705882,
+          "blue": 0.9607843137254902,
+          "alpha": 1
+        },
+        "sourceLine": 142
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-neutral-bluish-750",
+      "light": {
+        "rawValue": "rgb(67, 69, 74)",
+        "resolvedValue": "rgb(67, 69, 74)",
+        "resolvedRGBA": {
+          "red": 0.2627450980392157,
+          "green": 0.27058823529411763,
+          "blue": 0.2901960784313726,
+          "alpha": 1
+        },
+        "sourceLine": 65
+      },
+      "dark": {
+        "rawValue": "rgb(67, 69, 74)",
+        "resolvedValue": "rgb(67, 69, 74)",
+        "resolvedRGBA": {
+          "red": 0.2627450980392157,
+          "green": 0.27058823529411763,
+          "blue": 0.2901960784313726,
+          "alpha": 1
+        },
+        "sourceLine": 141
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-neutral-bluish-800",
+      "light": {
+        "rawValue": "rgb(53, 54, 56)",
+        "resolvedValue": "rgb(53, 54, 56)",
+        "resolvedRGBA": {
+          "red": 0.20784313725490197,
+          "green": 0.21176470588235294,
+          "blue": 0.2196078431372549,
+          "alpha": 1
+        },
+        "sourceLine": 67
+      },
+      "dark": {
+        "rawValue": "rgb(53, 54, 56)",
+        "resolvedValue": "rgb(53, 54, 56)",
+        "resolvedRGBA": {
+          "red": 0.20784313725490197,
+          "green": 0.21176470588235294,
+          "blue": 0.2196078431372549,
+          "alpha": 1
+        },
+        "sourceLine": 143
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-neutral-bluish-850",
+      "light": {
+        "rawValue": "rgb(44, 44, 46)",
+        "resolvedValue": "rgb(44, 44, 46)",
+        "resolvedRGBA": {
+          "red": 0.17254901960784313,
+          "green": 0.17254901960784313,
+          "blue": 0.1803921568627451,
+          "alpha": 1
+        },
+        "sourceLine": 68
+      },
+      "dark": {
+        "rawValue": "rgb(44, 44, 46)",
+        "resolvedValue": "rgb(44, 44, 46)",
+        "resolvedRGBA": {
+          "red": 0.17254901960784313,
+          "green": 0.17254901960784313,
+          "blue": 0.1803921568627451,
+          "alpha": 1
+        },
+        "sourceLine": 144
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-neutral-bluish-875",
+      "light": {
+        "rawValue": "rgb(35, 35, 36)",
+        "resolvedValue": "rgb(35, 35, 36)",
+        "resolvedRGBA": {
+          "red": 0.13725490196078433,
+          "green": 0.13725490196078433,
+          "blue": 0.1411764705882353,
+          "alpha": 1
+        },
+        "sourceLine": 69
+      },
+      "dark": {
+        "rawValue": "rgb(35, 35, 36)",
+        "resolvedValue": "rgb(35, 35, 36)",
+        "resolvedRGBA": {
+          "red": 0.13725490196078433,
+          "green": 0.13725490196078433,
+          "blue": 0.1411764705882353,
+          "alpha": 1
+        },
+        "sourceLine": 145
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-neutral-bluish-900",
+      "light": {
+        "rawValue": "rgb(27, 27, 28)",
+        "resolvedValue": "rgb(27, 27, 28)",
+        "resolvedRGBA": {
+          "red": 0.10588235294117647,
+          "green": 0.10588235294117647,
+          "blue": 0.10980392156862745,
+          "alpha": 1
+        },
+        "sourceLine": 70
+      },
+      "dark": {
+        "rawValue": "rgb(27, 27, 28)",
+        "resolvedValue": "rgb(27, 27, 28)",
+        "resolvedRGBA": {
+          "red": 0.10588235294117647,
+          "green": 0.10588235294117647,
+          "blue": 0.10980392156862745,
+          "alpha": 1
+        },
+        "sourceLine": 146
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-neutral-bluish-950",
+      "light": {
+        "rawValue": "rgb(21, 21, 23)",
+        "resolvedValue": "rgb(21, 21, 23)",
+        "resolvedRGBA": {
+          "red": 0.08235294117647059,
+          "green": 0.08235294117647059,
+          "blue": 0.09019607843137255,
+          "alpha": 1
+        },
+        "sourceLine": 71
+      },
+      "dark": {
+        "rawValue": "rgb(21, 21, 23)",
+        "resolvedValue": "rgb(21, 21, 23)",
+        "resolvedRGBA": {
+          "red": 0.08235294117647059,
+          "green": 0.08235294117647059,
+          "blue": 0.09019607843137255,
+          "alpha": 1
+        },
+        "sourceLine": 147
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-red-100",
+      "light": {
+        "rawValue": "rgb(254, 226, 226)",
+        "resolvedValue": "rgb(254, 226, 226)",
+        "resolvedRGBA": {
+          "red": 0.996078431372549,
+          "green": 0.8862745098039215,
+          "blue": 0.8862745098039215,
+          "alpha": 1
+        },
+        "sourceLine": 72
+      },
+      "dark": {
+        "rawValue": "rgb(254, 226, 226)",
+        "resolvedValue": "rgb(254, 226, 226)",
+        "resolvedRGBA": {
+          "red": 0.996078431372549,
+          "green": 0.8862745098039215,
+          "blue": 0.8862745098039215,
+          "alpha": 1
+        },
+        "sourceLine": 148
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-red-400",
+      "light": {
+        "rawValue": "rgb(242, 90, 90)",
+        "resolvedValue": "rgb(242, 90, 90)",
+        "resolvedRGBA": {
+          "red": 0.9490196078431372,
+          "green": 0.35294117647058826,
+          "blue": 0.35294117647058826,
+          "alpha": 1
+        },
+        "sourceLine": 73
+      },
+      "dark": {
+        "rawValue": "rgb(242, 90, 90)",
+        "resolvedValue": "rgb(242, 90, 90)",
+        "resolvedRGBA": {
+          "red": 0.9490196078431372,
+          "green": 0.35294117647058826,
+          "blue": 0.35294117647058826,
+          "alpha": 1
+        },
+        "sourceLine": 149
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-red-50",
+      "light": {
+        "rawValue": "rgb(254, 242, 242)",
+        "resolvedValue": "rgb(254, 242, 242)",
+        "resolvedRGBA": {
+          "red": 0.996078431372549,
+          "green": 0.9490196078431372,
+          "blue": 0.9490196078431372,
+          "alpha": 1
+        },
+        "sourceLine": 75
+      },
+      "dark": {
+        "rawValue": "rgb(254, 242, 242)",
+        "resolvedValue": "rgb(254, 242, 242)",
+        "resolvedRGBA": {
+          "red": 0.996078431372549,
+          "green": 0.9490196078431372,
+          "blue": 0.9490196078431372,
+          "alpha": 1
+        },
+        "sourceLine": 151
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-red-500",
+      "light": {
+        "rawValue": "rgb(239, 68, 68)",
+        "resolvedValue": "rgb(239, 68, 68)",
+        "resolvedRGBA": {
+          "red": 0.9372549019607843,
+          "green": 0.26666666666666666,
+          "blue": 0.26666666666666666,
+          "alpha": 1
+        },
+        "sourceLine": 74
+      },
+      "dark": {
+        "rawValue": "rgb(239, 68, 68)",
+        "resolvedValue": "rgb(239, 68, 68)",
+        "resolvedRGBA": {
+          "red": 0.9372549019607843,
+          "green": 0.26666666666666666,
+          "blue": 0.26666666666666666,
+          "alpha": 1
+        },
+        "sourceLine": 150
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-red-600",
+      "light": {
+        "rawValue": "rgb(236, 19, 19)",
+        "resolvedValue": "rgb(236, 19, 19)",
+        "resolvedRGBA": {
+          "red": 0.9254901960784314,
+          "green": 0.07450980392156863,
+          "blue": 0.07450980392156863,
+          "alpha": 1
+        },
+        "sourceLine": 76
+      },
+      "dark": {
+        "rawValue": "rgb(236, 19, 19)",
+        "resolvedValue": "rgb(236, 19, 19)",
+        "resolvedRGBA": {
+          "red": 0.9254901960784314,
+          "green": 0.07450980392156863,
+          "blue": 0.07450980392156863,
+          "alpha": 1
+        },
+        "sourceLine": 152
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    },
+    {
+      "cssName": "--dsw-static-red-900",
+      "light": {
+        "rawValue": "rgb(87, 12, 12)",
+        "resolvedValue": "rgb(87, 12, 12)",
+        "resolvedRGBA": {
+          "red": 0.3411764705882353,
+          "green": 0.047058823529411764,
+          "blue": 0.047058823529411764,
+          "alpha": 1
+        },
+        "sourceLine": 77
+      },
+      "dark": {
+        "rawValue": "rgb(87, 12, 12)",
+        "resolvedValue": "rgb(87, 12, 12)",
+        "resolvedRGBA": {
+          "red": 0.3411764705882353,
+          "green": 0.047058823529411764,
+          "blue": 0.047058823529411764,
+          "alpha": 1
+        },
+        "sourceLine": 153
+      },
+      "source": {
+        "path": "packages/client/ui-theme/src/styles/design-platform.css",
+        "commit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+      }
+    }
+  ]
+}

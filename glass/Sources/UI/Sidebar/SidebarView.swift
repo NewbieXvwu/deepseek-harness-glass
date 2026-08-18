@@ -14,7 +14,7 @@ struct NativeSidebarView: View {
     let onOpenSettings: () -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: OfficialUISpec.Spacing.p0) {
             if collapsed {
                 compactHeader
             } else {
@@ -40,19 +40,19 @@ struct NativeSidebarView: View {
     }
 
     private var compactHeader: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: OfficialUISpec.Spacing.p12) {
             Button(action: { setCollapsed(false) }) {
                 OfficialAssetImage(name: "fish-logo")
-                    .frame(width: 24, height: 18)
-                    .frame(width: 36, height: 36)
+                    .frame(width: OfficialUISpec.Geometry.px24, height: OfficialUISpec.Geometry.px18)
+                    .frame(width: OfficialUISpec.Geometry.px36, height: OfficialUISpec.Geometry.px36)
             }
             .buttonStyle(NativeGlassNavigationButtonStyle())
             .accessibilityLabel(OfficialUISpec.Text.openSidebarAccessibility)
 
             Button(action: onNewSession) {
                 OfficialAssetImage(name: "icon-new-chat", template: true)
-                    .frame(width: 18, height: 18)
-                    .frame(width: 36, height: 36)
+                    .frame(width: OfficialUISpec.Geometry.px18, height: OfficialUISpec.Geometry.px18)
+                    .frame(width: OfficialUISpec.Geometry.px36, height: OfficialUISpec.Geometry.px36)
             }
             .buttonStyle(OfficialCircleIconButtonStyle(pressedForeground: OfficialUISpec.Token.primary))
             .accessibilityLabel(OfficialUISpec.Text.newSessionAccessibility)
@@ -60,56 +60,60 @@ struct NativeSidebarView: View {
     }
 
     private var wideHeader: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: OfficialUISpec.Spacing.p8) {
             OfficialAssetImage(name: "brand-wordmark")
-                .frame(width: 182, height: 24, alignment: .leading)
+                .frame(
+                    width: OfficialUISpec.Layout.sidebarWordmarkWidth,
+                    height: OfficialUISpec.Layout.sidebarWordmarkHeight,
+                    alignment: .leading
+                )
             Spacer(minLength: 0)
             Button(action: { setCollapsed(true) }) {
                 OfficialAssetImage(name: "icon-panel-left", template: true)
-                    .frame(width: 16, height: 16)
-                    .frame(width: 28, height: 28)
+                    .frame(width: OfficialUISpec.Geometry.px16, height: OfficialUISpec.Geometry.px16)
+                    .frame(width: OfficialUISpec.Geometry.px28, height: OfficialUISpec.Geometry.px28)
             }
             .buttonStyle(NativeGlassNavigationButtonStyle())
             .accessibilityLabel(OfficialUISpec.Text.collapseSidebarAccessibility)
         }
-        .frame(height: 60)
-        .padding(.leading, 4)
-        .padding(.bottom, 8)
+        .frame(height: OfficialUISpec.Geometry.px60)
+        .padding(.leading, OfficialUISpec.Spacing.p4)
+        .padding(.bottom, OfficialUISpec.Spacing.p8)
     }
 
     private var newSessionButton: some View {
         Button(action: onNewSession) {
-            HStack(spacing: 6) {
+            HStack(spacing: OfficialUISpec.Spacing.p6) {
                 OfficialAssetImage(name: "icon-new-chat", template: true)
-                    .frame(width: 14, height: 14)
+                    .frame(width: OfficialUISpec.Geometry.px14, height: OfficialUISpec.Geometry.px14)
                 Text(OfficialUISpec.Text.newSession)
-                    .font(.system(size: 14, weight: .medium))
+                    .font(OfficialUISpec.Typography.sStrong14)
                 Spacer(minLength: 0)
             }
-            .frame(height: 36)
-            .padding(.horizontal, 16)
+            .frame(height: OfficialUISpec.Geometry.px36)
+            .padding(.horizontal, OfficialUISpec.Spacing.p16)
         }
         .buttonStyle(OfficialNewSessionButtonStyle())
         .accessibilityLabel(OfficialUISpec.Text.newSessionAccessibility)
-        .padding(.horizontal, 2)
-        .padding(.bottom, 8)
+        .padding(.horizontal, OfficialUISpec.Spacing.p2)
+        .padding(.bottom, OfficialUISpec.Spacing.p8)
     }
 
     private var settingsButton: some View {
         Button(action: onOpenSettings) {
-            HStack(spacing: 6) {
+            HStack(spacing: OfficialUISpec.Spacing.p6) {
                 OfficialAssetImage(name: "icon-settings", template: true)
                     .frame(width: collapsed ? 18 : 16, height: collapsed ? 18 : 16)
-                    .frame(width: collapsed ? 36 : nil, height: 36)
+                    .frame(width: collapsed ? 36 : nil, height: OfficialUISpec.Geometry.px36)
                 if !collapsed {
                     Text(OfficialUISpec.Text.settings)
-                        .font(.system(size: 14, weight: .regular))
+                        .font(OfficialUISpec.Typography.s14)
                 }
                 Spacer(minLength: 0)
             }
-            .frame(height: 36)
+            .frame(height: OfficialUISpec.Geometry.px36)
         }
         .buttonStyle(OfficialSidebarRowButtonStyle())
-        .padding(.bottom, 4)
+        .padding(.bottom, OfficialUISpec.Spacing.p4)
     }
 }
