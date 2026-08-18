@@ -33,11 +33,11 @@ DSH_GLASS_SNAPSHOT_PATH="$OUTPUT_DIR/question-composer-light.png" \
 DSH_GLASS_SNAPSHOT_MODE="question" \
 "$BINARY"
 
-# Stage 3: the same 1280×840 logical viewport as the locked official browser fixture.
+# Stage 3: the same 1280×1100 logical viewport as the locked official browser fixture.
 DSH_GLASS_SNAPSHOT_PATH="$OUTPUT_DIR/workspace-search-official-viewport.png" \
 DSH_GLASS_SNAPSHOT_MODE="workspace-search" \
 DSH_GLASS_SNAPSHOT_WIDTH="1280" \
-DSH_GLASS_SNAPSHOT_HEIGHT="840" \
+DSH_GLASS_SNAPSHOT_HEIGHT="1100" \
 "$BINARY"
 
 # Same CSS viewport measured in the locked official WebUI browser capture.

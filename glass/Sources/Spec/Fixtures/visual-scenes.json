@@ -43,7 +43,7 @@
       "id": "workspace-search-light",
       "surface": "workspace.session-search",
       "state": "fixture-query-fixture-remote-settled",
-      "viewport": { "width": 1280, "height": 840 },
+      "viewport": { "width": 1280, "height": 1100 },
       "officialComponents": ["WorkspaceBrowser", "SearchResults", "SearchResultItem"],
       "nativeEntry": "SnapshotExporter.DSH_GLASS_SNAPSHOT_MODE=workspace-search",
       "requiredEvidence": ["source-map", "official-screenshot", "native-screenshot", "paired-viewport", "difference-ledger", "post-fix-recapture", "layout-rectangles", "accessibility", "rpc-fixture"],
