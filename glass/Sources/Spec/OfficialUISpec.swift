@@ -64,8 +64,10 @@ enum OfficialUISpec {
         static let questionIconControl: CGFloat = 24
         static let questionOptionsTopMargin: CGFloat = 8
         static let questionOptionsHorizontalPadding: CGFloat = 12
+        static let questionOptionsVerticalPadding: CGFloat = 4
         static let questionOptionGap: CGFloat = 8
         static let questionOptionMinimumHeight: CGFloat = 40
+        static let questionOptionOuterHeight: CGFloat = 42
         static let questionOptionCornerRadius: CGFloat = 12
         static let questionOptionIndicator: CGFloat = 20
         static let questionFooterTopMargin: CGFloat = 12

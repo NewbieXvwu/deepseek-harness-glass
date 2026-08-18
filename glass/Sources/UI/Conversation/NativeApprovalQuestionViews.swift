@@ -248,7 +248,8 @@ struct NativeQuestionComposer: View {
                 }
             }
             .padding(.horizontal, OfficialUISpec.Layout.questionOptionsHorizontalPadding)
-            .padding(.top, OfficialUISpec.Layout.questionOptionsTopMargin)
+            .padding(.top, OfficialUISpec.Layout.questionOptionsTopMargin + OfficialUISpec.Layout.questionOptionsVerticalPadding)
+            .padding(.bottom, OfficialUISpec.Layout.questionOptionsVerticalPadding)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
@@ -301,7 +302,7 @@ struct NativeQuestionComposer: View {
             .padding(.leading, 8)
             .padding(.trailing, OfficialUISpec.Layout.questionOptionsHorizontalPadding)
             .padding(.vertical, 8)
-            .frame(minHeight: OfficialUISpec.Layout.questionOptionMinimumHeight)
+            .frame(minHeight: OfficialUISpec.Layout.questionOptionOuterHeight)
             .background(selected && !current.multiSelect ? OfficialUISpec.Token.interactiveHover : Color.clear, in: RoundedRectangle(cornerRadius: OfficialUISpec.Layout.questionOptionCornerRadius, style: .continuous))
             .overlay {
                 if selected && !current.multiSelect {
@@ -335,7 +336,7 @@ struct NativeQuestionComposer: View {
             .padding(.leading, 8)
             .padding(.trailing, OfficialUISpec.Layout.questionOptionsHorizontalPadding)
             .padding(.vertical, 8)
-            .frame(minHeight: OfficialUISpec.Layout.questionOptionMinimumHeight)
+            .frame(minHeight: OfficialUISpec.Layout.questionOptionOuterHeight)
             .background(draft.custom.isEmpty ? Color.clear : OfficialUISpec.Token.interactiveHover, in: RoundedRectangle(cornerRadius: OfficialUISpec.Layout.questionOptionCornerRadius, style: .continuous))
             .overlay {
                 if !draft.custom.isEmpty {
