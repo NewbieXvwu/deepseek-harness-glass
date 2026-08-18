@@ -3,6 +3,22 @@ import Foundation
 #if DEEPSEEK_HARNESS_PACKAGE
 @testable import GlassSpec
 #endif
+/// A payload-free trace retained by the carrier to diagnose rpcId collisions,
+/// response correlation and terminal transport outcomes without logging content.
+struct RPCTransportTrace: Codable, Equatable, Sendable {
+    enum Outcome: String, Codable, Equatable, Sendable {
+        case succeeded
+        case rejected
+        case failed
+    }
+
+    let timestamp: Date
+    let rpcId: String?
+    let method: String
+    let outcome: Outcome
+    let detail: String?
+}
+
 /// Native URLSession implementation of the official HTTP carrier. This actor
 /// owns HTTP mechanics only; feature code must go through typed API facades.
 actor DSHClientTransport {
@@ -11,29 +27,108 @@ actor DSHClientTransport {
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
     private let accessPolicy: HostRPCAccessPolicy
+    private let rpcIDGenerator: @Sendable () -> String
+    private var inFlightRPCIDs: Set<String> = []
+    private var issuedRPCIDs: Set<String> = []
+    private var issuedRPCIDOrder: [String] = []
+    private var callTraces: [RPCTransportTrace] = []
 
-    init(baseURL: URL, accessPolicy: HostRPCAccessPolicy, session: URLSession = .shared) {
+    init(
+        baseURL: URL,
+        accessPolicy: HostRPCAccessPolicy,
+        session: URLSession = .shared,
+        rpcIDGenerator: @escaping @Sendable () -> String = { UUID().uuidString.lowercased() }
+    ) {
         self.baseURL = baseURL
         self.accessPolicy = accessPolicy
         self.session = session
+        self.rpcIDGenerator = rpcIDGenerator
         self.encoder = JSONEncoder()
         self.decoder = JSONDecoder()
     }
 
+    func recentCallTraces() -> [RPCTransportTrace] {
+        callTraces
+    }
+
     func call(method: String, payload: JSONValue, timeout: TimeInterval = 30) async throws -> RPCServerResponse {
         guard accessPolicy.permits(method: method) else {
-            throw DSHTransportError.unverifiedHostBuild(accessPolicy.trust.diagnosticSummary)
+            let error = DSHTransportError.unverifiedHostBuild(accessPolicy.trust.diagnosticSummary)
+            appendTrace(rpcId: nil, method: method, outcome: .rejected, detail: traceDetail(for: error))
+            throw error
         }
-        let rpcId = UUID().uuidString.lowercased()
-        let request = RPCClientRequest(rpcId: rpcId, method: method, payload: payload)
-        let response = try await post(path: method, body: request, timeout: timeout)
-        guard response.type == "server-response" else {
-            throw DSHTransportError.unexpectedEnvelope(response.type)
+        let rpcId: String
+        do {
+            rpcId = try reserveRPCID()
+        } catch {
+            appendTrace(rpcId: nil, method: method, outcome: .rejected, detail: traceDetail(for: error))
+            throw error
         }
-        guard response.rpcId == rpcId else {
-            throw DSHTransportError.mismatchedRPCID(expected: rpcId, actual: response.rpcId)
+        defer { inFlightRPCIDs.remove(rpcId) }
+
+        do {
+            let request = RPCClientRequest(rpcId: rpcId, method: method, payload: payload)
+            let response = try await post(path: method, body: request, timeout: timeout)
+            guard response.type == "server-response" else {
+                throw DSHTransportError.unexpectedEnvelope(response.type)
+            }
+            guard response.rpcId == rpcId else {
+                throw DSHTransportError.mismatchedRPCID(expected: rpcId, actual: response.rpcId)
+            }
+            appendTrace(rpcId: rpcId, method: method, outcome: .succeeded, detail: nil)
+            return response
+        } catch {
+            appendTrace(rpcId: rpcId, method: method, outcome: .failed, detail: traceDetail(for: error))
+            throw error
         }
-        return response
+    }
+
+    private func reserveRPCID() throws -> String {
+        let rpcId = rpcIDGenerator()
+        guard !issuedRPCIDs.contains(rpcId), inFlightRPCIDs.insert(rpcId).inserted else {
+            throw DSHTransportError.duplicateRPCID(rpcId)
+        }
+        issuedRPCIDs.insert(rpcId)
+        issuedRPCIDOrder.append(rpcId)
+        if issuedRPCIDOrder.count > 1_024 {
+            issuedRPCIDs.remove(issuedRPCIDOrder.removeFirst())
+        }
+        return rpcId
+    }
+
+    private func traceDetail(for error: Error) -> String {
+        switch error {
+        case let business as RPCBusinessError:
+            return "business-error:\(business.code)"
+        case let transport as DSHTransportError:
+            switch transport {
+            case .duplicateRPCID: return "duplicate-rpc-id"
+            case .mismatchedRPCID: return "mismatched-rpc-id"
+            case .unexpectedEnvelope: return "unexpected-envelope"
+            case .invalidContentType: return "invalid-content-type"
+            case .invalidHTTPStatus: return "invalid-http-status"
+            case .timeout: return "timeout"
+            case .network: return "network"
+            case .unverifiedHostBuild: return "unverified-host"
+            case .cancelled: return "cancelled"
+            case .invalidEndpoint: return "invalid-endpoint"
+            case .decoding: return "decoding"
+            }
+        default:
+            return "\(String(reflecting: type(of: error)))"
+        }
+    }
+
+    private func appendTrace(
+        rpcId: String?,
+        method: String,
+        outcome: RPCTransportTrace.Outcome,
+        detail: String?
+    ) {
+        callTraces.append(RPCTransportTrace(timestamp: Date(), rpcId: rpcId, method: method, outcome: outcome, detail: detail))
+        if callTraces.count > 100 {
+            callTraces.removeFirst(callTraces.count - 100)
+        }
     }
 
     func respond(_ response: RPCClientResponse, timeout: TimeInterval = 30) async throws -> RPCReceipt {

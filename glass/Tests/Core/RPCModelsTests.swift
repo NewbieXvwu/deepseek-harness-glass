@@ -25,6 +25,7 @@ final class RPCModelsTests: XCTestCase {
             (.unverifiedHostBuild("fixture"), .unsupported),
             (.cancelled, .requiresUserCorrection),
             (.mismatchedRPCID(expected: "a", actual: "b"), .programFault),
+            (.duplicateRPCID("rpc-fixture"), .programFault),
         ]
         for (error, expected) in transport {
             XCTAssertEqual(error.disposition, expected, "transport error \(error)")
