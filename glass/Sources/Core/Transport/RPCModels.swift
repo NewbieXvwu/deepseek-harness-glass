@@ -60,7 +60,7 @@ enum JSONValue: Codable, Equatable, Sendable {
 }
 
 /// Matches the official `ClientRequest` wire form sent as POST `/api/<method>`.
-struct RPCClientRequest: Encodable, Sendable {
+struct RPCClientRequest: Encodable, Equatable, Sendable {
     let type = "client-request"
     let rpcId: String
     let method: String
@@ -73,6 +73,44 @@ struct RPCBusinessError: Codable, Equatable, Sendable, Error {
     let code: String
     let message: String
     let details: JSONValue
+
+    var disposition: RPCErrorDisposition {
+        let normalized = code.lowercased()
+        if normalized.contains("revision") || normalized.contains("conflict") || normalized.contains("stale") {
+            return .requiresRefresh
+        }
+        if normalized.contains("invalid") || normalized.contains("validation") || normalized.contains("required") || normalized.contains("permission") {
+            return .requiresUserCorrection
+        }
+        if normalized.contains("unsupported") || normalized.contains("not_found") || normalized.contains("notfound") || normalized.contains("method") {
+            return .unsupported
+        }
+        if normalized.contains("retry") || normalized.contains("busy") || normalized.contains("unavailable") || normalized.contains("rate") {
+            return .retryable
+        }
+        return .programFault
+    }
+}
+
+/// Upper-layer decision after any official RPC or carrier failure. The mapping
+/// is intentionally independent of localized error text and may be displayed or
+/// retried by feature facades without inspecting transport internals.
+enum RPCErrorDisposition: String, Codable, Equatable, Sendable {
+    case retryable
+    case requiresRefresh
+    case requiresUserCorrection
+    case unsupported
+    case programFault
+}
+
+/// Source: `packages/client/connection/src/rpc.ts`; a type-erased envelope
+/// family for fixture and transport tests. Concrete request/response structs
+/// remain the wire encoders used by `DSHClientTransport`.
+enum RPCEnvelope: Equatable, Sendable {
+    case clientRequest(RPCClientRequest)
+    case serverResponse(RPCServerResponse)
+    case serverRequest(RPCServerRequest)
+    case clientResponse(RPCClientResponse)
 }
 
 /// Mirrors official `RpcResult<T>`. HTTP status is transport-only; a server
@@ -121,7 +159,7 @@ struct RPCServerRequest: Codable, Equatable, Sendable {
 }
 
 /// Matches official `ClientResponse` sent to POST `/api/respond`.
-struct RPCClientResponse: Encodable, Sendable {
+struct RPCClientResponse: Encodable, Equatable, Sendable {
     let type = "client-response"
     let rpcId: String
     let result: RPCResult
@@ -139,8 +177,22 @@ enum DSHTransportError: LocalizedError, Equatable, Sendable {
     case mismatchedRPCID(expected: String, actual: String)
     case invalidContentType(String?)
     case decoding(String)
+    case timeout
+    case network(String)
     case unverifiedHostBuild(String)
     case cancelled
+
+    var disposition: RPCErrorDisposition {
+        switch self {
+        case .timeout, .network: return .retryable
+        case let .invalidHTTPStatus(status, _):
+            return (status == 408 || status == 425 || status == 429 || status >= 500) ? .retryable : .programFault
+        case .unverifiedHostBuild: return .unsupported
+        case .cancelled: return .requiresUserCorrection
+        case .invalidEndpoint, .unexpectedEnvelope, .mismatchedRPCID, .invalidContentType, .decoding:
+            return .programFault
+        }
+    }
 
     var errorDescription: String? {
         switch self {
@@ -150,6 +202,8 @@ enum DSHTransportError: LocalizedError, Equatable, Sendable {
         case let .mismatchedRPCID(expected, actual): return "Mismatched RPC response id: expected \(expected), got \(actual)."
         case let .invalidContentType(value): return "Unexpected DeepSeek Harness content type: \(value ?? "missing")."
         case let .decoding(message): return "Could not decode DeepSeek Harness response: \(message)"
+        case .timeout: return "DeepSeek Harness request timed out."
+        case let .network(message): return "DeepSeek Harness network request failed: \(message)"
         case let .unverifiedHostBuild(reason): return "DeepSeek Harness build is unverified; write operation is blocked: \(reason)"
         case .cancelled: return "DeepSeek Harness request was cancelled."
         }

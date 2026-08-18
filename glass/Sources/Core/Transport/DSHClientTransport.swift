@@ -103,10 +103,16 @@ actor DSHClientTransport {
             return (data, http)
         } catch is CancellationError {
             throw DSHTransportError.cancelled
+        } catch let error as URLError {
+            switch error.code {
+            case .timedOut: throw DSHTransportError.timeout
+            case .cancelled: throw DSHTransportError.cancelled
+            default: throw DSHTransportError.network(error.localizedDescription)
+            }
         } catch let error as DSHTransportError {
             throw error
         } catch {
-            throw DSHTransportError.decoding(error.localizedDescription)
+            throw DSHTransportError.network(error.localizedDescription)
         }
     }
 
