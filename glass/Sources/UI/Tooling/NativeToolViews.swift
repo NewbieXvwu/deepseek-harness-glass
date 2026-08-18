@@ -150,7 +150,7 @@ struct NativeToolDetailsBody: View {
             if let invocation {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text(invocation.name)
+                        Text(title(for: invocation.name))
                             .font(.system(size: 13, weight: .medium))
                             .foregroundStyle(OfficialUISpec.Token.primary)
                         if invocation.state == .running {
@@ -174,6 +174,20 @@ struct NativeToolDetailsBody: View {
                     .foregroundStyle(OfficialUISpec.Token.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             }
+        }
+    }
+}
+
+private extension NativeToolDetailsBody {
+    func title(for name: String) -> String {
+        switch name {
+        case "bash", "pwsh": OfficialUISpec.Text.toolBash
+        case "read", "web_fetch", "cordis_package_inspect", "cordis_runtime_inspect": OfficialUISpec.Text.toolRead
+        case "web_search", "grep", "glob": OfficialUISpec.Text.toolSearch
+        case "write": OfficialUISpec.Text.toolWrite
+        case "edit": OfficialUISpec.Text.toolEdit
+        case "run_code": OfficialUISpec.Text.toolCode
+        default: OfficialUISpec.Text.toolCall
         }
     }
 }
