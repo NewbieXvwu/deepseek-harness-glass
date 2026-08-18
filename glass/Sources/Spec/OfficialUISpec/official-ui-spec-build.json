@@ -1,0 +1,215 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca",
+  "hostBuildId": "dsh-0.1.0-rc.7-official-99f6f02",
+  "uiSpecRevision": "official-99f6f02-ui-spec-r1",
+  "localeRevision": "sha256:b3c0e85f0ac98a7673d1a2b2a6bce923604b9b120be8688c3354cc03f00a179b",
+  "tokenRevision": "sha256:2d1743337b8fbba4bd052e8f1ecd24e490c2b5707faf8c185bfeae78fa702989",
+  "layoutRevision": "sha256:d3a1b81af41e6bac496454ce1cb4a97dbf2ed6d8a8c615822a1c99aa48608718",
+  "fixtureRevision": "sha256:39fbdd0e22a71c681ede0287481c4176a878b4d9b6cdc6f2ccf2a7f45c8ddc9c",
+  "generatedAt": "2026-08-17T19:03:17+08:00",
+  "generator": {
+    "name": "generate_official_ui_spec_build.py",
+    "version": "1.0.0"
+  },
+  "inputs": [
+    {
+      "path": "apps/web/tests/remote-welcome.e2e.ts",
+      "sha256": "a427777424943f8cf93a8012c1cf10216f565296d401914a3239a198f0734f0a",
+      "lines": 61,
+      "kind": "fixture"
+    },
+    {
+      "path": "apps/web/tests/support.ts",
+      "sha256": "f4eaaf394e50a4bd0771e3af7bcc0f358e35090044b81865a4c06a0eff8c9d4e",
+      "lines": 136,
+      "kind": "fixture"
+    },
+    {
+      "path": "packages/client/connection/src/client/fixture.ts",
+      "sha256": "83b49ea4769dcb6ad746875b52aee9de429b80730fd17a49f3f0ffc8fda7dca2",
+      "lines": 3189,
+      "kind": "fixture"
+    },
+    {
+      "path": "packages/client/ui-conversation/src/client/skeleton/ConversationRoot.module.css",
+      "sha256": "ab8d7e4099e9b45fbeb39c83b15ed2e69bf8547de4dc79014d95d64e6b85ad83",
+      "lines": 366,
+      "kind": "layout"
+    },
+    {
+      "path": "packages/client/ui-conversation/src/client/skeleton/InputBar.module.css",
+      "sha256": "c06ae1f782b500631cffb776b770c36437729b93c9dbf438117db1eafd0d6535",
+      "lines": 477,
+      "kind": "layout"
+    },
+    {
+      "path": "packages/client/ui-layout/src/client/columns.ts",
+      "sha256": "c2f002126fc671aeaad058eae310d265f7b1f9b77223686c0fe4619cda4e71e2",
+      "lines": 78,
+      "kind": "layout"
+    },
+    {
+      "path": "packages/client/ui-workspace/src/client/WorkspaceBrowser.module.css",
+      "sha256": "a09fdf87dab5c03454cb3967dfd968e8894b021eb50b6220345f24553b8981e2",
+      "lines": 507,
+      "kind": "layout"
+    },
+    {
+      "path": "packages/client/locale/src/locales/en.ts",
+      "sha256": "034d139f9031c3b740e550678145819dc5e5b3a3b5fd4fe11d22d80bca27a66c",
+      "lines": 30,
+      "kind": "locale"
+    },
+    {
+      "path": "packages/client/ui-agent-preset/src/client/locales.ts",
+      "sha256": "56145693220877c82209e9b69cfd25f9f3b6a42b4c895652b69d652aed1504ad",
+      "lines": 193,
+      "kind": "locale"
+    },
+    {
+      "path": "packages/client/ui-commands/src/client/locales.ts",
+      "sha256": "b113f8b8c0609badab11789c317ceeeadf1a1f3983fe6051d12ccbe4a7ba09e5",
+      "lines": 27,
+      "kind": "locale"
+    },
+    {
+      "path": "packages/client/ui-conversation/src/client/locales.ts",
+      "sha256": "170d1c262c8d7edef1f8e57d0b26653a3623e459099f81280f7c1f7f3ba7ee9e",
+      "lines": 345,
+      "kind": "locale"
+    },
+    {
+      "path": "packages/client/ui-deliverables/src/client/locales.ts",
+      "sha256": "dc66593a40f3d9e051f51b154522b5d20ffb3b71c1075fc91db3df12feb9964e",
+      "lines": 26,
+      "kind": "locale"
+    },
+    {
+      "path": "packages/client/ui-goal/src/client/locales.ts",
+      "sha256": "eb81eb9f58fa8b4fa6f5ca2ac443fd9c08f1e17c1c8ee861240bcca47674367c",
+      "lines": 35,
+      "kind": "locale"
+    },
+    {
+      "path": "packages/client/ui-input-trigger/src/client/locales.ts",
+      "sha256": "f3426cdb85add6b967e72aea4341c48ff9f066cef24b70b111ca2b76c67ac189",
+      "lines": 27,
+      "kind": "locale"
+    },
+    {
+      "path": "packages/client/ui-jobs/src/client/locales.ts",
+      "sha256": "ece30b71b547a3fafcdc15bf69057dad22f14e314d1c6215a1a9df5990caba49",
+      "lines": 46,
+      "kind": "locale"
+    },
+    {
+      "path": "packages/client/ui-message-feedback/src/client/locales.ts",
+      "sha256": "ebe5879314cffcb482c82359ba9aee541b42559d3bdce22795dbfcbb45ff4bbe",
+      "lines": 44,
+      "kind": "locale"
+    },
+    {
+      "path": "packages/client/ui-model-selection/src/client/locales.ts",
+      "sha256": "ed1b559244fe66cabb3f1b47a88cd9eebf2e38c3dc1640cf42cbdfa71ffcd590",
+      "lines": 55,
+      "kind": "locale"
+    },
+    {
+      "path": "packages/client/ui-permission-presets/src/client/locales.ts",
+      "sha256": "7ecaf0e24163dee251724e6647256d54e6e4cedef2e8f656c8df82f6551e5db1",
+      "lines": 52,
+      "kind": "locale"
+    },
+    {
+      "path": "packages/client/ui-plan/src/client/locales.ts",
+      "sha256": "8d89f21984f11651fc505abb820bdb5ac5195c2fcbcd46e22c65119d82d44341",
+      "lines": 21,
+      "kind": "locale"
+    },
+    {
+      "path": "packages/client/ui-settings-general/src/client/locales.ts",
+      "sha256": "36364af8ca7c8bcb7ebfccf79684392d6496641785931c2e45ebbf080d362e61",
+      "lines": 25,
+      "kind": "locale"
+    },
+    {
+      "path": "packages/client/ui-settings-models/src/client/locales.ts",
+      "sha256": "98712065625b70a4cf1e3fb8afaa43dde49ac9c6205bf8ba8e18f5fffd91384a",
+      "lines": 201,
+      "kind": "locale"
+    },
+    {
+      "path": "packages/client/ui-settings-plugin-inventory/src/client/locales.ts",
+      "sha256": "3e70ec95f3144f462fe172fc20fd2c4b3ba7c1b36358c7d05948fa448bee47e2",
+      "lines": 49,
+      "kind": "locale"
+    },
+    {
+      "path": "packages/client/ui-settings-plugins/src/client/locales.ts",
+      "sha256": "cde57390ed83eb666d57b7dcb93fd655a20a862da8e098889cf2938442d876e5",
+      "lines": 96,
+      "kind": "locale"
+    },
+    {
+      "path": "packages/client/ui-sidebar/src/client/locales.ts",
+      "sha256": "e621c7481116912c5dfcaf8a85a77957cfbd1b24991068069d532610670aaef9",
+      "lines": 21,
+      "kind": "locale"
+    },
+    {
+      "path": "packages/client/ui-skill/src/client/locales.ts",
+      "sha256": "208f9393d1b9af701c3d6f319fd110050a9a537f377a27aa8306563aeb0ff1aa",
+      "lines": 26,
+      "kind": "locale"
+    },
+    {
+      "path": "packages/client/ui-subagent/src/client/locales.ts",
+      "sha256": "53b0f57409d787125aa2fae3d53d27aeb7e995f59ac72b2be5c9cef326829e3d",
+      "lines": 82,
+      "kind": "locale"
+    },
+    {
+      "path": "packages/client/ui-theme/src/client/locales.ts",
+      "sha256": "0a3f1bcbc38cffea63930c9d9f8907ecaa0a4e79a9ef6452adfbb24c7e481047",
+      "lines": 21,
+      "kind": "locale"
+    },
+    {
+      "path": "packages/client/ui-tool/src/client/locale.ts",
+      "sha256": "eb9b8f7ac08faedf7647b5dd64e8d30be6e34d9bddf25895b131faa177e1e3aa",
+      "lines": 3,
+      "kind": "locale"
+    },
+    {
+      "path": "packages/client/ui-trajectory/src/client/locales.ts",
+      "sha256": "af3cf3a1a41ac06da0f263c34f32bee5ff372342d472b2a42028d8760ae4024c",
+      "lines": 65,
+      "kind": "locale"
+    },
+    {
+      "path": "packages/client/ui-user-questions/src/client/locales.ts",
+      "sha256": "d4dbbfd913b3e9bce0eae3885bd43ad2e03c6cf9034e023539e09bbd56a05d0c",
+      "lines": 43,
+      "kind": "locale"
+    },
+    {
+      "path": "packages/client/ui-workflow-run/src/client/locales.ts",
+      "sha256": "18be618b0d9b6ce472d52aa7a6bd1930f60317e7e405f599f4f55bce3f8da99e",
+      "lines": 52,
+      "kind": "locale"
+    },
+    {
+      "path": "packages/client/ui-workspace/src/client/locales.ts",
+      "sha256": "23d1866da00497c4ee7534f80759a9e390eabb1e7823deb64d6bcdb9ee9e141b",
+      "lines": 141,
+      "kind": "locale"
+    },
+    {
+      "path": "packages/client/ui-theme/src/styles/design-platform.css",
+      "sha256": "7fbb81d2b7879c75c9fb6a9a5ec15435df9f916036fa925a70ca197a78bee42c",
+      "lines": 339,
+      "kind": "token"
+    }
+  ]
+}

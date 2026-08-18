@@ -13,6 +13,7 @@ on:
       - "glass/ci/**"
       - "glass/Sources/Spec/SupportedHostBuilds.json"
       - "tools/reference-capture/**"
+      - "tools/spec-generation/**"
       - "visual-review/**"
       - ".github/workflows/native-ui.yml"
       - "README.md"
@@ -30,6 +31,7 @@ on:
       - "glass/ci/**"
       - "glass/Sources/Spec/SupportedHostBuilds.json"
       - "tools/reference-capture/**"
+      - "tools/spec-generation/**"
       - "visual-review/**"
       - ".github/workflows/native-ui.yml"
       - "README.md"
@@ -130,6 +132,13 @@ jobs:
             --payload-dir glass/build/backend \
             --node glass/build/node/node
 
+      - name: Validate generated Official UI spec build
+        run: |
+          python3 glass/ci/check-official-ui-spec-build.py \
+            --official-root .reference/deepseek-harness
+          python3 glass/ci/test-official-ui-spec-build.py \
+            --official-root .reference/deepseek-harness
+
       - name: Enforce native-only core UI
         run: ./glass/ci/check-no-webview.sh
 
@@ -143,6 +152,11 @@ jobs:
         run: |
           cd glass
           swift build --configuration release
+
+      - name: Run generated Official UI spec tests
+        run: |
+          cd glass
+          swift test --filter OfficialUISpecBuildTests
 
       - name: Validate official UI specification provenance
         run: ./glass/ci/check-official-spec.py
@@ -205,6 +219,8 @@ jobs:
             glass/dist/DeepSeek Harness.app/Contents/Resources/BuildManifest.json
             glass/ci/dsh-backend-payload/package-lock.json
             glass/Sources/Spec/RuntimeAssetInventory.json
+            glass/Sources/Spec/OfficialUISpec/official-ui-spec-build.json
+            glass/Sources/Spec/OfficialUISpecBuild.swift
             glass/Package.swift
           if-no-files-found: error
           retention-days: 14

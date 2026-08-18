@@ -3,7 +3,8 @@ import SwiftUI
 /// 已锁定 DeepSeek Harness WebUI 基线的原生规格。
 /// 首屏文本、token 和布局值只来自该基线的 locale/CSS/组件源码，禁止由 View 自行创造产品文案。
 enum OfficialUISpec {
-    static let deepSeekHarnessCommit = "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+    static let deepSeekHarnessCommit = Build.sourceCommit
+    static let hostBuildID = Build.id
 
     enum Layout {
         // Source: packages/client/ui-layout/src/client/columns.ts

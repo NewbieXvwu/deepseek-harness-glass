@@ -53,6 +53,18 @@ final class HarnessHostController: ObservableObject {
             ))
             return
         case let .supported(build):
+            guard OfficialUISpec.Build.isCompatible(with: build.id),
+                  build.officialSourceCommit == OfficialUISpec.Build.sourceCommit,
+                  build.uiSpecRevision == OfficialUISpec.Build.uiSpecRevision
+            else {
+                state = .failed(HostFailure(
+                    kind: .invalidBundledBaseline,
+                    message: "Bundled Host build does not match the generated Official UI specification.",
+                    exitStatus: nil,
+                    logPath: runtime.logFile.path
+                ))
+                return
+            }
             launch(build: build)
         }
     }

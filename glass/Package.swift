@@ -41,5 +41,10 @@ let package = Package(
             path: "Sources/App",
             swiftSettings: [.define("DEEPSEEK_HARNESS_PACKAGE"), .unsafeFlags(["-enable-testing"])]
         ),
+        .testTarget(
+            name: "GlassSpecTests",
+            dependencies: ["GlassSpec"],
+            path: "Tests/Spec"
+        ),
     ]
 )
