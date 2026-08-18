@@ -68,6 +68,7 @@ struct WorkspaceBrowserView: View {
         self.actions = actions
         self.snapshotDialog = snapshotDialog
         _expandedWorkspaceIDs = State(initialValue: Set(store.snapshot.selectedWorkspaceID.map { [$0] } ?? []))
+        _searchExpanded = State(initialValue: !store.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         switch snapshotDialog {
         case .none:
             _workspaceRenameTarget = State(initialValue: nil)
@@ -394,20 +395,23 @@ struct WorkspaceBrowserView: View {
                     Text(sessionTitle(result.session))
                         .font(.system(size: 14, weight: .regular))
                         .lineLimit(1)
+                        .frame(height: 20, alignment: .leading)
                         .padding(.leading, 4)
                 }
                 HStack(spacing: 6) {
                     Text(result.workspaceTitle)
                         .lineLimit(1)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .fixedSize(horizontal: true, vertical: false)
+                        .foregroundStyle(OfficialUISpec.Token.caption)
                     if let snippet = result.snippet {
                         Text(snippet)
                             .lineLimit(1)
+                            .foregroundStyle(OfficialUISpec.Token.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
                 .font(.system(size: 12, weight: .regular))
-                .foregroundStyle(OfficialUISpec.Token.caption)
+                .frame(height: 17, alignment: .leading)
                 .padding(.leading, 20)
             }
             .foregroundStyle(OfficialUISpec.Token.primary)

@@ -291,6 +291,13 @@ final class NativeWorkspaceStore: ObservableObject {
     /// deterministic, while all session identity remains the shared fixture.
     func loadSnapshotFixtureSearch() {
         loadSnapshotFixtureWorkspace()
+        snapshot = Snapshot(
+            workspaces: snapshot.workspaces,
+            sessions: snapshot.sessions,
+            archivedSessionIDs: snapshot.archivedSessionIDs,
+            selectedSessionID: nil,
+            selectedWorkspaceID: snapshot.selectedWorkspaceID
+        )
         searchQuery = "fixture"
         remoteSearch = RemoteSearch(
             query: "fixture",
