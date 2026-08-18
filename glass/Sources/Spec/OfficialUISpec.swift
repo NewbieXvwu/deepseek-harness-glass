@@ -39,6 +39,8 @@ enum OfficialUISpec {
         static let workspaceSearchExpandedHeight: CGFloat = 30
         static let workspaceListRowGap: CGFloat = 2
         static let workspaceGroupSessionLimit = 5
+        // Source: packages/host/apiproxy/src/api/session-search.ts
+        static let sessionSearchResultLimit = 20
 
         // Source: ui-conversation/skeleton/ApprovalPanel.module.css
         static let approvalCardOuterWidth: CGFloat = 750
@@ -110,6 +112,24 @@ enum OfficialUISpec {
         static let waitingForAnswer = "Waiting for answer"
         static let waitingForApproval = "Waiting for approval"
         static let planAwaitingReview = "Plan awaiting review"
+        static let searchingSessionHistory = "Searching session history…"
+        static let contentSearchUnavailable = "Content search is temporarily unavailable. Showing name matches."
+        static let searchHasMoreTemplate = "Showing the first {n} results. Narrow your search."
+        static func searchHasMore(_ value: Int) -> String {
+            searchHasMoreTemplate.replacingOccurrences(of: "{n}", with: String(value))
+        }
+        static let renameWorkspaceTitle = "Rename workspace"
+        static let renameSessionTitle = "Rename session"
+        static let workspaceName = "Workspace name"
+        static let sessionName = "Session name"
+        static let deleteWorkspaceDescriptionTemplate = "This removes “{name}” from the workspace list. The folder and session logs will be kept. Its sessions will appear under Ungrouped."
+        static func deleteWorkspaceDescription(name: String) -> String {
+            deleteWorkspaceDescriptionTemplate.replacingOccurrences(of: "{name}", with: name)
+        }
+        static let deletingWorkspace = "Deleting workspace…"
+        // Source: packages/client/locale/src/locales/en.ts
+        static let cancel = "Cancel"
+        static let close = "Close"
         static let relativeTimeNow = "now"
         static let relativeTimeMinutesTemplate = "{n}min"
         static let relativeTimeHoursTemplate = "{n}h"

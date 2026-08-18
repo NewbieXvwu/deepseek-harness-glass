@@ -96,6 +96,36 @@ struct DSHAPIClient: Sendable {
         try await call("workspace.create", payload: WorkspaceCreateRequest(path: path))
     }
 
+    /// Source: `sessions.schema.ts:sessionSearchRequestSchema`.
+    func sessionSearch(query: String) async throws -> SessionSearchResponse {
+        try await call("session.search", payload: SessionSearchRequest(query: query))
+    }
+
+    /// Source: `sessions.schema.ts:sessionRenameRequestSchema`.
+    func sessionRename(sessionID: String, title: String) async throws -> SessionRenameResponse {
+        try await call("session.rename", payload: SessionRenameRequest(sessionId: sessionID, title: title))
+    }
+
+    /// Source: `sessions.schema.ts:sessionForkRequestSchema`.
+    func sessionFork(sessionID: String, atSeq: Int? = nil) async throws -> SessionForkResponse {
+        try await call("session.fork", payload: SessionForkRequest(sessionId: sessionID, atSeq: atSeq))
+    }
+
+    /// Source: `workspace.schema.ts:workspaceRenameRequestSchema`.
+    func workspaceRename(workspaceID: String, title: String) async throws -> WorkspaceRenameResponse {
+        try await call("workspace.rename", payload: WorkspaceRenameRequest(workspaceId: workspaceID, title: title))
+    }
+
+    /// Source: `workspace.schema.ts:workspaceDeleteRequestSchema`.
+    func workspaceDelete(workspaceID: String) async throws -> WorkspaceDeleteResponse {
+        try await call("workspace.delete", payload: WorkspaceDeleteRequest(workspaceId: workspaceID))
+    }
+
+    /// Source: `workspace.schema.ts:workspaceArchiveSessionRequestSchema`.
+    func workspaceArchiveSession(sessionID: String) async throws -> WorkspaceArchiveSessionResponse {
+        try await call("workspace.archiveSession", payload: WorkspaceArchiveSessionRequest(sessionId: sessionID))
+    }
+
     func settingsDescribe() async throws -> SettingsDescribeResponse {
         try await call("settings.describe", payload: EmptyPayload())
     }
@@ -219,6 +249,79 @@ struct WorkspaceCreateRequest: Encodable, Sendable {
 struct WorkspaceCreateResponse: Decodable, Sendable {
     let workspace: WorkspaceSummaryDTO
     let created: Bool
+}
+
+/// Source: `sessions.schema.ts:sessionSearchRequestSchema`.
+struct SessionSearchRequest: Encodable, Sendable {
+    let query: String
+}
+
+/// Source: `sessions.schema.ts:sessionSearchValueSchema`.
+struct SessionSearchResponse: Decodable, Sendable {
+    let items: [SessionSearchItemDTO]
+    let hasMore: Bool
+}
+
+/// Source: `sessions.schema.ts:sessionSearchItemSchema`.
+struct SessionSearchItemDTO: Decodable, Sendable, Identifiable, Equatable {
+    let sessionId: String
+    let snippet: String
+
+    var id: String { sessionId }
+}
+
+/// Source: `sessions.schema.ts:sessionRenameRequestSchema`.
+struct SessionRenameRequest: Encodable, Sendable {
+    let sessionId: String
+    let title: String
+}
+
+/// Source: `sessions.schema.ts:sessionRenameValueSchema`.
+struct SessionRenameResponse: Decodable, Sendable {
+    let title: String
+    let seq: Int
+}
+
+/// Source: `sessions.schema.ts:sessionForkRequestSchema`.
+struct SessionForkRequest: Encodable, Sendable {
+    let sessionId: String
+    let atSeq: Int?
+}
+
+/// Source: `sessions.schema.ts:sessionForkValueSchema`.
+struct SessionForkResponse: Decodable, Sendable {
+    let sessionId: String
+}
+
+/// Source: `workspace.schema.ts:workspaceRenameRequestSchema`.
+struct WorkspaceRenameRequest: Encodable, Sendable {
+    let workspaceId: String
+    let title: String
+}
+
+/// Source: `workspace.schema.ts:workspaceRenameValueSchema`.
+struct WorkspaceRenameResponse: Decodable, Sendable {
+    let workspace: WorkspaceSummaryDTO
+}
+
+/// Source: `workspace.schema.ts:workspaceDeleteRequestSchema`.
+struct WorkspaceDeleteRequest: Encodable, Sendable {
+    let workspaceId: String
+}
+
+/// Source: `workspace.schema.ts:workspaceDeleteValueSchema`.
+struct WorkspaceDeleteResponse: Decodable, Sendable {
+    let deleted: Bool
+}
+
+/// Source: `workspace.schema.ts:workspaceArchiveSessionRequestSchema`.
+struct WorkspaceArchiveSessionRequest: Encodable, Sendable {
+    let sessionId: String
+}
+
+/// Source: `workspace.schema.ts:workspaceArchiveSessionValueSchema`.
+struct WorkspaceArchiveSessionResponse: Decodable, Sendable {
+    let archivedSessionIds: [String]
 }
 
 /// These intentionally retain only stable top-level fields needed by the first

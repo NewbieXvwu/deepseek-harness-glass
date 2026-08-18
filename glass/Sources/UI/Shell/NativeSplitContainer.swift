@@ -81,6 +81,66 @@ final class NativeShellPresentation: ObservableObject {
         }
     }
 
+    /// Source: `workspace.schema.ts:workspaceRenameRequestSchema`.
+    func renameWorkspace(_ workspaceID: String, title: String) async throws {
+        guard let apiClient else { throw URLError(.notConnectedToInternet) }
+        _ = try await apiClient.workspaceRename(workspaceID: workspaceID, title: title)
+        guard !Task.isCancelled else { return }
+        workspaceStore.refresh(using: apiClient)
+    }
+
+    /// Source: `workspace.schema.ts:workspaceDeleteRequestSchema`.
+    func deleteWorkspace(_ workspaceID: String) async throws {
+        guard let apiClient else { throw URLError(.notConnectedToInternet) }
+        _ = try await apiClient.workspaceDelete(workspaceID: workspaceID)
+        guard !Task.isCancelled else { return }
+        workspaceStore.refresh(using: apiClient)
+    }
+
+    /// Source: `sessions.schema.ts:sessionRenameRequestSchema`.
+    func renameSession(_ sessionID: String, title: String) async throws {
+        guard let apiClient else { throw URLError(.notConnectedToInternet) }
+        _ = try await apiClient.sessionRename(sessionID: sessionID, title: title)
+        guard !Task.isCancelled else { return }
+        workspaceStore.refresh(using: apiClient)
+    }
+
+    /// Source: `sessions.schema.ts:sessionForkRequestSchema`.
+    func forkSession(_ sessionID: String) {
+        guard let apiClient else { return }
+        let workspaceID = workspaceStore.snapshot.workspaces.first { $0.sessionIds.contains(sessionID) }?.workspaceId
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                let forked = try await apiClient.sessionFork(sessionID: sessionID)
+                guard !Task.isCancelled else { return }
+                workspaceStore.refresh(using: apiClient)
+                selectSession(forked.sessionId, workspaceID: workspaceID)
+            } catch {
+                // Fork rejection leaves the Host projection untouched.
+            }
+        }
+    }
+
+    /// Source: `workspace.schema.ts:workspaceArchiveSessionRequestSchema`.
+    func archiveSession(_ sessionID: String) {
+        guard let apiClient else { return }
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                _ = try await apiClient.workspaceArchiveSession(sessionID: sessionID)
+                guard !Task.isCancelled else { return }
+                workspaceStore.refresh(using: apiClient)
+            } catch {
+                // Archive is dialog-free in the official browser; the Host owns failures.
+            }
+        }
+    }
+
+    func searchSessions(_ query: String) {
+        workspaceStore.search(query: query, using: apiClient)
+    }
+
     /// Source: `workspace.schema.ts:workspaceCreateRequestSchema`. macOS uses
     /// a native directory panel rather than a browser-mediated file picker.
     func addWorkspace() {
@@ -171,7 +231,19 @@ final class NativeShellController: NativeSplitViewController {
             workspaceActions: WorkspaceBrowserView.Actions(
                 addWorkspace: { presentation.addWorkspace() },
                 createSession: { presentation.createSession(in: $0) },
-                selectSession: { presentation.selectSession($0, workspaceID: $1) }
+                selectSession: { presentation.selectSession($0, workspaceID: $1) },
+                forkSession: { presentation.forkSession($0) },
+                archiveSession: { presentation.archiveSession($0) },
+                searchSessions: { presentation.searchSessions($0) },
+                commitWorkspaceRename: { workspaceID, title in
+                    try await presentation.renameWorkspace(workspaceID, title: title)
+                },
+                commitWorkspaceDelete: { workspaceID in
+                    try await presentation.deleteWorkspace(workspaceID)
+                },
+                commitSessionRename: { sessionID, title in
+                    try await presentation.renameSession(sessionID, title: title)
+                }
             ),
             onNewSession: { presentation.createSession(in: presentation.workspaceStore.snapshot.selectedWorkspaceID) },
             onOpenSettings: {}

@@ -13,6 +13,22 @@ final class NativeWorkspaceStore: ObservableObject {
         case failed(String)
     }
 
+    enum RemoteSearchStatus: Equatable {
+        case idle
+        case loading
+        case ready
+        case failed
+    }
+
+    struct RemoteSearch: Equatable {
+        let query: String
+        let status: RemoteSearchStatus
+        let items: [SessionSearchItemDTO]
+        let hasMore: Bool
+
+        static let idle = RemoteSearch(query: "", status: .idle, items: [], hasMore: false)
+    }
+
     struct Snapshot {
         let workspaces: [WorkspaceSummaryDTO]
         let sessions: [SessionSummaryDTO]
@@ -56,8 +72,10 @@ final class NativeWorkspaceStore: ObservableObject {
     @Published private(set) var phase: Phase = .idle
     @Published private(set) var snapshot: Snapshot = .empty
     @Published var searchQuery = ""
+    @Published private(set) var remoteSearch: RemoteSearch = .idle
 
     private var refreshTask: Task<Void, Never>?
+    private var searchTask: Task<Void, Never>?
     private var eventTask: Task<Void, Never>?
     private var eventRefreshTask: Task<Void, Never>?
 
@@ -75,6 +93,7 @@ final class NativeWorkspaceStore: ObservableObject {
 
     deinit {
         refreshTask?.cancel()
+        searchTask?.cancel()
         eventTask?.cancel()
         eventRefreshTask?.cancel()
     }
@@ -140,7 +159,44 @@ final class NativeWorkspaceStore: ObservableObject {
         stopObservingHostEvents()
         phase = .idle
         snapshot = .empty
+        searchTask?.cancel()
+        searchTask = nil
         searchQuery = ""
+        remoteSearch = .idle
+    }
+
+    /// Source: `WorkspaceBrowser.tsx:SEARCH_DEBOUNCE_MS` and
+    /// `session-search.ts:SESSION_SEARCH_RESULT_LIMIT`. The store owns request
+    /// cancellation and stale result suppression; the view only binds text.
+    func search(query: String, using api: DSHAPIClient?) {
+        let normalized = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        searchTask?.cancel()
+        guard !normalized.isEmpty else {
+            remoteSearch = .idle
+            return
+        }
+        remoteSearch = RemoteSearch(query: normalized, status: .loading, items: [], hasMore: false)
+        guard let api else {
+            remoteSearch = RemoteSearch(query: normalized, status: .failed, items: [], hasMore: false)
+            return
+        }
+        searchTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(250))
+            guard !Task.isCancelled else { return }
+            do {
+                let response = try await api.sessionSearch(query: normalized)
+                guard !Task.isCancelled, self?.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines) == normalized else { return }
+                self?.remoteSearch = RemoteSearch(
+                    query: normalized,
+                    status: .ready,
+                    items: response.items,
+                    hasMore: response.hasMore
+                )
+            } catch {
+                guard !Task.isCancelled, self?.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines) == normalized else { return }
+                self?.remoteSearch = RemoteSearch(query: normalized, status: .failed, items: [], hasMore: false)
+            }
+        }
     }
 
     private func scheduleRefresh(using api: DSHAPIClient) {

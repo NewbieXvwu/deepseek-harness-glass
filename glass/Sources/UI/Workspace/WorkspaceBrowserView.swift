@@ -13,17 +13,39 @@ struct WorkspaceBrowserView: View {
         var addWorkspace: () -> Void = {}
         var createSession: (String?) -> Void = { _ in }
         var selectSession: (String, String?) -> Void = { _, _ in }
+        /// Browser-local requests are replaced by `rowActions` so dialogs outlive rows.
         var renameWorkspace: (String, String) -> Void = { _, _ in }
         var deleteWorkspace: (String, String) -> Void = { _, _ in }
         var renameSession: (String, String) -> Void = { _, _ in }
         var forkSession: (String) -> Void = { _ in }
         var archiveSession: (String) -> Void = { _ in }
+        var searchSessions: (String) -> Void = { _ in }
+        var commitWorkspaceRename: (String, String) async throws -> Void = { _, _ in }
+        var commitWorkspaceDelete: (String) async throws -> Void = { _ in }
+        var commitSessionRename: (String, String) async throws -> Void = { _, _ in }
+    }
+
+    private struct RenameTarget: Identifiable {
+        let id: String
+        let title: String
+    }
+
+    private struct DeleteTarget: Identifiable {
+        let id: String
+        let title: String
     }
 
     @State private var searchExpanded = false
-    @State private var appliedSearchQuery = ""
-    @State private var searchTask: Task<Void, Never>?
     @State private var expandedWorkspaceIDs: Set<String>
+    @State private var workspaceRenameTarget: RenameTarget?
+    @State private var sessionRenameTarget: RenameTarget?
+    @State private var deleteTarget: DeleteTarget?
+    @State private var renameDraft = ""
+    @State private var renameError: String?
+    @State private var renaming = false
+    @State private var deleting = false
+    @State private var deleteCommittedID: String?
+    @State private var deleteError: String?
 
     init(
         store: NativeWorkspaceStore,
@@ -51,12 +73,50 @@ struct WorkspaceBrowserView: View {
             }
             .padding(.trailing, OfficialUISpec.Layout.sidebarInlinePadding)
             .onChange(of: store.searchQuery) { _, value in
-                scheduleSearch(for: value)
+                actions.searchSessions(value)
             }
             .onChange(of: store.snapshot.selectedWorkspaceID) { _, workspaceID in
                 if let workspaceID { expandedWorkspaceIDs.insert(workspaceID) }
             }
-            .onDisappear { searchTask?.cancel() }
+            .onChange(of: store.snapshot.workspaces.map(\.workspaceId)) { _, workspaceIDs in
+                guard let deleteCommittedID, !workspaceIDs.contains(deleteCommittedID) else { return }
+                deleting = false
+                self.deleteCommittedID = nil
+                deleteTarget = nil
+            }
+            .sheet(item: $workspaceRenameTarget) { target in
+                NativeRenameSheet(
+                    title: OfficialUISpec.Text.renameWorkspaceTitle,
+                    fieldLabel: OfficialUISpec.Text.workspaceName,
+                    draft: $renameDraft,
+                    error: renameError,
+                    submitting: renaming,
+                    blocked: workspaceRenameBlocked(target),
+                    cancel: { closeWorkspaceRename() },
+                    confirm: { commitWorkspaceRename(target) }
+                )
+            }
+            .sheet(item: $sessionRenameTarget) { target in
+                NativeRenameSheet(
+                    title: OfficialUISpec.Text.renameSessionTitle,
+                    fieldLabel: OfficialUISpec.Text.sessionName,
+                    draft: $renameDraft,
+                    error: renameError,
+                    submitting: renaming,
+                    blocked: sessionRenameBlocked,
+                    cancel: { closeSessionRename() },
+                    confirm: { commitSessionRename(target) }
+                )
+            }
+            .sheet(item: $deleteTarget) { target in
+                NativeWorkspaceDeleteSheet(
+                    description: OfficialUISpec.Text.deleteWorkspaceDescription(name: target.title),
+                    submitting: deleting,
+                    error: deleteError,
+                    cancel: { closeDelete() },
+                    confirm: { commitWorkspaceDelete(target) }
+                )
+            }
         }
     }
 
@@ -179,7 +239,7 @@ struct WorkspaceBrowserView: View {
                     onToggle: { toggleWorkspace(workspace.workspaceId) },
                     onCreateSession: { actions.createSession(workspace.workspaceId) },
                     onSelectSession: { actions.selectSession($0, workspace.workspaceId) },
-                    actions: actions
+                    actions: rowActions
                 )
             }
 
@@ -190,45 +250,239 @@ struct WorkspaceBrowserView: View {
                     expanded: expandedWorkspaceIDs.contains(ungroupedWorkspaceKey),
                     onToggle: { toggleWorkspace(ungroupedWorkspaceKey) },
                     onSelectSession: { actions.selectSession($0, nil) },
-                    actions: actions
+                    actions: rowActions
                 )
             }
         }
+    }
+
+    private struct SearchResult: Identifiable {
+        let session: SessionSummaryDTO
+        let workspaceID: String?
+        let workspaceTitle: String
+        let snippet: String?
+
+        var id: String { session.sessionId }
     }
 
     @ViewBuilder
     private var searchResults: some View {
         let results = matchingSessions
-        if results.isEmpty {
+        ForEach(results) { result in
+            nativeSearchResultRow(
+                result,
+                selected: result.session.sessionId == store.snapshot.selectedSessionID
+            )
+        }
+        if remoteSearchIsPending {
+            NativeWorkspaceSearchStatus(text: OfficialUISpec.Text.searchingSessionHistory, warning: false)
+        }
+        if store.remoteSearch.status == .failed {
+            NativeWorkspaceSearchStatus(text: OfficialUISpec.Text.contentSearchUnavailable, warning: true)
+        }
+        if !remoteSearchIsPending && results.isEmpty {
             NativeWorkspaceEmptyState(text: OfficialUISpec.Text.noMatchingSessions)
-        } else {
-            ForEach(results, id: \.session.sessionId) { result in
-                NativeSessionRow(
-                    session: result.session,
-                    selected: result.session.sessionId == store.snapshot.selectedSessionID,
-                    onSelect: { actions.selectSession(result.session.sessionId, result.workspaceID) },
-                    actions: actions
-                )
-            }
+        }
+        if matchingHasMore {
+            NativeWorkspaceSearchStatus(
+                text: OfficialUISpec.Text.searchHasMore(OfficialUISpec.Layout.sessionSearchResultLimit),
+                warning: false
+            )
         }
     }
 
     private var searchIsActive: Bool {
-        !appliedSearchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !store.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    private var matchingSessions: [(session: SessionSummaryDTO, workspaceID: String?)] {
-        let query = appliedSearchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+    private var remoteSearchIsPending: Bool {
+        let query = store.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        return !query.isEmpty && (store.remoteSearch.query != query || store.remoteSearch.status == .loading)
+    }
+
+    private var matchingHasMore: Bool {
+        let query = store.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return false }
+        let currentRemote = store.remoteSearch.query == query ? store.remoteSearch : .idle
+        return currentRemote.hasMore || mergedSearchResults.count > OfficialUISpec.Layout.sessionSearchResultLimit
+    }
+
+    private var matchingSessions: [SearchResult] {
+        Array(mergedSearchResults.prefix(OfficialUISpec.Layout.sessionSearchResultLimit))
+    }
+
+    private var mergedSearchResults: [SearchResult] {
+        let query = store.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else { return [] }
         let snapshot = store.snapshot
-        let workspaceBySession = Dictionary(uniqueKeysWithValues: snapshot.workspaces.flatMap { workspace in
-            workspace.sessionIds.map { ($0, workspace.workspaceId) }
-        })
-        return snapshot.visibleSessions.compactMap { session in
-            let title = sessionTitle(session)
-            return title.localizedCaseInsensitiveContains(query)
-                ? (session, workspaceBySession[session.sessionId])
-                : nil
+        let queryFolded = query.lowercased()
+        var workspaceBySession: [String: (id: String, title: String)] = [:]
+        for workspace in snapshot.workspaces {
+            for sessionID in workspace.sessionIds where workspaceBySession[sessionID] == nil {
+                workspaceBySession[sessionID] = (workspace.workspaceId, workspace.title)
+            }
+        }
+        let local = snapshot.visibleSessions.filter { session in
+            let workspaceTitle = workspaceBySession[session.sessionId]?.title ?? session.cwd ?? OfficialUISpec.Text.ungrouped
+            return sessionTitle(session).lowercased().contains(queryFolded)
+                || workspaceTitle.lowercased().contains(queryFolded)
+        }.sorted { $0.updatedAt > $1.updatedAt }
+        let remote = store.remoteSearch.query == query ? store.remoteSearch.items : []
+        let remoteSnippetBySession = Dictionary(remote.map { ($0.sessionId, $0.snippet) }, uniquingKeysWith: { first, _ in first })
+        let visibleByID = Dictionary(snapshot.visibleSessions.map { ($0.sessionId, $0) }, uniquingKeysWith: { first, _ in first })
+        var ordered: [SessionSummaryDTO] = []
+        var included = Set<String>()
+        func include(_ session: SessionSummaryDTO) {
+            guard included.insert(session.sessionId).inserted else { return }
+            ordered.append(session)
+        }
+        local.forEach(include)
+        for item in remote {
+            if let session = visibleByID[item.sessionId] { include(session) }
+        }
+        return ordered.map { session in
+            let workspace = workspaceBySession[session.sessionId]
+            return SearchResult(
+                session: session,
+                workspaceID: workspace?.id,
+                workspaceTitle: workspace?.title ?? session.cwd ?? OfficialUISpec.Text.ungrouped,
+                snippet: remoteSnippetBySession[session.sessionId]
+            )
+        }
+    }
+
+    private func nativeSearchResultRow(_ result: SearchResult, selected: Bool) -> some View {
+        Button(action: { actions.selectSession(result.session.sessionId, result.workspaceID) }) {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 0) {
+                    NativeSessionStatusDot(state: NativeSessionVisualState.resolve(result.session))
+                        .frame(width: 16, height: 20)
+                    Text(sessionTitle(result.session))
+                        .font(.system(size: 14, weight: .regular))
+                        .lineLimit(1)
+                        .padding(.leading, 4)
+                }
+                HStack(spacing: 6) {
+                    Text(result.workspaceTitle)
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    if let snippet = result.snippet {
+                        Text(snippet)
+                            .lineLimit(1)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+                .font(.system(size: 12, weight: .regular))
+                .foregroundStyle(OfficialUISpec.Token.caption)
+                .padding(.leading, 20)
+            }
+            .foregroundStyle(OfficialUISpec.Token.primary)
+            .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+            .padding(.horizontal, 8)
+            .background(
+                selected ? OfficialUISpec.Token.interactiveHover : Color.clear,
+                in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(sessionTitle(result.session))
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    private var rowActions: Actions {
+        var local = actions
+        local.renameWorkspace = { workspaceID, title in
+            workspaceRenameTarget = RenameTarget(id: workspaceID, title: title)
+            renameDraft = title
+            renameError = nil
+        }
+        local.deleteWorkspace = { workspaceID, title in
+            deleteTarget = DeleteTarget(id: workspaceID, title: title)
+            deleteError = nil
+        }
+        local.renameSession = { sessionID, title in
+            sessionRenameTarget = RenameTarget(id: sessionID, title: title)
+            renameDraft = title
+            renameError = nil
+        }
+        return local
+    }
+
+    private func workspaceRenameBlocked(_ target: RenameTarget) -> Bool {
+        let trimmed = renameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        let duplicate = trimmed != target.title && store.snapshot.workspaces.contains { $0.title == trimmed }
+        return renaming || trimmed.isEmpty || trimmed == target.title || duplicate
+    }
+
+    private var sessionRenameBlocked: Bool {
+        renaming || renameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private func closeWorkspaceRename() {
+        guard !renaming else { return }
+        workspaceRenameTarget = nil
+        renameError = nil
+    }
+
+    private func closeSessionRename() {
+        guard !renaming else { return }
+        sessionRenameTarget = nil
+        renameError = nil
+    }
+
+    private func closeDelete() {
+        guard !deleting else { return }
+        deleteTarget = nil
+        deleteError = nil
+    }
+
+    private func commitWorkspaceRename(_ target: RenameTarget) {
+        guard !workspaceRenameBlocked(target) else { return }
+        renaming = true
+        renameError = nil
+        let title = renameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        Task {
+            do {
+                try await actions.commitWorkspaceRename(target.id, title)
+                renaming = false
+                workspaceRenameTarget = nil
+            } catch {
+                renaming = false
+                renameError = error.localizedDescription
+            }
+        }
+    }
+
+    private func commitSessionRename(_ target: RenameTarget) {
+        guard !sessionRenameBlocked else { return }
+        renaming = true
+        renameError = nil
+        let title = renameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        Task {
+            do {
+                try await actions.commitSessionRename(target.id, title)
+                renaming = false
+                sessionRenameTarget = nil
+            } catch {
+                renaming = false
+                renameError = error.localizedDescription
+            }
+        }
+    }
+
+    private func commitWorkspaceDelete(_ target: DeleteTarget) {
+        guard !deleting else { return }
+        deleting = true
+        deleteCommittedID = nil
+        deleteError = nil
+        Task {
+            do {
+                try await actions.commitWorkspaceDelete(target.id)
+                deleteCommittedID = target.id
+            } catch {
+                deleting = false
+                deleteError = error.localizedDescription
+            }
         }
     }
 
@@ -237,15 +491,6 @@ struct WorkspaceBrowserView: View {
             searchExpanded.toggle()
         }
         if !searchExpanded { store.searchQuery = "" }
-    }
-
-    private func scheduleSearch(for query: String) {
-        searchTask?.cancel()
-        searchTask = Task { [query] in
-            try? await Task.sleep(for: .milliseconds(250))
-            guard !Task.isCancelled else { return }
-            appliedSearchQuery = query
-        }
     }
 
     private func toggleWorkspace(_ workspaceID: String) {
@@ -258,6 +503,99 @@ struct WorkspaceBrowserView: View {
 }
 
 private let ungroupedWorkspaceKey = ""
+
+private struct NativeWorkspaceSearchStatus: View {
+    let text: String
+    let warning: Bool
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 12, weight: .regular))
+            .foregroundStyle(warning ? OfficialUISpec.Token.warningPrimary : OfficialUISpec.Token.caption)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+    }
+}
+
+private struct NativeRenameSheet: View {
+    let title: String
+    let fieldLabel: String
+    @Binding var draft: String
+    let error: String?
+    let submitting: Bool
+    let blocked: Bool
+    let cancel: () -> Void
+    let confirm: () -> Void
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(title)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(OfficialUISpec.Token.primary)
+            TextField(fieldLabel, text: $draft)
+                .textFieldStyle(.roundedBorder)
+                .disabled(submitting)
+                .focused($focused)
+                .onSubmit(confirm)
+            if let error {
+                Text(error)
+                    .font(.system(size: 12, weight: .regular))
+                    .foregroundStyle(OfficialUISpec.Token.warningPrimary)
+            }
+            HStack(spacing: 8) {
+                Spacer(minLength: 0)
+                Button(OfficialUISpec.Text.cancel, action: cancel)
+                    .disabled(submitting)
+                Button(OfficialUISpec.Text.rename, action: confirm)
+                    .disabled(blocked)
+            }
+        }
+        .padding(20)
+        .frame(width: 360)
+        .onAppear { focused = true }
+    }
+}
+
+private struct NativeWorkspaceDeleteSheet: View {
+    let description: String
+    let submitting: Bool
+    let error: String?
+    let cancel: () -> Void
+    let confirm: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(OfficialUISpec.Text.deleteWorkspace)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(OfficialUISpec.Token.primary)
+            Text(description)
+                .font(.system(size: 14, weight: .regular))
+                .foregroundStyle(OfficialUISpec.Token.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            if submitting {
+                Text(OfficialUISpec.Text.deletingWorkspace)
+                    .font(.system(size: 12, weight: .regular))
+                    .foregroundStyle(OfficialUISpec.Token.caption)
+            }
+            if let error {
+                Text(error)
+                    .font(.system(size: 12, weight: .regular))
+                    .foregroundStyle(OfficialUISpec.Token.warningPrimary)
+            }
+            HStack(spacing: 8) {
+                Spacer(minLength: 0)
+                Button(OfficialUISpec.Text.cancel, action: cancel)
+                    .disabled(submitting)
+                Button(OfficialUISpec.Text.deleteWorkspace, action: confirm)
+                    .disabled(submitting)
+            }
+        }
+        .padding(20)
+        .frame(width: 400)
+    }
+}
 
 private struct WorkspaceBrowserRail: View {
     let requestSidebarExpansion: () -> Void
