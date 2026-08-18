@@ -1,150 +1,79 @@
 # DeepSeek Harness Glass
 
-[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的原生 macOS 外壳——
-**你熟悉的 dsh，装进一块真正的液态玻璃里。**
+[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的**原生 macOS 客户端**。本仓库保留 DeepSeek Harness Host，并以 **Swift 6、SwiftUI 与 AppKit** 重建官方 Browser Client。
 
-DeepSeek Harness Glass 把官方 `dsh` 引擎和它的 Web 界面封装成一个自包含的
-macOS 应用。外壳不是 Electron / Tauri，而是一个精简的 SwiftUI 程序：整个窗口
-直接落在苹果公开的
-[`glassEffect`](https://developer.apple.com/documentation/swiftui/glasseffect(_:in:))
-材质上，边缘折射、透镜感和分层材质由系统渲染，与 macOS 26 原生应用一致，
-而非 CSS 模拟。
+> **项目方向。** 本项目不是 CSS 改色，也不是网页外壳。锁定官方 WebUI 的文本、顺序、布局、状态迁移、错误路径和交互语义是唯一产品规格；Liquid Glass 只能增强 macOS 的导航与控制层，不能凭空创造产品内容，也不能遮掩与官方客户端的不一致。
 
-- **英文 README:** [README.md](README.md)
+- **English documentation:** [README.md](README.md)
+- **贡献规则与验收协议：** [CONTRIBUTING.md](CONTRIBUTING.md)
+- **唯一权威实施清单：** [TODO.md](TODO.md)
 
-## 系统要求
+## 支持基线
 
-- macOS 26 或更高（液态玻璃是 Tahoe 时代的 API）
-- Apple 芯片（arm64）
+| 项目 | 固定支持值 |
+|---|---|
+| 官方源码 | [`deepseek-ai/deepseek-harness@99f6f02fecdb7dff40c3fbc9470f5907c29f74ca`](https://github.com/deepseek-ai/deepseek-harness/tree/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca) |
+| 支持的 DSH 包 | `@deepseek-ai/dsh` 与 `@deepseek-ai/dsh-web-frontend` `0.1.0-rc.6` |
+| 运行时 | 应用内置 Node `24.19.0` |
+| 客户端平台 | macOS 26+、Xcode 26+、Apple Silicon、Swift 6 |
+| 支持记录 | `glass/Sources/Spec/SupportedHostBuilds.json` |
 
-## 安装
+应用启动时必须校验 Host build。未列入支持记录的 Host 均为**未验证**，不得被当成可写入的兼容目标；升级 Host 必须走 `TODO.md` 定义的升级门禁，不能因为某个 loopback 端口能启动就被接受。
 
-从 [Releases](https://github.com/qniequn-boop/deepseek-harness-glass/releases)
-下载 `DeepSeek Harness Glass-<版本>.dmg`，打开后把应用拖进「应用程序」。
+## D0–D5：不可突破的完成规则
 
-当前构建为 ad-hoc 签名、未公证。首次打开时 macOS 会提示「无法验证开发者」：
-**右键点击应用 → 打开**，再确认一次即可（仅需一次）。
+| 规则 | 要求 | 可验证事实 |
+|---|---|---|
+| **D0 — 核心业务 UI 原生化** | 会话、侧栏、工作区、官方设置、模型、凭据、工具、审批、问题、命令与插件配置全部使用原生 UI。 | 核心 target 不含 `WebKit`、`WKWebView`、网页 JavaScript、CSS 注入或 DOM 扫描；CI 执行 `glass/ci/check-no-webview.sh`。 |
+| **D1 — 严格复刻官方 UI** | 官方 locale 文本、结构、间距、状态和交互场景是规格。 | 每个 SwiftUI 表面回链 `OfficialUISpec`、锁定源码位置，以及同状态官方/原生视觉证据。 |
+| **D2 — Host 是唯一真源** | 持久的会话、工作区、设置、凭据、模型、命令与插件配置均归 Host 所有。 | 原生状态只使用强类型 loopback RPC/SSE DTO，不建立冲突的业务数据库。 |
+| **D3 — 遵从系统的 Liquid Glass** | Glass 只用于导航、split 结构、工具栏、sheet、popover、inspector 与必要的官方操作控件。 | 内容层不被自定义玻璃覆盖；CI 覆盖辅助功能与系统外观偏好。 |
+| **D4 — 插件兼容性显式分级** | 每个插件必须声明 native-manifest、Swift-adapter、web-fallback、host-only 或 unsupported 状态。 | 诊断/兼容性矩阵记录支持等级、Host 范围和任一 fallback 原因。 |
+| **D5 — 仅向已验证 Host 写入** | 未验证 Host 不得伪装为兼容。 | 不支持的 build 以“未验证”状态显示，并禁止写入，除非明确的开发策略允许。 |
 
-首次运行后在应用内的「设置」中填入你自己的 DeepSeek API Key。应用数据存放于
-`~/.dsh`——与 dsh 命令行版共用同一目录，已有的会话、profile 和
-`cordis.patch.yml` 补丁会自动生效。
+`WebKit` 只可能出现在未来独立编译的 `Plugins/PluginWebHost` 例外 target 中，且仅限指定、已审计、技术上无法等价原生化的第三方插件。主应用 target 与全部核心 renderer 永远不得导入或链接它。
 
-## 特性
+## 架构
 
-- **真·液态玻璃** — 窗口背景是原生 `glassEffect` 材质，边缘光学、圆角处理、
-  折射全部由系统渲染，与 macOS 26 自带应用同款。
-- **全窗玻璃** — 玻璃延伸到标题栏区域（`fullSizeContentView` + 零安全区宿主
-  视图），顶部没有"无玻璃"的条带。
-- **完全自包含** — 内置 Node.js v24 与完整 dsh 后端 payload
-  （`@deepseek-ai/dsh`、`@deepseek-ai/dsh-web-frontend`，精确 pin 版本）。
-  无需安装 Node.js，运行时不下载任何东西。
-- **与 CLI 共享状态** — `DSH_HOME` 默认 `~/.dsh`：凭据、会话、设置、已安装
-  插件与命令行版完全一致；可用 `DSH_HOME` 环境变量覆盖。
-- **动态文字对比度** — 外壳在启动与更换壁纸时采样桌面壁纸平均亮度，在深/浅
-  两套文字色板间带迟滞地切换；拖动窗口绝不触发翻转（苹果的设计原则：大表面
-  不应随背景翻转）。
-- **层级磨砂** — 输入框、弹窗、菜单、悬浮卡各有递进半透明着色与
-  `backdrop-filter` 扫描，悬浮面呈现"玻璃叠玻璃"的层次。
-- **智能端口复用** — 若 127.0.0.1:3080 已有 dsh 在运行，外壳直接挂接，
-  不重复拉起实例。
-- **崩溃自动恢复** — 内置后端意外退出自动重启一次；连续两次失败显示带
-  日志路径的重试页。
-- **托盘常驻** — 关闭窗口只是隐藏；菜单栏图标提供 显示/重启服务/浏览器
-  打开/打开配置目录/打开日志/退出 全套操作。
-- **干净的生命周期** — 退出、关窗或被 kill 都会先终止内置后端，不留孤儿进程。
-
-## 工作原理
-
-```
+```text
 DeepSeek Harness.app
-└── Contents/
-    ├── MacOS/DeepSeek Harness        ← Swift 外壳（glass/Sources/main.swift）
-    └── Resources/
-        ├── node/node                 ← 内置 Node.js v24（官方二进制）
-        └── backend/node_modules/     ← 精确 pin 的 dsh 引擎 + Web 前端
+├── App/                   应用生命周期、窗口和菜单栏协调
+├── Core/
+│   ├── Host/              内置 Node/DSH 生命周期和 build 校验
+│   ├── Transport/         强类型 HTTP RPC、SSE、DTO、取消与调用追踪
+│   ├── Session/           历史、投影、reducer 与重连权威基线
+│   └── Settings/          Host-backed 草稿、revision 和凭据边界
+├── Spec/                  官方 locale、token、layout、资产与 fixture 来源
+├── UI/                    原生 shell、sidebar、workspace、conversation、tooling、settings
+├── Plugins/               原生 manifest/adapter；仅在批准后隔离 fallback
+└── Tests/                 契约、reducer、截图、无障碍与性能证据
 ```
 
-1. 外壳用内置 Node 启动后端：
-   `node --expose-internals …/@deepseek-ai/dsh/lib/bin.js web --port 0`
-   （`--expose-internals` 是 dsh web profile 中 HMR 服务的要求）。
-2. 解析 stdout 里的 `dsh web: http://127.0.0.1:<端口>`，用透明 `WKWebView`
-   加载。端口随机、只绑回环地址，不对外暴露。
-3. `WKUserScript` 注入 `GLASS_CSS`，重染 dsh 的设计令牌（`--dsw-alias-*`，
-   前端自带的主题扩展点），整界面半透明化，dsh 源码零改动。
-4. 原生玻璃材质位于透明网页内容之下。
+客户端严格单向分层：**Host → 强类型 transport → domain facade/store/reducer → 原生 UI**。View 不得启动 Node、拼接 URL、解析无类型 JSON，也不得解释原始 SSE 业务事件。
 
-## 从源码构建
+## 视觉与交互保真协议
 
-前置条件：Xcode 命令行工具（`swiftc`）、`npm`、网络连接（下载下面两项）。
+每一个 UI 状态都先阅读锁定官方源码，并在同一 fixture、窗口尺寸、device-pixel ratio、语言、颜色模式与辅助功能条件下捕获官方 WebUI。原生 View 再在完全相同条件下渲染。两套截图、布局/树测量、token 差异、关键区域放大图以及每个可观察差异的修复结论均须作为 CI artifact 保存。
 
-```sh
-# 1. 内置 Node 运行时（官方二进制，精确 pin）
-mkdir -p glass/build/node
-curl -fsSL https://nodejs.org/dist/v24.19.0/node-v24.19.0-darwin-arm64.tar.gz -o /tmp/node.tgz
-tar -xzf /tmp/node.tgz -C /tmp
-cp /tmp/node-v24.19.0-darwin-arm64/bin/node glass/build/node/node
+本项目不会用全窗模糊、不同视口、不同状态或“抗锯齿差异”掩盖问题。系统材质的动态光学效果由 macOS 负责；它以层级、位置、对比度和无障碍进行验收，而非伪造浏览器 CSS 折射的逐像素复刻。
 
-# 2. 后端 payload（npm 精确 pin）+ 冒烟测试 + 组装
-cd glass
-./repair-backend.sh
+## 当前已验证状态
+
+唯一权威进度位于 [TODO.md](TODO.md) 的**“当前进度”**章节。只有同时完成来源映射、代码实现、测试、视觉证据以及适用的 macOS GitHub Actions 证据的任务才可勾选。能编译的页面、静态 fixture 或局部 DTO 不能视为完成。
+
+## 开发与验证
+
+macOS 应用通过 `glass/assemble.sh` 组装。CI 运行于 `macos-26`，下载固定 Node 与 DSH payload，验证 D0 规则和官方规格来源，构建应用、生成原生 GUI 截图并上传审阅 artifacts。完整的开发要求、来源映射格式、测试门禁、截图配对和唯一允许的 TODO 更新步骤详见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
+修改任何面向官方的行为前，先执行适用的本地检查：
+
+```bash
+python3 glass/ci/check-official-spec.py
+bash glass/ci/check-no-webview.sh
 ```
 
-应用默认输出到 `/Applications/DeepSeek Harness.app`；用 `APP_PATH` 指定别处：
+最终验收必须基于**当前提交**的 GitHub Actions，包括原生截图包及其官方对照记录。
 
-```sh
-APP_PATH="$PWD/dist/DeepSeek Harness.app" ./assemble.sh
-```
+## 许可证与归属
 
-制作安装镜像：
-
-```sh
-mkdir -p dmg-stage && cp -R "/Applications/DeepSeek Harness.app" dmg-stage/
-ln -s /Applications dmg-stage/Applications
-hdiutil create -volname "DeepSeek Harness Glass" -srcfolder dmg-stage \
-  -ov -format UDZO "dist/DeepSeek Harness Glass-0.3.0.dmg"
-```
-
-推送 `v*` 标签会触发 `.github/workflows/release.yml`，自动完成以上全部步骤
-并把 DMG 挂到 Release。
-
-## 故障排查
-
-**「DeepSeek Harness 启动失败（code 1）」** — 内置后端 payload 缺包。运行：
-
-```sh
-cd glass && ./repair-backend.sh
-```
-
-该脚本会以精确 pin 重装 payload、冒烟测试后端并重新打包。
-
-**App 与 CLI 不能同时运行** — 两者共用 `~/.dsh`。需要同时运行时给 App 设置
-不同的 `DSH_HOME`。
-
-## 项目结构
-
-```
-glass/
-  Sources/main.swift     全部外壳逻辑（约 700 行，唯一自定义代码）
-  assemble.sh            构建 + ad-hoc 签名 + 原子替换
-  repair-backend.sh      一键重装 payload + 冒烟测试 + 重新打包
-  Info.plist             bundle 元数据（LSMinimumSystemVersion 26.0）
-build/icon.icns          应用图标（源自 dsh 鲸鱼 favicon）
-```
-
-## 设计说明
-
-窗口 `isOpaque = false`、背景透明，玻璃材质才能折射桌面。网页内容出于平台
-隐私边界无法采样窗口背后的画面，因此悬浮面采用分层着色 + 对页面自身内容做
-`backdrop-filter`，而非第二道原生模糊。文字令牌保持纯色，配合 0.5% 白色衬底
-与抗锯齿渲染，避免背景色渗入字形。
-
-## 免责声明
-
-本项目是开源 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)
-的独立、非官方外壳，与 DeepSeek 无隶属或背书关系。「DeepSeek」及相关标识归
-其权利人所有。
-
-## 许可证
-
-MIT — 见 [LICENSE](LICENSE)。捆绑组件的许可见
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+本项目是开源 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的独立客户端，与 DeepSeek 无隶属或背书关系。项目采用 [MIT](LICENSE) 许可证；捆绑组件见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。

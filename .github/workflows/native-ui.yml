@@ -12,6 +12,9 @@ on:
       - "glass/ci/**"
       - "glass/Sources/Spec/SupportedHostBuilds.json"
       - ".github/workflows/native-ui.yml"
+      - "README.md"
+      - "README.zh.md"
+      - "CONTRIBUTING.md"
       - "TODO.md"
   pull_request:
     paths:
@@ -23,6 +26,9 @@ on:
       - "glass/ci/**"
       - "glass/Sources/Spec/SupportedHostBuilds.json"
       - ".github/workflows/native-ui.yml"
+      - "README.md"
+      - "README.zh.md"
+      - "CONTRIBUTING.md"
       - "TODO.md"
   workflow_dispatch:
 
