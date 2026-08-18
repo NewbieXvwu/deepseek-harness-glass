@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "officialSourceCommit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca",
-  "scope": "native-welcome-pilot",
+  "scope": "native-three-column-workspace-browser",
   "inputs": [
     "packages/client/ui-layout/src/client/columns.ts",
     "packages/client/ui-sidebar/src/client/locales.ts",
@@ -12,7 +12,12 @@
     "packages/client/ui-theme/src/styles/design-platform.css",
     "packages/client/ui-conversation/src/client/skeleton/HeroShell.module.css",
     "packages/client/ui-conversation/src/client/skeleton/InputBar.module.css",
-    "packages/client/ui-conversation/src/client/skeleton/ConversationRoot.module.css"
+    "packages/client/ui-conversation/src/client/skeleton/ConversationRoot.module.css",
+    "packages/client/ui-workspace/src/client/WorkspaceBrowser.module.css",
+    "packages/client/ui-workspace/src/client/WorkspaceBrowser.tsx",
+    "packages/client/ui-workspace/src/client/rows/Rows.module.css",
+    "packages/client/ui-workspace/src/client/rows/Rows.tsx",
+    "packages/session/session-title/src/types.ts"
   ],
   "layout": {
     "sidebarDefault": { "value": 280, "source": "packages/client/ui-layout/src/client/columns.ts:SIDEBAR_DEFAULT" },
@@ -26,7 +31,14 @@
     "detailsMaximum": { "value": 520, "source": "packages/client/ui-layout/src/client/columns.ts:DETAILS_MAX" },
     "composerMaximum": { "value": 780, "source": "packages/client/ui-conversation/src/client/skeleton/ConversationRoot.module.css:--conversation-composer-max" },
     "composerCornerRadius": { "value": 22, "source": "packages/client/ui-conversation/src/client/skeleton/InputBar.module.css:border-radius" },
-    "composerDash": { "value": [4, 4], "source": "runtime computed style: official welcome workspace-required composer" }
+    "composerDash": { "value": [4, 4], "source": "runtime computed style: official welcome workspace-required composer" },
+    "workspaceSectionHeaderHeight": { "value": 36, "source": "packages/client/ui-workspace/src/client/WorkspaceBrowser.module.css:.sectionHeader" },
+    "workspaceIconControl": { "value": 28, "source": "packages/client/ui-workspace/src/client/WorkspaceBrowser.module.css:.iconButton" },
+    "workspaceRailControl": { "value": 36, "source": "packages/client/ui-workspace/src/client/WorkspaceBrowser.module.css:.rail .iconButton" },
+    "workspaceSearchHeight": { "value": 28, "source": "packages/client/ui-workspace/src/client/WorkspaceBrowser.module.css:.search" },
+    "workspaceSearchExpandedHeight": { "value": 30, "source": "packages/client/ui-workspace/src/client/WorkspaceBrowser.module.css:.searchExpanded" },
+    "workspaceListRowGap": { "value": 2, "source": "packages/client/ui-workspace/src/client/WorkspaceBrowser.module.css:.groupSection > * + *" },
+    "workspaceGroupSessionLimit": { "value": 5, "source": "packages/client/ui-workspace/src/client/WorkspaceBrowser.tsx:COLLAPSED_SESSION_LIMIT" }
   },
   "text": {
     "newSession": { "value": "New Session", "source": "packages/client/ui-sidebar/src/client/locales.ts" },
@@ -41,7 +53,20 @@
     "composerDefaultPlaceholder": { "value": "Message the agent", "source": "packages/client/ui-conversation/src/client/locales.ts" },
     "chat": { "value": "Chat", "source": "packages/client/ui-conversation/src/client/locales.ts" },
     "details": { "value": "Details", "source": "packages/client/ui-conversation/src/client/locales.ts" },
-    "detailsEmpty": { "value": "Click a tool row in the message flow to view its details", "source": "packages/client/ui-conversation/src/client/locales.ts" }
+    "detailsEmpty": { "value": "Click a tool row in the message flow to view its details", "source": "packages/client/ui-conversation/src/client/locales.ts" },
+    "sessions": { "value": "Sessions", "source": "packages/client/ui-workspace/src/client/locales.ts:section.sessions" },
+    "viewOptions": { "value": "View options", "source": "packages/client/ui-workspace/src/client/locales.ts:viewOptions.label" },
+    "searchSessionsAccessibility": { "value": "Search sessions", "source": "packages/client/ui-workspace/src/client/locales.ts:search.sessions.aria" },
+    "searchSessionsPlaceholder": { "value": "Search sessions...", "source": "packages/client/ui-workspace/src/client/locales.ts:search.placeholder" },
+    "clearSearch": { "value": "Clear search", "source": "packages/client/ui-workspace/src/client/locales.ts:search.clear" },
+    "noMatchingSessions": { "value": "No matching sessions", "source": "packages/client/ui-workspace/src/client/locales.ts:search.noMatches" },
+    "ungrouped": { "value": "Ungrouped", "source": "packages/client/ui-workspace/src/client/locales.ts:group.ungrouped" },
+    "running": { "value": "Running", "source": "packages/client/ui-workspace/src/client/locales.ts:status.running" },
+    "idle": { "value": "Idle", "source": "packages/client/ui-workspace/src/client/locales.ts:status.idle" },
+    "rename": { "value": "Rename", "source": "packages/client/ui-workspace/src/client/locales.ts:rename" },
+    "deleteWorkspace": { "value": "Delete workspace", "source": "packages/client/ui-workspace/src/client/locales.ts:delete.workspace" },
+    "forkSession": { "value": "Fork session", "source": "packages/client/ui-workspace/src/client/locales.ts:menu.fork" },
+    "archiveSession": { "value": "Archive session", "source": "packages/client/ui-workspace/src/client/locales.ts:menu.archiveSession" }
   },
   "assets": {
     "brand-wordmark": { "source": "packages/client/ui-primitives/src/BrandWordmark.tsx" },
@@ -56,6 +81,11 @@
     "icon-agent-preset": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconAgentPresetOutline16" },
     "icon-plus": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconPlusOutline16" },
     "icon-send-up": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconSendUpOutline16" },
-    "icon-close": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconCloseOutline16" }
+    "icon-close": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconCloseOutline16" },
+    "icon-chevron-down": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconChevronDownOutline16" },
+    "icon-folder-open": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconFolderOpen16" },
+    "icon-ellipsis": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconEllipsisOutline16" },
+    "icon-branch": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconBranchOutline16" },
+    "icon-archive": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconArchiveOutline20" }
   }
 }

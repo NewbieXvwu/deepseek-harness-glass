@@ -28,14 +28,23 @@ final class NativeWorkspaceStore: ObservableObject {
             selectedWorkspaceID: nil
         )
 
+        /// Source: `tree.ts:sessionVisible`. Blank sessions are provisional and
+        /// only the selected one is shown; subagents stay out of this top-level
+        /// browser even though their Host summaries remain in the snapshot.
+        func isVisibleInBrowser(_ session: SessionSummaryDTO) -> Bool {
+            session.origin != "subagent"
+                && !archivedSessionIDs.contains(session.sessionId)
+                && (!session.blank || session.sessionId == selectedSessionID)
+        }
+
         var visibleSessions: [SessionSummaryDTO] {
-            sessions.filter { !archivedSessionIDs.contains($0.sessionId) && !$0.blank }
+            sessions.filter(isVisibleInBrowser)
         }
 
         func sessions(in workspace: WorkspaceSummaryDTO) -> [SessionSummaryDTO] {
             let byID = Dictionary(uniqueKeysWithValues: sessions.map { ($0.sessionId, $0) })
             return workspace.sessionIds.compactMap { byID[$0] }
-                .filter { !archivedSessionIDs.contains($0.sessionId) }
+                .filter(isVisibleInBrowser)
         }
 
         var ungroupedSessions: [SessionSummaryDTO] {

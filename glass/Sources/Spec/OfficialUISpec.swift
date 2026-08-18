@@ -24,6 +24,15 @@ enum OfficialUISpec {
         static let composerCornerRadius: CGFloat = 22
         static let heroGap: CGFloat = 12
         static let sidebarInlinePadding: CGFloat = 12
+
+        // Source: packages/client/ui-workspace/src/client/WorkspaceBrowser.module.css
+        static let workspaceSectionHeaderHeight: CGFloat = 36
+        static let workspaceIconControl: CGFloat = 28
+        static let workspaceRailControl: CGFloat = 36
+        static let workspaceSearchHeight: CGFloat = 28
+        static let workspaceSearchExpandedHeight: CGFloat = 30
+        static let workspaceListRowGap: CGFloat = 2
+        static let workspaceGroupSessionLimit = 5
     }
 
     enum Text {
@@ -37,6 +46,21 @@ enum OfficialUISpec {
         static let workspaces = "Workspaces"
         static let noSessionsYet = "No sessions yet"
         static let addWorkspace = "Add workspace"
+        static let sessions = "Sessions"
+        static let viewOptions = "View options"
+        static let searchSessionsAccessibility = "Search sessions"
+        static let searchSessionsPlaceholder = "Search sessions..."
+        static let clearSearch = "Clear search"
+        static let noMatchingSessions = "No matching sessions"
+        static let ungrouped = "Ungrouped"
+        static let running = "Running"
+        static let idle = "Idle"
+        static let workspaceActionsAccessibilityPrefix = "Workspace actions for "
+        static let sessionActionsAccessibilityPrefix = "Session actions for "
+        static let rename = "Rename"
+        static let deleteWorkspace = "Delete workspace"
+        static let forkSession = "Fork session"
+        static let archiveSession = "Archive session"
 
         // Source: packages/client/ui-settings-general/src/client/locales.ts (en)
         static let settings = "Settings"

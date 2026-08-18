@@ -77,8 +77,19 @@ struct SessionSummaryDTO: Decodable, Sendable, Identifiable {
     let origin: String?
     let cwd: String?
     let agentPreset: String?
+    let projections: SessionProjectionsDTO?
+
+    /// Source: `session-title/src/types.ts:SessionProjectionMap.title`.
+    var displayTitle: String? { projections?.values["title"]?.stringValue }
 
     var id: String { sessionId }
+}
+
+/// Source: `sessions.ts:SessionProjectionsBlock`. The projection registry is
+/// merge-extensible; the native shell reads only the locked `title` value.
+struct SessionProjectionsDTO: Decodable, Sendable {
+    let asOfSeq: Int
+    let values: [String: JSONValue]
 }
 
 /// Source: `workspace.schema.ts:workspaceListValueSchema`.
