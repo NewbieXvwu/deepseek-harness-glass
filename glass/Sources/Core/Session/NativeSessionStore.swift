@@ -627,6 +627,101 @@ final class NativeSessionStore: ObservableObject {
         return object["command"] as? String
     }
 
+    /// Snapshot-only Host-shaped approval fixture. It exercises the same
+    /// `PendingApproval` holder that a live `approval/requested` mux frame sets.
+    func loadSnapshotApprovalFixture() {
+        let sessionID = "snapshot-approval"
+        phase = .ready(sessionID: sessionID)
+        activeSessionID = sessionID
+        items = [
+            TranscriptItem(
+                id: "event-201",
+                role: .assistant,
+                text: "I need permission to run this command.",
+                isStreaming: false,
+                sequence: 201
+            )
+        ]
+        toolInvocations = [
+            ToolInvocation(
+                id: "snapshot-approval-call",
+                name: "bash",
+                arguments: "{\"command\":\"git status\"}",
+                output: nil,
+                state: .running,
+                sequence: 202,
+                view: nil
+            )
+        ]
+        pendingApproval = PendingApproval(
+            rpcID: "snapshot-approval-rpc",
+            sessionID: sessionID,
+            approvalID: "snapshot-approval-id",
+            toolName: "bash",
+            callID: "snapshot-approval-call",
+            reason: "This command needs your approval."
+        )
+        pendingQuestion = nil
+        selectedToolCallID = nil
+        isSubmittingApproval = false
+        isSubmittingQuestion = false
+        isRunning = true
+        hasMoreHistory = false
+        isLoadingOlderHistory = false
+        isSubmittingPrompt = false
+        draft = ""
+        pendingImages = []
+        lastError = nil
+        appliedSequences = [201, 202]
+    }
+
+    /// Snapshot-only Host-shaped question fixture. It exercises a single-choice
+    /// question with a header, an option description, and the final Submit path.
+    func loadSnapshotQuestionFixture() {
+        let sessionID = "snapshot-question"
+        phase = .ready(sessionID: sessionID)
+        activeSessionID = sessionID
+        items = [
+            TranscriptItem(
+                id: "event-301",
+                role: .assistant,
+                text: "I need one decision before continuing.",
+                isStreaming: false,
+                sequence: 301
+            )
+        ]
+        toolInvocations = []
+        pendingApproval = nil
+        pendingQuestion = PendingQuestion(
+            rpcID: "snapshot-question-rpc",
+            sessionID: sessionID,
+            items: [
+                PendingQuestion.Item(
+                    id: "snapshot-question-item",
+                    question: "Which approach should I use?",
+                    header: "Plan",
+                    detail: "Choose an option or provide your own answer.",
+                    options: [
+                        PendingQuestion.Option(label: "Continue", detail: "Use the proposed approach."),
+                        PendingQuestion.Option(label: "Revise", detail: "Change the approach first.")
+                    ],
+                    multiSelect: false
+                )
+            ]
+        )
+        selectedToolCallID = nil
+        isSubmittingApproval = false
+        isSubmittingQuestion = false
+        isRunning = true
+        hasMoreHistory = false
+        isLoadingOlderHistory = false
+        isSubmittingPrompt = false
+        draft = ""
+        pendingImages = []
+        lastError = nil
+        appliedSequences = [301]
+    }
+
     /// Snapshot-only Host-shaped fixture. It drives the same native transcript
     /// and tool detail views as live SSE reducer output, without becoming a
     /// production fallback for disconnected sessions.

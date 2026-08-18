@@ -9,6 +9,8 @@ struct NativeAppShell: View {
         case welcome
         case conversation
         case tooling
+        case approval
+        case question
     }
 
     let mode: PresentationMode

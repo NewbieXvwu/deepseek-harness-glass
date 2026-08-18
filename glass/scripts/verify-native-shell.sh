@@ -25,7 +25,15 @@ DSH_GLASS_SNAPSHOT_PATH="$OUTPUT_DIR/tooling-inspector-dark.png" \
 DSH_GLASS_SNAPSHOT_MODE="tooling" \
 "$BINARY"
 
-for image in "$OUTPUT_DIR/welcome-dark.png" "$OUTPUT_DIR/conversation-dark.png" "$OUTPUT_DIR/tooling-inspector-dark.png"; do
+DSH_GLASS_SNAPSHOT_PATH="$OUTPUT_DIR/approval-panel-light.png" \
+DSH_GLASS_SNAPSHOT_MODE="approval" \
+"$BINARY"
+
+DSH_GLASS_SNAPSHOT_PATH="$OUTPUT_DIR/question-composer-light.png" \
+DSH_GLASS_SNAPSHOT_MODE="question" \
+"$BINARY"
+
+for image in "$OUTPUT_DIR/welcome-dark.png" "$OUTPUT_DIR/conversation-dark.png" "$OUTPUT_DIR/tooling-inspector-dark.png" "$OUTPUT_DIR/approval-panel-light.png" "$OUTPUT_DIR/question-composer-light.png"; do
   test -s "$image"
   sips -g pixelWidth -g pixelHeight "$image"
 done

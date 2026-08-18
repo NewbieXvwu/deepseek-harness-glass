@@ -30,12 +30,23 @@ enum SnapshotExporter {
             mode = .conversation
         case "tooling":
             mode = .tooling
+        case "approval":
+            mode = .approval
+        case "question":
+            mode = .question
         default:
             mode = .welcome
         }
         let sessionStore = NativeSessionStore()
-        if mode == .tooling {
+        switch mode {
+        case .tooling:
             sessionStore.loadSnapshotToolingFixture()
+        case .approval:
+            sessionStore.loadSnapshotApprovalFixture()
+        case .question:
+            sessionStore.loadSnapshotQuestionFixture()
+        case .welcome, .conversation:
+            break
         }
         let presentation = NativeShellPresentation(mode: mode, sessionStore: sessionStore)
         let shellController = NativeShellController(presentation: presentation)
