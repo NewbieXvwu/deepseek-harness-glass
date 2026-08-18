@@ -33,9 +33,11 @@ final class NativeSessionStore: ObservableObject {
     @Published private(set) var phase: Phase = .idle
     @Published private(set) var items: [TranscriptItem] = []
     @Published private(set) var hasMoreHistory = false
+    @Published private(set) var isLoadingOlderHistory = false
     @Published private(set) var lastError: DSHTransportError?
 
     private var historyTask: Task<Void, Never>?
+    private var olderHistoryTask: Task<Void, Never>?
     private var streamTask: Task<Void, Never>?
     private var endpoint: URL?
     private var api: DSHAPIClient?
@@ -44,6 +46,7 @@ final class NativeSessionStore: ObservableObject {
 
     deinit {
         historyTask?.cancel()
+        olderHistoryTask?.cancel()
         streamTask?.cancel()
     }
 
@@ -52,6 +55,7 @@ final class NativeSessionStore: ObservableObject {
     func open(sessionID: String, using api: DSHAPIClient, endpoint: URL) {
         guard activeSessionID != sessionID || self.endpoint != endpoint else { return }
         historyTask?.cancel()
+        olderHistoryTask?.cancel()
         streamTask?.cancel()
         self.api = api
         self.endpoint = endpoint
@@ -59,6 +63,7 @@ final class NativeSessionStore: ObservableObject {
         items = []
         appliedSequences = []
         hasMoreHistory = false
+        isLoadingOlderHistory = false
         lastError = nil
         phase = .loading(sessionID: sessionID)
 
@@ -84,6 +89,8 @@ final class NativeSessionStore: ObservableObject {
     func disconnect() {
         historyTask?.cancel()
         historyTask = nil
+        olderHistoryTask?.cancel()
+        olderHistoryTask = nil
         streamTask?.cancel()
         streamTask = nil
         endpoint = nil
@@ -93,7 +100,34 @@ final class NativeSessionStore: ObservableObject {
         items = []
         appliedSequences = []
         hasMoreHistory = false
+        isLoadingOlderHistory = false
         lastError = nil
+    }
+
+    /// Source: `sessions.schema.ts:sessionHistoryRequestSchema`. The Host owns
+    /// message-boundary paging and returns the authority for `hasMore`.
+    func loadOlderHistory() {
+        guard hasMoreHistory,
+              !isLoadingOlderHistory,
+              let api,
+              let sessionID = activeSessionID,
+              let beforeSeq = appliedSequences.min()
+        else { return }
+
+        isLoadingOlderHistory = true
+        olderHistoryTask?.cancel()
+        olderHistoryTask = Task { [weak self] in
+            defer { self?.isLoadingOlderHistory = false }
+            do {
+                let response = try await api.sessionHistory(sessionID: sessionID, beforeSeq: beforeSeq)
+                guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
+                self?.applyHistory(response.events)
+                self?.hasMoreHistory = response.hasMore
+            } catch {
+                // Retain the existing official transcript if a backward page
+                // fails; a templated error surface follows transport code mapping.
+            }
+        }
     }
 
     private func observeMux(sessionID: String, endpoint: URL) {

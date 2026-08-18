@@ -45,10 +45,18 @@ struct DSHAPIClient: Sendable {
     }
 
     /// Source: `sessions.schema.ts:sessionHistoryRequestSchema`.
-    func sessionHistory(sessionID: String, maxMessages: Int? = nil) async throws -> SessionHistoryResponse {
+    func sessionHistory(
+        sessionID: String,
+        beforeSeq: Int? = nil,
+        maxMessages: Int? = nil
+    ) async throws -> SessionHistoryResponse {
         try await call(
             "session.history",
-            payload: SessionHistoryRequest(sessionId: sessionID, maxMessages: maxMessages)
+            payload: SessionHistoryRequest(
+                sessionId: sessionID,
+                beforeSeq: beforeSeq,
+                maxMessages: maxMessages
+            )
         )
     }
 
@@ -76,6 +84,7 @@ struct EmptyPayload: Codable, Sendable {}
 /// Source: `sessions.schema.ts:sessionHistoryRequestSchema`.
 struct SessionHistoryRequest: Encodable, Sendable {
     let sessionId: String
+    let beforeSeq: Int?
     let maxMessages: Int?
 }
 

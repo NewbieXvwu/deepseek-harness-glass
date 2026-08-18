@@ -54,7 +54,12 @@ private struct NativeActiveConversationSurface: View {
             // blank transcript rather than exposing transport-private wording.
             Spacer(minLength: 0)
         case .ready:
-            NativeTranscriptScrollView(items: sessionStore.items)
+            NativeTranscriptScrollView(
+                items: sessionStore.items,
+                hasMoreHistory: sessionStore.hasMoreHistory,
+                isLoadingOlderHistory: sessionStore.isLoadingOlderHistory,
+                loadOlderHistory: sessionStore.loadOlderHistory
+            )
         }
     }
 }
@@ -76,11 +81,26 @@ private struct NativeConversationHeader: View {
 
 private struct NativeTranscriptScrollView: View {
     let items: [NativeSessionStore.TranscriptItem]
+    let hasMoreHistory: Bool
+    let isLoadingOlderHistory: Bool
+    let loadOlderHistory: () -> Void
 
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: OfficialUISpec.Layout.chatMessageGap) {
+                    if hasMoreHistory {
+                        Button(action: loadOlderHistory) {
+                            Text(OfficialUISpec.Text.chatLoadOlder)
+                                .font(.system(size: 13, weight: .regular))
+                                .foregroundStyle(OfficialUISpec.Token.secondary)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 6)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(isLoadingOlderHistory)
+                        .accessibilityLabel(OfficialUISpec.Text.chatLoadOlder)
+                    }
                     ForEach(items) { item in
                         NativeTranscriptBubble(item: item)
                             .id(item.id)
