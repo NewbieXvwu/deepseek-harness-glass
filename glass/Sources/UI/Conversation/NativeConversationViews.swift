@@ -316,7 +316,8 @@ private struct NativeInteractiveComposerCard: View {
                     .frame(minHeight: 48, maxHeight: 336)
                     .padding(.horizontal, 10)
                     .padding(.top, 2)
-                    .onKeyPress(.return) { press in
+                    .onKeyPress { press in
+                        guard press.key == .return else { return .ignored }
                         if press.modifiers.contains(.shift) { return .ignored }
                         sessionStore.submitDraft()
                         return .handled
