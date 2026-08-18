@@ -209,9 +209,9 @@
   - 依赖：T3.1。
   - 验收证据：`RPCModelsTests` 覆盖 revision conflict、validation、unsupported method、unavailable/internal、429/503/400、timeout/network/cancel/unverified 及 envelope rpcId/business branch。macOS-26 [run 32183487572](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32183487572)（commit `a3d86a3`）成功完成完整 SwiftPM/Swiftc 编译、RPC model/Core Host tests、截图和官方配对；人工复核记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`，Core transport model 改动未新增 renderer 回归，既有 welcome `report-only` 差异仍由后续 UI TODO 关闭。
 
-- [ ] **T4.2：生成或维护 Swift DTO。** 从官方 TypeScript/Zod schema 建立受控生成步骤；若第一版手工建模，也必须记录 schema source path 与 fixture revision。
+- [x] **T4.2：生成或维护 Swift DTO。** 从官方 TypeScript/Zod schema 建立受控生成步骤；若第一版手工建模，也必须记录 schema source path 与 fixture revision。`generate_official_rpc_dto_manifest.py` 现从锁定 apiproxy schemas 生成 16-method manifest；`check-official-rpc-dto-manifest.py` 在 CI 强制官方 HEAD、完整 16-method 集、fixture revision 与每个 source SHA 的 fresh-generation 相等。`capture_official_host_dto_fixtures.sh` 在隔离 `DSH_HOME` 启动固定 rc.7 Host，生成每个当前 facade method 的官方 ClientRequest/ServerResponse capture；无效 session/workspace 只使用 schema-valid identifier，保留 Host closed business-error branch，且绝不连接用户配置或凭据。
   - 依赖：T4.1、T0.2。
-  - 验收：每个已支持 RPC method 既有 Codable round-trip test，又有来自真实 Host 的 fixture test。
+  - 验收证据：`RPCDTOFixtureTests` 从 GlassCore resource 加载与 `OfficialUISpec.Build` 绑定的 capture，验证 16 条真实 envelope 的 rpcId/type/canonical Codable round-trip、16 个对应 production request DTO 的 typed round-trip、6 个成功 value DTO 与 10 个真实 `RPCBusinessError` branch。macOS-26 [run 32186518136](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32186518136)（commit `944bee3`）通过 manifest gate、完整 SwiftPM/Swiftc 编译、fixture XCTest、Host tests、app 组装、snapshot 和官方配对；人工工件复核已记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`。T4.2 无 renderer 改动，welcome 既有差异继续为明确的 `report-only`，不被误记为 UI 场景视觉完成。
 
 - [ ] **T4.3：实现 `DSHClientTransport`。** 使用 `URLSession` 实现 JSON POST、Content-Type、请求取消、统一超时、`rpcId` 去重和调用 tracing。
   - 依赖：T4.1、T4.2。
