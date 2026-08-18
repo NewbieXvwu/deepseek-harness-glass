@@ -94,7 +94,9 @@ struct NativeApprovalPanel: View {
             .padding(.vertical, 14)
         }
         .frame(maxWidth: OfficialUISpec.Layout.approvalCardOuterWidth)
+        .frame(height: OfficialUISpec.Layout.approvalCardOuterHeight, alignment: .top)
         .background(OfficialUISpec.Token.elevated, in: RoundedRectangle(cornerRadius: OfficialUISpec.Layout.approvalCardCornerRadius, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: OfficialUISpec.Layout.approvalCardCornerRadius, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: OfficialUISpec.Layout.approvalCardCornerRadius, style: .continuous)
                 .strokeBorder(OfficialUISpec.Token.warningBorder, lineWidth: 1)
@@ -198,11 +200,15 @@ struct NativeQuestionComposer: View {
             VStack(alignment: .leading, spacing: 5) {
                 if let header = current.header {
                     Text(header)
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.system(size: 11, weight: .medium))
+                        .lineLimit(1)
+                        .frame(height: 16, alignment: .topLeading)
                         .foregroundStyle(OfficialUISpec.Token.caption)
                 }
                 Text(current.question)
                     .font(.system(size: 16, weight: .medium))
+                    .lineLimit(1)
+                    .frame(minHeight: 22, alignment: .topLeading)
                     .foregroundStyle(OfficialUISpec.Token.primary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -285,6 +291,7 @@ struct NativeQuestionComposer: View {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text(display.label)
                         .font(.system(size: 14, weight: .medium))
+                        .frame(minHeight: 24, alignment: .topLeading)
                         .foregroundStyle(OfficialUISpec.Token.primary)
                     if display.recommended {
                         Text(OfficialUISpec.Text.questionRecommended)
@@ -403,6 +410,7 @@ struct NativeQuestionComposer: View {
                 .disabled(submitting || !draft.answered)
             }
         }
+        .frame(minHeight: OfficialUISpec.Layout.actionButtonHeight)
         .padding(.top, OfficialUISpec.Layout.questionFooterTopMargin)
         .padding(.leading, OfficialUISpec.Layout.questionFooterLeading)
         .padding(.trailing, OfficialUISpec.Layout.questionFooterTrailing)

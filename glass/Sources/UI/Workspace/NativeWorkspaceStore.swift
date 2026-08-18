@@ -172,12 +172,14 @@ final class NativeWorkspaceStore: ObservableObject {
         let projection = { (title: String) in
             SessionProjectionsDTO(asOfSeq: 0, values: ["title": .string(title)])
         }
+        let now = Date().timeIntervalSince1970 * 1_000
         let sessions = [
             SessionSummaryDTO(
                 sessionId: alphaID,
-                updatedAt: 0,
+                updatedAt: now - 17 * 60 * 1_000,
                 running: true,
                 blank: false,
+                pendingInteraction: "question",
                 parentSessionId: nil,
                 origin: nil,
                 cwd: "/tmp/fixture",
@@ -186,9 +188,10 @@ final class NativeWorkspaceStore: ObservableObject {
             ),
             SessionSummaryDTO(
                 sessionId: betaID,
-                updatedAt: -60,
+                updatedAt: now - 18 * 60 * 1_000,
                 running: false,
                 blank: false,
+                pendingInteraction: nil,
                 parentSessionId: alphaID,
                 origin: nil,
                 cwd: "/tmp/fixture",
@@ -197,9 +200,10 @@ final class NativeWorkspaceStore: ObservableObject {
             ),
             SessionSummaryDTO(
                 sessionId: gammaID,
-                updatedAt: -120,
+                updatedAt: now - 19 * 60 * 1_000,
                 running: false,
                 blank: false,
+                pendingInteraction: nil,
                 parentSessionId: nil,
                 origin: nil,
                 cwd: "/tmp/fixture",

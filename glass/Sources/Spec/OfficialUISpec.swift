@@ -42,6 +42,7 @@ enum OfficialUISpec {
 
         // Source: ui-conversation/skeleton/ApprovalPanel.module.css
         static let approvalCardOuterWidth: CGFloat = 750
+        static let approvalCardOuterHeight: CGFloat = 140
         static let approvalCardCornerRadius: CGFloat = 20
         static let approvalStripHorizontalPadding: CGFloat = 16
         static let approvalStripVerticalPadding: CGFloat = 10
@@ -106,6 +107,18 @@ enum OfficialUISpec {
         static let deleteWorkspace = "Delete workspace"
         static let forkSession = "Fork session"
         static let archiveSession = "Archive session"
+        static let waitingForAnswer = "Waiting for answer"
+        static let waitingForApproval = "Waiting for approval"
+        static let planAwaitingReview = "Plan awaiting review"
+        static let relativeTimeNow = "now"
+        static let relativeTimeMinutesTemplate = "{n}min"
+        static let relativeTimeHoursTemplate = "{n}h"
+        static let relativeTimeDaysTemplate = "{n}d"
+        static let relativeTimeMonthsTemplate = "{n}mo"
+        static let relativeTimeYearsTemplate = "{n}y"
+        static func relativeTime(_ template: String, value: Int) -> String {
+            template.replacingOccurrences(of: "{n}", with: String(value))
+        }
 
         // Source: packages/client/ui-settings-general/src/client/locales.ts (en)
         static let settings = "Settings"

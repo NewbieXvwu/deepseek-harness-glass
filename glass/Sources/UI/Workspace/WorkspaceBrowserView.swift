@@ -414,11 +414,16 @@ private struct NativeSessionRow: View {
     let selected: Bool
     let onSelect: () -> Void
     let actions: WorkspaceBrowserView.Actions
+    @State private var isHovering = false
+
+    private var status: NativeSessionVisualState {
+        NativeSessionVisualState.resolve(session)
+    }
 
     var body: some View {
         Button(action: onSelect) {
             HStack(spacing: 0) {
-                NativeSessionStatusDot(running: session.running)
+                NativeSessionStatusDot(state: status)
                     .frame(width: 16, height: 20)
                 Text(sessionTitle(session))
                     .font(.system(size: 14, weight: .regular))
@@ -427,17 +432,25 @@ private struct NativeSessionRow: View {
                     .padding(.leading, 4)
                     .padding(.trailing, 6)
                 if !session.blank {
-                    Menu {
-                        Button(OfficialUISpec.Text.rename) { actions.renameSession(session.sessionId, sessionTitle(session)) }
-                        Button(OfficialUISpec.Text.forkSession) { actions.forkSession(session.sessionId) }
-                        Button(OfficialUISpec.Text.archiveSession) { actions.archiveSession(session.sessionId) }
-                    } label: {
-                        OfficialAssetImage(name: "icon-ellipsis", template: true)
-                            .frame(width: 16, height: 16)
-                            .frame(width: 20, height: 20)
+                    if isHovering {
+                        Menu {
+                            Button(OfficialUISpec.Text.rename) { actions.renameSession(session.sessionId, sessionTitle(session)) }
+                            Button(OfficialUISpec.Text.forkSession) { actions.forkSession(session.sessionId) }
+                            Button(OfficialUISpec.Text.archiveSession) { actions.archiveSession(session.sessionId) }
+                        } label: {
+                            OfficialAssetImage(name: "icon-ellipsis", template: true)
+                                .frame(width: 16, height: 16)
+                                .frame(width: 20, height: 20)
+                        }
+                        .menuStyle(.borderlessButton)
+                        .accessibilityLabel(OfficialUISpec.Text.sessionActionsAccessibilityPrefix + sessionTitle(session))
+                    } else {
+                        Text(NativeRelativeTime.label(updatedAt: session.updatedAt))
+                            .font(.system(size: 12, weight: .regular))
+                            .foregroundStyle(OfficialUISpec.Token.caption)
+                            .lineLimit(1)
+                            .fixedSize(horizontal: true, vertical: false)
                     }
-                    .menuStyle(.borderlessButton)
-                    .accessibilityLabel(OfficialUISpec.Text.sessionActionsAccessibilityPrefix + sessionTitle(session))
                 }
             }
             .foregroundStyle(OfficialUISpec.Token.primary)
@@ -449,19 +462,97 @@ private struct NativeSessionRow: View {
             )
         }
         .buttonStyle(.plain)
+        .onHover { isHovering = $0 }
         .accessibilityLabel(sessionTitle(session))
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
 
-private struct NativeSessionStatusDot: View {
-    let running: Bool
+private enum NativeSessionVisualState {
+    case idle
+    case warning(String)
+    case ongoing
 
+    static func resolve(_ session: SessionSummaryDTO) -> Self {
+        switch session.pendingInteraction {
+        case "approval":
+            return .warning(OfficialUISpec.Text.waitingForApproval)
+        case "plan-review":
+            return .warning(OfficialUISpec.Text.planAwaitingReview)
+        case "question":
+            return .warning(OfficialUISpec.Text.waitingForAnswer)
+        default:
+            return session.running ? .ongoing : .idle
+        }
+    }
+
+    var accessibilityLabel: String {
+        switch self {
+        case .idle:
+            return OfficialUISpec.Text.idle
+        case .warning(let label):
+            return label
+        case .ongoing:
+            return OfficialUISpec.Text.running
+        }
+    }
+}
+
+private struct NativeSessionStatusDot: View {
+    let state: NativeSessionVisualState
+    private let matrixCells: [(CGFloat, CGFloat)] = [
+        (0, 0), (4, 0), (8, 0), (8, 4), (8, 8), (4, 8), (0, 8), (0, 4),
+    ]
+
+    @ViewBuilder
     var body: some View {
-        Circle()
-            .fill(running ? OfficialUISpec.Token.businessBlue : Color.clear)
-            .frame(width: running ? 6 : 0, height: running ? 6 : 0)
-            .accessibilityLabel(running ? OfficialUISpec.Text.running : OfficialUISpec.Text.idle)
+        switch state {
+        case .idle:
+            Color.clear.frame(width: 0, height: 0)
+        case .warning:
+            ZStack {
+                Circle().fill(OfficialUISpec.Token.warningPrimary.opacity(0.1))
+                    .frame(width: 10, height: 10)
+                Circle().fill(OfficialUISpec.Token.warningPrimary)
+                    .frame(width: 6, height: 6)
+            }
+            .frame(width: 10, height: 10)
+            .accessibilityLabel(state.accessibilityLabel)
+        case .ongoing:
+            ZStack(alignment: .topLeading) {
+                ForEach(Array(matrixCells.enumerated()), id: \.offset) { index, point in
+                    Rectangle()
+                        .fill(OfficialUISpec.Token.businessBlue.opacity(index == 0 ? 1 : index < 4 ? 0.6 : index < 6 ? 0.35 : 0.15))
+                        .frame(width: 2, height: 2)
+                        .offset(x: point.0, y: point.1)
+                }
+            }
+            .frame(width: 10, height: 10)
+            .accessibilityLabel(state.accessibilityLabel)
+        }
+    }
+}
+
+private enum NativeRelativeTime {
+    static func label(updatedAt: Double, now: Date = Date()) -> String {
+        let difference = max(0, now.timeIntervalSince1970 * 1_000 - updatedAt)
+        let minute = 60_000.0
+        let hour = 3_600_000.0
+        let day = 86_400_000.0
+        if difference < minute { return OfficialUISpec.Text.relativeTimeNow }
+        if difference < hour {
+            return OfficialUISpec.Text.relativeTime(OfficialUISpec.Text.relativeTimeMinutesTemplate, value: Int(floor(difference / minute)))
+        }
+        if difference < day {
+            return OfficialUISpec.Text.relativeTime(OfficialUISpec.Text.relativeTimeHoursTemplate, value: Int(floor(difference / hour)))
+        }
+        if difference < 30 * day {
+            return OfficialUISpec.Text.relativeTime(OfficialUISpec.Text.relativeTimeDaysTemplate, value: Int(floor(difference / day)))
+        }
+        if difference < 365 * day {
+            return OfficialUISpec.Text.relativeTime(OfficialUISpec.Text.relativeTimeMonthsTemplate, value: Int(floor(difference / (30 * day))))
+        }
+        return OfficialUISpec.Text.relativeTime(OfficialUISpec.Text.relativeTimeYearsTemplate, value: Int(floor(difference / (365 * day))))
     }
 }
 

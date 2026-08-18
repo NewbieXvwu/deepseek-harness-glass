@@ -239,6 +239,9 @@ struct SessionSummaryDTO: Decodable, Sendable, Identifiable {
     let updatedAt: Double
     let running: Bool
     let blank: Bool
+    /// Source: `dsh-client-runtime/client` SessionSummary.pendingInteraction.
+    /// The Host omits it when no user response is pending.
+    let pendingInteraction: String?
     let parentSessionId: String?
     let origin: String?
     let cwd: String?
