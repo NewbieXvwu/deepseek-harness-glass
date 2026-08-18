@@ -34,7 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
 
         let presentation = NativeShellPresentation(mode: .welcome)
-        let shellController = NativeShellController(presentation: presentation)
+        let shellController = NativeShellRootController(presentation: presentation)
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1280, height: 840),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],

@@ -77,7 +77,7 @@ enum SnapshotExporter {
             sessionStore: sessionStore,
             workspaceSnapshotDialog: workspaceSnapshotDialog
         )
-        let shellController = NativeShellController(presentation: presentation)
+        let shellController = NativeShellRootController(presentation: presentation)
         let size = snapshotSize(environment: ProcessInfo.processInfo.environment)
         let window = NSWindow(
             contentRect: NSRect(origin: .zero, size: size),

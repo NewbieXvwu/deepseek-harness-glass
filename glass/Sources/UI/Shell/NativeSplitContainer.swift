@@ -207,14 +207,10 @@ final class NativeShellPresentation: ObservableObject {
 @MainActor
 final class NativeShellController: NativeSplitViewController {
     private let presentation: NativeShellPresentation
-    private let managementDialogHost: TransparentHostingController<NativeWorkspaceManagementDialogOverlay>
     private var presentationObservation: AnyCancellable?
 
     init(presentation: NativeShellPresentation) {
         self.presentation = presentation
-        managementDialogHost = TransparentHostingController(
-            rootView: NativeWorkspaceManagementDialogOverlay(presentation: presentation)
-        )
         super.init(
             sidebar: Self.sidebar(for: presentation, collapsed: presentation.manuallyCollapsed),
             conversation: NativeConversationColumn(
@@ -235,20 +231,6 @@ final class NativeShellController: NativeSplitViewController {
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { nil }
-
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        addChild(managementDialogHost)
-        let overlay = managementDialogHost.view
-        overlay.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(overlay, positioned: .above, relativeTo: nil)
-        NSLayoutConstraint.activate([
-            overlay.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            overlay.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            overlay.topAnchor.constraint(equalTo: view.topAnchor),
-            overlay.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-        ])
-    }
 
     override func viewDidLayout() {
         super.viewDidLayout()
@@ -449,6 +431,56 @@ class NativeSplitViewController: NSSplitViewController {
         default:
             return proposedPosition
         }
+    }
+}
+
+/// Application root that keeps `NSSplitViewController` and the official Modal
+/// overlay as siblings. An overlay must never be added to `NSSplitView` itself:
+/// its child views participate in divider layout rather than covering the frame.
+@MainActor
+final class NativeShellRootController: NSViewController {
+    private let shellController: NativeShellController
+    private let managementDialogHost: TransparentHostingController<NativeWorkspaceManagementDialogOverlay>
+
+    init(presentation: NativeShellPresentation) {
+        shellController = NativeShellController(presentation: presentation)
+        managementDialogHost = TransparentHostingController(
+            rootView: NativeWorkspaceManagementDialogOverlay(presentation: presentation)
+        )
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { nil }
+
+    override func loadView() {
+        let root = NSView()
+        root.wantsLayer = true
+        root.layer?.backgroundColor = NSColor.clear.cgColor
+        view = root
+
+        addChild(shellController)
+        addChild(managementDialogHost)
+        let shell = shellController.view
+        let overlay = managementDialogHost.view
+        shell.translatesAutoresizingMaskIntoConstraints = false
+        overlay.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(shell)
+        view.addSubview(overlay, positioned: .above, relativeTo: shell)
+        NSLayoutConstraint.activate([
+            shell.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            shell.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            shell.topAnchor.constraint(equalTo: view.topAnchor),
+            shell.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            overlay.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            overlay.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            overlay.topAnchor.constraint(equalTo: view.topAnchor),
+            overlay.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+        ])
+    }
+
+    func refreshForCurrentViewport() {
+        shellController.refreshForCurrentViewport()
     }
 }
 
