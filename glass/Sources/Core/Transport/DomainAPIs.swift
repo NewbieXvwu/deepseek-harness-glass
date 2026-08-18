@@ -179,8 +179,8 @@ struct DownloadsAPI: Sendable {
     private let client: DSHAPIClient
     init(client: DSHAPIClient) { self.client = client }
 
-    func sessionLogURL(sessionID: String, includeDescendants: Bool = true) throws -> URL {
-        try client.transport.downloadURL(sessionID: sessionID, includeDescendants: includeDescendants)
+    func sessionLogURL(sessionID: String, includeDescendants: Bool = true) async throws -> URL {
+        try await client.transport.downloadURL(sessionID: sessionID, includeDescendants: includeDescendants)
     }
 }
 
