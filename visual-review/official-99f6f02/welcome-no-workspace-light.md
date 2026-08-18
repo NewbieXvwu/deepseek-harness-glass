@@ -38,3 +38,9 @@
 证据：macOS-26 [run 32171801347](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32171801347)，commit `4f6c7e5`，工件中的官方 PNG、`welcome-dark.png`、三栏 comparison、amplified diff 与报告 JSON。该 run 成功执行直接调用锁定 `computeColumns` 的 30 个 fixture gate、SwiftPM resource 编译、逐 fixture `OfficialColumnLayout` XCTest、直接 Swiftc app 装配、原生截图和官方配对。
 
 人工检查并排图确认：该提交只增加算法 fixture、bundle 加载与资源复制，不修改 renderer；侧栏、hero、chooser/mode 行、composer、文案及可见三栏边界均与前一成功对照保持相同。报告的 materially changed ratio 为 `0.02959635`、mean absolute channel difference 为 `2.812569`、exact changed ratio 为 `0.30891369`；相对前一 run 的极小像素波动没有对应的结构或 token 变更，属于同一截图/光栅管线的 report-only 波动。原有 composer 描边、材质和几何差异仍未关闭，且本记录**不构成 welcome 场景视觉验收通过**。
+
+## 2026-08-19 — T2.5 official interaction scene directory review
+
+证据：macOS-26 [run 32173433660](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32173433660)，commit `09afcc5`，工件中的锁定官方 PNG、原生 PNG、comparison、amplified diff 与报告 JSON。该 run 成功校验 `official-interaction-scenes.json` 的 13 个必覆盖场景均具备实际官方 e2e 来源、Host fixture/seed、视口、颜色与辅助功能状态、动作序列、文本、布局树、ARIA baseline 和 PNG baseline contract；随后完成完整 SwiftPM 编译、app 组装与现有 screenshot pairing。
+
+人工复核 comparison 确认：本提交只增加版本化场景目录和来源 gate，不修改 SwiftUI renderer；既有 welcome 结构和已登记 report-only 差异保持不变。当前指标为 materially changed ratio `0.02959449`、mean absolute channel difference `2.814778`、exact changed ratio `0.30825986`，没有对应的 renderer、asset、文案或布局变更。T2.5 已完成“目录覆盖与可复现 capture contract”验收；目录中的每个下游 renderer 场景仍须在其所属 UI TODO 完成时使用同状态官方/原生 PNG 和差异报告关闭，不能把本条目录验收误作这些界面的像素验收。

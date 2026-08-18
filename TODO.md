@@ -165,9 +165,9 @@
   - 依赖：T2.1。
   - 验收证据：`check-official-column-layout-fixtures.py` 对官方函数重生成并逐字节比对，`OfficialUISpecBuildTests.testOfficialColumnLayoutMatchesEveryGeneratedComputeColumnsFixture` 逐例比对 Swift 输出，另有常量断言。macOS-26 [run 32171801347](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32171801347)（commit `4f6c7e5`）成功完成 fixture gate、SwiftPM target 编译、XCTest、直接 Swiftc app 装配、截图和官方视觉对照；人工复核已记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`，无 renderer 变更造成的新可观察回归，既有 welcome `report-only` 差异仍保留给后续 UI 场景关闭。
 
-- [ ] **T2.5：建立官方交互场景目录。** 每个场景包含初始 Host fixture、窗口尺寸、颜色模式、辅助功能模式、动作序列、预期可见文案、预期布局树和截图基线。
+- [x] **T2.5：建立官方交互场景目录。** 已建立 `official-interaction-scenes.json`（13 个必覆盖场景）与 `T2.5-official-scene-source-notes.md`。每个条目绑定锁定官方 e2e、行区间、初始 Host replay/seed、窗口尺寸、颜色模式、辅助功能模式、动作、可见文案、布局树、稳定 ARIA baseline、同状态官方 PNG baseline contract 与 native entry；覆盖启动、无工作区、空会话、流式、tool details、approval、question、queue、settings、窄 rail、details close/reopen、dark cascade 和 reload recovery。
   - 依赖：T2.2–T2.4。
-  - 验收：至少覆盖启动、无工作区、空会话、流式回答、工具调用、审批、队列、设置、窄窗口、详情栏关闭/重开、深色模式和错误恢复。
+  - 验收证据：`check-official-interaction-scenes.py` 强制 13 项 required coverage、完整 per-scene schema 和上游 e2e/replay/ARIA 路径存在；macOS-26 [run 32173433660](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32173433660)（commit `09afcc5`）成功执行场景 gate、全门禁、SwiftPM 编译、app 组装、截图与官方配对。人工复核已记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`；目录/gate 改动不改变 renderer，既有 welcome `report-only` 差异未被错误归类为完成。每个目录场景的 renderer 像素收敛仍由其下游 UI TODO 的同状态 official/native pair 完成。
 
 - [x] **T2.6：定义视觉差异策略。** 普通布局层使用结构树断言和截图差异；系统 Glass 区域使用位置、尺寸、层级、对比度和系统状态断言，不对系统动态折射作像素级失败判定。
   - 依赖：T2.5。
