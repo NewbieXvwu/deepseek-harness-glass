@@ -24,12 +24,12 @@ struct NativeAppShell: View {
         mode: PresentationMode = .welcome,
         viewportWidth: CGFloat = 1280,
         darkAppearance: Bool = false,
-        workspaceStore: NativeWorkspaceStore = NativeWorkspaceStore()
+        workspaceStore: NativeWorkspaceStore? = nil
     ) {
         self.mode = mode
         self.viewportWidth = viewportWidth
         self.darkAppearance = darkAppearance
-        _workspaceStore = StateObject(wrappedValue: workspaceStore)
+        _workspaceStore = StateObject(wrappedValue: workspaceStore ?? NativeWorkspaceStore())
     }
 
     var body: some View {
