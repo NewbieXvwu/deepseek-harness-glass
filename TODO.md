@@ -149,7 +149,7 @@
 
 “不得自创界面文本、排版”必须由版本化规格和自动化工具保证。官方 Web client 的 `locales.ts`、主题 token sheet、`ui-layout` 常量、组件结构与 e2e 场景共同组成规格来源；不能将设计信息从网页截图中手工猜测。[3] [4] [5] [6]
 
-- [ ] **T2.1：创建 `OfficialUISpec` 元数据格式。** 至少包含 `sourceCommit`、`localeRevision`、`tokenRevision`、`layoutRevision`、`fixtureRevision`、`generatedAt` 和生成器版本。
+- [x] **T2.1：创建 `OfficialUISpec` 元数据格式。** 至少包含 `sourceCommit`、`localeRevision`、`tokenRevision`、`layoutRevision`、`fixtureRevision`、`generatedAt` 和生成器版本。
   - 依赖：T0.2。
   - 验收：所有 Swift UI 测试都读取 `OfficialUISpec` 的 build ID；当 spec 与 Host build 不匹配时测试失败。
 
@@ -532,16 +532,16 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 |---|---|
 | 远端仓库 | `NewbieXvwu/deepseek-harness-glass` |
 | 分支 | `main` |
-| 最新HEAD | `95630491ec345cfb7f84b784b6ed32e8f9d727d4` — `fix(ui): make preference key default concurrency-safe` |
-| 上一个功能提交 | `ff2780a9cb17a9bd216162d5e0ef5dfad0880441` — `refactor(T1.2): enforce Swift target boundaries` |
+| 最新HEAD | `2dccb535162ec564d1d2dff5a47aa793e544ca5a` — `feat(T2.1): generate and verify official UI spec build` |
+| 上一个功能提交 | `2dccb535162ec564d1d2dff5a47aa793e544ca5a` — `feat(T2.1): generate and verify official UI spec build` |
 | 锁定官方来源 | `deepseek-ai/deepseek-harness@99f6f02fecdb7dff40c3fbc9470f5907c29f74ca` |
 | 目标平台 | macOS 26+、Xcode 26+、Apple Silicon、Swift 6 |
 | D1规格门禁 | 通过：91 text、77 layout、29 assets、10 visual scenes |
 | D0原生门禁 | 通过：核心UI无WebView、DOM脚本和CSS注入 |
-| 最新已完成CI | [run 32161795843](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32161795843)，HEAD `9563049`，success；验证独立 SwiftPM release 编译、模块依赖方向、固定 Host、D0/D1、官方/原生 GUI 与视觉政策工件。 |
-| 当前HEAD CI | `9563049` 的 [run 32161795843](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32161795843) 已 success；此 TODO 更新提交后仍须查询它自己的 run，不能以本行替代当前提交证据。 |
-| 当前主阶段 | 阶段2：锁定官方规格；T2.1 尚未完成 |
-| 已勾选TODO条目 | T0.1、T0.2、T0.3、T1.1、T1.2、T1.3、T2.6、T7.3；其余条目保持未勾选 |
+| 最新已完成CI | [run 32163371245](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32163371245)，HEAD `2dccb53`，success；从锁定官方源码重生成 33 项输入的 spec build、拒绝 Host mismatch、通过 Swift XCTest/独立编译，并生成官方/原生 GUI 对照工件。 |
+| 当前HEAD CI | `2dccb53` 的 [run 32163371245](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32163371245) 已 success；此 TODO 更新提交后仍须查询它自己的 run，不能以本行替代当前提交证据。 |
+| 当前主阶段 | 阶段2：锁定官方规格；T2.2 尚未完成 |
+| 已勾选TODO条目 | T0.1、T0.2、T0.3、T1.1、T1.2、T1.3、T2.1、T2.6、T7.3；其余条目保持未勾选 |
 
 ### B. 阶段状态矩阵
 
@@ -549,7 +549,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 |---|---|---|---|
 | 0. 原则与边界 | 阶段性完成 | 项目宪章、D0/D1规则、README/README.zh/贡献指南的 D0–D5 边界、核心 WebKit 静态门禁、唯一 rc.7/Node 24.19.0/官方 commit 支持矩阵、官方/原生截图证据链、可失败阈值自检、复刻层级和人工审阅准则已建立；T0.1–T0.3 已闭环 | 完整 D2–D5 产品行为、各 UI 场景从 report-only 收敛到 enforce 和全部人工视觉验收仍未完成；它们属于下游任务的完成条件，不可因此勾选。 |
 | 1. 仓库与模块化基础 | 阶段性完成 | 13 项运行时资产已有机器可读分类；App/Window/MenuBar/Host lifecycle 已从 legacy `main.swift` 拆出；SwiftPM 的 Spec/Core/UI/Snapshot/App target 图、依赖方向门禁与 macOS 独立 release 编译已建立；T1.1–T1.3已勾选 | Plugins target 与 Tests target 的专用隔离将在下游插件/测试任务完成；旧路径全量行为审计和每个 UI/状态资产的完整迁移仍未完成 |
-| 2. 官方规格 | 部分完成 | `OfficialUISpec.swift`、official-ui-catalog、visual-scenes、D1校验和来源映射已存在；T2.6已勾选 | locale/token全量生成、布局solver完整夹具、全覆盖场景规格与辅助功能矩阵仍未完成 |
+| 2. 官方规格 | 部分完成 | `OfficialUISpec.swift`、official-ui-catalog、visual-scenes、D1校验和来源映射已存在；生成的 OfficialUISpec build 已绑定固定 Host、commit、locale/token/layout/fixture hash 并通过 mismatch 自检与 Swift XCTest；T2.1、T2.6已勾选 | locale/token全量生成、布局solver完整夹具、全覆盖场景规格与辅助功能矩阵仍未完成 |
 | 3. Host生命周期 | 部分完成 | `HarnessHostController`、`HostBuildVerifier`、payload缓存和运行时启动路径已实现 | 未验证Host策略、完整诊断页、生命周期混沌测试、下载导出与全面恢复仍未完成 |
 | 4. RPC/SSE | 部分完成 | RPC envelope、URLSession transport、SSE reducer、多个session/workspace/settings DTO已实现；最新新增settings.describe/mutate类型 | 全域facade、round-trip/真实Host契约测试、revision冲突和完整重连测试尚未闭环 |
 | 5. 窗口、三栏与Liquid Glass | 部分完成 | AppKit三栏根容器、根包装overlay、sidebar控制和部分Liquid Glass导航控件已实现 | WindowCoordinator恢复、完整列宽算法测试、材质策略、Reduce Transparency/Contrast与无障碍验证未完成 |
@@ -564,7 +564,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 
 ### C. TODO勾选的完整证据边界
 
-当前只允许以下八项保持勾选。任何新会话都不得为了“看起来更完整”额外勾选其他条目：
+当前只允许以下九项保持勾选。任何新会话都不得为了“看起来更完整”额外勾选其他条目：
 
 | 条目 | 状态 | 证据与边界 |
 |---|---|---|
@@ -574,6 +574,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 | T1.1 | `[x]` 完成 | `RuntimeAssetInventory.json` 逐项分类 legacy entry、窗口、历史菜单栏、受控 Host、外部 3080 挂接、snapshot、DSH_HOME/log、Node/payload、repair、metadata/signing、CI/release 和 WebView 壳；`check-runtime-asset-inventory.py` 强制 13 项分类、唯一模块化 `@main`、legacy 文件删除和禁止外部 3080 路径。`fc8b499` 的 macOS-26 [run 32159109869](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32159109869) 成功验证清单、原生编译、官方/原生截图和质量门。此勾选不代表 T1.2 的独立 target/package、后续生命周期深度测试或任何下游 UI 行为完成。 |
 | T1.2 | `[x]` 完成 | `glass/Package.swift` 声明 `GlassSpec`、`GlassCore`、`GlassUI`、`GlassSnapshot` 与 `DeepSeekHarnessGlassApp` 五个 target；`check-module-boundaries.py` 强制依赖方向、唯一 `@main`、Core 无 AppKit/SwiftUI、UI 无 `Process`/应用生命周期、Session 无 `NSApplication`。`NativeImagePicker` 将 `NSOpenPanel` 由 Core 移至 UI；CI 执行 `swift build --configuration release`。`9563049` 的 macOS-26 [run 32161795843](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32161795843) 成功编译 target、生成官方/原生截图并通过人工对照复核。此勾选不代表 Plugins/Tests target、插件隔离或任何下游产品功能完成。 |
 | T1.3 | `[x]` 完成 | `check-no-webview.sh` 通过；核心Swift路径不依赖WKWebView、DOM、JavaScript或CSS注入。此勾选不代表PluginWebHost例外已实现。 |
+| T2.1 | `[x]` 完成 | `official-ui-spec-build.json` 记录 `sourceCommit`、Host build ID、`uiSpecRevision`、locale/token/layout/fixture SHA-256 revision、确定性 `generatedAt`、生成器版本和 33 项上游输入 hash/行数；`OfficialUISpecBuild.swift` 暴露同一 build ID，Host 启动会拒绝其 ID/commit/UI revision 不匹配的 payload。`check-official-ui-spec-build.py` 从锁定源码重生成并比对，`test-official-ui-spec-build.py` 证明篡改 catalog 必失败，`OfficialUISpecBuildTests` 读取 build ID。`2dccb53` 的 macOS-26 [run 32163371245](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32163371245) 全部通过。此勾选不代表 T2.2 locale 或 T2.3 token 的完整生成已完成。 |
 | T2.6 | `[x]` 完成 | 已建立官方/原生同状态同视口配对、放大局部检查、差异记录、立即修复和CI截图存在性规则。此勾选不代表所有视觉场景都已人工验收。 |
 | T7.3 | `[x]` 完成 | workspace-search、workspace rename、session rename、workspace delete已接入官方场景契约和Host行操作；管理Dialog按钮端帽/描边/禁用色/输入全选已在run 32142821176配对核验。此勾选不代表全部sidebar功能完成。 |
 
@@ -602,10 +603,10 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 
 新会话必须按以下顺序开始，不得跳到更下游页面：
 
-1. 阅读本TODO的项目宪章和本“当前进度”章节，确认仅T0.1、T0.2、T0.3、T1.1、T1.2、T1.3、T2.6、T7.3为已勾选项。
-2. 执行 `git status --short`、`git log -10 --oneline`、`python3 glass/ci/check-runtime-asset-inventory.py`、`python3 glass/ci/check-module-boundaries.py`、`python3 glass/ci/check-official-spec.py`、`bash glass/ci/check-no-webview.sh`、`python3 glass/ci/test_visual_policy.py` 和 `python3 glass/ci/check-supported-host-build.py --payload-dir glass/build/backend --node glass/build/node/node`（或等价 Node 24 路径）。
-3. 完成 T2.1：从锁定官方 `locales.ts` 与 `theme.scss` 生成 locale/token 清单，记录每项来源文件、行号、commit、自动生成路径和校验 hash；禁止下游 UI 手写或猜测文字、颜色、尺寸。
-4. 每次实现后从锁定官方源码捕获同状态场景、运行原生 app 截图和政策比较；达到具体条目验收、人工审阅和当前提交 macOS CI success 后才勾选；随后按 TODO 依赖顺序继续 T2.2，禁止跳到下游 Settings/Plugin 条目。
+1. 阅读本TODO的项目宪章和本“当前进度”章节，确认仅T0.1、T0.2、T0.3、T1.1、T1.2、T1.3、T2.1、T2.6、T7.3为已勾选项。
+2. 执行 `git status --short`、`git log -10 --oneline`、`python3 glass/ci/check-runtime-asset-inventory.py`、`python3 glass/ci/check-module-boundaries.py`、`python3 glass/ci/check-official-ui-spec-build.py --official-root /path/to/locked/deepseek-harness`、`python3 glass/ci/check-official-spec.py`、`bash glass/ci/check-no-webview.sh`、`python3 glass/ci/test_visual_policy.py` 和 `python3 glass/ci/check-supported-host-build.py --payload-dir glass/build/backend --node glass/build/node/node`（或等价 Node 24 路径）。
+3. 完成 T2.2：从锁定官方所有 `packages/client/**/src/client/locales.ts`、`locale.ts` 和 locale package 生成可查询的语言包，保留 key、语言、插值参数、复数规则、来源路径/行号/commit；先完整支持 en/zh，禁止 UI 使用未登记官方产品文案。
+4. 每次实现后从锁定官方源码捕获同状态场景、运行原生 app 截图和政策比较；达到具体条目验收、人工审阅和当前提交 macOS CI success 后才勾选；随后按 TODO 依赖顺序继续 T2.3，禁止跳到下游 Settings/Plugin 条目。
 
 ### G. 当前验证命令与远端证据
 
