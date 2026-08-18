@@ -236,7 +236,7 @@ final class HarnessHostController: ObservableObject {
                     throw DSHTransportError.decoding("host.describe returned a business error")
                 }
                 guard !Task.isCancelled else { return }
-                self?.state = .ready(HostConnection(endpoint: endpoint, buildID: build.id, startedAt: Date()))
+                self?.state = .ready(HostConnection(endpoint: endpoint, build: build, startedAt: Date()))
                 self?.appendLog("[host] verified endpoint=\(endpoint.absoluteString) build=\(build.id)")
             } catch {
                 guard !Task.isCancelled else { return }

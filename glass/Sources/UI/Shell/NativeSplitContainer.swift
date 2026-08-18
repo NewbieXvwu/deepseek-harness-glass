@@ -64,7 +64,10 @@ final class NativeShellPresentation: ObservableObject {
     func connectVerifiedHost(_ connection: HostConnection) {
         guard observedEndpoint != connection.endpoint else { return }
         workspaceStore.stopObservingHostEvents()
-        let api = DSHAPIClient(baseURL: connection.endpoint)
+        let api = DSHAPIClient(
+            baseURL: connection.endpoint,
+            accessPolicy: HostRPCAccessPolicy(trust: .verified(connection.build))
+        )
         apiClient = api
         observedEndpoint = connection.endpoint
         workspaceStore.refresh(using: api)

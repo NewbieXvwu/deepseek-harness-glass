@@ -31,8 +31,10 @@ enum HostLifecycleState: Equatable, Sendable {
 
 struct HostConnection: Equatable, Sendable {
     let endpoint: URL
-    let buildID: String
+    let build: SupportedHostBuildCatalog.Build
     let startedAt: Date
+
+    var buildID: String { build.id }
 }
 
 struct HostUnverified: Equatable, Sendable {
