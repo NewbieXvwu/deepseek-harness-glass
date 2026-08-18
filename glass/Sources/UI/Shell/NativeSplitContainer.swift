@@ -510,7 +510,6 @@ private struct NativeWorkspaceManagementDialogOverlay: View {
     @State private var renameDraft = ""
     @State private var operationError: String?
     @State private var submitting = false
-    @FocusState private var renameFieldFocused: Bool
 
     var body: some View {
         ZStack {
@@ -560,22 +559,16 @@ private struct NativeWorkspaceManagementDialogOverlay: View {
         confirm: @escaping () -> Void
     ) -> some View {
         modalSurface(title: title, height: 208) {
-            TextField(fieldLabel, text: $renameDraft)
-                .textFieldStyle(.plain)
-                .font(.system(size: 14, weight: .regular))
-                .foregroundStyle(OfficialUISpec.Token.primary)
-                .padding(.horizontal, OfficialUISpec.Layout.actionButtonHorizontalPadding)
-                .frame(height: OfficialUISpec.Layout.modalRenameInputHeight)
-                .background(Color.clear, in: Capsule())
-                .overlay {
-                    Capsule().stroke(OfficialUISpec.Token.border, lineWidth: OfficialUISpec.Layout.modalCardBorder)
-                }
-                .accessibilityLabel(fieldLabel)
-                .disabled(submitting)
-                .focused($renameFieldFocused)
-                .onSubmit(confirm)
-                .padding(.top, OfficialUISpec.Layout.modalBodyTopMargin)
-                .padding(.horizontal, OfficialUISpec.Layout.modalContentHorizontalPadding)
+            NativeSelectAllTextField(
+                text: $renameDraft,
+                fieldLabel: fieldLabel,
+                selectionID: title + originalTitle,
+                disabled: submitting,
+                onSubmit: confirm
+            )
+            .frame(height: OfficialUISpec.Layout.modalRenameInputHeight)
+            .padding(.top, OfficialUISpec.Layout.modalBodyTopMargin)
+            .padding(.horizontal, OfficialUISpec.Layout.modalContentHorizontalPadding)
 
             if let operationError {
                 Text(operationError)
@@ -603,7 +596,6 @@ private struct NativeWorkspaceManagementDialogOverlay: View {
                 )
             }
         }
-        .onAppear { renameFieldFocused = true }
     }
 
     private func deleteCard(workspaceTitle: String) -> some View {
@@ -817,6 +809,92 @@ private struct NativeWorkspaceManagementDialogOverlay: View {
                 operationError = error.localizedDescription
                 submitting = false
             }
+        }
+    }
+}
+
+/// Native equivalent of the official rename input's `autoFocus` plus
+/// `e.target.select()` behavior in `WorkspaceBrowser.tsx`.
+private struct NativeSelectAllTextField: NSViewRepresentable {
+    @Binding var text: String
+    let fieldLabel: String
+    let selectionID: String
+    let disabled: Bool
+    let onSubmit: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
+
+    func makeNSView(context: Context) -> NativeSelectAllNSTextField {
+        let field = NativeSelectAllNSTextField()
+        field.delegate = context.coordinator
+        field.font = .systemFont(ofSize: 14, weight: .regular)
+        field.textColor = NSColor(OfficialUISpec.Token.primary)
+        field.backgroundColor = .clear
+        field.isBordered = false
+        field.drawsBackground = false
+        field.focusRingType = .none
+        field.usesSingleLineMode = true
+        field.lineBreakMode = .byTruncatingTail
+        field.cell?.wraps = false
+        field.cell?.isScrollable = true
+        field.stringValue = text
+        field.setAccessibilityLabel(fieldLabel)
+        field.selectionID = selectionID
+        return field
+    }
+
+    func updateNSView(_ field: NativeSelectAllNSTextField, context: Context) {
+        context.coordinator.parent = self
+        if field.stringValue != text {
+            field.stringValue = text
+        }
+        field.isEnabled = !disabled
+        field.setAccessibilityLabel(fieldLabel)
+        if field.selectionID != selectionID {
+            field.selectionID = selectionID
+            field.selectAllWhenPossible()
+        }
+    }
+
+    final class Coordinator: NSObject, NSTextFieldDelegate {
+        var parent: NativeSelectAllTextField
+
+        init(parent: NativeSelectAllTextField) {
+            self.parent = parent
+        }
+
+        func controlTextDidChange(_ notification: Notification) {
+            guard let field = notification.object as? NSTextField else { return }
+            parent.text = field.stringValue
+        }
+
+        func control(
+            _ control: NSControl,
+            textView: NSTextView,
+            doCommandBy commandSelector: Selector
+        ) -> Bool {
+            guard commandSelector == #selector(NSResponder.insertNewline(_:)) else { return false }
+            parent.onSubmit()
+            return true
+        }
+    }
+}
+
+private final class NativeSelectAllNSTextField: NSTextField {
+    var selectionID = ""
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        selectAllWhenPossible()
+    }
+
+    func selectAllWhenPossible() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.window != nil, self.isEnabled else { return }
+            self.window?.makeFirstResponder(self)
+            self.currentEditor()?.selectAll(nil)
         }
     }
 }
