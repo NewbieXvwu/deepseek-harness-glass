@@ -45,7 +45,6 @@ enum SnapshotExporter {
         shellController.refreshForCurrentViewport()
         window.contentViewController?.view.layoutSubtreeIfNeeded()
         window.displayIfNeeded()
-        FileHandle.standardOutput.write(Data((shellController.snapshotLayoutDescription() + "\n").utf8))
 
         guard let hostedView = window.contentView,
               let bitmap = NSBitmapImageRep(
