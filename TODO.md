@@ -532,14 +532,14 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 |---|---|
 | 远端仓库 | `NewbieXvwu/deepseek-harness-glass` |
 | 分支 | `main` |
-| 最新HEAD | `a413769a6b1d215d5d7503a0191068c35f73c2f9` — `docs: complete TODO progress ledger` |
+| 最新HEAD | `9aaaaff84a6fba13bb6109e544bda0bd83df271b` — `docs: refresh TODO snapshot metadata` |
 | 上一个功能提交 | `9fe78655d5bf7578a033f4af1d8c6699756578be` — `feat: add host-driven native settings store` |
 | 锁定官方来源 | `deepseek-ai/deepseek-harness@99f6f02fecdb7dff40c3fbc9470f5907c29f74ca` |
 | 目标平台 | macOS 26+、Xcode 26+、Apple Silicon、Swift 6 |
 | D1规格门禁 | 通过：91 text、77 layout、29 assets、10 visual scenes |
 | D0原生门禁 | 通过：核心UI无WebView、DOM脚本和CSS注入 |
 | 最新已完成CI | [run 32147888544](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32147888544)，HEAD `61574f0`，success |
-| 当前HEAD CI | [run 32148563313](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32148563313)，HEAD `a413769`；记录时仍为 `in_progress`，不可把它当作完成证据 |
+| 当前HEAD CI | 本次快照元数据提交刚刚推送，需由新会话查询其对应run；上一版完整TODO提交的 [run 32148563313](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32148563313) 当时为 `in_progress`，不可把它当作本HEAD的完成证据 |
 | 当前主阶段 | 阶段4：原生Settings Root与插件兼容基础，尚未完成 |
 | 已勾选TODO条目 | 仅T1.3、T2.6、T7.3；其余条目保持未勾选 |
 
@@ -616,7 +616,7 @@ git log -10 --oneline
 gh run list --repo NewbieXvwu/deepseek-harness-glass --limit 10
 ```
 
-最新已完成的全门禁回归为 [run 32147888544](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32147888544)，对应提交 `61574f0`。当前完整TODO提交的 [run 32148563313](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32148563313) 在本记录生成时尚处于运行中；新会话必须重新查询其状态，不得假设成功。上一提交的项目宪章回归 [run 32148249434](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32148249434) 已成功。
+最新已完成的全门禁回归为 [run 32147888544](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32147888544)，对应提交 `61574f0`。完整TODO进度提交的 [run 32148563313](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32148563313) 以及本次快照元数据提交对应的回归，均必须由新会话重新查询状态，不得假设成功。项目宪章回归 [run 32148249434](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32148249434) 已成功。
 
 ### H. 明确的未完成范围
 
