@@ -630,36 +630,18 @@ final class NativeSessionStore: ObservableObject {
     /// Snapshot-only Host-shaped approval fixture. It exercises the same
     /// `PendingApproval` holder that a live `approval/requested` mux frame sets.
     func loadSnapshotApprovalFixture() {
-        let sessionID = "snapshot-approval"
+        let sessionID = "fx-alpha"
         phase = .ready(sessionID: sessionID)
         activeSessionID = sessionID
-        items = [
-            TranscriptItem(
-                id: "event-201",
-                role: .assistant,
-                text: "I need permission to run this command.",
-                isStreaming: false,
-                sequence: 201
-            )
-        ]
-        toolInvocations = [
-            ToolInvocation(
-                id: "snapshot-approval-call",
-                name: "bash",
-                arguments: "{\"command\":\"git status\"}",
-                output: nil,
-                state: .running,
-                sequence: 202,
-                view: nil
-            )
-        ]
+        items = []
+        toolInvocations = []
         pendingApproval = PendingApproval(
-            rpcID: "snapshot-approval-rpc",
+            rpcID: "fx-rpc-approval",
             sessionID: sessionID,
-            approvalID: "snapshot-approval-id",
-            toolName: "bash",
-            callID: "snapshot-approval-call",
-            reason: "This command needs your approval."
+            approvalID: "fx-approval-1",
+            toolName: "dangerous_tool",
+            callID: nil,
+            reason: "fixture 常驻审批（可答：批准/拒绝后消失）"
         )
         pendingQuestion = nil
         selectedToolCallID = nil
@@ -672,40 +654,56 @@ final class NativeSessionStore: ObservableObject {
         draft = ""
         pendingImages = []
         lastError = nil
-        appliedSequences = [201, 202]
+        appliedSequences = []
     }
 
     /// Snapshot-only Host-shaped question fixture. It exercises a single-choice
     /// question with a header, an option description, and the final Submit path.
     func loadSnapshotQuestionFixture() {
-        let sessionID = "snapshot-question"
+        let sessionID = "fx-alpha"
         phase = .ready(sessionID: sessionID)
         activeSessionID = sessionID
-        items = [
-            TranscriptItem(
-                id: "event-301",
-                role: .assistant,
-                text: "I need one decision before continuing.",
-                isStreaming: false,
-                sequence: 301
-            )
-        ]
+        items = []
         toolInvocations = []
         pendingApproval = nil
         pendingQuestion = PendingQuestion(
-            rpcID: "snapshot-question-rpc",
+            rpcID: "fx-rpc-question",
             sessionID: sessionID,
             items: [
                 PendingQuestion.Item(
-                    id: "snapshot-question-item",
-                    question: "Which approach should I use?",
-                    header: "Plan",
-                    detail: "Choose an option or provide your own answer.",
+                    id: "harness-profile",
+                    question: "你现在更想招哪类 Agent/Harness 候选人？",
+                    header: "偏好",
+                    detail: nil,
                     options: [
-                        PendingQuestion.Option(label: "Continue", detail: "Use the proposed approach."),
-                        PendingQuestion.Option(label: "Revise", detail: "Change the approach first.")
+                        PendingQuestion.Option(label: "工程落地型 (Recommended)", detail: "更看重能直接做 runtime、tool executor、sandbox、trace 和线上问题排查。"),
+                        PendingQuestion.Option(label: "研究潜力型", detail: "更看重 Agent 理解、训练评测思路和长期成长空间。"),
+                        PendingQuestion.Option(label: "均衡型", detail: "同时要求工程能力和 Agent 认知，但可能筛选门槛更高。")
                     ],
                     multiSelect: false
+                ),
+                PendingQuestion.Item(
+                    id: "work-mode",
+                    question: "你希望候选人优先展示哪种工作方式？",
+                    header: "方式",
+                    detail: nil,
+                    options: [
+                        PendingQuestion.Option(label: "先做小型原型 (Recommended)", detail: "用可运行结果尽快验证关键假设。"),
+                        PendingQuestion.Option(label: "先写完整设计", detail: "先收敛边界、协议和风险，再开始实现。")
+                    ],
+                    multiSelect: false
+                ),
+                PendingQuestion.Item(
+                    id: "signals",
+                    question: "哪些面试信号最重要？",
+                    header: "信号",
+                    detail: "按当前招聘目标选择；跳过则视为不设偏好。",
+                    options: [
+                        PendingQuestion.Option(label: "系统设计", detail: nil),
+                        PendingQuestion.Option(label: "代码质量", detail: nil),
+                        PendingQuestion.Option(label: "Agent 产品判断", detail: nil)
+                    ],
+                    multiSelect: true
                 )
             ]
         )
@@ -719,7 +717,7 @@ final class NativeSessionStore: ObservableObject {
         draft = ""
         pendingImages = []
         lastError = nil
-        appliedSequences = [301]
+        appliedSequences = []
     }
 
     /// Snapshot-only Host-shaped fixture. It drives the same native transcript

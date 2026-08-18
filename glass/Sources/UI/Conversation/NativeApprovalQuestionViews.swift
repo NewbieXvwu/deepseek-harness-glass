@@ -101,7 +101,8 @@ struct NativeApprovalPanel: View {
         }
         .shadow(color: Color.black.opacity(0.10), radius: 16, y: 6)
         .padding(.horizontal, OfficialUISpec.Layout.composerClearance + 16)
-        .padding(.vertical, 8)
+        .padding(.top, OfficialUISpec.Layout.approvalSeatTop)
+        .padding(.bottom, OfficialUISpec.Layout.approvalSeatBottom)
     }
 }
 
@@ -110,17 +111,18 @@ private struct NativeApprovalButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 13, weight: .medium))
+            .font(.system(size: 14, weight: .medium))
             .foregroundStyle(primary ? Color.white : OfficialUISpec.Token.primary)
-            .padding(.horizontal, 12)
-            .frame(height: 30)
+            .padding(.horizontal, OfficialUISpec.Layout.actionButtonHorizontalPadding)
+            .frame(height: OfficialUISpec.Layout.actionButtonHeight)
             .background(
                 primary ? OfficialUISpec.Token.businessBlue.opacity(configuration.isPressed ? 0.84 : 1) : OfficialUISpec.Token.elevated,
-                in: Capsule()
+                in: RoundedRectangle(cornerRadius: OfficialUISpec.Layout.actionButtonCornerRadius, style: .continuous)
             )
             .overlay {
                 if !primary {
-                    Capsule().strokeBorder(OfficialUISpec.Token.border, lineWidth: 1)
+                    RoundedRectangle(cornerRadius: OfficialUISpec.Layout.actionButtonCornerRadius, style: .continuous)
+                        .strokeBorder(OfficialUISpec.Token.border, lineWidth: 1)
                 }
             }
     }
@@ -176,36 +178,37 @@ struct NativeQuestionComposer: View {
             }
         }
         .frame(maxWidth: OfficialUISpec.Layout.chatContentMaximum)
-        .background(OfficialUISpec.Token.elevated, in: RoundedRectangle(cornerRadius: OfficialUISpec.Layout.approvalCardCornerRadius, style: .continuous))
+        .background(OfficialUISpec.Token.elevated, in: RoundedRectangle(cornerRadius: OfficialUISpec.Layout.questionCardCornerRadius, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: OfficialUISpec.Layout.approvalCardCornerRadius, style: .continuous)
+            RoundedRectangle(cornerRadius: OfficialUISpec.Layout.questionCardCornerRadius, style: .continuous)
                 .strokeBorder(OfficialUISpec.Token.border, lineWidth: 1)
         }
         .shadow(color: Color.black.opacity(0.10), radius: 16, y: 6)
         .padding(.horizontal, OfficialUISpec.Layout.composerClearance + 16)
-        .padding(.vertical, 8)
+        .padding(.top, OfficialUISpec.Layout.questionSeatTop)
+        .padding(.bottom, OfficialUISpec.Layout.questionSeatBottom)
         .id(pending.id)
     }
 
     private var header: some View {
-        HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
+        HStack(alignment: .top, spacing: 16) {
+            VStack(alignment: .leading, spacing: 5) {
                 if let header = current.header {
                     Text(header)
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(OfficialUISpec.Token.caption)
                 }
                 Text(current.question)
-                    .font(.system(size: 15, weight: .medium))
+                    .font(.system(size: 16, weight: .medium))
                     .foregroundStyle(OfficialUISpec.Token.primary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             Spacer(minLength: 0)
-            HStack(spacing: 4) {
+            HStack(spacing: OfficialUISpec.Layout.questionHeaderActionGap) {
                 Button(action: { minimized.toggle() }) {
                     OfficialAssetImage(name: "icon-chevron-down", template: true)
                         .rotationEffect(.degrees(minimized ? 180 : 0))
-                        .frame(width: 28, height: 28)
+                        .frame(width: OfficialUISpec.Layout.questionIconControl, height: OfficialUISpec.Layout.questionIconControl)
                 }
                 .buttonStyle(OfficialCircleIconButtonStyle())
                 .disabled(submitting)
@@ -213,98 +216,132 @@ struct NativeQuestionComposer: View {
                 Button(action: cancel) {
                     OfficialAssetImage(name: "icon-close", template: true)
                         .frame(width: 16, height: 16)
-                        .frame(width: 28, height: 28)
+                        .frame(width: OfficialUISpec.Layout.questionIconControl, height: OfficialUISpec.Layout.questionIconControl)
                 }
                 .buttonStyle(OfficialCircleIconButtonStyle())
                 .disabled(submitting)
                 .accessibilityLabel(OfficialUISpec.Text.questionCancelAccessibility)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.leading, OfficialUISpec.Layout.questionHeaderLeading)
+        .padding(.trailing, OfficialUISpec.Layout.questionHeaderTrailing)
+        .padding(.top, OfficialUISpec.Layout.questionHeaderTop)
     }
 
     private var bodyContent: some View {
         NativeCappedVerticalScroll(maximumHeight: OfficialUISpec.Layout.approvalBodyMaximumHeight) {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 0) {
                 if let detail = current.detail {
                     Text(detail)
-                        .font(.system(size: 13, weight: .regular))
+                        .font(.system(size: 14, weight: .regular))
                         .foregroundStyle(OfficialUISpec.Token.secondary)
+                        .padding(.horizontal, 2)
+                        .padding(.bottom, 8)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 1) {
                     ForEach(Array(current.options.enumerated()), id: \.element.id) { offset, option in
                         optionButton(option, position: offset + 1)
                     }
                     customAnswer
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 12)
+            .padding(.horizontal, OfficialUISpec.Layout.questionOptionsHorizontalPadding)
+            .padding(.top, OfficialUISpec.Layout.questionOptionsTopMargin)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
     private func optionButton(_ option: NativeSessionStore.PendingQuestion.Option, position: Int) -> some View {
         let selected = draft.selected.contains(option.label)
+        let display = recommendedLabel(option.label)
         return Button(action: { choose(option.label) }) {
-            HStack(spacing: 10) {
+            HStack(alignment: .top, spacing: OfficialUISpec.Layout.questionOptionGap) {
                 if current.multiSelect {
                     ZStack {
                         RoundedRectangle(cornerRadius: 4, style: .continuous)
-                            .strokeBorder(selected ? OfficialUISpec.Token.businessBlue : OfficialUISpec.Token.border, lineWidth: 1)
-                            .background(selected ? OfficialUISpec.Token.businessBlue : Color.clear, in: RoundedRectangle(cornerRadius: 4, style: .continuous))
+                            .strokeBorder(selected ? OfficialUISpec.Token.primary : OfficialUISpec.Token.border, lineWidth: 1)
+                            .background(selected ? OfficialUISpec.Token.primary : Color.clear, in: RoundedRectangle(cornerRadius: 4, style: .continuous))
                         if selected {
                             OfficialAssetImage(name: "icon-check", template: true)
                                 .frame(width: 12, height: 12)
                                 .foregroundStyle(Color.white)
                         }
                     }
-                    .frame(width: 16, height: 16)
+                    .frame(width: OfficialUISpec.Layout.questionOptionIndicator, height: OfficialUISpec.Layout.questionOptionIndicator)
+                    .padding(.top, 2)
                 } else {
                     Text(String(position))
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(selected ? Color.white : OfficialUISpec.Token.secondary)
-                        .frame(width: 18, height: 18)
-                        .background(selected ? OfficialUISpec.Token.businessBlue : OfficialUISpec.Token.interactiveHover, in: Circle())
+                        .foregroundStyle(OfficialUISpec.Token.secondary)
+                        .frame(width: OfficialUISpec.Layout.questionOptionIndicator, height: OfficialUISpec.Layout.questionOptionIndicator)
+                        .background(OfficialUISpec.Token.interactiveHover, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        .padding(.top, 2)
                 }
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(option.label)
-                        .font(.system(size: 13, weight: .medium))
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(display.label)
+                        .font(.system(size: 14, weight: .medium))
                         .foregroundStyle(OfficialUISpec.Token.primary)
+                    if display.recommended {
+                        Text(OfficialUISpec.Text.questionRecommended)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(OfficialUISpec.Token.businessBlue)
+                            .padding(.horizontal, 4)
+                            .background(OfficialUISpec.Token.businessBlueSoft, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                    }
                     if let detail = option.detail {
                         Text(detail)
-                            .font(.system(size: 12, weight: .regular))
-                            .foregroundStyle(OfficialUISpec.Token.secondary)
+                            .font(.system(size: 14, weight: .regular))
+                            .foregroundStyle(OfficialUISpec.Token.caption)
                     }
+                    Spacer(minLength: 0)
                 }
-                Spacer(minLength: 0)
             }
-            .padding(.horizontal, 10)
+            .frame(minHeight: OfficialUISpec.Layout.questionOptionMinimumHeight)
+            .padding(.leading, 8)
+            .padding(.trailing, OfficialUISpec.Layout.questionOptionsHorizontalPadding)
             .padding(.vertical, 8)
-            .background(selected && !current.multiSelect ? OfficialUISpec.Token.businessBlueSoft : Color.clear, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .background(selected && !current.multiSelect ? OfficialUISpec.Token.interactiveHover : Color.clear, in: RoundedRectangle(cornerRadius: OfficialUISpec.Layout.questionOptionCornerRadius, style: .continuous))
+            .overlay {
+                if selected && !current.multiSelect {
+                    RoundedRectangle(cornerRadius: OfficialUISpec.Layout.questionOptionCornerRadius, style: .continuous)
+                        .strokeBorder(OfficialUISpec.Token.border, lineWidth: 1)
+                }
+            }
         }
         .buttonStyle(.plain)
         .disabled(submitting)
-        .accessibilityLabel(option.label)
+        .accessibilityLabel(display.label)
     }
 
     @ViewBuilder
     private var customAnswer: some View {
         if hasOptions {
-            TextField(OfficialUISpec.Text.questionCustomPlaceholder, text: customBinding)
-                .font(.system(size: 13, weight: .regular))
-                .textFieldStyle(.plain)
-                .padding(.horizontal, 10)
-                .frame(height: 34)
-                .background(OfficialUISpec.Token.base, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+            HStack(alignment: .top, spacing: OfficialUISpec.Layout.questionOptionGap) {
+                OfficialAssetImage(name: "icon-tool-edit", template: true)
+                    .frame(width: 12, height: 12)
+                    .foregroundStyle(OfficialUISpec.Token.secondary)
+                    .frame(width: OfficialUISpec.Layout.questionOptionIndicator, height: OfficialUISpec.Layout.questionOptionIndicator)
+                    .background(OfficialUISpec.Token.interactiveHover, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                    .padding(.top, 2)
+                TextField(OfficialUISpec.Text.questionCustomPlaceholder, text: customBinding)
+                    .font(.system(size: 14, weight: .regular))
+                    .textFieldStyle(.plain)
+                    .frame(height: 24)
+                    .disabled(submitting)
+                    .onSubmit { continueFlow() }
+            }
+            .frame(minHeight: OfficialUISpec.Layout.questionOptionMinimumHeight)
+            .padding(.leading, 8)
+            .padding(.trailing, OfficialUISpec.Layout.questionOptionsHorizontalPadding)
+            .padding(.vertical, 8)
+            .background(draft.custom.isEmpty ? Color.clear : OfficialUISpec.Token.interactiveHover, in: RoundedRectangle(cornerRadius: OfficialUISpec.Layout.questionOptionCornerRadius, style: .continuous))
+            .overlay {
+                if !draft.custom.isEmpty {
+                    RoundedRectangle(cornerRadius: OfficialUISpec.Layout.questionOptionCornerRadius, style: .continuous)
                         .strokeBorder(OfficialUISpec.Token.border, lineWidth: 1)
                 }
-                .disabled(submitting)
-                .onSubmit { continueFlow() }
+            }
         } else {
             TextEditor(text: customBinding)
                 .font(.system(size: 13, weight: .regular))
@@ -321,21 +358,22 @@ struct NativeQuestionComposer: View {
     }
 
     private var footer: some View {
-        HStack(spacing: 10) {
-            HStack(spacing: 4) {
+        HStack(spacing: 0) {
+            HStack(spacing: 6) {
                 Button(action: { move(to: index - 1) }) {
                     OfficialAssetImage(name: "icon-chevron-left", template: true)
-                        .frame(width: 28, height: 28)
+                        .frame(width: OfficialUISpec.Layout.questionIconControl, height: OfficialUISpec.Layout.questionIconControl)
                 }
                 .buttonStyle(OfficialCircleIconButtonStyle())
                 .disabled(index == 0 || submitting)
                 .accessibilityLabel(OfficialUISpec.Text.questionPreviousAccessibility)
                 Text(OfficialUISpec.Text.questionProgress(current: index + 1, total: pending.items.count))
-                    .font(.system(size: 12, weight: .regular))
+                    .font(.system(size: 14, weight: .medium))
+                    .padding(.horizontal, 4)
                     .foregroundStyle(OfficialUISpec.Token.secondary)
                 Button(action: { move(to: index + 1) }) {
                     OfficialAssetImage(name: "icon-chevron-right", template: true)
-                        .frame(width: 28, height: 28)
+                        .frame(width: OfficialUISpec.Layout.questionIconControl, height: OfficialUISpec.Layout.questionIconControl)
                 }
                 .buttonStyle(OfficialCircleIconButtonStyle())
                 .disabled(index == pending.items.count - 1 || submitting)
@@ -348,21 +386,34 @@ struct NativeQuestionComposer: View {
                     .foregroundStyle(OfficialUISpec.Token.warningPrimary)
                     .lineLimit(2)
             }
-            Button(action: skip) {
-                Text(OfficialUISpec.Text.questionSkip)
+            HStack(spacing: OfficialUISpec.Layout.questionFooterActionGap) {
+                Button(action: skip) {
+                    Text(OfficialUISpec.Text.questionSkip)
+                }
+                .buttonStyle(NativeApprovalButtonStyle(primary: false))
+                .disabled(submitting)
+                Button(action: continueFlow) {
+                    Text(submitting
+                        ? OfficialUISpec.Text.questionSubmitting
+                        : index == pending.items.count - 1 ? OfficialUISpec.Text.questionSubmit : OfficialUISpec.Text.questionNext)
+                }
+                .buttonStyle(NativeApprovalButtonStyle(primary: true))
+                .disabled(submitting || !draft.answered)
             }
-            .buttonStyle(NativeApprovalButtonStyle(primary: false))
-            .disabled(submitting)
-            Button(action: continueFlow) {
-                Text(submitting
-                    ? OfficialUISpec.Text.questionSubmitting
-                    : index == pending.items.count - 1 ? OfficialUISpec.Text.questionSubmit : OfficialUISpec.Text.questionNext)
-            }
-            .buttonStyle(NativeApprovalButtonStyle(primary: true))
-            .disabled(submitting || !draft.answered)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.top, OfficialUISpec.Layout.questionFooterTopMargin)
+        .padding(.leading, OfficialUISpec.Layout.questionFooterLeading)
+        .padding(.trailing, OfficialUISpec.Layout.questionFooterTrailing)
+    }
+
+    /// Source: `QuestionComposer.tsx:parseRecommendedLabel`; selection keeps
+    /// the original Host value while the conventional suffix becomes a badge.
+    private func recommendedLabel(_ label: String) -> (label: String, recommended: Bool) {
+        let suffixes = [" (Recommended)", "（Recommended）", " (推荐)", "（推荐）"]
+        for suffix in suffixes where label.lowercased().hasSuffix(suffix.lowercased()) {
+            return (String(label.dropLast(suffix.count)), true)
+        }
+        return (label, false)
     }
 
     private var customBinding: Binding<String> {

@@ -45,6 +45,33 @@ enum OfficialUISpec {
         static let approvalStripVerticalPadding: CGFloat = 10
         static let approvalBodyMaximumHeight: CGFloat = 336
         static let approvalActionGap: CGFloat = 8
+        static let approvalSeatTop: CGFloat = 8
+        static let approvalSeatBottom: CGFloat = 12
+        static let approvalActionVerticalPadding: CGFloat = 14
+        static let actionButtonHeight: CGFloat = 36
+        static let actionButtonHorizontalPadding: CGFloat = 14
+        static let actionButtonCornerRadius: CGFloat = 18
+
+        // Source: ui-user-questions/QuestionComposer.module.css
+        static let questionSeatTop: CGFloat = 6
+        static let questionSeatBottom: CGFloat = 10
+        static let questionCardMaximumHeight: CGFloat = 520
+        static let questionCardCornerRadius: CGFloat = 20
+        static let questionHeaderLeading: CGFloat = 24
+        static let questionHeaderTrailing: CGFloat = 16
+        static let questionHeaderTop: CGFloat = 20
+        static let questionHeaderActionGap: CGFloat = 4
+        static let questionIconControl: CGFloat = 24
+        static let questionOptionsTopMargin: CGFloat = 8
+        static let questionOptionsHorizontalPadding: CGFloat = 12
+        static let questionOptionGap: CGFloat = 8
+        static let questionOptionMinimumHeight: CGFloat = 40
+        static let questionOptionCornerRadius: CGFloat = 12
+        static let questionOptionIndicator: CGFloat = 20
+        static let questionFooterTopMargin: CGFloat = 12
+        static let questionFooterLeading: CGFloat = 18
+        static let questionFooterTrailing: CGFloat = 10
+        static let questionFooterActionGap: CGFloat = 12
     }
 
     enum Text {

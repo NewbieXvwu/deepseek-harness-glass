@@ -11,11 +11,12 @@ final class NativeShellPresentation: ObservableObject {
     @Published var sidebarPreference: CGFloat = OfficialUISpec.Layout.sidebarDefault
     @Published var detailsPreference: CGFloat = OfficialUISpec.Layout.detailsDefault
     @Published var manuallyCollapsed = false
-    @Published var detailsVisible = true
+    @Published var detailsVisible = false
 
     let workspaceStore: NativeWorkspaceStore
     let sessionStore: NativeSessionStore
     private var apiClient: DSHAPIClient?
+    private var selectedToolObservation: AnyCancellable?
     private var observedEndpoint: URL?
 
     init(
@@ -26,6 +27,10 @@ final class NativeShellPresentation: ObservableObject {
         self.mode = mode
         self.workspaceStore = workspaceStore ?? NativeWorkspaceStore()
         self.sessionStore = sessionStore ?? NativeSessionStore()
+        self.detailsVisible = self.sessionStore.selectedToolCallID != nil
+        selectedToolObservation = self.sessionStore.$selectedToolCallID.sink { [weak self] callID in
+            self?.detailsVisible = callID != nil
+        }
     }
 
     /// Called only after `HarnessHostController` has verified host.describe on
@@ -56,7 +61,7 @@ final class NativeShellPresentation: ObservableObject {
             sessionStore.open(sessionID: sessionID, using: apiClient, endpoint: observedEndpoint)
         }
         mode = .conversation
-        detailsVisible = true
+        detailsVisible = sessionStore.selectedToolCallID != nil
     }
 
     /// Source: `sessions.schema.ts:sessionCreateRequestSchema`.
