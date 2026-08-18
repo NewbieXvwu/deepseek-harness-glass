@@ -103,7 +103,7 @@ final class NativeShellController: NativeSplitViewController {
 /// confined to the official-spec content surfaces inside the three panes.
 @MainActor
 class NativeSplitViewController: NSSplitViewController {
-    private let sidebarHost: NSHostingController<NativeSidebarView>
+    private let sidebarHost: OfficialSidebarHostController
     private let conversationHost: NSHostingController<NativeConversationColumn>
     private let detailsHost: NSHostingController<NativeDetailsView>
     private let sidebarItem: NSSplitViewItem
@@ -125,7 +125,7 @@ class NativeSplitViewController: NSSplitViewController {
         sidebarCollapsed: Bool,
         detailsVisible: Bool
     ) {
-        sidebarHost = NSHostingController(rootView: sidebar)
+        sidebarHost = OfficialSidebarHostController(rootView: sidebar)
         conversationHost = NSHostingController(rootView: conversation)
         detailsHost = NSHostingController(rootView: details)
         sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebarHost)
@@ -136,17 +136,6 @@ class NativeSplitViewController: NSSplitViewController {
         renderedSidebarCollapsed = sidebarCollapsed
         self.detailsVisible = detailsVisible
         super.init(nibName: nil, bundle: nil)
-
-        // NSHostingController's root can remain transparent inside an AppKit
-        // split sidebar. Apply the official sidebar fill at the host layer so
-        // the authored black wordmark/text never falls onto AppKit's dark pane.
-        sidebarHost.view.wantsLayer = true
-        sidebarHost.view.layer?.backgroundColor = NSColor(
-            red: 249 / 255,
-            green: 250 / 255,
-            blue: 251 / 255,
-            alpha: 1
-        ).cgColor
 
         sidebarItem.canCollapse = false
         conversationItem.canCollapse = false
@@ -181,7 +170,7 @@ class NativeSplitViewController: NSSplitViewController {
         sidebarCollapsed: Bool,
         detailsVisible: Bool
     ) {
-        sidebarHost.rootView = sidebar
+        sidebarHost.update(rootView: sidebar)
         conversationHost.rootView = conversation
         detailsHost.rootView = details
 
