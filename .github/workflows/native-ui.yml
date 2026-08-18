@@ -166,11 +166,13 @@ jobs:
           python3 -m venv /tmp/dsh-visual-venv
           source /tmp/dsh-visual-venv/bin/activate
           python -m pip install --disable-pip-version-check --no-input Pillow numpy
+          python glass/ci/test_visual_policy.py
           python glass/ci/compare_visual_pair.py \
             --official artifacts/official-webui/welcome-no-workspace-light.png \
             --native artifacts/native-shell/welcome-dark.png \
             --out-dir artifacts/visual-diff \
-            --scene welcome-no-workspace-light
+            --scene welcome-no-workspace-light \
+            --policy glass/Sources/Spec/Fixtures/visual-validation-policy.json
           test -s artifacts/visual-diff/welcome-no-workspace-light-comparison.png
           test -s artifacts/visual-diff/welcome-no-workspace-light-report.json
 

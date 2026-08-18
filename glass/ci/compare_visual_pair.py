@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Generate an auditable visual comparison for one paired official/native UI state."""
+"""Generate and enforce an auditable official/native visual comparison policy."""
 
 from __future__ import annotations
 
 import argparse
 import json
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 from PIL import Image, ImageChops, ImageDraw
@@ -17,12 +18,56 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--native", type=Path, required=True)
     parser.add_argument("--out-dir", type=Path, required=True)
     parser.add_argument("--scene", required=True)
+    parser.add_argument("--policy", type=Path)
     return parser.parse_args()
+
+
+def load_policy(path: Path | None, scene: str) -> tuple[dict[str, Any], dict[str, Any]]:
+    if path is None:
+        return {"mode": "report-only"}, {"source": None}
+    with path.open(encoding="utf-8") as handle:
+        document = json.load(handle)
+    scene_policy = document.get("scenes", {}).get(scene, document.get("defaultPolicy", {}))
+    if not isinstance(scene_policy, dict):
+        raise SystemExit(f"visual policy for scene {scene!r} must be an object")
+    if scene_policy.get("mode") not in {"report-only", "enforce"}:
+        raise SystemExit("visual policy mode must be report-only or enforce")
+    return scene_policy, {
+        "source": str(path),
+        "schemaVersion": document.get("schemaVersion"),
+        "officialSourceCommit": document.get("officialSourceCommit"),
+        "materialDifferenceChannelThreshold": document.get("materialDifferenceChannelThreshold", 12),
+    }
+
+
+def threshold_results(metrics: dict[str, float], policy: dict[str, Any]) -> list[dict[str, Any]]:
+    strict = policy.get("strict", {})
+    if not strict:
+        return []
+    accepted = {
+        "maxMateriallyChangedRatio": "materiallyChangedRatio",
+        "maxMeanAbsoluteChannelDifference": "meanAbsoluteChannelDifference",
+        "maxExactChangedRatio": "exactChangedRatio",
+    }
+    results: list[dict[str, Any]] = []
+    for policy_key, metric_key in accepted.items():
+        if policy_key not in strict:
+            continue
+        maximum = float(strict[policy_key])
+        actual = float(metrics[metric_key])
+        results.append({
+            "metric": metric_key,
+            "maximum": maximum,
+            "actual": actual,
+            "passed": actual <= maximum,
+        })
+    return results
 
 
 def main() -> None:
     args = parse_args()
     args.out_dir.mkdir(parents=True, exist_ok=True)
+    policy, policy_metadata = load_policy(args.policy, args.scene)
 
     official = Image.open(args.official).convert("RGBA")
     native = Image.open(args.native).convert("RGBA")
@@ -35,8 +80,15 @@ def main() -> None:
     native_rgb = np.asarray(native.convert("RGB"), dtype=np.int16)
     absolute = np.abs(official_rgb - native_rgb)
     per_pixel = absolute.max(axis=2)
+    material_channel_threshold = int(policy_metadata["materialDifferenceChannelThreshold"])
     changed = per_pixel > 0
-    materially_changed = per_pixel > 12
+    materially_changed = per_pixel > material_channel_threshold
+    metrics = {
+        "exactChangedRatio": round(float(changed.mean()), 8),
+        "materiallyChangedRatio": round(float(materially_changed.mean()), 8),
+        "meanAbsoluteChannelDifference": round(float(absolute.mean()), 6),
+        "maxAbsoluteChannelDifference": int(absolute.max()),
+    }
 
     raw_diff = ImageChops.difference(official.convert("RGB"), native.convert("RGB"))
     amplified = raw_diff.point(lambda value: min(255, value * 6))
@@ -51,11 +103,12 @@ def main() -> None:
     contact.paste(amplified, (panel_width * 2, label_height))
     draw = ImageDraw.Draw(contact)
     for index, label in enumerate(("Official WebUI", "Native macOS", "Amplified absolute difference ×6")):
-        x = index * panel_width + 12
-        draw.text((x, 9), label, fill="black")
+        draw.text((index * panel_width + 12, 9), label, fill="black")
     contact_path = args.out_dir / f"{args.scene}-comparison.png"
     contact.save(contact_path)
 
+    thresholds = threshold_results(metrics, policy)
+    passed = all(item["passed"] for item in thresholds)
     report = {
         "scene": args.scene,
         "official": str(args.official),
@@ -63,24 +116,38 @@ def main() -> None:
         "dimensions": {"width": official.width, "height": official.height},
         "pixels": official.width * official.height,
         "exactChangedPixels": int(changed.sum()),
-        "exactChangedRatio": round(float(changed.mean()), 8),
         "materiallyChangedPixels": int(materially_changed.sum()),
-        "materiallyChangedRatio": round(float(materially_changed.mean()), 8),
-        "meanAbsoluteChannelDifference": round(float(absolute.mean()), 6),
-        "maxAbsoluteChannelDifference": int(absolute.max()),
+        "materialDifferenceChannelThreshold": material_channel_threshold,
+        **metrics,
+        "policy": {
+            **policy_metadata,
+            "mode": policy.get("mode"),
+            "thresholds": thresholds,
+            "passed": passed if thresholds else None,
+            "systemRenderingExceptions": policy.get("systemRenderingExceptions", []),
+            "humanReviewRequired": policy.get("humanReviewRequired", False),
+            "humanReviewCriteria": policy.get("humanReviewCriteria", []),
+        },
         "artifacts": {
             "amplifiedDiff": diff_path.name,
             "contactSheet": contact_path.name,
         },
         "interpretation": (
-            "This report detects measurable image differences. It is not by itself a completion verdict: "
-            "reviewers must classify each difference as an official-layout/token/state mismatch or a documented "
-            "system-material exception, then attach the result to the matching TODO task."
+            "A report-only scene requires human classification and is never visual completion evidence. "
+            "An enforce scene fails CI when a strict metric exceeds policy; a pass still requires the policy's "
+            "documented human review before a TODO item may be checked."
         ),
     }
     report_path = args.out_dir / f"{args.scene}-report.json"
     report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(report, indent=2))
+
+    if policy.get("mode") == "enforce" and not passed:
+        failures = ", ".join(
+            f"{item['metric']}={item['actual']} > {item['maximum']}"
+            for item in thresholds if not item["passed"]
+        )
+        raise SystemExit(f"visual policy failed for {args.scene}: {failures}")
 
 
 if __name__ == "__main__":

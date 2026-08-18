@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "officialSourceCommit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca",
+  "materialDifferenceChannelThreshold": 12,
+  "defaultPolicy": {
+    "mode": "report-only",
+    "description": "A scene without a completed native pairing produces immutable artifacts and requires human classification; it cannot be treated as visually accepted."
+  },
+  "scenes": {
+    "welcome-no-workspace-light": {
+      "mode": "report-only",
+      "mustEnforceBeforeTodoCompletion": true,
+      "viewport": {"width": 1280, "height": 840, "devicePixelRatio": 1},
+      "strict": {
+        "maxMateriallyChangedRatio": 0.008,
+        "maxMeanAbsoluteChannelDifference": 1.15,
+        "maxExactChangedRatio": 0.20
+      },
+      "systemRenderingExceptions": [
+        "Liquid Glass refraction and blur may differ only inside a reviewer-approved mask recorded with the scene evidence.",
+        "Font rasterization anti-aliasing may differ by at most the configured low-amplitude exact-pixel allowance; glyph metrics, wrapping, baseline and accessibility labels remain strict."
+      ],
+      "humanReviewRequired": true,
+      "humanReviewCriteria": [
+        "Verify text content, order, wrapping, baseline and accessible label against the official DOM/ARIA record.",
+        "Verify layout anchors, column widths, component bounds, spacing, focus order and disabled/enabled control state against the official capture.",
+        "Classify every remaining material diff as a native implementation defect or a documented system-rendering exception; do not use a generic platform exception.",
+        "Attach official image, native image, amplified diff, report JSON and written classification to the matching TODO evidence before marking a UI task complete."
+      ]
+    }
+  }
+}
