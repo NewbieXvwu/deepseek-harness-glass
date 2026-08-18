@@ -126,8 +126,25 @@ struct DSHAPIClient: Sendable {
         try await call("workspace.archiveSession", payload: WorkspaceArchiveSessionRequest(sessionId: sessionID))
     }
 
+    /// Source: `settings.schema.ts:settingsDescribeValueSchema`.
     func settingsDescribe() async throws -> SettingsDescribeResponse {
         try await call("settings.describe", payload: EmptyPayload())
+    }
+
+    /// Source: `settings.schema.ts:settingsMutateRequestSchema`.
+    func settingsMutate(
+        namespace: String,
+        operations: [SettingsPathOperationDTO],
+        expectedRevision: Int?
+    ) async throws -> SettingsNamespaceDTO {
+        try await call(
+            "settings.mutate",
+            payload: SettingsMutateRequest(
+                ns: namespace,
+                ops: operations,
+                expectedRevision: expectedRevision
+            )
+        )
     }
 
     /// Source: `rpc.ts:ClientResponse`; reply to an answerable mux ServerRequest
@@ -382,14 +399,58 @@ struct WorkspaceSummaryDTO: Decodable, Sendable, Identifiable {
     var id: String { workspaceId }
 }
 
+/// Source: `settings.schema.ts:settingsDescribeValueSchema`.
 struct SettingsDescribeResponse: Decodable, Sendable {
-    let sections: [SettingsSectionDTO]?
+    let writable: Bool
+    let hasDocument: Bool
+    let namespaces: [SettingsNamespaceDTO]
 }
 
-struct SettingsSectionDTO: Decodable, Sendable, Identifiable {
+/// Source: `settings.ts:SettingsNamespaceView`.
+struct SettingsNamespaceDTO: Codable, Sendable, Identifiable, Equatable {
     let ns: String
-    let revision: Int?
-    let hasDocument: Bool?
+    let schema: JSONValue
+    let value: JSONValue
+    let base: JSONValue?
+    let user: JSONValue?
+    let applies: String
+    let secrets: [SettingsSecretDTO]
+    let revision: Int
 
     var id: String { ns }
+}
+
+/// Source: `settings.ts:SettingsSecretView`.
+struct SettingsSecretDTO: Codable, Sendable, Equatable {
+    let path: [String]
+    let set: Bool
+}
+
+/// Source: `settings.schema.ts:settingsPathOpSchema`.
+enum SettingsPathOperationDTO: Encodable, Sendable {
+    case set(path: [String], value: JSONValue)
+    case unset(path: [String])
+
+    private enum CodingKeys: String, CodingKey { case op, path, value }
+    private enum Operation: String, Encodable { case set, unset }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case let .set(path, value):
+            try container.encode(Operation.set, forKey: .op)
+            try container.encode(path, forKey: .path)
+            try container.encode(value, forKey: .value)
+        case let .unset(path):
+            try container.encode(Operation.unset, forKey: .op)
+            try container.encode(path, forKey: .path)
+        }
+    }
+}
+
+/// Source: `settings.schema.ts:settingsMutateRequestSchema`.
+struct SettingsMutateRequest: Encodable, Sendable {
+    let ns: String
+    let ops: [SettingsPathOperationDTO]
+    let expectedRevision: Int?
 }
