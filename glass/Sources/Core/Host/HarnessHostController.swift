@@ -9,8 +9,17 @@ import Foundation
 /// RPC/SSE, not an embedded browser surface.
 @MainActor
 final class HarnessHostController: ObservableObject {
-    @Published private(set) var state: HostLifecycleState = .idle
+    @Published private(set) var state: HostLifecycleState = .idle {
+        didSet {
+            guard oldValue != state else { return }
+            let transition = HostLifecycleTransition(from: oldValue, to: state, at: Date())
+            stateTransitions.append(transition)
+            if stateTransitions.count > 200 { stateTransitions.removeFirst(stateTransitions.count - 200) }
+            appendLog("[host] transition \(transition.summary)")
+        }
+    }
     @Published private(set) var recentLogLines: [String] = []
+    @Published private(set) var stateTransitions: [HostLifecycleTransition] = []
 
     private let runtime: HostRuntimeConfiguration
     private let verifier: HostBuildVerifier
@@ -89,6 +98,45 @@ final class HarnessHostController: ObservableObject {
                 return
             }
             launch(build: build)
+        }
+    }
+
+    /// Probe an externally supplied loopback endpoint without assigning it the
+    /// bundled build's authority. A successful diagnostic probe remains
+    /// unverified until a future developer-controlled compatibility policy is
+    /// explicitly supplied, so writes cannot cross this boundary accidentally.
+    func probeExternal(endpoint: URL) {
+        guard process == nil else { return }
+        guard endpoint.scheme == "http", endpoint.host == "127.0.0.1", endpoint.port != nil else {
+            state = .failed(HostFailure(
+                kind: .verificationFailed,
+                message: "External DeepSeek Harness endpoint must be an explicit loopback HTTP URL with a port.",
+                exitStatus: nil,
+                logPath: runtime.logFile.path
+            ))
+            return
+        }
+        state = .probingExternal(endpoint)
+        verificationTask?.cancel()
+        verificationTask = Task { [weak self] in
+            do {
+                let transport = DSHClientTransport(baseURL: endpoint, accessPolicy: .diagnosticsOnly)
+                let response = try await transport.call(method: "host.describe", payload: .object([:]))
+                guard case .success = response.result, !Task.isCancelled else { return }
+                self?.state = .unverified(HostUnverified(
+                    reason: "External Host responded to host.describe but is not in SupportedHostBuilds.json.",
+                    developerWriteOverrideEnabled: false,
+                    logPath: self?.runtime.logFile.path ?? ""
+                ))
+            } catch {
+                guard !Task.isCancelled else { return }
+                self?.state = .failed(HostFailure(
+                    kind: .verificationFailed,
+                    message: "Could not probe external DeepSeek Harness Host: \(error.localizedDescription)",
+                    exitStatus: nil,
+                    logPath: self?.runtime.logFile.path ?? ""
+                ))
+            }
         }
     }
 
@@ -203,7 +251,7 @@ final class HarnessHostController: ObservableObject {
         announcedOutput += text
         // Limit retained parsing data while preserving a complete startup line.
         if announcedOutput.count > 32_768 { announcedOutput.removeFirst(announcedOutput.count - 16_384) }
-        guard state.endpoint == nil,
+        guard case .startingOwned = state,
               let range = announcedOutput.range(
                 of: #"dsh web:\s+(https?://127\.0\.0\.1(?::\d+)?/?\S*)"#,
                 options: .regularExpression
@@ -273,7 +321,12 @@ final class HarnessHostController: ObservableObject {
             start()
             return
         }
-        let kind: HostFailure.Kind = state.endpoint == nil ? .terminatedBeforeReady : .unexpectedTermination
+        let kind: HostFailure.Kind
+        if case .ready = state {
+            kind = .unexpectedTermination
+        } else {
+            kind = .terminatedBeforeReady
+        }
         let failure = HostFailure(
             kind: kind,
             message: "DeepSeek Harness Host terminated with code \(terminationStatus).",
@@ -295,7 +348,7 @@ final class HarnessHostController: ObservableObject {
         startupTimeoutTask = Task { [weak self, weak process] in
             try? await Task.sleep(nanoseconds: self?.startupTimeoutNanoseconds ?? 0)
             guard !Task.isCancelled, let self, let process, self.process === process,
-                  self.state.endpoint == nil else { return }
+                  case .startingOwned = self.state else { return }
             self.state = .failed(HostFailure(
                 kind: .endpointNotAnnounced,
                 message: "DeepSeek Harness Host did not announce a loopback endpoint before startup timeout.",

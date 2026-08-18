@@ -166,3 +166,50 @@ extension HarnessHostControllerTests {
         XCTAssertTrue(overridePolicy.trust.permitsWrites)
     }
 }
+
+
+extension HarnessHostControllerTests {
+    func testLifecycleTransitionsAreLoggedAndPresentationUsesOfficialLocale() async throws {
+        let environment = ProcessInfo.processInfo.environment
+        guard let nodePath = environment["DSH_GLASS_HOST_NODE"],
+              let entrypointPath = environment["DSH_GLASS_HOST_ENTRY"] else {
+            XCTFail("T3.3 Host command-line test requires DSH_GLASS_HOST_NODE and DSH_GLASS_HOST_ENTRY")
+            return
+        }
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("dsh-glass-transition-test-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let runtime = HostRuntimeConfiguration(
+            nodeExecutable: URL(fileURLWithPath: nodePath),
+            dshEntrypoint: URL(fileURLWithPath: entrypointPath),
+            homeDirectory: root.appendingPathComponent("dsh", isDirectory: true),
+            logFile: root.appendingPathComponent("logs/host.log")
+        )
+        let controller = HarnessHostController(runtime: runtime, verifier: HostBuildVerifier(catalog: Self.fixedCatalog))
+        defer { controller.stop() }
+        controller.start()
+        _ = try await waitForReady(controller, timeout: 15)
+        controller.stop()
+        try await waitForIdle(controller, timeout: 8)
+
+        let transitionSummaries = controller.stateTransitions.map(\.summary)
+        XCTAssertTrue(transitionSummaries.contains("idle -> startingOwned"))
+        XCTAssertTrue(transitionSummaries.contains("startingOwned -> verifying"))
+        XCTAssertTrue(transitionSummaries.contains("verifying -> ready"))
+        XCTAssertTrue(transitionSummaries.contains("ready -> stopping"))
+        XCTAssertTrue(transitionSummaries.contains("stopping -> idle"))
+        XCTAssertTrue(controller.recentLogLines.contains(where: { $0.contains("[host] transition") }))
+
+        let probing = HostLifecyclePresentation.make(state: .probingExternal(URL(string: "http://127.0.0.1:43123")!))
+        XCTAssertEqual(probing.title, OfficialUISpec.LocaleCatalog.value(namespace: "locale", key: "loading", language: "en"))
+        XCTAssertFalse(probing.permitsInteraction)
+        let failed = HostLifecyclePresentation.make(state: .failed(HostFailure(
+            kind: .verificationFailed,
+            message: "fixture failure",
+            exitStatus: nil,
+            logPath: runtime.logFile.path
+        )))
+        XCTAssertEqual(failed.title, OfficialUISpec.LocaleCatalog.value(namespace: "locale", key: "load.failed", language: "en"))
+        XCTAssertEqual(failed.retryTitle, OfficialUISpec.LocaleCatalog.value(namespace: "locale", key: "retry", language: "en"))
+    }
+}
