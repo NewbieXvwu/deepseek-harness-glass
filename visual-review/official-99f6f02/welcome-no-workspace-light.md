@@ -22,3 +22,7 @@
 ## 2026-08-18 — T1.2 模块边界复核
 
 证据：macOS-26 [run 32161795843](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32161795843) 的 `welcome-no-workspace-light-comparison.png`、官方 PNG、原生 PNG 和报告 JSON。该提交引入独立 SwiftPM target 编译、Core/UI 文件选择边界和模块依赖门禁；三栏对照未显示由这些结构改动引入的新增可观察 welcome 回归。官方与原生之间原有的全图差异仍然存在，尤其是主区域的原生材质/背景与 composer 边界；它们继续保持 `report-only`，不得因本次 CI 成功或本条复核而被视为视觉验收通过。
+
+## 2026-08-18 — T2.2 locale catalog revision review
+
+证据：macOS-26 [run 32166053042](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32166053042)，commit `e9fc169`，工件 `artifacts/visual-diff/welcome-no-workspace-light-comparison.png`。三栏图仍显示锁定官方 WebUI、原生 macOS welcome 状态和放大差异层。侧栏、新会话按钮、空工作区、welcome 标题、模式控制行与 composer 的结构位置与 T1.2 对照一致；T2.2 生成语言包/规格输入 hash 迁移未引入新的可观察结构性偏移或文本替换。右侧放大差异仍集中在既有系统材质、边缘抗锯齿、原生虚线/描边与 composer seat 渲染，不得将本次“无新增回归”误记为 welcome 场景已视觉通过；该场景继续保持 `report-only`，直至下游界面任务按 T0.3 关闭现存差异。
