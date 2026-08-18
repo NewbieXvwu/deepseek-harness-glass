@@ -75,7 +75,7 @@
 
 现有项目将主要逻辑集中在 `glass/Sources/main.swift`。重写前应拆分生命周期、Host 通信、状态、界面和插件兼容层，避免将 SwiftUI、AppKit、网络、进程与业务 reducer 再次耦合在一个文件中。
 
-- [ ] **T1.1：保留现有项目的可复用运行时资产。** 列出并迁移内嵌 Node、dsh payload、构建脚本、Info.plist、图标、签名与 release workflow；保留 `DSH_HOME`、日志目录、端口复用、自动恢复、菜单栏常驻和优雅退出的意图。
+- [x] **T1.1：保留现有项目的可复用运行时资产。** 列出并迁移内嵌 Node、dsh payload、构建脚本、Info.plist、图标、签名与 release workflow；保留 `DSH_HOME`、日志目录、端口复用、自动恢复、菜单栏常驻和优雅退出的意图。
   - 依赖：T0.2。
   - 验收：迁移清单将当前 `main.swift` 的每项职责标注为 `保留`、`替换` 或 `删除`；没有未分类的隐式行为。
 
@@ -532,23 +532,23 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 |---|---|
 | 远端仓库 | `NewbieXvwu/deepseek-harness-glass` |
 | 分支 | `main` |
-| 最新HEAD | `c4ec69fc6fefcdc70bd2101427cb2aa7588e48e1` — `test(T0.3): enforce documented visual replication policy` |
-| 上一个功能提交 | `97cf0c8a42301b276f4a53602a0cf94d150474dd` — `feat(T0.2): pin verified rc.7 Host baseline and visual capture` |
+| 最新HEAD | `fc8b49922eb29c289ec9d171daa42c80cec91d5b` — `refactor(T1.1): classify runtime assets and modularize app lifecycle` |
+| 上一个功能提交 | `fc8b49922eb29c289ec9d171daa42c80cec91d5b` — `refactor(T1.1): classify runtime assets and modularize app lifecycle` |
 | 锁定官方来源 | `deepseek-ai/deepseek-harness@99f6f02fecdb7dff40c3fbc9470f5907c29f74ca` |
 | 目标平台 | macOS 26+、Xcode 26+、Apple Silicon、Swift 6 |
 | D1规格门禁 | 通过：91 text、77 layout、29 assets、10 visual scenes |
 | D0原生门禁 | 通过：核心UI无WebView、DOM脚本和CSS注入 |
-| 最新已完成CI | [run 32157797085](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32157797085)，HEAD `c4ec69f`，success；从锁定官方源码构建 WebUI、捕获官方/原生 GUI、执行视觉阈值拒绝自检、生成政策驱动差异工件，并验证 rc.7 payload 与支持矩阵。 |
-| 当前HEAD CI | `c4ec69f` 的 [run 32157797085](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32157797085) 已 success；此 TODO 更新提交后仍须查询它自己的 run，不能以本行替代当前提交证据。 |
+| 最新已完成CI | [run 32159109869](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32159109869)，HEAD `fc8b499`，success；验证 13 项运行时资产分类、模块化 App 入口、固定 Host、D0/D1、官方/原生 GUI 与视觉政策工件。 |
+| 当前HEAD CI | `fc8b499` 的 [run 32159109869](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32159109869) 已 success；此 TODO 更新提交后仍须查询它自己的 run，不能以本行替代当前提交证据。 |
 | 当前主阶段 | 阶段4：原生Settings Root与插件兼容基础，尚未完成 |
-| 已勾选TODO条目 | T0.1、T0.2、T0.3、T1.3、T2.6、T7.3；其余条目保持未勾选 |
+| 已勾选TODO条目 | T0.1、T0.2、T0.3、T1.1、T1.3、T2.6、T7.3；其余条目保持未勾选 |
 
 ### B. 阶段状态矩阵
 
 | 阶段 | 状态 | 已完成事实 | 尚未完成或不可勾选的内容 |
 |---|---|---|---|
 | 0. 原则与边界 | 阶段性完成 | 项目宪章、D0/D1规则、README/README.zh/贡献指南的 D0–D5 边界、核心 WebKit 静态门禁、唯一 rc.7/Node 24.19.0/官方 commit 支持矩阵、官方/原生截图证据链、可失败阈值自检、复刻层级和人工审阅准则已建立；T0.1–T0.3 已闭环 | 完整 D2–D5 产品行为、各 UI 场景从 report-only 收敛到 enforce 和全部人工视觉验收仍未完成；它们属于下游任务的完成条件，不可因此勾选。 |
-| 1. 仓库与模块化基础 | 部分完成 | Host、Transport、Session、UI、Spec、Snapshot等源码职责已拆分；T1.3已勾选 | 运行时资产迁移清单、独立target/package结构、旧路径全量审计仍未完成 |
+| 1. 仓库与模块化基础 | 部分完成 | 13 项运行时资产已有机器可读分类；App/Window/MenuBar/Host lifecycle 已从 legacy `main.swift` 拆出；Host、Transport、Session、UI、Spec、Snapshot等职责已拆分；T1.1、T1.3已勾选 | 独立target/package结构、旧路径全量审计和每个 UI/状态资产的完整行为迁移仍未完成 |
 | 2. 官方规格 | 部分完成 | `OfficialUISpec.swift`、official-ui-catalog、visual-scenes、D1校验和来源映射已存在；T2.6已勾选 | locale/token全量生成、布局solver完整夹具、全覆盖场景规格与辅助功能矩阵仍未完成 |
 | 3. Host生命周期 | 部分完成 | `HarnessHostController`、`HostBuildVerifier`、payload缓存和运行时启动路径已实现 | 未验证Host策略、完整诊断页、生命周期混沌测试、下载导出与全面恢复仍未完成 |
 | 4. RPC/SSE | 部分完成 | RPC envelope、URLSession transport、SSE reducer、多个session/workspace/settings DTO已实现；最新新增settings.describe/mutate类型 | 全域facade、round-trip/真实Host契约测试、revision冲突和完整重连测试尚未闭环 |
@@ -564,13 +564,14 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 
 ### C. TODO勾选的完整证据边界
 
-当前只允许以下六项保持勾选。任何新会话都不得为了“看起来更完整”额外勾选其他条目：
+当前只允许以下七项保持勾选。任何新会话都不得为了“看起来更完整”额外勾选其他条目：
 
 | 条目 | 状态 | 证据与边界 |
 |---|---|---|
 | T0.1 | `[x]` 完成 | `f0e3549` 写入双语 README 与 `CONTRIBUTING.md` 的 D0–D5、官方来源/截图协议、逐项 TODO 勾选纪律和 `PluginWebHost` 唯一例外边界；`.github/workflows/native-ui.yml` 已在这些文件变更时运行静态门禁。当前提交的 macOS-26 [run 32152858091](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32152858091) 成功，D0/D1、构建与原生截图工件均已复核。此勾选不代表 T0.2/T0.3 的支持矩阵或完整视觉策略已完成。 |
 | T0.2 | `[x]` 完成 | `SupportedHostBuilds.json` 明确锁定 `deepseek-ai/deepseek-harness@99f6f02fecdb7dff40c3fbc9470f5907c29f74ca`、`@deepseek-ai/dsh`/`dsh-web-frontend` `0.1.0-rc.7`、Node `24.19.0`、最小 App `0.4.0`、protocol/UI revision 与验证日期 `2026-08-18`；`check-supported-host-build.py` 将 catalog、Info.plist、精确 lockfile、实际 payload package.json 和 Node 版本绑定验证。`d90b091` 的 macOS-26 [run 32156374393](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32156374393) 成功，验证并打包该基线。原生 Host 仅从 app bundle 受控启动，未提供任意外部 `dsh web` 作为写入目标的连接路径。此勾选不代表完整 Host 生命周期、RPC 协议或 T0.3 视觉判定策略已完成。 |
 | T0.3 | `[x]` 完成 | [`VISUAL_REPLICATION_TEST_PLAN.md`](docs/VISUAL_REPLICATION_TEST_PLAN.md) 将文本、布局、状态、交互的严格复刻与系统材质的 API/可读性/辅助功能验证分开；`visual-validation-policy.json` 明确每场景的 report-only/enforce 状态、阈值、系统例外和人工准则；`test_visual_policy.py` 证明超阈值场景在 enforce 下被拒绝。`c4ec69f` 的 macOS-26 [run 32157797085](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32157797085) 成功执行该自检及官方/原生配对。此勾选不代表任何仍为 report-only 或有未分类差异的页面视觉通过。 |
+| T1.1 | `[x]` 完成 | `RuntimeAssetInventory.json` 逐项分类 legacy entry、窗口、历史菜单栏、受控 Host、外部 3080 挂接、snapshot、DSH_HOME/log、Node/payload、repair、metadata/signing、CI/release 和 WebView 壳；`check-runtime-asset-inventory.py` 强制 13 项分类、唯一模块化 `@main`、legacy 文件删除和禁止外部 3080 路径。`fc8b499` 的 macOS-26 [run 32159109869](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32159109869) 成功验证清单、原生编译、官方/原生截图和质量门。此勾选不代表 T1.2 的独立 target/package、后续生命周期深度测试或任何下游 UI 行为完成。 |
 | T1.3 | `[x]` 完成 | `check-no-webview.sh` 通过；核心Swift路径不依赖WKWebView、DOM、JavaScript或CSS注入。此勾选不代表PluginWebHost例外已实现。 |
 | T2.6 | `[x]` 完成 | 已建立官方/原生同状态同视口配对、放大局部检查、差异记录、立即修复和CI截图存在性规则。此勾选不代表所有视觉场景都已人工验收。 |
 | T7.3 | `[x]` 完成 | workspace-search、workspace rename、session rename、workspace delete已接入官方场景契约和Host行操作；管理Dialog按钮端帽/描边/禁用色/输入全选已在run 32142821176配对核验。此勾选不代表全部sidebar功能完成。 |
@@ -600,9 +601,9 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 
 新会话必须按以下顺序开始，不得跳到更下游页面：
 
-1. 阅读本TODO的项目宪章和本“当前进度”章节，确认仅T0.1、T0.2、T0.3、T1.3、T2.6、T7.3为已勾选项。
-2. 执行 `git status --short`、`git log -10 --oneline`、`python3 glass/ci/check-official-spec.py`、`bash glass/ci/check-no-webview.sh`、`python3 glass/ci/test_visual_policy.py` 和 `python3 glass/ci/check-supported-host-build.py --payload-dir glass/build/backend --node glass/build/node/node`（或等价 Node 24 路径）。
-3. 完成 T1.1：以 `docs/MIGRATION_INVENTORY.md` 为起点，逐项审计当前 `main.swift` 的运行时/生命周期职责，明确内嵌 Node、payload、脚本、Info.plist、图标、签名、release、`DSH_HOME`、日志、端口、恢复、菜单栏和退出的保留、替换或删除归属；不得保留未分类隐式行为。
+1. 阅读本TODO的项目宪章和本“当前进度”章节，确认仅T0.1、T0.2、T0.3、T1.1、T1.3、T2.6、T7.3为已勾选项。
+2. 执行 `git status --short`、`git log -10 --oneline`、`python3 glass/ci/check-runtime-asset-inventory.py`、`python3 glass/ci/check-official-spec.py`、`bash glass/ci/check-no-webview.sh`、`python3 glass/ci/test_visual_policy.py` 和 `python3 glass/ci/check-supported-host-build.py --payload-dir glass/build/backend --node glass/build/node/node`（或等价 Node 24 路径）。
+3. 完成 T1.2：建立清晰的 App、Core、UI、Spec、Snapshot 与插件隔离 target/package 边界，并让 assemble、CI 和 D0 静态检查从结构上验证这些边界；不得只创建空目录或移动文件而不证明依赖方向。
 4. 每次实现后从锁定官方源码捕获同状态场景、运行原生 app 截图和政策比较；达到具体条目验收、人工审阅和当前提交 macOS CI success 后才勾选；随后按 TODO 依赖顺序继续 T1.2，禁止跳到下游 Settings/Plugin 条目。
 
 ### G. 当前验证命令与远端证据
