@@ -28,7 +28,11 @@ struct OfficialAssetImage: View {
 }
 
 struct OfficialCircleIconButtonStyle: ButtonStyle {
-    let pressedForeground: Color = OfficialUISpec.Token.secondary
+    let pressedForeground: Color
+
+    init(pressedForeground: Color = OfficialUISpec.Token.secondary) {
+        self.pressedForeground = pressedForeground
+    }
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
