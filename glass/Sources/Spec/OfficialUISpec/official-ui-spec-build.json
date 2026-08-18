@@ -3,7 +3,7 @@
   "sourceCommit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca",
   "hostBuildId": "dsh-0.1.0-rc.7-official-99f6f02",
   "uiSpecRevision": "official-99f6f02-ui-spec-r1",
-  "localeRevision": "sha256:b3c0e85f0ac98a7673d1a2b2a6bce923604b9b120be8688c3354cc03f00a179b",
+  "localeRevision": "sha256:569848eb9b6dc76ddf4cf19a05c9a81b26cd1971bca3ece15aef1250710ae7b7",
   "tokenRevision": "sha256:2d1743337b8fbba4bd052e8f1ecd24e490c2b5707faf8c185bfeae78fa702989",
   "layoutRevision": "sha256:d3a1b81af41e6bac496454ce1cb4a97dbf2ed6d8a8c615822a1c99aa48608718",
   "fixtureRevision": "sha256:39fbdd0e22a71c681ede0287481c4176a878b4d9b6cdc6f2ccf2a7f45c8ddc9c",
@@ -59,6 +59,24 @@
       "path": "packages/client/locale/src/locales/en.ts",
       "sha256": "034d139f9031c3b740e550678145819dc5e5b3a3b5fd4fe11d22d80bca27a66c",
       "lines": 30,
+      "kind": "locale"
+    },
+    {
+      "path": "packages/client/locale/src/locales/index.ts",
+      "sha256": "f7553ca28e3b151660109383f061fb13cb845baa18a9007bf3ed46fc50b62e1d",
+      "lines": 9,
+      "kind": "locale"
+    },
+    {
+      "path": "packages/client/locale/src/locales/settings.ts",
+      "sha256": "9bbea927fb3d46147e262a72335dbcc9cb56d5b4ce0be407a587a8936f9ed393",
+      "lines": 15,
+      "kind": "locale"
+    },
+    {
+      "path": "packages/client/locale/src/locales/zh.ts",
+      "sha256": "3ec52ff64fae264aaf68db4913cea027306137352e75f159ea31ebb7709bd85b",
+      "lines": 31,
       "kind": "locale"
     },
     {
@@ -137,6 +155,12 @@
       "path": "packages/client/ui-settings-models/src/client/locales.ts",
       "sha256": "98712065625b70a4cf1e3fb8afaa43dde49ac9c6205bf8ba8e18f5fffd91384a",
       "lines": 201,
+      "kind": "locale"
+    },
+    {
+      "path": "packages/client/ui-settings-models/src/onboarding-copy.ts",
+      "sha256": "a717695df811a9e84aa568868e3f73bf787ec919c12f7c240e3459a413807ed3",
+      "lines": 26,
       "kind": "locale"
     },
     {

@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY_ROOT = ROOT.parent
 CATALOG = ROOT / "Sources/Spec/Locales/official-locales.json"
 SWIFT = ROOT / "Sources/Spec/OfficialLocaleCatalog.swift"
+SPEC_BUILD = ROOT / "Sources/Spec/OfficialUISpec/official-ui-spec-build.json"
 GENERATOR = REPOSITORY_ROOT / "tools/spec-generation/generate_official_locales.py"
 EXPECTED_COMMIT = "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
 
@@ -34,8 +35,13 @@ def main() -> None:
     if catalog.get("languages") != ["en", "zh"]:
         raise SystemExit("official locale catalog must explicitly support en and zh")
     revision = catalog.get("localeRevision")
-    if not isinstance(revision, str) or not revision.startswith("sha256:") or len(revision) != 71:
-        raise SystemExit("official locale catalog must have a SHA-256 localeRevision")
+    source_input_revision = catalog.get("sourceInputRevision")
+    for field, value in (("localeRevision", revision), ("sourceInputRevision", source_input_revision)):
+        if not isinstance(value, str) or not value.startswith("sha256:") or len(value) != 71:
+            raise SystemExit(f"official locale catalog must have a SHA-256 {field}")
+    spec_build = json.loads(SPEC_BUILD.read_text(encoding="utf-8"))
+    if spec_build.get("localeRevision") != source_input_revision:
+        raise SystemExit("official locale catalog sourceInputRevision does not match OfficialUISpec build localeRevision")
     entries = catalog.get("entries")
     if not isinstance(entries, list) or not entries:
         raise SystemExit("official locale catalog must have entries")
@@ -68,8 +74,10 @@ def main() -> None:
         if translations["en"]["pluralCategory"] != translations["zh"]["pluralCategory"]:
             raise SystemExit(f"locale plural category mismatch between en and zh for {identifier}")
     swift = SWIFT.read_text(encoding="utf-8")
-    if f'static let sourceCommit = "{EXPECTED_COMMIT}"' not in swift or f'static let revision = "{revision}"' not in swift:
-        raise SystemExit("generated Swift locale catalog does not expose checked-in commit/revision")
+    if (f'static let sourceCommit = "{EXPECTED_COMMIT}"' not in swift
+            or f'static let revision = "{revision}"' not in swift
+            or f'static let sourceInputRevision = "{source_input_revision}"' not in swift):
+        raise SystemExit("generated Swift locale catalog does not expose checked-in commit/revisions")
 
     with tempfile.TemporaryDirectory(prefix="dsh-official-locales-") as temporary:
         temporary_root = Path(temporary)

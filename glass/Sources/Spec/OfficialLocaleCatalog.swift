@@ -5,6 +5,7 @@ extension OfficialUISpec {
     enum LocaleCatalog {
         static let sourceCommit = "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
         static let revision = "sha256:ffcdff829db96e1676c921599831f11609829b6b3e9dc7800a52b6052b3b7518"
+        static let sourceInputRevision = "sha256:569848eb9b6dc76ddf4cf19a05c9a81b26cd1971bca3ece15aef1250710ae7b7"
         static let supportedLanguages: Set<String> = ["en", "zh"]
         static let values: [String: String] = [
         "en|locale.back": "Back",

@@ -6,7 +6,7 @@ extension OfficialUISpec {
         static let id = "dsh-0.1.0-rc.7-official-99f6f02"
         static let sourceCommit = "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
         static let uiSpecRevision = "official-99f6f02-ui-spec-r1"
-        static let localeRevision = "sha256:b3c0e85f0ac98a7673d1a2b2a6bce923604b9b120be8688c3354cc03f00a179b"
+        static let localeRevision = "sha256:569848eb9b6dc76ddf4cf19a05c9a81b26cd1971bca3ece15aef1250710ae7b7"
         static let tokenRevision = "sha256:2d1743337b8fbba4bd052e8f1ecd24e490c2b5707faf8c185bfeae78fa702989"
         static let layoutRevision = "sha256:d3a1b81af41e6bac496454ce1cb4a97dbf2ed6d8a8c615822a1c99aa48608718"
         static let fixtureRevision = "sha256:39fbdd0e22a71c681ede0287481c4176a878b4d9b6cdc6f2ccf2a7f45c8ddc9c"

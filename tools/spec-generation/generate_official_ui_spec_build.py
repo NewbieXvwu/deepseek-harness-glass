@@ -35,7 +35,8 @@ def source_paths(root: Path) -> dict[str, list[Path]]:
     locale = sorted({
         *root.glob("packages/client/**/src/client/locales.ts"),
         *root.glob("packages/client/**/src/client/locale.ts"),
-        root / "packages/client/locale/src/locales/en.ts",
+        *root.glob("packages/client/locale/src/locales/*.ts"),
+        root / "packages/client/ui-settings-models/src/onboarding-copy.ts",
     })
     locale = [path for path in locale if path.exists()]
     token = [root / "packages/client/ui-theme/src/styles/design-platform.css"]
