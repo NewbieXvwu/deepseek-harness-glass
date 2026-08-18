@@ -319,7 +319,7 @@ struct NativeComposerCard: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 4)
 
-            HStack(spacing: 8) {
+            HStack(spacing: 0) {
                 Button(action: {}) {
                     OfficialAssetImage(name: "icon-plus", template: true)
                         .frame(width: 14, height: 14)
@@ -333,6 +333,7 @@ struct NativeComposerCard: View {
                         asset: "icon-permission-workspace-write",
                         title: OfficialUISpec.Text.fixtureWorkspaceWrite
                     )
+                    .padding(.leading, 16)
                 }
 
                 Spacer(minLength: 0)
@@ -346,8 +347,10 @@ struct NativeComposerCard: View {
                             .frame(width: 12, height: 12)
                             .foregroundStyle(OfficialUISpec.Token.caption)
                     }
-                    .font(.system(size: 12, weight: .regular))
+                    .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(OfficialUISpec.Token.primary)
+                    .frame(width: 178, height: 28, alignment: .leading)
+                    .padding(.trailing, 12)
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel(OfficialUISpec.Text.fixtureModelName)
                 }
@@ -391,9 +394,9 @@ private struct NativeHeroComposerControl: View {
                 .frame(width: 12, height: 12)
                 .foregroundStyle(OfficialUISpec.Token.caption)
         }
-        .font(.system(size: 12, weight: .regular))
+        .font(.system(size: 13, weight: .medium))
         .foregroundStyle(OfficialUISpec.Token.primary)
-        .frame(height: 28)
+        .frame(width: 147, height: 28, alignment: .leading)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(title)
     }
