@@ -177,7 +177,7 @@ private final class RPCTransportURLProtocol: URLProtocol, @unchecked Sendable {
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
-        guard let body = request.httpBody else {
+        guard let body = requestBodyData() else {
             fail(URLError(.badServerResponse))
             return
         }
@@ -197,6 +197,21 @@ private final class RPCTransportURLProtocol: URLProtocol, @unchecked Sendable {
     }
 
     override func stopLoading() {}
+
+    private func requestBodyData() -> Data? {
+        if let body = request.httpBody { return body }
+        guard let stream = request.httpBodyStream else { return nil }
+        stream.open()
+        defer { stream.close() }
+        var data = Data()
+        var buffer = [UInt8](repeating: 0, count: 4_096)
+        while true {
+            let count = stream.read(&buffer, maxLength: buffer.count)
+            guard count > 0 else { break }
+            data.append(buffer, count: count)
+        }
+        return data
+    }
 
     private func deliver(_ request: RPCClientRequest, mode: ResponseMode) {
         let responseID = mode == .echo ? request.rpcId : "crossed-rpc-id"
