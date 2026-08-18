@@ -9,7 +9,8 @@ on:
       - "glass/Info.plist"
       - "glass/assets/**"
       - "glass/scripts/**"
-      - "glass/ci/dsh-backend-payload/**"
+      - "glass/ci/**"
+      - "glass/Sources/Spec/SupportedHostBuilds.json"
       - ".github/workflows/native-ui.yml"
       - "TODO.md"
   pull_request:
@@ -19,7 +20,8 @@ on:
       - "glass/Info.plist"
       - "glass/assets/**"
       - "glass/scripts/**"
-      - "glass/ci/dsh-backend-payload/**"
+      - "glass/ci/**"
+      - "glass/Sources/Spec/SupportedHostBuilds.json"
       - ".github/workflows/native-ui.yml"
       - "TODO.md"
   workflow_dispatch:
@@ -86,6 +88,9 @@ jobs:
             glass/build/backend/node_modules
           key: dsh-host-payload-v1-macos-26-arm64-node-24.19.0-${{ hashFiles('glass/ci/dsh-backend-payload/package-lock.json') }}
 
+      - name: Enforce native-only core UI
+        run: ./glass/ci/check-no-webview.sh
+
       - name: Assemble native macOS app
         run: |
           export APP_PATH="$PWD/glass/dist/DeepSeek Harness.app"
@@ -110,5 +115,7 @@ jobs:
             native-shell-snapshot.log
             xcodebuild-version.txt
             macos-sdk-version.txt
+            glass/dist/DeepSeek Harness.app/Contents/Resources/SupportedHostBuilds.json
+            glass/dist/DeepSeek Harness.app/Contents/Resources/BuildManifest.json
           if-no-files-found: warn
           retention-days: 14

@@ -27,8 +27,23 @@ mkdir -p "$STAGE/Contents/Resources/backend"
 cp -RL "build/backend/node_modules" \
   "$STAGE/Contents/Resources/backend/node_modules"
 
-echo "== 4/4 Info.plist / 图标 / 签名 / 原子替换 =="
+echo "== 4/4 Info.plist / 官方基线 / 图标 / 签名 / 原子替换 =="
 cp Info.plist "$STAGE/Contents/Info.plist"
+cp Sources/Spec/SupportedHostBuilds.json "$STAGE/Contents/Resources/SupportedHostBuilds.json"
+OFFICIAL_SOURCE_COMMIT="99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+APP_SOURCE_REVISION="$(git -C .. rev-parse HEAD 2>/dev/null || echo unknown)"
+cat > "$STAGE/Contents/Resources/BuildManifest.json" <<EOF
+{
+  "schemaVersion": 1,
+  "appSourceRevision": "$APP_SOURCE_REVISION",
+  "officialSourceCommit": "$OFFICIAL_SOURCE_COMMIT",
+  "dshPackageVersion": "0.1.0-rc.6",
+  "webFrontendPackageVersion": "0.1.0-rc.6",
+  "nodeRuntimeVersion": "24.19.0",
+  "minimumMacOS": "26.0",
+  "supportedArchitectures": ["arm64"]
+}
+EOF
 cp ../build/icon.icns "$STAGE/Contents/Resources/icon.icns"
 cp assets/*.svg "$STAGE/Contents/Resources/"
 codesign --force --deep -s - "$STAGE"

@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "defaultBuildId": "dsh-0.1.0-rc.6-official-99f6f02",
+  "builds": [
+    {
+      "id": "dsh-0.1.0-rc.6-official-99f6f02",
+      "officialSourceCommit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca",
+      "dshPackageVersion": "0.1.0-rc.6",
+      "webFrontendPackageVersion": "0.1.0-rc.6",
+      "nodeRuntimeVersion": "24.19.0",
+      "minimumMacOS": "26.0",
+      "ciRunner": "macos-26",
+      "minimumXcodeMajor": 26,
+      "protocolFixtureRevision": "pending-phase-2",
+      "uiSpecRevision": "pending-phase-2",
+      "supportedArchitectures": ["arm64"],
+      "verifiedAt": null,
+      "verificationState": "planned"
+    }
+  ]
+}
