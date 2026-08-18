@@ -47,5 +47,10 @@ let package = Package(
             dependencies: ["GlassSpec"],
             path: "Tests/Spec"
         ),
+        .testTarget(
+            name: "GlassCoreTests",
+            dependencies: ["GlassCore", "GlassSpec"],
+            path: "Tests/Core"
+        ),
     ]
 )

@@ -20,11 +20,21 @@ final class HarnessHostController: ObservableObject {
     private var announcedOutput = ""
     private var recoveryAttempts = 0
     private var verificationTask: Task<Void, Never>?
+    private var startupTimeoutTask: Task<Void, Never>?
+    private var suppressRecoveryForTermination = false
+    private var restartAfterTermination = false
+    private let startupTimeoutNanoseconds: UInt64
 
-    init(runtime: HostRuntimeConfiguration, verifier: HostBuildVerifier, fileManager: FileManager = .default) {
+    init(
+        runtime: HostRuntimeConfiguration,
+        verifier: HostBuildVerifier,
+        fileManager: FileManager = .default,
+        startupTimeoutNanoseconds: UInt64 = 20_000_000_000
+    ) {
         self.runtime = runtime
         self.verifier = verifier
         self.fileManager = fileManager
+        self.startupTimeoutNanoseconds = startupTimeoutNanoseconds
     }
 
     convenience init() throws {
@@ -33,6 +43,7 @@ final class HarnessHostController: ObservableObject {
 
     deinit {
         verificationTask?.cancel()
+        startupTimeoutTask?.cancel()
         outputPipe?.fileHandleForReading.readabilityHandler = nil
         if process?.isRunning == true { process?.terminate() }
     }
@@ -40,9 +51,13 @@ final class HarnessHostController: ObservableObject {
     var endpoint: URL? { state.endpoint }
     var logFile: URL { runtime.logFile }
     var homeDirectory: URL { runtime.homeDirectory }
+    var ownedProcessIdentifier: Int32? { process?.processIdentifier }
 
     func start() {
-        guard process == nil else { return }
+        guard process == nil else {
+            appendLog("[host] start reused existing owned process pid=\(process?.processIdentifier ?? 0)")
+            return
+        }
         switch verifier.verify(runtime: runtime, fileManager: fileManager) {
         case let .unsupported(reason):
             state = .failed(HostFailure(
@@ -73,18 +88,33 @@ final class HarnessHostController: ObservableObject {
         guard recoveryAttempts == 0 else { return }
         recoveryAttempts = 1
         state = .recovering(attempt: recoveryAttempts)
-        start()
+        if let process, process.isRunning {
+            suppressRecoveryForTermination = false
+            restartAfterTermination = true
+            appendLog("[host] manual retry terminating owned pid=\(process.processIdentifier)")
+            process.terminate()
+        } else {
+            start()
+        }
     }
 
     func stop() {
         verificationTask?.cancel()
         verificationTask = nil
+        startupTimeoutTask?.cancel()
+        startupTimeoutTask = nil
+        suppressRecoveryForTermination = true
+        restartAfterTermination = false
         state = .stopping
         outputPipe?.fileHandleForReading.readabilityHandler = nil
         outputPipe = nil
-        if let process, process.isRunning { process.terminate() }
-        self.process = nil
-        state = .idle
+        if let process, process.isRunning {
+            appendLog("[host] stopping owned pid=\(process.processIdentifier)")
+            process.terminate()
+        } else {
+            self.process = nil
+            state = .idle
+        }
     }
 
     private func launch(build: SupportedHostBuildCatalog.Build) {
@@ -107,7 +137,21 @@ final class HarnessHostController: ObservableObject {
             return
         }
 
+        do {
+            try fileManager.createDirectory(at: runtime.homeDirectory, withIntermediateDirectories: true)
+            try fileManager.createDirectory(at: runtime.logFile.deletingLastPathComponent(), withIntermediateDirectories: true)
+        } catch {
+            state = .failed(HostFailure(
+                kind: .launchFailed,
+                message: "Could not prepare DeepSeek Harness runtime directories: \(error.localizedDescription)",
+                exitStatus: nil,
+                logPath: runtime.logFile.path
+            ))
+            return
+        }
+
         announcedOutput = ""
+        suppressRecoveryForTermination = false
         state = .startingOwned
         let process = Process()
         process.executableURL = runtime.nodeExecutable
@@ -134,6 +178,7 @@ final class HarnessHostController: ObservableObject {
             self.process = process
             self.outputPipe = pipe
             appendLog("[host] started build=\(build.id) pid=\(process.processIdentifier)")
+            armStartupTimeout(for: process)
         } catch {
             pipe.fileHandleForReading.readabilityHandler = nil
             state = .failed(HostFailure(
@@ -156,7 +201,16 @@ final class HarnessHostController: ObservableObject {
                 options: .regularExpression
               ) else { return }
         let announcement = String(announcedOutput[range])
-        guard let rawURL = announcement.split(separator: " ").last.map(String.init), let endpoint = URL(string: rawURL) else { return }
+        guard let rawURL = announcement.split(separator: " ").last.map(String.init),
+              let endpoint = URL(string: rawURL),
+              endpoint.scheme == "http",
+              endpoint.host == "127.0.0.1",
+              endpoint.port != nil else {
+            appendLog("[host] ignored malformed endpoint announcement")
+            return
+        }
+        startupTimeoutTask?.cancel()
+        startupTimeoutTask = nil
         state = .verifying(endpoint)
         verify(endpoint: endpoint, build: build)
     }
@@ -181,25 +235,70 @@ final class HarnessHostController: ObservableObject {
                     exitStatus: nil,
                     logPath: self?.runtime.logFile.path ?? ""
                 ))
+                self?.terminateAfterVerificationFailure()
             }
         }
     }
 
     private func handleTermination(_ process: Process) {
+        startupTimeoutTask?.cancel()
+        startupTimeoutTask = nil
         outputPipe?.fileHandleForReading.readabilityHandler = nil
         outputPipe = nil
         self.process = nil
         verificationTask?.cancel()
         verificationTask = nil
-        if case .stopping = state { return }
+        let terminationStatus = process.terminationStatus
+        appendLog("[host] terminated pid=\(process.processIdentifier) code=\(terminationStatus)")
+        if suppressRecoveryForTermination {
+            suppressRecoveryForTermination = false
+            if case .stopping = state { state = .idle }
+            return
+        }
+        if restartAfterTermination {
+            restartAfterTermination = false
+            state = .recovering(attempt: recoveryAttempts)
+            appendLog("[host] retrying after requested restart attempt=\(recoveryAttempts)")
+            start()
+            return
+        }
         let kind: HostFailure.Kind = state.endpoint == nil ? .terminatedBeforeReady : .unexpectedTermination
-        state = .failed(HostFailure(
+        let failure = HostFailure(
             kind: kind,
-            message: "DeepSeek Harness Host terminated with code \(process.terminationStatus).",
-            exitStatus: process.terminationStatus,
+            message: "DeepSeek Harness Host terminated with code \(terminationStatus).",
+            exitStatus: terminationStatus,
             logPath: runtime.logFile.path
-        ))
-        appendLog("[host] terminated code=\(process.terminationStatus)")
+        )
+        if recoveryAttempts == 0 {
+            recoveryAttempts = 1
+            state = .recovering(attempt: recoveryAttempts)
+            appendLog("[host] automatic recovery attempt=1 after \(kind.rawValue)")
+            start()
+        } else {
+            state = .failed(failure)
+        }
+    }
+
+    private func armStartupTimeout(for process: Process) {
+        startupTimeoutTask?.cancel()
+        startupTimeoutTask = Task { [weak self, weak process] in
+            try? await Task.sleep(nanoseconds: self?.startupTimeoutNanoseconds ?? 0)
+            guard !Task.isCancelled, let self, let process, self.process === process,
+                  self.state.endpoint == nil else { return }
+            self.state = .failed(HostFailure(
+                kind: .endpointNotAnnounced,
+                message: "DeepSeek Harness Host did not announce a loopback endpoint before startup timeout.",
+                exitStatus: nil,
+                logPath: self.runtime.logFile.path
+            ))
+            self.appendLog("[host] startup announcement timed out pid=\(process.processIdentifier)")
+            self.terminateAfterVerificationFailure()
+        }
+    }
+
+    private func terminateAfterVerificationFailure() {
+        suppressRecoveryForTermination = true
+        if let process, process.isRunning { process.terminate() }
     }
 
     private func appendLog(_ text: String) {
