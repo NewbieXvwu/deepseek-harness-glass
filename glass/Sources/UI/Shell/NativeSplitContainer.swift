@@ -207,12 +207,12 @@ final class NativeShellPresentation: ObservableObject {
 @MainActor
 final class NativeShellController: NativeSplitViewController {
     private let presentation: NativeShellPresentation
-    private let managementDialogHost: NSHostingController<NativeWorkspaceManagementDialogOverlay>
+    private let managementDialogHost: TransparentHostingController<NativeWorkspaceManagementDialogOverlay>
     private var presentationObservation: AnyCancellable?
 
     init(presentation: NativeShellPresentation) {
         self.presentation = presentation
-        managementDialogHost = NSHostingController(
+        managementDialogHost = TransparentHostingController(
             rootView: NativeWorkspaceManagementDialogOverlay(presentation: presentation)
         )
         super.init(
@@ -241,7 +241,7 @@ final class NativeShellController: NativeSplitViewController {
         addChild(managementDialogHost)
         let overlay = managementDialogHost.view
         overlay.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(overlay)
+        view.addSubview(overlay, positioned: .above, relativeTo: nil)
         NSLayoutConstraint.activate([
             overlay.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             overlay.trailingAnchor.constraint(equalTo: view.trailingAnchor),
@@ -449,6 +449,23 @@ class NativeSplitViewController: NSSplitViewController {
         default:
             return proposedPosition
         }
+    }
+}
+
+/// A transparent AppKit bridge is required because the default SwiftUI hosting
+/// view owns an opaque backing surface, which would otherwise replace the split
+/// view with black instead of compositing the official Modal mask over it.
+private final class TransparentHostingView<Content: View>: NSHostingView<Content> {
+    override var isOpaque: Bool { false }
+}
+
+private final class TransparentHostingController<Content: View>: NSHostingController<Content> {
+    override func loadView() {
+        let transparentView = TransparentHostingView(rootView: rootView)
+        transparentView.wantsLayer = true
+        transparentView.layer?.isOpaque = false
+        transparentView.layer?.backgroundColor = NSColor.clear.cgColor
+        view = transparentView
     }
 }
 
