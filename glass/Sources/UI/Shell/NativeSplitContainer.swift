@@ -40,7 +40,7 @@ struct NativeSplitContainer: NSViewControllerRepresentable {
     }
 }
 
-final class NativeSplitViewController: NSSplitViewController, NSSplitViewDelegate {
+final class NativeSplitViewController: NSSplitViewController {
     private let sidebarHost: NSHostingController<NativeSidebarView>
     private let conversationHost: NSHostingController<NativeConversationColumn>
     private let detailsHost: NSHostingController<NativeDetailsView>
@@ -141,7 +141,7 @@ final class NativeSplitViewController: NSSplitViewController, NSSplitViewDelegat
         hasAppliedInitialLayout = true
     }
 
-    func splitView(
+    override func splitView(
         _ splitView: NSSplitView,
         constrainSplitPosition proposedPosition: CGFloat,
         ofSubviewAt dividerIndex: Int
