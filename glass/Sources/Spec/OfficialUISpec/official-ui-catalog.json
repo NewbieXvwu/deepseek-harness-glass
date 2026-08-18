@@ -21,7 +21,15 @@
     "packages/client/ui-workspace/src/client/WorkspaceBrowser.tsx",
     "packages/client/ui-workspace/src/client/rows/Rows.module.css",
     "packages/client/ui-workspace/src/client/rows/Rows.tsx",
-    "packages/session/session-title/src/types.ts"
+    "packages/session/session-title/src/types.ts",
+    "packages/client/ui-conversation/src/client/skeleton/ApprovalPanel.tsx",
+    "packages/client/ui-conversation/src/client/skeleton/ApprovalPanel.module.css",
+    "packages/client/ui-user-questions/src/client/QuestionComposer.tsx",
+    "packages/client/ui-user-questions/src/client/locales.ts",
+    "packages/client/locale/src/locales/en.ts",
+    "packages/host/apiproxy/src/api/events.schema.ts",
+    "packages/client/ui-conversation/src/client/contract/slots.ts",
+    "packages/client/ui-user-questions/src/client/contract/slots.ts"
   ],
   "layout": {
     "sidebarDefault": { "value": 280, "source": "packages/client/ui-layout/src/client/columns.ts:SIDEBAR_DEFAULT" },
@@ -46,7 +54,12 @@
     "chatMessageGap": { "value": 6, "source": "packages/client/ui-conversation/src/client/chat/MessageItem.module.css:.userRow" },
     "chatTranscriptInset": { "value": 20, "source": "packages/client/ui-conversation/src/client/skeleton/ConversationRoot.module.css:--dsh-composer-side-clearance" },
     "chatUserMessageMaximum": { "value": 525, "source": "packages/client/ui-conversation/src/client/chat/MessageItem.module.css:.userStack" },
-    "chatMessageCornerRadius": { "value": 22, "source": "packages/client/ui-conversation/src/client/chat/MessageItem.module.css:.bubble" }
+    "chatMessageCornerRadius": { "value": 22, "source": "packages/client/ui-conversation/src/client/chat/MessageItem.module.css:.bubble" },
+    "approvalCardCornerRadius": { "value": 20, "source": "packages/client/ui-conversation/src/client/skeleton/ApprovalPanel.module.css:.card" },
+    "approvalStripHorizontalPadding": { "value": 16, "source": "packages/client/ui-conversation/src/client/skeleton/ApprovalPanel.module.css:.strip" },
+    "approvalStripVerticalPadding": { "value": 10, "source": "packages/client/ui-conversation/src/client/skeleton/ApprovalPanel.module.css:.strip" },
+    "approvalBodyMaximumHeight": { "value": 336, "source": "packages/client/ui-conversation/src/client/skeleton/ApprovalPanel.module.css:--dsh-composer-text-max-height" },
+    "approvalActionGap": { "value": 8, "source": "packages/client/ui-conversation/src/client/skeleton/ApprovalPanel.module.css:.actionRow" }
   },
   "text": {
     "newSession": { "value": "New Session", "source": "packages/client/ui-sidebar/src/client/locales.ts" },
@@ -94,7 +107,26 @@
     "toolFailed": { "value": "Failed", "source": "packages/client/ui-conversation/src/client/locales.ts:row.failed" },
     "toolStopped": { "value": "Stopped", "source": "packages/client/ui-conversation/src/client/locales.ts:row.stopped" },
     "toolDetailsRunning": { "value": "Running…", "source": "packages/client/ui-conversation/src/client/locales.ts:details.running" },
-    "toolSummarySeparator": { "value": "·", "source": "packages/client/ui-tool/src/client/tool/models/tool-call-model.ts:toolRowModel" }
+    "toolSummarySeparator": { "value": "·", "source": "packages/client/ui-tool/src/client/tool/models/tool-call-model.ts:toolRowModel" },
+    "approvalWaiting": { "value": "Waiting for approval", "source": "packages/client/ui-conversation/src/client/locales.ts:approval.waiting" },
+    "approvalDetailsAccessibility": { "value": "Approval details", "source": "packages/client/ui-conversation/src/client/locales.ts:approval.detail.aria" },
+    "approvalEscalationTemplate": { "value": "Tool {toolName} requests privileged execution", "source": "packages/client/ui-conversation/src/client/locales.ts:approval.escalation" },
+    "approvalReject": { "value": "Reject", "source": "packages/client/ui-conversation/src/client/locales.ts:approval.reject" },
+    "approvalAllowOnce": { "value": "Allow once", "source": "packages/client/ui-conversation/src/client/locales.ts:approval.allowOnce" },
+    "questionPreviousAccessibility": { "value": "Previous question", "source": "packages/client/ui-user-questions/src/client/locales.ts:nav.prev" },
+    "questionNextAccessibility": { "value": "Next question", "source": "packages/client/ui-user-questions/src/client/locales.ts:nav.next" },
+    "questionMinimizeAccessibility": { "value": "Collapse the question card", "source": "packages/client/ui-user-questions/src/client/locales.ts:nav.minimize" },
+    "questionMaximizeAccessibility": { "value": "Expand the question card", "source": "packages/client/ui-user-questions/src/client/locales.ts:nav.maximize" },
+    "questionCancelAccessibility": { "value": "Dismiss all questions", "source": "packages/client/ui-user-questions/src/client/locales.ts:nav.cancel" },
+    "questionRecommended": { "value": "Recommended", "source": "packages/client/ui-user-questions/src/client/locales.ts:option.recommended" },
+    "questionCustomPlaceholder": { "value": "Type your answer", "source": "packages/client/ui-user-questions/src/client/locales.ts:custom.placeholder" },
+    "questionSkip": { "value": "Skip this question", "source": "packages/client/ui-user-questions/src/client/locales.ts:action.skip" },
+    "questionNext": { "value": "Next", "source": "packages/client/ui-user-questions/src/client/locales.ts:action.next" },
+    "questionSubmit": { "value": "Submit", "source": "packages/client/locale/src/locales/en.ts:submit" },
+    "questionSubmitting": { "value": "Submitting…", "source": "packages/client/locale/src/locales/en.ts:submitting" },
+    "questionIncomplete": { "value": "Please complete this question first.", "source": "packages/client/ui-user-questions/src/client/locales.ts:error.incomplete" },
+    "questionUnanswered": { "value": "Please select an option or enter a custom answer.", "source": "packages/client/ui-user-questions/src/client/locales.ts:error.unanswered" },
+    "questionProgressTemplate": { "value": "{current} / {total}", "source": "packages/client/ui-user-questions/src/client/QuestionComposer.tsx:progress" }
   },
   "assets": {
     "brand-wordmark": { "source": "packages/client/ui-primitives/src/BrandWordmark.tsx" },
@@ -121,6 +153,9 @@
     "icon-tool-bash": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconApiOutline14" },
     "icon-tool-edit": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconEditOutline16" },
     "icon-tool-code": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconCodeOutline16" },
-    "icon-tool-others": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconSparkle16" }
+    "icon-tool-others": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconSparkle16" },
+    "icon-check": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconCheckOutline14" },
+    "icon-chevron-left": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconChevronLeftOutline14" },
+    "icon-chevron-right": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconChevronRightOutline14" }
   }
 }

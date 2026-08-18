@@ -99,6 +99,12 @@ struct DSHAPIClient: Sendable {
     func settingsDescribe() async throws -> SettingsDescribeResponse {
         try await call("settings.describe", payload: EmptyPayload())
     }
+
+    /// Source: `rpc.ts:ClientResponse`; reply to an answerable mux ServerRequest
+    /// by echoing its original rpcId to POST `/api/respond`.
+    func respond(rpcID: String, result: RPCResult) async throws -> RPCReceipt {
+        try await transport.respond(RPCClientResponse(rpcId: rpcID, result: result))
+    }
 }
 
 struct EmptyPayload: Codable, Sendable {}

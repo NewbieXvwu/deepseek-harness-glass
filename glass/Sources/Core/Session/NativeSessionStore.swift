@@ -43,6 +43,60 @@ final class NativeSessionStore: ObservableObject {
     /// Source: `SessionEventMap['tool/call'|'tool/result']`. This generic native
     /// model preserves raw Host fields and optional view carrier without guessing
     /// a plugin-specific card schema.
+    /// Source: `events.schema.ts:approval/requested`; rpcID is the stable
+    /// answerable ServerRequest correlation identity and must be echoed on
+    /// `/api/respond`, while approvalID identifies the business request.
+    struct PendingApproval: Identifiable {
+        let rpcID: String
+        let sessionID: String
+        let approvalID: String
+        let toolName: String
+        let callID: String?
+        let reason: String?
+
+        var id: String { approvalID }
+    }
+
+    /// Source: `events.schema.ts:askUserQuestionItemSchema`.
+    struct PendingQuestion: Identifiable {
+        struct Option: Identifiable, Equatable {
+            let label: String
+            let detail: String?
+            var id: String { label }
+        }
+
+        struct Item: Identifiable, Equatable {
+            let id: String
+            let question: String
+            let header: String?
+            let detail: String?
+            let options: [Option]
+            let multiSelect: Bool
+        }
+
+        let rpcID: String
+        let sessionID: String
+        let items: [Item]
+
+        var id: String { rpcID }
+    }
+
+    /// Source: `dsh-user-questions/types:QuestionAnswer`.
+    struct QuestionAnswer: Equatable {
+        let id: String
+        let selected: [String]
+        let custom: String?
+
+        var wireValue: JSONValue {
+            var object: [String: JSONValue] = [
+                "id": .string(id),
+                "selected": .array(selected.map(JSONValue.string))
+            ]
+            if let custom, !custom.isEmpty { object["custom"] = .string(custom) }
+            return .object(object)
+        }
+    }
+
     struct ToolInvocation: Identifiable {
         enum State: Equatable {
             case running
@@ -70,6 +124,10 @@ final class NativeSessionStore: ObservableObject {
     @Published private(set) var pendingImages: [PendingImage] = []
     @Published private(set) var toolInvocations: [ToolInvocation] = []
     @Published private(set) var selectedToolCallID: String?
+    @Published private(set) var pendingApproval: PendingApproval?
+    @Published private(set) var pendingQuestion: PendingQuestion?
+    @Published private(set) var isSubmittingApproval = false
+    @Published private(set) var isSubmittingQuestion = false
     @Published private(set) var lastError: DSHTransportError?
 
     private var historyTask: Task<Void, Never>?
@@ -105,6 +163,10 @@ final class NativeSessionStore: ObservableObject {
         items = []
         toolInvocations = []
         selectedToolCallID = nil
+        pendingApproval = nil
+        pendingQuestion = nil
+        isSubmittingApproval = false
+        isSubmittingQuestion = false
         appliedSequences = []
         hasMoreHistory = false
         isLoadingOlderHistory = false
@@ -148,6 +210,10 @@ final class NativeSessionStore: ObservableObject {
         items = []
         toolInvocations = []
         selectedToolCallID = nil
+        pendingApproval = nil
+        pendingQuestion = nil
+        isSubmittingApproval = false
+        isSubmittingQuestion = false
         appliedSequences = []
         hasMoreHistory = false
         isLoadingOlderHistory = false
@@ -280,13 +346,168 @@ final class NativeSessionStore: ObservableObject {
     /// Source: `events.ts:MuxFrame` uses frame.method as the event discriminant
     /// in the native SSE transport's server-request envelope.
     private func applyMuxFrame(_ frame: RPCServerRequest, sessionID: String) {
-        guard frame.method == "session/event",
-              let object = frame.payload.objectValue,
-              object["sessionId"]?.stringValue == sessionID,
-              let eventValue = object["event"],
-              let event = decode(SessionEventDTO.self, from: eventValue)
+        guard let object = frame.payload.objectValue,
+              object["sessionId"]?.stringValue == sessionID
         else { return }
-        apply(event: event, view: object["view"]?.objectValue?["view"])
+
+        switch frame.method {
+        case "session/event":
+            guard let eventValue = object["event"],
+                  let event = decode(SessionEventDTO.self, from: eventValue)
+            else { return }
+            apply(event: event, view: object["view"]?.objectValue?["view"])
+        case "approval/requested":
+            applyApprovalRequest(object, rpcID: frame.rpcId, sessionID: sessionID)
+        case "approval/resolved":
+            applyApprovalResolution(object)
+        case "question/requested":
+            applyQuestionRequest(object, rpcID: frame.rpcId, sessionID: sessionID)
+        case "question/resolved":
+            applyQuestionResolution(object)
+        default:
+            break
+        }
+    }
+
+    private func applyApprovalRequest(_ object: [String: JSONValue], rpcID: String, sessionID: String) {
+        guard let approvalID = object["approvalId"]?.stringValue,
+              let toolName = object["toolName"]?.stringValue
+        else { return }
+        guard pendingApproval?.rpcID != rpcID else { return }
+        pendingApproval = PendingApproval(
+            rpcID: rpcID,
+            sessionID: sessionID,
+            approvalID: approvalID,
+            toolName: toolName,
+            callID: object["callId"]?.stringValue,
+            reason: object["reason"]?.stringValue
+        )
+        isSubmittingApproval = false
+    }
+
+    private func applyApprovalResolution(_ object: [String: JSONValue]) {
+        guard let approvalID = object["approvalId"]?.stringValue,
+              pendingApproval?.approvalID == approvalID
+        else { return }
+        pendingApproval = nil
+        isSubmittingApproval = false
+    }
+
+    private func applyQuestionRequest(_ object: [String: JSONValue], rpcID: String, sessionID: String) {
+        guard let values = object["questions"]?.arrayValue else { return }
+        let items = values.compactMap(questionItem)
+        guard !items.isEmpty, items.count == values.count else { return }
+        guard pendingQuestion?.rpcID != rpcID else { return }
+        pendingQuestion = PendingQuestion(rpcID: rpcID, sessionID: sessionID, items: items)
+        isSubmittingQuestion = false
+    }
+
+    private func applyQuestionResolution(_ object: [String: JSONValue]) {
+        guard let rpcID = object["questionRpcId"]?.stringValue,
+              pendingQuestion?.rpcID == rpcID
+        else { return }
+        pendingQuestion = nil
+        isSubmittingQuestion = false
+    }
+
+    private func questionItem(_ value: JSONValue) -> PendingQuestion.Item? {
+        guard let object = value.objectValue,
+              let id = object["id"]?.stringValue,
+              let question = object["question"]?.stringValue
+        else { return nil }
+        let options: [PendingQuestion.Option]
+        if let values = object["options"]?.arrayValue {
+            options = values.compactMap { value in
+                guard let option = value.objectValue,
+                      let label = option["label"]?.stringValue
+                else { return nil }
+                return PendingQuestion.Option(label: label, detail: option["description"]?.stringValue)
+            }
+            guard options.count == values.count else { return nil }
+        } else {
+            options = []
+        }
+        return PendingQuestion.Item(
+            id: id,
+            question: question,
+            header: object["header"]?.stringValue,
+            detail: object["detail"]?.stringValue,
+            options: options,
+            multiSelect: object["multiSelect"]?.boolValue ?? false
+        )
+    }
+
+    /// Source: `PendingApproval.answer`; a panel remains mounted until the Host
+    /// broadcasts `approval/resolved`, even after an accepted carrier receipt.
+    func answerApproval(allowOnce: Bool) {
+        guard let approval = pendingApproval,
+              let api,
+              !isSubmittingApproval
+        else { return }
+        isSubmittingApproval = true
+        let outcome = allowOnce ? "allowed-once" : "rejected"
+        let value: JSONValue = .object([
+            "sessionId": .string(approval.sessionID),
+            "approvalId": .string(approval.approvalID),
+            "outcome": .string(outcome)
+        ])
+        Task { [weak self] in
+            do {
+                let receipt = try await api.respond(rpcID: approval.rpcID, result: .success(value))
+                guard !Task.isCancelled, !receipt.accepted else { return }
+                self?.isSubmittingApproval = false
+            } catch {
+                self?.isSubmittingApproval = false
+            }
+        }
+    }
+
+    /// Source: `PendingQuestion.answer`; all items in the non-empty Host batch
+    /// are returned together in the approved `QuestionAnswer` value shape.
+    func answerQuestion(_ answers: [QuestionAnswer]) {
+        guard let question = pendingQuestion,
+              let api,
+              !isSubmittingQuestion,
+              answers.count == question.items.count
+        else { return }
+        isSubmittingQuestion = true
+        let value: JSONValue = .object([
+            "sessionId": .string(question.sessionID),
+            "answer": .object(["answers": .array(answers.map(\.wireValue))])
+        ])
+        Task { [weak self] in
+            do {
+                let receipt = try await api.respond(rpcID: question.rpcID, result: .success(value))
+                guard !Task.isCancelled, !receipt.accepted else { return }
+                self?.isSubmittingQuestion = false
+            } catch {
+                self?.isSubmittingQuestion = false
+            }
+        }
+    }
+
+    /// Source: `PendingQuestion.cancel`; cancellation is a failure result, not
+    /// an invented success outcome, and is resolved by the Host broadcast.
+    func cancelQuestion() {
+        guard let question = pendingQuestion,
+              let api,
+              !isSubmittingQuestion
+        else { return }
+        isSubmittingQuestion = true
+        let cancellation = RPCBusinessError(
+            code: "cancelled",
+            message: "the user closed this question request",
+            details: .object([:])
+        )
+        Task { [weak self] in
+            do {
+                let receipt = try await api.respond(rpcID: question.rpcID, result: .failure(cancellation))
+                guard !Task.isCancelled, !receipt.accepted else { return }
+                self?.isSubmittingQuestion = false
+            } catch {
+                self?.isSubmittingQuestion = false
+            }
+        }
     }
 
     private func apply(event: SessionEventDTO, view: JSONValue? = nil) {
@@ -393,6 +614,17 @@ final class NativeSessionStore: ObservableObject {
 
     func selectToolCall(_ callID: String?) {
         selectedToolCallID = callID
+    }
+
+    /// Source: `ApprovalPanel.tsx:commandOf`; the paired call may have malformed
+    /// arguments, in which case the official panel simply omits its command row.
+    func command(for approval: PendingApproval) -> String? {
+        guard let callID = approval.callID,
+              let invocation = toolInvocations.first(where: { $0.id == callID }),
+              let data = invocation.arguments.data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return nil }
+        return object["command"] as? String
     }
 
     /// Snapshot-only Host-shaped fixture. It drives the same native transcript

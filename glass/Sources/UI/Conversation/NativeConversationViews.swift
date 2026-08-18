@@ -26,12 +26,33 @@ private struct NativeActiveConversationSurface: View {
         VStack(spacing: 0) {
             NativeConversationHeader()
             transcriptBody
+            composerTakeover
+        }
+        .background(OfficialUISpec.Token.base)
+    }
+
+    @ViewBuilder
+    private var composerTakeover: some View {
+        if let approval = sessionStore.pendingApproval {
+            NativeApprovalPanel(
+                approval: approval,
+                command: sessionStore.command(for: approval),
+                submitting: sessionStore.isSubmittingApproval,
+                answer: { sessionStore.answerApproval(allowOnce: $0) }
+            )
+        } else if let question = sessionStore.pendingQuestion {
+            NativeQuestionComposer(
+                pending: question,
+                submitting: sessionStore.isSubmittingQuestion,
+                answer: sessionStore.answerQuestion,
+                cancel: sessionStore.cancelQuestion
+            )
+        } else {
             NativeInteractiveComposerCard(sessionStore: sessionStore)
                 .frame(maxWidth: OfficialUISpec.Layout.composerMaximum)
                 .padding(.horizontal, OfficialUISpec.Layout.composerClearance)
                 .padding(.bottom, 8)
         }
-        .background(OfficialUISpec.Token.base)
     }
 
     @ViewBuilder

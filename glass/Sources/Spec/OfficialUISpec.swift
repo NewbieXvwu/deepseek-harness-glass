@@ -38,6 +38,13 @@ enum OfficialUISpec {
         static let workspaceSearchExpandedHeight: CGFloat = 30
         static let workspaceListRowGap: CGFloat = 2
         static let workspaceGroupSessionLimit = 5
+
+        // Source: ui-conversation/skeleton/ApprovalPanel.module.css
+        static let approvalCardCornerRadius: CGFloat = 20
+        static let approvalStripHorizontalPadding: CGFloat = 16
+        static let approvalStripVerticalPadding: CGFloat = 10
+        static let approvalBodyMaximumHeight: CGFloat = 336
+        static let approvalActionGap: CGFloat = 8
     }
 
     enum Text {
@@ -106,6 +113,33 @@ enum OfficialUISpec {
         static let toolStopped = "Stopped"
         static let toolDetailsRunning = "Running…"
         static let toolSummarySeparator = "·"
+        static let approvalWaiting = "Waiting for approval"
+        static let approvalDetailsAccessibility = "Approval details"
+        static let approvalEscalationTemplate = "Tool {toolName} requests privileged execution"
+        static func approvalEscalation(toolName: String) -> String {
+            approvalEscalationTemplate.replacingOccurrences(of: "{toolName}", with: toolName)
+        }
+        static let approvalReject = "Reject"
+        static let approvalAllowOnce = "Allow once"
+        static let questionPreviousAccessibility = "Previous question"
+        static let questionNextAccessibility = "Next question"
+        static let questionMinimizeAccessibility = "Collapse the question card"
+        static let questionMaximizeAccessibility = "Expand the question card"
+        static let questionCancelAccessibility = "Dismiss all questions"
+        static let questionRecommended = "Recommended"
+        static let questionCustomPlaceholder = "Type your answer"
+        static let questionSkip = "Skip this question"
+        static let questionNext = "Next"
+        static let questionSubmit = "Submit"
+        static let questionSubmitting = "Submitting…"
+        static let questionIncomplete = "Please complete this question first."
+        static let questionUnanswered = "Please select an option or enter a custom answer."
+        static let questionProgressTemplate = "{current} / {total}"
+        static func questionProgress(current: Int, total: Int) -> String {
+            questionProgressTemplate
+                .replacingOccurrences(of: "{current}", with: String(current))
+                .replacingOccurrences(of: "{total}", with: String(total))
+        }
     }
 
     enum Token {
@@ -124,6 +158,10 @@ enum OfficialUISpec {
         static let businessBlueGlow = Color(red: 97 / 255, green: 135 / 255, blue: 216 / 255).opacity(0.08)
         // Source: ui-theme/src/styles/design-platform.css (`--dsw-specific-bubble`)
         static let conversationBubble = Color(red: 225 / 255, green: 235 / 255, blue: 253 / 255)
+        // Source: ui-theme/src/styles/design-platform.css (`--dsw-alias-state-warn-*`)
+        static let warningPrimary = Color(red: 181 / 255, green: 112 / 255, blue: 0 / 255)
+        static let warningTertiary = Color(red: 255 / 255, green: 244 / 255, blue: 218 / 255)
+        static let warningBorder = Color(red: 235 / 255, green: 188 / 255, blue: 97 / 255)
     }
 }
 
