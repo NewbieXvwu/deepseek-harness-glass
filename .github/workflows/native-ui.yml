@@ -104,9 +104,13 @@ jobs:
 
       - name: Generate native UI layout snapshots
         run: |
-          DSH_GLASS_SNAPSHOT_DIR="$PWD/artifacts/native-shell" \
+          snapshot_dir="$PWD/artifacts/native-shell"
+          DSH_GLASS_SNAPSHOT_DIR="$snapshot_dir" \
             ./glass/scripts/verify-native-shell.sh "$PWD/glass/dist/DeepSeek Harness.app" \
             | tee native-shell-snapshot.log
+          test -s "$snapshot_dir/welcome-dark.png"
+          test -s "$snapshot_dir/conversation-dark.png"
+          find "$snapshot_dir" -maxdepth 1 -type f -name '*.png' -print
 
       - name: Upload native UI review bundle
         if: always()
@@ -114,11 +118,11 @@ jobs:
         with:
           name: native-ui-${{ github.sha }}
           path: |
-            artifacts/native-shell/*.png
+            artifacts/native-shell/
             native-shell-snapshot.log
             xcodebuild-version.txt
             macos-sdk-version.txt
             glass/dist/DeepSeek Harness.app/Contents/Resources/SupportedHostBuilds.json
             glass/dist/DeepSeek Harness.app/Contents/Resources/BuildManifest.json
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 14
