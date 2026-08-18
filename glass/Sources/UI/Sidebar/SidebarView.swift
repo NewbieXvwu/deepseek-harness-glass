@@ -26,6 +26,7 @@ struct NativeSidebarView: View {
 
             settingsButton
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .padding(.horizontal, collapsed ? 10 : OfficialUISpec.Layout.sidebarInlinePadding)
         .padding(.top, collapsed ? 18 : 6)
         .background(OfficialUISpec.Token.sidebar)
