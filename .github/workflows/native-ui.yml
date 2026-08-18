@@ -139,6 +139,13 @@ jobs:
           python3 glass/ci/test-official-ui-spec-build.py \
             --official-root .reference/deepseek-harness
 
+      - name: Validate generated official locales and UI copy lint
+        run: |
+          python3 glass/ci/check-official-locales.py \
+            --official-root .reference/deepseek-harness
+          python3 glass/ci/check-official-locale-literals.py
+          python3 glass/ci/test-official-locale-literals.py
+
       - name: Enforce native-only core UI
         run: ./glass/ci/check-no-webview.sh
 
@@ -221,6 +228,8 @@ jobs:
             glass/Sources/Spec/RuntimeAssetInventory.json
             glass/Sources/Spec/OfficialUISpec/official-ui-spec-build.json
             glass/Sources/Spec/OfficialUISpecBuild.swift
+            glass/Sources/Spec/Locales/official-locales.json
+            glass/Sources/Spec/OfficialLocaleCatalog.swift
             glass/Package.swift
           if-no-files-found: error
           retention-days: 14

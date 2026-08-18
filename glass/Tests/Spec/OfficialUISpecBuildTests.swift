@@ -14,4 +14,14 @@ final class OfficialUISpecBuildTests: XCTestCase {
         XCTAssertEqual(OfficialUISpec.Build.sourceCommit.count, 40)
         XCTAssertFalse(OfficialUISpec.Build.uiSpecRevision.isEmpty)
     }
+
+    func testGeneratedBilingualLocaleCatalogIsQueryableAndMatchesBuildRevision() {
+        XCTAssertEqual(OfficialUISpec.LocaleCatalog.sourceCommit, OfficialUISpec.Build.sourceCommit)
+        XCTAssertEqual(OfficialUISpec.LocaleCatalog.revision, OfficialUISpec.Build.localeRevision)
+        XCTAssertTrue(OfficialUISpec.LocaleCatalog.contains(namespace: "ui-sidebar", key: "session.new", language: "en"))
+        XCTAssertTrue(OfficialUISpec.LocaleCatalog.contains(namespace: "ui-sidebar", key: "session.new", language: "zh"))
+        XCTAssertEqual(OfficialUISpec.LocaleCatalog.value(namespace: "ui-sidebar", key: "session.new", language: "en"), "New Session")
+        XCTAssertEqual(OfficialUISpec.LocaleCatalog.value(namespace: "ui-sidebar", key: "session.new", language: "zh"), "新会话")
+        XCTAssertNil(OfficialUISpec.LocaleCatalog.value(namespace: "ui-sidebar", key: "not.registered", language: "en"))
+    }
 }
