@@ -12,8 +12,9 @@ rm -rf "$STAGE"
 mkdir -p "$STAGE/Contents/MacOS" "$STAGE/Contents/Resources"
 
 echo "== 1/4 编译 Swift 壳 =="
+SWIFT_SOURCES="$(find Sources -type f -name '*.swift' -print | sort)"
 swiftc -O -parse-as-library -target arm64-apple-macosx26.0 \
-  Sources/main.swift \
+  $SWIFT_SOURCES \
   -o "$STAGE/Contents/MacOS/DeepSeek Harness"
 
 echo "== 2/4 内置 Node 运行时 =="

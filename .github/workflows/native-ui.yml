@@ -1,0 +1,97 @@
+name: native-ui
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "glass/Sources/**"
+      - "glass/assemble.sh"
+      - "glass/Info.plist"
+      - "glass/assets/**"
+      - "glass/scripts/**"
+      - ".github/workflows/native-ui.yml"
+      - "TODO.md"
+  pull_request:
+    paths:
+      - "glass/Sources/**"
+      - "glass/assemble.sh"
+      - "glass/Info.plist"
+      - "glass/assets/**"
+      - "glass/scripts/**"
+      - ".github/workflows/native-ui.yml"
+      - "TODO.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-snapshot:
+    name: build and snapshot native shell
+    # macos-26 is GitHub's arm64 hosted image with the macOS 26 SDK and Xcode 26.
+    runs-on: macos-26
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Record macOS and Xcode toolchain
+        run: |
+          sw_vers
+          uname -m
+          xcodebuild -version | tee xcodebuild-version.txt
+          xcrun --sdk macosx --show-sdk-version | tee macos-sdk-version.txt
+          test "$(xcodebuild -version | awk '/Xcode/{print $2}' | cut -d. -f1)" = "26"
+
+      - name: Download bundled Node runtime
+        run: |
+          curl -fsSL https://nodejs.org/dist/v24.19.0/node-v24.19.0-darwin-arm64.tar.gz -o /tmp/node.tgz
+          tar -xzf /tmp/node.tgz -C /tmp
+          mkdir -p glass/build/node
+          cp /tmp/node-v24.19.0-darwin-arm64/bin/node glass/build/node/node
+          chmod +x glass/build/node/node
+
+      - name: Install pinned DeepSeek Harness Host payload
+        run: |
+          mkdir -p glass/build/backend
+          cd glass/build/backend
+          cat > package.json <<'EOF'
+          {
+            "name": "dsh-backend-payload",
+            "private": true,
+            "description": "Pinned dsh backend payload for native shell CI",
+            "dependencies": {
+              "@deepseek-ai/dsh": "0.1.0-rc.6",
+              "@deepseek-ai/dsh-web-frontend": "0.1.0-rc.6"
+            }
+          }
+          EOF
+          npm install --no-audit --no-fund
+
+      - name: Assemble native macOS app
+        run: |
+          export APP_PATH="$PWD/glass/dist/DeepSeek Harness.app"
+          cd glass
+          ./assemble.sh
+          codesign -v "$APP_PATH"
+          test -x "$APP_PATH/Contents/MacOS/DeepSeek Harness"
+
+      - name: Generate native UI layout snapshots
+        run: |
+          DSH_GLASS_SNAPSHOT_DIR="$PWD/artifacts/native-shell" \
+            ./glass/scripts/verify-native-shell.sh "$PWD/glass/dist/DeepSeek Harness.app" \
+            | tee native-shell-snapshot.log
+
+      - name: Upload native UI review bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-ui-${{ github.sha }}
+          path: |
+            artifacts/native-shell/*.png
+            native-shell-snapshot.log
+            xcodebuild-version.txt
+            macos-sdk-version.txt
+          if-no-files-found: warn
+          retention-days: 14
