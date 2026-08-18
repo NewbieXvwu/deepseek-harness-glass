@@ -2,36 +2,139 @@ import SwiftUI
 
 struct NativeConversationColumn: View {
     let mode: NativeAppShell.PresentationMode
+    @ObservedObject var sessionStore: NativeSessionStore
 
     var body: some View {
         switch mode {
         case .welcome:
             NativeWelcomeSurface()
         case .conversation:
-            VStack(spacing: 0) {
-                HStack {
-                    Text(OfficialUISpec.Text.chat)
-                        .font(.system(size: 14, weight: .medium))
-                    Spacer(minLength: 0)
-                }
-                .frame(height: 56)
-                .padding(.horizontal, 20)
-                .overlay(alignment: .bottom) {
-                    Rectangle().fill(OfficialUISpec.Token.hairline).frame(height: 1)
-                }
-
-                Spacer(minLength: 0)
-
-                NativeComposerCard(
-                    placeholder: OfficialUISpec.Text.composerDefaultPlaceholder,
-                    isWorkspaceTrigger: false
-                )
-                .frame(maxWidth: OfficialUISpec.Layout.composerMaximum)
-                .padding(.horizontal, OfficialUISpec.Layout.composerClearance)
-                .padding(.bottom, 8)
-            }
-            .background(OfficialUISpec.Token.base)
+            NativeActiveConversationSurface(sessionStore: sessionStore)
         }
+    }
+}
+
+/// First native transcript surface. The Store provides a session.history
+/// baseline plus official mux event deltas; the root remains visually stable
+/// for snapshot fixtures whose deterministic conversation mode has no Host.
+private struct NativeActiveConversationSurface: View {
+    @ObservedObject var sessionStore: NativeSessionStore
+
+    var body: some View {
+        VStack(spacing: 0) {
+            NativeConversationHeader()
+            transcriptBody
+            NativeComposerCard(
+                placeholder: OfficialUISpec.Text.composerDefaultPlaceholder,
+                isWorkspaceTrigger: false
+            )
+            .frame(maxWidth: OfficialUISpec.Layout.composerMaximum)
+            .padding(.horizontal, OfficialUISpec.Layout.composerClearance)
+            .padding(.bottom, 8)
+        }
+        .background(OfficialUISpec.Token.base)
+    }
+
+    @ViewBuilder
+    private var transcriptBody: some View {
+        switch sessionStore.phase {
+        case .idle:
+            Spacer(minLength: 0)
+        case .loading:
+            VStack(spacing: 0) {
+                Spacer(minLength: 0)
+                Text(OfficialUISpec.Text.chatLoadingHistory)
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundStyle(OfficialUISpec.Token.secondary)
+                Spacer(minLength: 0)
+            }
+        case .failed:
+            // Error copy is rendered only after its official templated surface
+            // is added with an RPC error-code mapping; until then, retain the
+            // blank transcript rather than exposing transport-private wording.
+            Spacer(minLength: 0)
+        case .ready:
+            NativeTranscriptScrollView(items: sessionStore.items)
+        }
+    }
+}
+
+private struct NativeConversationHeader: View {
+    var body: some View {
+        HStack {
+            Text(OfficialUISpec.Text.chat)
+                .font(.system(size: 14, weight: .medium))
+            Spacer(minLength: 0)
+        }
+        .frame(height: 56)
+        .padding(.horizontal, 20)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(OfficialUISpec.Token.hairline).frame(height: 1)
+        }
+    }
+}
+
+private struct NativeTranscriptScrollView: View {
+    let items: [NativeSessionStore.TranscriptItem]
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: OfficialUISpec.Layout.chatMessageGap) {
+                    ForEach(items) { item in
+                        NativeTranscriptBubble(item: item)
+                            .id(item.id)
+                    }
+                }
+                .frame(maxWidth: OfficialUISpec.Layout.chatContentMaximum, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.horizontal, OfficialUISpec.Layout.composerClearance)
+                .padding(.vertical, OfficialUISpec.Layout.chatTranscriptInset)
+            }
+            .onChange(of: items.last?.id) { _, itemID in
+                guard let itemID else { return }
+                withAnimation(.easeOut(duration: 0.18)) {
+                    proxy.scrollTo(itemID, anchor: .bottom)
+                }
+            }
+        }
+    }
+}
+
+private struct NativeTranscriptBubble: View {
+    let item: NativeSessionStore.TranscriptItem
+
+    var body: some View {
+        Group {
+            switch item.role {
+            case .user:
+                HStack {
+                    Spacer(minLength: 0)
+                    Text(item.text)
+                        .font(.system(size: 16, weight: .regular))
+                        .foregroundStyle(OfficialUISpec.Token.primary)
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .frame(maxWidth: OfficialUISpec.Layout.chatUserMessageMaximum, alignment: .leading)
+                        .background(
+                            OfficialUISpec.Token.conversationBubble,
+                            in: RoundedRectangle(cornerRadius: OfficialUISpec.Layout.chatMessageCornerRadius, style: .continuous)
+                        )
+                }
+            case .assistant:
+                Text(item.text)
+                    .font(.system(size: 16, weight: .regular))
+                    .foregroundStyle(OfficialUISpec.Token.primary)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityLabel(item.text)
+        .accessibilityValue(item.isStreaming ? OfficialUISpec.Text.running : "")
     }
 }
 

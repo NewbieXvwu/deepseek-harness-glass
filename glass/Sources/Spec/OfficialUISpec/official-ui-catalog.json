@@ -13,6 +13,10 @@
     "packages/client/ui-conversation/src/client/skeleton/HeroShell.module.css",
     "packages/client/ui-conversation/src/client/skeleton/InputBar.module.css",
     "packages/client/ui-conversation/src/client/skeleton/ConversationRoot.module.css",
+    "packages/client/ui-conversation/src/client/chat/MessageItem.module.css",
+    "packages/client/ui-conversation/src/client/conversation-nodes/chat-snapshot-builder.ts",
+    "packages/host/apiproxy/src/api/sessions.schema.ts",
+    "packages/host/apiproxy/src/api/events.ts",
     "packages/client/ui-workspace/src/client/WorkspaceBrowser.module.css",
     "packages/client/ui-workspace/src/client/WorkspaceBrowser.tsx",
     "packages/client/ui-workspace/src/client/rows/Rows.module.css",
@@ -38,7 +42,11 @@
     "workspaceSearchHeight": { "value": 28, "source": "packages/client/ui-workspace/src/client/WorkspaceBrowser.module.css:.search" },
     "workspaceSearchExpandedHeight": { "value": 30, "source": "packages/client/ui-workspace/src/client/WorkspaceBrowser.module.css:.searchExpanded" },
     "workspaceListRowGap": { "value": 2, "source": "packages/client/ui-workspace/src/client/WorkspaceBrowser.module.css:.groupSection > * + *" },
-    "workspaceGroupSessionLimit": { "value": 5, "source": "packages/client/ui-workspace/src/client/WorkspaceBrowser.tsx:COLLAPSED_SESSION_LIMIT" }
+    "workspaceGroupSessionLimit": { "value": 5, "source": "packages/client/ui-workspace/src/client/WorkspaceBrowser.tsx:COLLAPSED_SESSION_LIMIT" },
+    "chatMessageGap": { "value": 6, "source": "packages/client/ui-conversation/src/client/chat/MessageItem.module.css:.userRow" },
+    "chatTranscriptInset": { "value": 20, "source": "packages/client/ui-conversation/src/client/skeleton/ConversationRoot.module.css:--dsh-composer-side-clearance" },
+    "chatUserMessageMaximum": { "value": 525, "source": "packages/client/ui-conversation/src/client/chat/MessageItem.module.css:.userStack" },
+    "chatMessageCornerRadius": { "value": 22, "source": "packages/client/ui-conversation/src/client/chat/MessageItem.module.css:.bubble" }
   },
   "text": {
     "newSession": { "value": "New Session", "source": "packages/client/ui-sidebar/src/client/locales.ts" },
@@ -66,7 +74,10 @@
     "rename": { "value": "Rename", "source": "packages/client/ui-workspace/src/client/locales.ts:rename" },
     "deleteWorkspace": { "value": "Delete workspace", "source": "packages/client/ui-workspace/src/client/locales.ts:delete.workspace" },
     "forkSession": { "value": "Fork session", "source": "packages/client/ui-workspace/src/client/locales.ts:menu.fork" },
-    "archiveSession": { "value": "Archive session", "source": "packages/client/ui-workspace/src/client/locales.ts:menu.archiveSession" }
+    "archiveSession": { "value": "Archive session", "source": "packages/client/ui-workspace/src/client/locales.ts:menu.archiveSession" },
+    "chatLoadingHistory": { "value": "Loading history…", "source": "packages/client/ui-conversation/src/client/locales.ts:chat.loadingHistory" },
+    "chatLoadOlder": { "value": "Load earlier", "source": "packages/client/ui-conversation/src/client/locales.ts:chat.loadOlder" },
+    "chatToBottom": { "value": "Back to bottom", "source": "packages/client/ui-conversation/src/client/locales.ts:chat.toBottom" }
   },
   "assets": {
     "brand-wordmark": { "source": "packages/client/ui-primitives/src/BrandWordmark.tsx" },

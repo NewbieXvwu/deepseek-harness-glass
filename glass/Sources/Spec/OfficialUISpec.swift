@@ -23,6 +23,11 @@ enum OfficialUISpec {
         static let composerClearance: CGFloat = 16
         static let composerCornerRadius: CGFloat = 22
         static let heroGap: CGFloat = 12
+        // Source: ui-conversation/chat/MessageItem.module.css
+        static let chatMessageGap: CGFloat = 6
+        static let chatTranscriptInset: CGFloat = 20
+        static let chatUserMessageMaximum: CGFloat = 525
+        static let chatMessageCornerRadius: CGFloat = 22
         static let sidebarInlinePadding: CGFloat = 12
 
         // Source: packages/client/ui-workspace/src/client/WorkspaceBrowser.module.css
@@ -79,6 +84,9 @@ enum OfficialUISpec {
         static let details = "Details"
         static let closeDetailsAccessibility = "Close details"
         static let detailsEmpty = "Click a tool row in the message flow to view its details"
+        static let chatLoadingHistory = "Loading history…"
+        static let chatLoadOlder = "Load earlier"
+        static let chatToBottom = "Back to bottom"
     }
 
     enum Token {
@@ -95,6 +103,8 @@ enum OfficialUISpec {
         static let businessBlue = Color(red: 65 / 255, green: 118 / 255, blue: 230 / 255)
         static let businessBlueSoft = Color(red: 228 / 255, green: 237 / 255, blue: 253 / 255)
         static let businessBlueGlow = Color(red: 97 / 255, green: 135 / 255, blue: 216 / 255).opacity(0.08)
+        // Source: ui-theme/src/styles/design-platform.css (`--dsw-specific-bubble`)
+        static let conversationBubble = Color(red: 225 / 255, green: 235 / 255, blue: 253 / 255)
     }
 }
 

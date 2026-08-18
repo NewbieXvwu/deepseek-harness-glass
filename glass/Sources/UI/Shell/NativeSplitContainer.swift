@@ -14,15 +14,18 @@ final class NativeShellPresentation: ObservableObject {
     @Published var detailsVisible = true
 
     let workspaceStore: NativeWorkspaceStore
+    let sessionStore: NativeSessionStore
     private var apiClient: DSHAPIClient?
     private var observedEndpoint: URL?
 
     init(
         mode: NativeAppShell.PresentationMode = .welcome,
-        workspaceStore: NativeWorkspaceStore? = nil
+        workspaceStore: NativeWorkspaceStore? = nil,
+        sessionStore: NativeSessionStore? = nil
     ) {
         self.mode = mode
         self.workspaceStore = workspaceStore ?? NativeWorkspaceStore()
+        self.sessionStore = sessionStore ?? NativeSessionStore()
     }
 
     /// Called only after `HarnessHostController` has verified host.describe on
@@ -42,12 +45,16 @@ final class NativeShellPresentation: ObservableObject {
         apiClient = nil
         observedEndpoint = nil
         workspaceStore.detachHost()
+        sessionStore.disconnect()
         mode = .welcome
         detailsVisible = false
     }
 
     func selectSession(_ sessionID: String, workspaceID: String?) {
         workspaceStore.select(sessionID: sessionID, workspaceID: workspaceID)
+        if let apiClient, let observedEndpoint {
+            sessionStore.open(sessionID: sessionID, using: apiClient, endpoint: observedEndpoint)
+        }
         mode = .conversation
         detailsVisible = true
     }
@@ -104,7 +111,7 @@ final class NativeShellController: NativeSplitViewController {
         self.presentation = presentation
         super.init(
             sidebar: Self.sidebar(for: presentation, collapsed: presentation.manuallyCollapsed),
-            conversation: NativeConversationColumn(mode: presentation.mode),
+            conversation: NativeConversationColumn(mode: presentation.mode, sessionStore: presentation.sessionStore),
             details: Self.details(for: presentation),
             sidebarPreference: presentation.sidebarPreference,
             detailsPreference: presentation.detailsPreference,
@@ -139,7 +146,7 @@ final class NativeShellController: NativeSplitViewController {
         let collapsed = automaticRail || presentation.manuallyCollapsed
         update(
             sidebar: Self.sidebar(for: presentation, collapsed: collapsed),
-            conversation: NativeConversationColumn(mode: presentation.mode),
+            conversation: NativeConversationColumn(mode: presentation.mode, sessionStore: presentation.sessionStore),
             details: Self.details(for: presentation),
             sidebarPreference: presentation.sidebarPreference,
             detailsPreference: presentation.detailsPreference,

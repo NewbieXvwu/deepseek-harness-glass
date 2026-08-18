@@ -44,6 +44,14 @@ struct DSHAPIClient: Sendable {
         try await call("session.list", payload: EmptyPayload())
     }
 
+    /// Source: `sessions.schema.ts:sessionHistoryRequestSchema`.
+    func sessionHistory(sessionID: String, maxMessages: Int? = nil) async throws -> SessionHistoryResponse {
+        try await call(
+            "session.history",
+            payload: SessionHistoryRequest(sessionId: sessionID, maxMessages: maxMessages)
+        )
+    }
+
     func workspaceList() async throws -> WorkspaceListResponse {
         try await call("workspace.list", payload: EmptyPayload())
     }
@@ -64,6 +72,43 @@ struct DSHAPIClient: Sendable {
 }
 
 struct EmptyPayload: Codable, Sendable {}
+
+/// Source: `sessions.schema.ts:sessionHistoryRequestSchema`.
+struct SessionHistoryRequest: Encodable, Sendable {
+    let sessionId: String
+    let maxMessages: Int?
+}
+
+/// Source: `sessions.schema.ts:sessionHistoryValueSchema`.
+struct SessionHistoryResponse: Decodable, Sendable {
+    let events: [SessionHistoryEntryDTO]
+    let hasMore: Bool
+    let projections: SessionProjectionsDTO?
+}
+
+/// Source: `sessions.schema.ts:historyEntrySchema`.
+struct SessionHistoryEntryDTO: Decodable, Sendable {
+    let event: SessionEventDTO
+    let view: ToolEventViewDTO?
+}
+
+/// Source: `sessions.schema.ts:sessionEventSchema`.
+struct SessionEventDTO: Decodable, Sendable, Identifiable {
+    let type: String
+    let seq: Int
+    let time: Double
+    let data: JSONValue
+    let sourceEventSeqs: [Int]?
+    let ignorable: Bool?
+
+    var id: Int { seq }
+}
+
+/// Source: `events.ts:ToolEventView` (merge-extensible presentation carrier).
+struct ToolEventViewDTO: Decodable, Sendable {
+    let `for`: String
+    let view: JSONValue
+}
 
 /// Source: `sessions.schema.ts:sessionCreateRequestSchema`.
 struct SessionCreateRequest: Encodable, Sendable {
