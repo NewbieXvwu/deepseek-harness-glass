@@ -122,6 +122,10 @@ enum OfficialUISpec {
         static let renameSessionTitle = "Rename session"
         static let workspaceName = "Workspace name"
         static let sessionName = "Session name"
+        static let workspaceNameConflictTemplate = "A workspace named “{name}” already exists."
+        static func workspaceNameConflict(_ name: String) -> String {
+            workspaceNameConflictTemplate.replacingOccurrences(of: "{name}", with: name)
+        }
         static let deleteWorkspaceDescriptionTemplate = "This removes “{name}” from the workspace list. The folder and session logs will be kept. Its sessions will appear under Ungrouped."
         static func deleteWorkspaceDescription(name: String) -> String {
             deleteWorkspaceDescriptionTemplate.replacingOccurrences(of: "{name}", with: name)

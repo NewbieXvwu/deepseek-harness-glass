@@ -132,6 +132,7 @@
     "renameSessionTitle": { "value": "Rename session", "source": "packages/client/ui-workspace/src/client/locales.ts:rename.session.title" },
     "workspaceName": { "value": "Workspace name", "source": "packages/client/ui-workspace/src/client/locales.ts:field.workspaceName" },
     "sessionName": { "value": "Session name", "source": "packages/client/ui-workspace/src/client/locales.ts:field.sessionName" },
+    "workspaceNameConflictTemplate": { "value": "A workspace named “{name}” already exists.", "source": "packages/client/ui-workspace/src/client/locales.ts:conflict.named" },
     "deleteWorkspaceDescriptionTemplate": { "value": "This removes “{name}” from the workspace list. The folder and session logs will be kept. Its sessions will appear under Ungrouped.", "source": "packages/client/ui-workspace/src/client/locales.ts:delete.desc" },
     "deletingWorkspace": { "value": "Deleting workspace…", "source": "packages/client/ui-workspace/src/client/locales.ts:delete.pending" },
     "cancel": { "value": "Cancel", "source": "packages/client/locale/src/locales/en.ts:cancel" },

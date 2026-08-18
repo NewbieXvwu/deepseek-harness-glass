@@ -121,6 +121,7 @@ struct WorkspaceBrowserView: View {
                     title: OfficialUISpec.Text.renameWorkspaceTitle,
                     fieldLabel: OfficialUISpec.Text.workspaceName,
                     draft: $renameDraft,
+                    conflict: workspaceRenameConflict(target),
                     error: renameError,
                     submitting: renaming,
                     blocked: workspaceRenameBlocked(target),
@@ -133,6 +134,7 @@ struct WorkspaceBrowserView: View {
                     title: OfficialUISpec.Text.renameSessionTitle,
                     fieldLabel: OfficialUISpec.Text.sessionName,
                     draft: $renameDraft,
+                    conflict: nil,
                     error: renameError,
                     submitting: renaming,
                     blocked: sessionRenameBlocked,
@@ -440,10 +442,15 @@ struct WorkspaceBrowserView: View {
         return local
     }
 
+    private func workspaceRenameConflict(_ target: RenameTarget) -> String? {
+        let trimmed = renameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed != target.title, store.snapshot.workspaces.contains(where: { $0.title == trimmed }) else { return nil }
+        return OfficialUISpec.Text.workspaceNameConflict(trimmed)
+    }
+
     private func workspaceRenameBlocked(_ target: RenameTarget) -> Bool {
         let trimmed = renameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
-        let duplicate = trimmed != target.title && store.snapshot.workspaces.contains { $0.title == trimmed }
-        return renaming || trimmed.isEmpty || trimmed == target.title || duplicate
+        return renaming || trimmed.isEmpty || trimmed == target.title || workspaceRenameConflict(target) != nil
     }
 
     private var sessionRenameBlocked: Bool {
@@ -554,6 +561,7 @@ private struct NativeRenameSheet: View {
     let title: String
     let fieldLabel: String
     @Binding var draft: String
+    let conflict: String?
     let error: String?
     let submitting: Bool
     let blocked: Bool
@@ -571,6 +579,11 @@ private struct NativeRenameSheet: View {
                 .disabled(submitting)
                 .focused($focused)
                 .onSubmit(confirm)
+            if let conflict {
+                Text(conflict)
+                    .font(.system(size: 12, weight: .regular))
+                    .foregroundStyle(OfficialUISpec.Token.warningPrimary)
+            }
             if let error {
                 Text(error)
                     .font(.system(size: 12, weight: .regular))
