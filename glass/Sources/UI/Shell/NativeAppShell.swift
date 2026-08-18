@@ -437,6 +437,13 @@ private struct NativeGlassNavigationButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .foregroundStyle(OfficialUISpec.Token.primary)
+            // Material and the highlight are the deterministic fallback visible in
+            // an off-screen CI bitmap; glassEffect remains the actual macOS 26
+            // Liquid Glass treatment when the window is composited on screen.
+            .background(.thinMaterial, in: Circle())
+            .overlay {
+                Circle().strokeBorder(Color.white.opacity(0.72), lineWidth: 0.8)
+            }
             .glassEffect(.regular, in: .circle)
             .opacity(configuration.isPressed ? 0.82 : 1)
     }
