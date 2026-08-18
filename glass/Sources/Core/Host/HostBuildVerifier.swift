@@ -1,5 +1,8 @@
 import Foundation
 
+#if DEEPSEEK_HARNESS_PACKAGE
+@testable import GlassSpec
+#endif
 struct SupportedHostBuildCatalog: Codable, Sendable {
     struct Build: Codable, Sendable, Equatable {
         let id: String

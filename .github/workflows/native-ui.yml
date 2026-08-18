@@ -134,6 +134,14 @@ jobs:
       - name: Validate runtime asset migration inventory
         run: python3 glass/ci/check-runtime-asset-inventory.py
 
+      - name: Validate module boundaries
+        run: python3 glass/ci/check-module-boundaries.py
+
+      - name: Independently compile declared SwiftPM targets
+        run: |
+          cd glass
+          swift build --configuration release
+
       - name: Validate official UI specification provenance
         run: ./glass/ci/check-official-spec.py
 
@@ -195,5 +203,6 @@ jobs:
             glass/dist/DeepSeek Harness.app/Contents/Resources/BuildManifest.json
             glass/ci/dsh-backend-payload/package-lock.json
             glass/Sources/Spec/RuntimeAssetInventory.json
+            glass/Package.swift
           if-no-files-found: error
           retention-days: 14

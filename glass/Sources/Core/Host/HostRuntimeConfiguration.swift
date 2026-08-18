@@ -1,5 +1,8 @@
 import Foundation
 
+#if DEEPSEEK_HARNESS_PACKAGE
+@testable import GlassSpec
+#endif
 struct HostRuntimeConfiguration: Sendable {
     let nodeExecutable: URL
     let dshEntrypoint: URL

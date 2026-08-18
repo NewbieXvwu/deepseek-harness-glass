@@ -1,5 +1,9 @@
 import SwiftUI
 
+#if DEEPSEEK_HARNESS_PACKAGE
+@testable import GlassCore
+@testable import GlassSpec
+#endif
 private struct NativeCappedContentHeightKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
 

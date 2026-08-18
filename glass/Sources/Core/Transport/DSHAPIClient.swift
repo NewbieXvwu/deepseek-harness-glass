@@ -1,5 +1,8 @@
 import Foundation
 
+#if DEEPSEEK_HARNESS_PACKAGE
+@testable import GlassSpec
+#endif
 /// Payload-direct facade above `DSHClientTransport`. Feature modules own typed
 /// request/response DTOs and never construct HTTP requests or wire envelopes.
 struct DSHAPIClient: Sendable {

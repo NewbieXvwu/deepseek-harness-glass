@@ -1,7 +1,9 @@
-import AppKit
 import Combine
 import Foundation
 
+#if DEEPSEEK_HARNESS_PACKAGE
+@testable import GlassSpec
+#endif
 /// Host-authoritative transcript state for the active native conversation.
 ///
 /// Sources: `sessions.schema.ts:sessionHistoryValueSchema`,
@@ -222,18 +224,6 @@ final class NativeSessionStore: ObservableObject {
         draft = ""
         pendingImages = []
         lastError = nil
-    }
-
-    /// Uses the native macOS file panel. The Host remains responsible for final
-    /// attachment validation at submit; this store only accepts the official
-    /// raster media types declared by `imageMediaTypeSchema`.
-    func choosePendingImages() {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = true
-        panel.canChooseDirectories = false
-        panel.allowsMultipleSelection = true
-        guard panel.runModal() == .OK else { return }
-        panel.urls.forEach(addPendingImage)
     }
 
     func addPendingImage(_ url: URL) {

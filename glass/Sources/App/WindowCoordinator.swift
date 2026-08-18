@@ -1,5 +1,11 @@
 import AppKit
 
+#if DEEPSEEK_HARNESS_PACKAGE
+@testable import GlassCore
+@testable import GlassSpec
+@testable import GlassUI
+@testable import GlassSnapshot
+#endif
 @MainActor
 final class WindowCoordinator: NSObject, NSWindowDelegate {
     private var window: NSWindow?

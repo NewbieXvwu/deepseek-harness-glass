@@ -1,6 +1,11 @@
 import AppKit
 import SwiftUI
 
+#if DEEPSEEK_HARNESS_PACKAGE
+@testable import GlassCore
+@testable import GlassSpec
+@testable import GlassUI
+#endif
 /// 在 CI 中使用确定性的离屏 AppKit 位图生成原生 UI 快照。
 /// 它验证 SwiftUI 布局和官方 token 映射；系统真实折射效果仍由运行中的 macOS 窗口验收。
 enum SnapshotExporter {

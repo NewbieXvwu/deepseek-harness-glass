@@ -1,5 +1,8 @@
 import Foundation
 
+#if DEEPSEEK_HARNESS_PACKAGE
+@testable import GlassSpec
+#endif
 /// Native URLSession implementation of the official HTTP carrier. This actor
 /// owns HTTP mechanics only; feature code must go through typed API facades.
 actor DSHClientTransport {

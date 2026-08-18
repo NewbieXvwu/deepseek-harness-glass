@@ -1,6 +1,10 @@
 import Combine
 import Foundation
 
+#if DEEPSEEK_HARNESS_PACKAGE
+@testable import GlassCore
+@testable import GlassSpec
+#endif
 /// Host-authoritative sidebar browser state. Ordering preferences and transient
 /// expansion will be added only after their official persistence contract is
 /// mapped; this store never invents a second durable workspace database.

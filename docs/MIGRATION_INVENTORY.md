@@ -38,3 +38,17 @@
 | 历史 WebView/DOM/CSS 注入壳 | 删除主路径，仅官方对照可用 | App target 外部参考目录 | 任何主业务 UI、Core、UI、Features 不得链接 WebKit 或读取网页 DOM。 | D0 `check-no-webview.sh`。 |
 
 > 资产清单不等于完成所有功能。它只保证 T1.1 的运行时意图已被显式分类、每项都有目标归属和可执行验证，之后的 T1.2–T13 必须逐项实现其产品行为与视觉证据。
+
+## T1.2 编译 target 与依赖方向
+
+`glass/Package.swift` 将现有可编译源树分为 `GlassSpec`、`GlassCore`、`GlassUI`、`GlassSnapshot` 与 `DeepSeekHarnessGlassApp` 五个 SwiftPM target。它们是与 `assemble.sh` 的单 app 产物并行的**独立边界编译**，而非第二套实现：CI 同时执行 `swift build --configuration release` 和原有 app 组装，确保目录依赖与最终产物都被验证。
+
+| Target | 可依赖模块 | 不可依赖模块/系统 API | 责任 |
+|---|---|---|---|
+| `GlassSpec` | 系统基础框架 | Core、UI、Snapshot、App | 锁定官方来源、tokens、fixtures 与支持矩阵。 |
+| `GlassCore` | `GlassSpec`、Foundation、Combine | AppKit、SwiftUI、UI、Snapshot、App | Host、Transport、SSE、session/reducer、用户数据与日志；只有 Host 子域可创建受控 `Process`。 |
+| `GlassUI` | `GlassCore`、`GlassSpec`、SwiftUI/AppKit | `Process`、`NSApplication`、`NSStatusItem` | 原生渲染、文件选择和 interaction；仅提交意图/URL 给 Core。 |
+| `GlassSnapshot` | `GlassCore`、`GlassSpec`、`GlassUI` | App lifecycle `@main` | 隔离、离屏的原生场景导出。 |
+| `DeepSeekHarnessGlassApp` | 前四者、AppKit | 无上层模块可反向依赖它 | `@main`、窗口、菜单栏、Host lifecycle 和终止策略。 |
+
+`check-module-boundaries.py` 检查这些边、每层条件模块导入、唯一 `@main`、Core 的 AppKit/SwiftUI 禁止、UI 的 Process/应用生命周期禁止，以及 reducer/session 的 `NSApplication` 禁止。该检查和 SwiftPM release 编译都必须通过；任何临时跨层访问必须先抽取明确协议或 DTO，不能以单体文件重新耦合。

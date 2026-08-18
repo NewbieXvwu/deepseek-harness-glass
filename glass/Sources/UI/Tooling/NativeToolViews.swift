@@ -1,5 +1,9 @@
 import SwiftUI
 
+#if DEEPSEEK_HARNESS_PACKAGE
+@testable import GlassCore
+@testable import GlassSpec
+#endif
 /// Native generic fallback for the official `tool.call.toolview` seat.
 ///
 /// Sources: `ui-tool/tool/components/ToolRow.tsx` and

@@ -1,5 +1,8 @@
 import Foundation
 
+#if DEEPSEEK_HARNESS_PACKAGE
+@testable import GlassSpec
+#endif
 /// Explicit native ownership states for the bundled DeepSeek Harness Host.
 /// A URL is data carried by `.ready`, never a substitute for lifecycle state.
 enum HostLifecycleState: Equatable, Sendable {

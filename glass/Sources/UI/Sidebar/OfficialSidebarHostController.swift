@@ -1,6 +1,10 @@
 import AppKit
 import SwiftUI
 
+#if DEEPSEEK_HARNESS_PACKAGE
+@testable import GlassCore
+@testable import GlassSpec
+#endif
 /// An AppKit-drawn backing surface for the sidebar. `NSHostingController` can
 /// otherwise be transparent within a sidebar split item during off-screen
 /// rendering, causing the official black chrome to disappear against AppKit's

@@ -1,5 +1,8 @@
 import Foundation
 
+#if DEEPSEEK_HARNESS_PACKAGE
+@testable import GlassSpec
+#endif
 /// The two official host downstream streams. The endpoint names map directly to
 /// `toFetchHandler`: GET `/api/events.mux` and GET `/api/events.host`.
 enum DSHSSEEndpoint: String, Sendable {

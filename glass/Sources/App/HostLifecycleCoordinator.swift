@@ -1,6 +1,12 @@
 import Combine
 import Foundation
 
+#if DEEPSEEK_HARNESS_PACKAGE
+@testable import GlassCore
+@testable import GlassSpec
+@testable import GlassUI
+@testable import GlassSnapshot
+#endif
 @MainActor
 final class HostLifecycleCoordinator {
     private var hostController: HarnessHostController?

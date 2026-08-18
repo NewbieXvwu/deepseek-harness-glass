@@ -1,5 +1,9 @@
 import SwiftUI
 
+#if DEEPSEEK_HARNESS_PACKAGE
+@testable import GlassCore
+@testable import GlassSpec
+#endif
 /// Scene identity shared by launch, snapshot, and the native AppKit shell.
 /// The actual application root is `NativeShellController`, which directly owns
 /// the NSSplitViewController hierarchy required for real three-pane layout.

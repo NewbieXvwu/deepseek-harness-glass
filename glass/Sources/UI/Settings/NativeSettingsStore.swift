@@ -1,5 +1,9 @@
 import Foundation
 
+#if DEEPSEEK_HARNESS_PACKAGE
+@testable import GlassCore
+@testable import GlassSpec
+#endif
 /// Host-authoritative settings projection. Secret values never enter this store:
 /// `settings.describe` returns only redacted values plus write-only slot state.
 @MainActor

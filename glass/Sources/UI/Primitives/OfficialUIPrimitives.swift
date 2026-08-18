@@ -1,6 +1,10 @@
 import AppKit
 import SwiftUI
 
+#if DEEPSEEK_HARNESS_PACKAGE
+@testable import GlassCore
+@testable import GlassSpec
+#endif
 /// Official SVG assets are rendered from the bundle rather than substituted by
 /// SF Symbols. Their provenance is registered in `official-ui-catalog.json`.
 struct OfficialAssetImage: View {

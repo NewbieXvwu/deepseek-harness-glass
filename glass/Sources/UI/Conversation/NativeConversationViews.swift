@@ -2,6 +2,10 @@ import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
+#if DEEPSEEK_HARNESS_PACKAGE
+@testable import GlassCore
+@testable import GlassSpec
+#endif
 struct NativeConversationColumn: View {
     let mode: NativeAppShell.PresentationMode
     let selectedWorkspaceTitle: String?
@@ -458,7 +462,9 @@ private struct NativeInteractiveComposerCard: View {
             }
 
             HStack(spacing: 8) {
-                Button(action: {}) {
+                Button(action: {
+                    NativeImagePicker.chooseImageURLs().forEach(sessionStore.addPendingImage)
+                }) {
                     OfficialAssetImage(name: "icon-plus", template: true)
                         .frame(width: 14, height: 14)
                         .frame(width: 28, height: 28)

@@ -1,5 +1,9 @@
 import SwiftUI
 
+#if DEEPSEEK_HARNESS_PACKAGE
+@testable import GlassCore
+@testable import GlassSpec
+#endif
 /// Native rendering of the official `WorkspaceBrowser` hierarchy. Host state is
 /// injected from `NativeWorkspaceStore`; this view holds only browser-local
 /// expansion and search-input animation state.

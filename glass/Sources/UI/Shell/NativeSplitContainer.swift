@@ -2,6 +2,10 @@ import AppKit
 import Combine
 import SwiftUI
 
+#if DEEPSEEK_HARNESS_PACKAGE
+@testable import GlassCore
+@testable import GlassSpec
+#endif
 /// Main-actor presentation ownership for the native shell. It deliberately
 /// holds only window-local presentation state; Host workspace/session truth
 /// stays in `NativeWorkspaceStore`.

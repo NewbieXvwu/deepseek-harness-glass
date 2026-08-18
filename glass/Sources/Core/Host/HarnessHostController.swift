@@ -1,6 +1,9 @@
 import Combine
 import Foundation
 
+#if DEEPSEEK_HARNESS_PACKAGE
+@testable import GlassSpec
+#endif
 /// Main-actor owner for the bundled local DeepSeek Harness Host. It deliberately
 /// exposes a lifecycle state rather than a Web URL because the native app uses
 /// RPC/SSE, not an embedded browser surface.
