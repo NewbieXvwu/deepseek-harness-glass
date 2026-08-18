@@ -62,3 +62,9 @@
 证据：macOS-26 [run 32180108638](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32180108638)，commit `363b534`。`HarnessHostControllerTests` 在真实固定 rc.7 payload 上执行 3 项无 UI 测试并全通过（3.519 秒）：verified Host start/reuse/stop、unknown build write protection、以及 `idle → startingOwned → verifying → ready → stopping → idle` transition ledger/日志与官方 locale `Loading…`、`Failed to load`、`Retry` presentation。实现同时加入 explicit `probingExternal`，其 diagnostics-only `host.describe` 成功也保留 `unverified`，不能由 endpoint 是否存在推断 ready 或取得写权限。
 
 人工 comparison 检查确认本项仅改动生命周期模型、Core 日志与文案 projection；无 renderer、资产、布局或产品可见文案替换。量化报告仍为既有 `report-only`：materially changed ratio `0.02955357`、mean absolute channel difference `2.761307`、exact changed ratio `0.30867467`。这不构成 welcome 完成，既有材质、composer 与几何差异仍由后续 UI TODO 同状态关闭。
+
+## 2026-08-19 — T3.4 diagnostics review
+
+证据：macOS-26 [run 32181832902](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32181832902)，commit `e93273a`。`HarnessHostControllerTests` 在真实固定 payload 路径执行 4 项无 UI 测试并全通过（4.392 秒）。新增测试断言可复制 `HostDiagnosticSnapshot` 含 Host build、port、DSH_HOME、ownership/PID、last SSE time、last RPC error、protocol fixture revision、plugin compatibility 与 lifecycle；fixture 注入 API key、cookie、Bearer、URL user-info/secret 后，copy text 不含任一原文 secret，保留 `<redacted>`。RPC facade、Core readiness/probe 和 Host SSE consumer 现共用 actor-isolated recorder，保存的仅是错误摘要，不含 request/response payload。
+
+人工 comparison 检查确认 T3.4 只改变 Core diagnostics 和事件/API 注入；原生 renderer、文案、资产、布局保持不变。量化报告仍为既有 `report-only`：materially changed ratio `0.02942987`、mean absolute channel difference `2.743943`、exact changed ratio `0.30950521`。该结论不把 welcome 标为视觉完成；既有材质、composer 与几何差异继续由后续 UI TODO 对照关闭。

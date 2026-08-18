@@ -189,9 +189,9 @@
   - 依赖：T3.1。
   - 验收证据：`HostLifecyclePresentation` 仅使用生成的官方 locale `locale.loading`、`locale.load.failed` 和 `locale.retry` 导出启动/失败/重试 UI 模型；`testLifecycleTransitionsAreLoggedAndPresentationUsesOfficialLocale` 以真实 rc.7 Host 验证完整 owned transition edge、日志和 locale presentation。macOS-26 [run 32180108638](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32180108638)（commit `363b534`）3 项 Core tests 全通过（3.519s），并完成全门禁、SwiftPM/Swiftc 编译、截图和官方配对；人工复核记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`，Core 生命周期改动未新增 renderer 回归，既有 welcome `report-only` 差异仍由后续 UI TODO 关闭。
 
-- [ ] **T3.4：重做诊断与日志。** 提供可复制的 Host build、端口、DSH_HOME、进程所有权、最后 SSE 时间、最后 RPC 错误、协议 fixture revision 和插件兼容状态；敏感凭据永不写入日志。
+- [x] **T3.4：重做诊断与日志。** `HostDiagnosticRecorder` actor 汇聚 Core readiness/probe、API RPC 和 Host SSE 的时间/错误事实；`HostDiagnosticSnapshot.copyableText()` 提供 Host build、port、DSH_HOME、owned PID/ownership、last SSE、last RPC error、protocol fixture revision、plugin compatibility 和 lifecycle。`HostLogRedactor` 在记录前遮蔽 API key、Cookie、token、secret、password、Bearer 与 URL user-info；不保存 request/response payload 或 settings 原文。
   - 依赖：T3.2、T3.3。
-  - 验收：错误报告包含足够的信息重现问题，不包含 API key、Cookie、原始 secret 或未红脱敏的 settings。
+  - 验收证据：`testDiagnosticsAreCopyableCompleteAndRedacted` 覆盖全部必填字段及 API key/cookie/Bearer/URL credential/secret 全部不泄露；macOS-26 [run 32181832902](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32181832902)（commit `e93273a`）4 项 Core tests 全通过（4.392s），完成全门禁、SwiftPM/Swiftc 编译、截图和官方配对。人工复核记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`，diagnostics-only 改动未新增 renderer 回归，既有 welcome `report-only` 差异仍由后续 UI TODO 关闭。
 
 - [ ] **T3.5：实现下载与导出替代路径。** 对 session log export 和其他 Host 下载使用 `URLSessionDownloadTask`，在原生下载目录策略中保留同名冲突处理。
   - 依赖：T3.1、T4.4。
