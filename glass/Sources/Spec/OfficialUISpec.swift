@@ -72,6 +72,8 @@ enum OfficialUISpec {
         static let questionFooterLeading: CGFloat = 18
         static let questionFooterTrailing: CGFloat = 10
         static let questionFooterActionGap: CGFloat = 12
+        static let questionFooterFeedbackMinimumHeight: CGFloat = 16
+        static let questionCardBottomPadding: CGFloat = 10
     }
 
     enum Text {

@@ -177,6 +177,7 @@ struct NativeQuestionComposer: View {
                 footer
             }
         }
+        .padding(.bottom, OfficialUISpec.Layout.questionCardBottomPadding)
         .frame(maxWidth: OfficialUISpec.Layout.chatContentMaximum)
         .background(OfficialUISpec.Token.elevated, in: RoundedRectangle(cornerRadius: OfficialUISpec.Layout.questionCardCornerRadius, style: .continuous))
         .overlay {
@@ -358,7 +359,7 @@ struct NativeQuestionComposer: View {
     }
 
     private var footer: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: OfficialUISpec.Layout.questionFooterActionGap) {
             HStack(spacing: 6) {
                 Button(action: { move(to: index - 1) }) {
                     OfficialAssetImage(name: "icon-chevron-left", template: true)
@@ -379,13 +380,11 @@ struct NativeQuestionComposer: View {
                 .disabled(index == pending.items.count - 1 || submitting)
                 .accessibilityLabel(OfficialUISpec.Text.questionNextAccessibility)
             }
-            Spacer(minLength: 0)
-            if let feedback {
-                Text(feedback)
-                    .font(.system(size: 12, weight: .regular))
-                    .foregroundStyle(OfficialUISpec.Token.warningPrimary)
-                    .lineLimit(2)
-            }
+            Text(feedback ?? "")
+                .font(.system(size: 11, weight: .regular))
+                .foregroundStyle(OfficialUISpec.Token.warningPrimary)
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, minHeight: OfficialUISpec.Layout.questionFooterFeedbackMinimumHeight, alignment: .trailing)
             HStack(spacing: OfficialUISpec.Layout.questionFooterActionGap) {
                 Button(action: skip) {
                     Text(OfficialUISpec.Text.questionSkip)

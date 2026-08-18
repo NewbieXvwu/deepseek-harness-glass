@@ -84,7 +84,9 @@
     "questionFooterTopMargin": { "value": 12, "source": "packages/client/ui-user-questions/src/client/QuestionComposer.module.css:.footer margin-top" },
     "questionFooterLeading": { "value": 18, "source": "packages/client/ui-user-questions/src/client/QuestionComposer.module.css:.footer padding-left" },
     "questionFooterTrailing": { "value": 10, "source": "packages/client/ui-user-questions/src/client/QuestionComposer.module.css:.footer padding-right" },
-    "questionFooterActionGap": { "value": 12, "source": "packages/client/ui-user-questions/src/client/QuestionComposer.module.css:.footerActions gap" }
+    "questionFooterActionGap": { "value": 12, "source": "packages/client/ui-user-questions/src/client/QuestionComposer.module.css:.footerActions gap" },
+    "questionFooterFeedbackMinimumHeight": { "value": 16, "source": "packages/client/ui-user-questions/src/client/QuestionComposer.module.css:.feedback min-height" },
+    "questionCardBottomPadding": { "value": 10, "source": "packages/client/ui-user-questions/src/client/QuestionComposer.module.css:.card padding-bottom" }
   },
   "text": {
     "newSession": { "value": "New Session", "source": "packages/client/ui-sidebar/src/client/locales.ts" },
