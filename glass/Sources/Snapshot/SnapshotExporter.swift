@@ -28,12 +28,23 @@ enum SnapshotExporter {
             ? .conversation
             : .welcome
         let shell = NativeAppShell(mode: mode, viewportWidth: 1280, darkAppearance: false)
-        let hostedView = NSHostingView(rootView: shell)
         let size = NSSize(width: 1280, height: 840)
-        hostedView.frame = NSRect(origin: .zero, size: size)
-        hostedView.layoutSubtreeIfNeeded()
+        let window = NSWindow(
+            contentRect: NSRect(origin: .zero, size: size),
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+        window.isReleasedWhenClosed = false
+        window.contentViewController = NSHostingController(rootView: shell)
+        window.contentView?.frame = NSRect(origin: .zero, size: size)
+        window.orderFrontRegardless()
+        window.contentViewController?.view.layoutSubtreeIfNeeded()
+        window.contentView?.layoutSubtreeIfNeeded()
+        window.displayIfNeeded()
 
-        guard let bitmap = NSBitmapImageRep(
+        guard let hostedView = window.contentView,
+              let bitmap = NSBitmapImageRep(
             bitmapDataPlanes: nil,
             pixelsWide: Int(size.width),
             pixelsHigh: Int(size.height),
@@ -57,6 +68,7 @@ enum SnapshotExporter {
         let outputURL = URL(fileURLWithPath: outputPath)
         try FileManager.default.createDirectory(at: outputURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         try png.write(to: outputURL, options: .atomic)
+        window.orderOut(nil)
         return true
     }
 }
