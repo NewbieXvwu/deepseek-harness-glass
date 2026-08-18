@@ -131,6 +131,9 @@ jobs:
       - name: Enforce native-only core UI
         run: ./glass/ci/check-no-webview.sh
 
+      - name: Validate runtime asset migration inventory
+        run: python3 glass/ci/check-runtime-asset-inventory.py
+
       - name: Validate official UI specification provenance
         run: ./glass/ci/check-official-spec.py
 
@@ -191,5 +194,6 @@ jobs:
             glass/dist/DeepSeek Harness.app/Contents/Resources/SupportedHostBuilds.json
             glass/dist/DeepSeek Harness.app/Contents/Resources/BuildManifest.json
             glass/ci/dsh-backend-payload/package-lock.json
+            glass/Sources/Spec/RuntimeAssetInventory.json
           if-no-files-found: error
           retention-days: 14

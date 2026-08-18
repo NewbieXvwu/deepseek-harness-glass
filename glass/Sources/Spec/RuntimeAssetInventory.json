@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "supportBuild": "dsh-0.1.0-rc.7-official-99f6f02",
+  "assets": [
+    {
+      "id": "legacy-app-entry",
+      "source": "Sources/main.swift",
+      "responsibility": "Historical monolithic AppKit application lifecycle, window creation, snapshot branch, Host binding and termination.",
+      "decision": "replaced",
+      "destination": "Sources/App/DeepSeekHarnessGlassApp.swift",
+      "verification": "Legacy source is absent and exactly one @main application entry exists."
+    },
+    {
+      "id": "window-lifecycle",
+      "source": "Sources/main.swift window construction and NSWindowDelegate",
+      "responsibility": "1280×840 startup window, 880×600 minimum size, transparent titlebar, focus, close-to-menu-bar behavior.",
+      "decision": "migrated",
+      "destination": "Sources/App/WindowCoordinator.swift",
+      "verification": "Coordinator owns the only NSWindow and retains the same size/titlebar policy."
+    },
+    {
+      "id": "menu-bar-residency",
+      "source": "95c3ad8 historical main.swift NSStatusItem behavior",
+      "responsibility": "Keep the process reachable after window close and expose show, restart bundled Host and quit actions.",
+      "decision": "migrated",
+      "destination": "Sources/App/MenuBarCoordinator.swift",
+      "verification": "Status menu retains strong ownership and all actions route only to native coordinators."
+    },
+    {
+      "id": "owned-host-lifecycle",
+      "source": "Sources/Core/Host/HarnessHostController.swift plus legacy main.swift binding",
+      "responsibility": "Start only the bundled Node/DSH payload, parse readiness, bind state, stop owned process and retain one recovery attempt.",
+      "decision": "migrated",
+      "destination": "Sources/App/HostLifecycleCoordinator.swift and Sources/Core/Host/",
+      "verification": "App owns a coordinator; Core owns DSH_HOME, log path, child process, state and retry semantics."
+    },
+    {
+      "id": "external-port-attachment",
+      "source": "95c3ad8 historical 127.0.0.1:3080 probe",
+      "responsibility": "Attach to an arbitrary external dsh web server instead of launching the bundled payload.",
+      "decision": "deleted",
+      "destination": "none",
+      "verification": "No 3080 probe or external Host write path exists; T0.2 fixed support boundary permits only app-owned payload."
+    },
+    {
+      "id": "snapshot-export",
+      "source": "Sources/Snapshot/SnapshotExporter.swift",
+      "responsibility": "Detect snapshot environment, render native fixture and terminate without launching normal UI.",
+      "decision": "preserved",
+      "destination": "Sources/Snapshot/SnapshotExporter.swift",
+      "verification": "App entry invokes export before window, menu-bar or Host startup."
+    },
+    {
+      "id": "host-user-data-and-logs",
+      "source": "Sources/Core/Host/HostRuntimeConfiguration.swift",
+      "responsibility": "Create app-scoped DSH_HOME and log directory under Application Support.",
+      "decision": "preserved",
+      "destination": "Sources/Core/Host/HostRuntimeConfiguration.swift",
+      "verification": "Runtime configuration supplies both paths to the owned Host and every failure carries the log path."
+    },
+    {
+      "id": "bundled-node-and-payload",
+      "source": "glass/assemble.sh and glass/ci/dsh-backend-payload/package-lock.json",
+      "responsibility": "Bundle Node 24.19.0 and exact rc.7 DSH/WebUI packages in the app.",
+      "decision": "preserved",
+      "destination": "glass/assemble.sh, SupportedHostBuilds.json and BuildManifest.json",
+      "verification": "check-supported-host-build.py validates catalog, lockfile, package manifests, Info.plist and Node binary together."
+    },
+    {
+      "id": "backend-repair-tool",
+      "source": "glass/repair-backend.sh",
+      "responsibility": "Reinstall exact payload, smoke test app-owned Host and reassemble for maintenance.",
+      "decision": "preserved",
+      "destination": "glass/repair-backend.sh",
+      "verification": "Defaults use exact rc.7 package versions and a temporary DSH_HOME."
+    },
+    {
+      "id": "app-metadata-assets-signing",
+      "source": "glass/Info.plist, glass/assets/, build/icon.icns and glass/assemble.sh",
+      "responsibility": "Bundle identity, OS baseline, official visual assets, ad-hoc signature and atomic app staging.",
+      "decision": "preserved",
+      "destination": "glass/Info.plist, glass/assets/, glass/assemble.sh",
+      "verification": "macOS CI assembles, codesign-verifies and uploads the app resources."
+    },
+    {
+      "id": "native-quality-ci",
+      "source": ".github/workflows/native-ui.yml",
+      "responsibility": "Build pinned payload, enforce D0/D1/support policy, capture official/native scenes and upload review artifacts.",
+      "decision": "preserved",
+      "destination": ".github/workflows/native-ui.yml",
+      "verification": "Every relevant main push runs macos-26 and uploads the audit bundle."
+    },
+    {
+      "id": "release-workflow",
+      "source": ".github/workflows/release.yml",
+      "responsibility": "Build a DMG from the same exact bundled payload.",
+      "decision": "migrated",
+      "destination": ".github/workflows/release.yml",
+      "verification": "Release workflow pins rc.7; signing/notarization remain explicit later release-governance work."
+    },
+    {
+      "id": "webview-shell",
+      "source": "Historical WKWebView/DOM/CSS injection implementation",
+      "responsibility": "Render product UI from an embedded webpage.",
+      "decision": "deleted",
+      "destination": "reference-only outside App target",
+      "verification": "D0 static gate rejects WebKit, DOM and injection APIs in Core, UI and Features."
+    }
+  ]
+}
