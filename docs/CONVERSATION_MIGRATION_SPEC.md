@@ -27,3 +27,9 @@
 ## 首期范围与延后项
 
 首期会话根必须包含：历史加载、user/assistant text transcript、流式 assistant delta、loading/error、回到底部和 session 切换取消。工具行、图片附件、approval/question、queue、todo、stats、轨迹、交付物和未知 surface 不能假装已完整实现，分别迁移到后续 Tooling、Attachment 和插件适配阶段。
+
+## 官方 ChatView 滚动行为（待原生收敛）
+
+`ui-conversation/src/client/chat/ChatView.tsx` 规定以下行为：首次 history open 在没有已保存 reader position 时跳到底部；读取者在底部时只随新的 flow tip 或内容高度变化继续跟随；读取者离开底部后不得被被动 render/流式更新重新钉回底部；用户自己的新消息与 pending steering 消息强制可见；点击“Load earlier”前保存语义行和相对 top，prepend 后恢复该行位置；仅非底部时显示“Back to bottom”。
+
+原生 SessionStore 已实现 Host `beforeSeq` 分页和 `hasMore`/loading state。下一次会话视图收敛将把 SwiftUI scroll geometry 的 reader ownership、prepend anchor 与 `chat.toBottom` 条件控件加入，不能以“每次 items 更新都 scrollTo bottom”的方式替代。
