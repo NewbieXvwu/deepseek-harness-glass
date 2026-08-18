@@ -42,6 +42,8 @@ enum SnapshotExporter {
         window.orderFrontRegardless()
         window.contentViewController?.view.layoutSubtreeIfNeeded()
         window.contentView?.layoutSubtreeIfNeeded()
+        shellController.refreshForCurrentViewport()
+        window.contentViewController?.view.layoutSubtreeIfNeeded()
         window.displayIfNeeded()
         FileHandle.standardOutput.write(Data((shellController.snapshotLayoutDescription() + "\n").utf8))
 

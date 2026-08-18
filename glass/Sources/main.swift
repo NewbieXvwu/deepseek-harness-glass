@@ -43,6 +43,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         window.delegate = self
         window.center()
         window.makeKeyAndOrderFront(nil)
+        shellController.refreshForCurrentViewport()
         self.window = window
         NSApp.activate(ignoringOtherApps: true)
     }

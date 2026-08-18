@@ -52,12 +52,18 @@ final class NativeShellController: NativeSplitViewController {
     required init?(coder: NSCoder) { nil }
 
     override func viewDidLayout() {
+        super.viewDidLayout()
         let automaticRail = view.bounds.width < OfficialUISpec.Layout.sidebarAutoCollapse
         let expectedRail = automaticRail || presentation.manuallyCollapsed
         if expectedRail != renderedSidebarCollapsed {
             renderPresentation()
         }
-        super.viewDidLayout()
+    }
+
+    /// Call after a window assigns final bounds (particularly important for
+    /// off-screen snapshot windows whose controller first lays out at zero).
+    func refreshForCurrentViewport() {
+        renderPresentation()
     }
 
     private func renderPresentation() {
