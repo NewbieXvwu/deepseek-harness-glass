@@ -97,7 +97,14 @@ def swift_identifier(css_name: str) -> str:
 
 
 def swift_rgba(value: dict[str, float]) -> str:
-    return f"OfficialRGBA(red: {value['red']:.9g}, green: {value['green']:.9g}, blue: {value['blue']:.9g}, alpha: {value['alpha']:.9g})"
+    return (
+        "OfficialRGBA("
+        f"red: {repr(value['red'])}, "
+        f"green: {repr(value['green'])}, "
+        f"blue: {repr(value['blue'])}, "
+        f"alpha: {repr(value['alpha'])}"
+        ")"
+    )
 
 
 def swift_source(tokens: list[dict[str, object]], commit: str, revision: str, source_input_revision: str) -> str:
