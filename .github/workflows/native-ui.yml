@@ -163,8 +163,10 @@ jobs:
 
       - name: Compare official and native welcome screenshots
         run: |
-          python3 -m pip install --disable-pip-version-check --no-input Pillow numpy
-          python3 glass/ci/compare_visual_pair.py \
+          python3 -m venv /tmp/dsh-visual-venv
+          source /tmp/dsh-visual-venv/bin/activate
+          python -m pip install --disable-pip-version-check --no-input Pillow numpy
+          python glass/ci/compare_visual_pair.py \
             --official artifacts/official-webui/welcome-no-workspace-light.png \
             --native artifacts/native-shell/welcome-dark.png \
             --out-dir artifacts/visual-diff \
