@@ -21,7 +21,11 @@ DSH_GLASS_SNAPSHOT_PATH="$OUTPUT_DIR/conversation-dark.png" \
 DSH_GLASS_SNAPSHOT_MODE="conversation" \
 "$BINARY"
 
-for image in "$OUTPUT_DIR/welcome-dark.png" "$OUTPUT_DIR/conversation-dark.png"; do
+DSH_GLASS_SNAPSHOT_PATH="$OUTPUT_DIR/tooling-inspector-dark.png" \
+DSH_GLASS_SNAPSHOT_MODE="tooling" \
+"$BINARY"
+
+for image in "$OUTPUT_DIR/welcome-dark.png" "$OUTPUT_DIR/conversation-dark.png" "$OUTPUT_DIR/tooling-inspector-dark.png"; do
   test -s "$image"
   sips -g pixelWidth -g pixelHeight "$image"
 done

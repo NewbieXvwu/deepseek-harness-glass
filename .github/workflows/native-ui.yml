@@ -110,6 +110,7 @@ jobs:
             | tee native-shell-snapshot.log
           test -s "$snapshot_dir/welcome-dark.png"
           test -s "$snapshot_dir/conversation-dark.png"
+          test -s "$snapshot_dir/tooling-inspector-dark.png"
           find "$snapshot_dir" -maxdepth 1 -type f -name '*.png' -print
 
       - name: Upload native UI review bundle

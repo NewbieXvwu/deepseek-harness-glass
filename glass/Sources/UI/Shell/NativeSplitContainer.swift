@@ -116,7 +116,7 @@ final class NativeShellController: NativeSplitViewController {
             sidebarPreference: presentation.sidebarPreference,
             detailsPreference: presentation.detailsPreference,
             sidebarCollapsed: presentation.manuallyCollapsed,
-            detailsVisible: presentation.detailsVisible && presentation.mode == .conversation
+            detailsVisible: presentation.detailsVisible && presentation.mode != .welcome
         )
         presentationObservation = presentation.objectWillChange.sink { [weak self] _ in
             DispatchQueue.main.async { self?.renderPresentation() }
@@ -151,7 +151,7 @@ final class NativeShellController: NativeSplitViewController {
             sidebarPreference: presentation.sidebarPreference,
             detailsPreference: presentation.detailsPreference,
             sidebarCollapsed: collapsed,
-            detailsVisible: presentation.detailsVisible && presentation.mode == .conversation
+            detailsVisible: presentation.detailsVisible && presentation.mode != .welcome
         )
     }
 

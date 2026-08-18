@@ -24,10 +24,20 @@ enum SnapshotExporter {
             return false
         }
 
-        let mode: NativeAppShell.PresentationMode = ProcessInfo.processInfo.environment["DSH_GLASS_SNAPSHOT_MODE"] == "conversation"
-            ? .conversation
-            : .welcome
-        let presentation = NativeShellPresentation(mode: mode)
+        let mode: NativeAppShell.PresentationMode
+        switch ProcessInfo.processInfo.environment["DSH_GLASS_SNAPSHOT_MODE"] {
+        case "conversation":
+            mode = .conversation
+        case "tooling":
+            mode = .tooling
+        default:
+            mode = .welcome
+        }
+        let sessionStore = NativeSessionStore()
+        if mode == .tooling {
+            sessionStore.loadSnapshotToolingFixture()
+        }
+        let presentation = NativeShellPresentation(mode: mode, sessionStore: sessionStore)
         let shellController = NativeShellController(presentation: presentation)
         let size = NSSize(width: 1280, height: 840)
         let window = NSWindow(

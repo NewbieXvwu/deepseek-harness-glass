@@ -10,7 +10,7 @@ struct NativeConversationColumn: View {
         switch mode {
         case .welcome:
             NativeWelcomeSurface()
-        case .conversation:
+        case .conversation, .tooling:
             NativeActiveConversationSurface(sessionStore: sessionStore)
         }
     }

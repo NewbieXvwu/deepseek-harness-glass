@@ -395,6 +395,60 @@ final class NativeSessionStore: ObservableObject {
         selectedToolCallID = callID
     }
 
+    /// Snapshot-only Host-shaped fixture. It drives the same native transcript
+    /// and tool detail views as live SSE reducer output, without becoming a
+    /// production fallback for disconnected sessions.
+    func loadSnapshotToolingFixture() {
+        let sessionID = "snapshot-tooling"
+        phase = .ready(sessionID: sessionID)
+        activeSessionID = sessionID
+        items = [
+            TranscriptItem(
+                id: "event-101",
+                role: .user,
+                text: "Read the project instructions.",
+                isStreaming: false,
+                sequence: 101
+            ),
+            TranscriptItem(
+                id: "event-104",
+                role: .assistant,
+                text: "I found the requested instructions.",
+                isStreaming: false,
+                sequence: 104
+            )
+        ]
+        toolInvocations = [
+            ToolInvocation(
+                id: "snapshot-read",
+                name: "read",
+                arguments: "{\"path\":\"README.md\"}",
+                output: "# Project instructions",
+                state: .completed,
+                sequence: 102,
+                view: nil
+            ),
+            ToolInvocation(
+                id: "snapshot-bash",
+                name: "bash",
+                arguments: "pwd",
+                output: nil,
+                state: .running,
+                sequence: 103,
+                view: nil
+            )
+        ]
+        selectedToolCallID = "snapshot-read"
+        isRunning = true
+        hasMoreHistory = false
+        isLoadingOlderHistory = false
+        isSubmittingPrompt = false
+        draft = ""
+        pendingImages = []
+        lastError = nil
+        appliedSequences = [101, 102, 103, 104]
+    }
+
     private func settleStreaming() {
         for index in items.indices where items[index].isStreaming {
             items[index].isStreaming = false

@@ -31,6 +31,15 @@
       "allowedDifferenceClasses": ["font-rendering", "system-glass"]
     },
     {
+      "id": "tooling-inspector-light",
+      "surface": "conversation.tool-call-with-details",
+      "state": "session-selected-tool-call",
+      "officialComponents": ["AppFrame", "ConversationRoot", "ToolRow", "ToolCallDetails"],
+      "nativeEntry": "NativeAppShell.PresentationMode.tooling",
+      "requiredEvidence": ["source-map", "official-screenshot", "native-screenshot", "layout-rectangles", "accessibility", "rpc-fixture"],
+      "allowedDifferenceClasses": ["font-rendering", "system-glass"]
+    },
+    {
       "id": "sidebar-rail-narrow-light",
       "surface": "sidebar.compact-rail",
       "state": "viewport-below-auto-collapse",

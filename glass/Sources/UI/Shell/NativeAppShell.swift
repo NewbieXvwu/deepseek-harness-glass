@@ -8,6 +8,7 @@ struct NativeAppShell: View {
     enum PresentationMode: Equatable {
         case welcome
         case conversation
+        case tooling
     }
 
     let mode: PresentationMode
