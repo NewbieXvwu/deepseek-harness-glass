@@ -147,33 +147,32 @@ struct NativeToolDetailsBody: View {
 
     var body: some View {
         Group {
-            guard let invocation else {
+            if let invocation {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text(invocation.name)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(OfficialUISpec.Token.primary)
+                        if invocation.state == .running {
+                            Text(OfficialUISpec.Text.toolDetailsRunning)
+                                .font(.system(size: 13, weight: .regular))
+                                .foregroundStyle(OfficialUISpec.Token.secondary)
+                        }
+                        Text(invocation.output ?? invocation.arguments)
+                            .font(.system(size: 12, design: .monospaced))
+                            .foregroundStyle(invocation.state == .failed ? Color.red : OfficialUISpec.Token.secondary)
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(10)
+                            .background(OfficialUISpec.Token.elevated, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                    .padding(16)
+                }
+            } else {
                 Text(OfficialUISpec.Text.detailsEmpty)
                     .font(.system(size: 13, weight: .regular))
                     .foregroundStyle(OfficialUISpec.Token.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                return
-            }
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(invocation.name)
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(OfficialUISpec.Token.primary)
-                    if invocation.state == .running {
-                        Text(OfficialUISpec.Text.toolDetailsRunning)
-                            .font(.system(size: 13, weight: .regular))
-                            .foregroundStyle(OfficialUISpec.Token.secondary)
-                    }
-                    Text(invocation.output ?? invocation.arguments)
-                        .font(.system(size: 12, design: .monospaced))
-                        .foregroundStyle(invocation.state == .failed ? Color.red : OfficialUISpec.Token.secondary)
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(10)
-                        .background(OfficialUISpec.Token.elevated, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                }
-                .padding(16)
             }
         }
     }
