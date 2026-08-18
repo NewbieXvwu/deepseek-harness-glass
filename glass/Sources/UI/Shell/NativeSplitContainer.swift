@@ -746,7 +746,9 @@ private struct NativeWorkspaceManagementDialogOverlay: View {
         case .outline, .danger:
             return Color.clear
         case .primary:
-            return OfficialUISpec.Token.businessBlue
+            // Source: design-platform.css:179,191 — button primary fill is
+            // the neutral `--dsw-alias-brand-primary`, not DeepSeek blue.
+            return OfficialUISpec.Token.primary
         }
     }
 
