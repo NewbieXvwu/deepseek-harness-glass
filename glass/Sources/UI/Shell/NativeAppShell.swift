@@ -198,65 +198,68 @@ private struct ConversationColumn: View {
 private struct OfficialWelcomeSurface: View {
     var body: some View {
         GeometryReader { geometry in
-            ZStack {
-                OfficialUISpec.Token.base
+            let cardWidth = min(
+                OfficialUISpec.Layout.composerMaximum,
+                max(0, geometry.size.width - 2 * OfficialUISpec.Layout.composerClearance)
+            )
 
-                VStack(spacing: OfficialUISpec.Layout.heroGap) {
-                    HStack(spacing: 10) {
-                        OfficialAssetImage(name: "fish-logo")
-                            .frame(width: 34, height: 25)
-                        Text(OfficialUISpec.Text.heroHeadline)
-                            .font(.system(size: 26, weight: .medium))
-                            .foregroundStyle(OfficialUISpec.Token.primary)
-                        Text(OfficialUISpec.Text.preview)
-                            .font(.system(size: 12, weight: .medium, design: .monospaced))
-                            .foregroundStyle(OfficialUISpec.Token.businessBlue)
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 1)
-                            .background(OfficialUISpec.Token.businessBlueSoft, in: Capsule())
-                            .overlay {
-                                Capsule().stroke(OfficialUISpec.Token.businessBlueSoft, lineWidth: 1)
-                            }
-                            .alignmentGuide(.firstTextBaseline) { $0[.firstTextBaseline] }
+            VStack(spacing: OfficialUISpec.Layout.heroGap) {
+                HStack(spacing: 10) {
+                    OfficialAssetImage(name: "fish-logo")
+                        .frame(width: 34, height: 25)
+                    Text(OfficialUISpec.Text.heroHeadline)
+                        .font(.system(size: 26, weight: .medium))
+                        .foregroundStyle(OfficialUISpec.Token.primary)
+                    Text(OfficialUISpec.Text.preview)
+                        .font(.system(size: 12, weight: .medium, design: .monospaced))
+                        .foregroundStyle(OfficialUISpec.Token.businessBlue)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 1)
+                        .background(OfficialUISpec.Token.businessBlueSoft, in: Capsule())
+                        .overlay {
+                            Capsule().stroke(OfficialUISpec.Token.businessBlueSoft, lineWidth: 1)
+                        }
+                        .alignmentGuide(.firstTextBaseline) { $0[.firstTextBaseline] }
+                }
+                .frame(maxWidth: .infinity, alignment: .center)
+
+                VStack(spacing: 8) {
+                    HStack(spacing: 2) {
+                        OfficialHeroChip(
+                            symbol: "folder",
+                            text: OfficialUISpec.Text.chooseWorkspace,
+                            showsChevron: true
+                        )
+                        OfficialHeroChip(
+                            symbol: "point.3.connected.trianglepath.dotted",
+                            text: OfficialUISpec.Text.standardMode,
+                            showsChevron: true
+                        )
+                        Spacer(minLength: 0)
                     }
-                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.leading, 20)
 
-                    VStack(spacing: 8) {
-                        HStack(spacing: 2) {
-                            OfficialHeroChip(
-                                symbol: "folder",
-                                text: OfficialUISpec.Text.chooseWorkspace,
-                                showsChevron: true
-                            )
-                            OfficialHeroChip(
-                                symbol: "point.3.connected.trianglepath.dotted",
-                                text: OfficialUISpec.Text.standardMode,
-                                showsChevron: true
-                            )
-                            Spacer(minLength: 0)
-                        }
-                        .padding(.leading, 20)
-
-                        ZStack {
-                            Ellipse()
-                                .fill(OfficialUISpec.Token.businessBlueGlow)
-                                .frame(width: min(geometry.size.width * 1.05, 1_051), height: 210)
-                                .blur(radius: 50)
-                                .offset(y: 38)
-
-                            OfficialComposerCard(
-                                placeholder: OfficialUISpec.Text.composerWorkspacePlaceholder,
-                                isWorkspaceTrigger: true
-                            )
-                        }
+                    OfficialComposerCard(
+                        placeholder: OfficialUISpec.Text.composerWorkspacePlaceholder,
+                        isWorkspaceTrigger: true
+                    )
+                    // The glow is painted behind the fixed-size card. It must not
+                    // take part in the stack's proposed width, unlike the first
+                    // snapshot implementation where a wide ZStack stretched the card.
+                    .background {
+                        Ellipse()
+                            .fill(OfficialUISpec.Token.businessBlueGlow.opacity(0.44))
+                            .frame(width: cardWidth * 1.25, height: 132)
+                            .blur(radius: 42)
+                            .offset(y: 42)
+                            .allowsHitTesting(false)
                     }
                 }
-                .frame(
-                    width: min(OfficialUISpec.Layout.composerMaximum + 2 * OfficialUISpec.Layout.composerClearance, geometry.size.width),
-                    alignment: .center
-                )
-                .padding(.bottom, 32)
+                .frame(width: cardWidth)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .padding(.horizontal, OfficialUISpec.Layout.composerClearance)
+            .padding(.bottom, 32)
         }
         .background(OfficialUISpec.Token.base)
     }
