@@ -133,7 +133,7 @@ final class NativeWorkspaceStore: ObservableObject {
         eventTask?.cancel()
         let client = SSEClient(baseURL: endpoint)
         eventTask = Task { [weak self] in
-            let stream = await client.stream(.host)
+            let stream = await client.reconnectingStream(.host)
             do {
                 for try await frame in stream {
                     await diagnostics.recordSSEActivity()
@@ -144,8 +144,8 @@ final class NativeWorkspaceStore: ObservableObject {
                 return
             } catch {
                 await diagnostics.recordRPCError(error)
-                // Event reconnection policy belongs to Host lifecycle ownership.
-                // A later successful host transition calls this method again.
+                // A finite reconnect policy can only surface after exhaustion;
+                // lifecycle ownership still replaces this stream on endpoint change.
             }
         }
     }

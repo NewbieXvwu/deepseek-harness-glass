@@ -311,7 +311,7 @@ final class NativeSessionStore: ObservableObject {
         streamTask?.cancel()
         let client = SSEClient(baseURL: endpoint)
         streamTask = Task { [weak self] in
-            let stream = await client.stream(.mux)
+            let stream = await client.reconnectingStream(.mux)
             do {
                 for try await frame in stream {
                     guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
@@ -320,9 +320,9 @@ final class NativeSessionStore: ObservableObject {
             } catch is CancellationError {
                 return
             } catch {
-                // The official reconnection posture is reopen + refetch history.
-                // Lifecycle recovery owns retries; stale partial transcript remains
-                // readable until the next verified endpoint transition.
+                // A finite retry policy can surface only after reconnect exhaustion.
+                // Existing sequence gates retain the last authoritative transcript
+                // until the verified Host lifecycle supplies a fresh endpoint.
             }
         }
     }
@@ -812,17 +812,5 @@ final class NativeSessionStore: ObservableObject {
     private func decode<Value: Decodable>(_ type: Value.Type, from value: JSONValue) -> Value? {
         guard let data = try? JSONEncoder().encode(value) else { return nil }
         return try? JSONDecoder().decode(Value.self, from: data)
-    }
-}
-
-private extension JSONValue {
-    var arrayValue: [JSONValue]? {
-        guard case let .array(value) = self else { return nil }
-        return value
-    }
-
-    var numberValue: Double? {
-        guard case let .number(value) = self else { return nil }
-        return value
     }
 }

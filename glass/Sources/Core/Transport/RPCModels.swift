@@ -57,6 +57,16 @@ enum JSONValue: Codable, Equatable, Sendable {
         guard case let .bool(value) = self else { return nil }
         return value
     }
+
+    var arrayValue: [JSONValue]? {
+        guard case let .array(value) = self else { return nil }
+        return value
+    }
+
+    var numberValue: Double? {
+        guard case let .number(value) = self else { return nil }
+        return value
+    }
 }
 
 /// Matches the official `ClientRequest` wire form sent as POST `/api/<method>`.
