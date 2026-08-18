@@ -32,3 +32,9 @@
 证据：macOS-26 [run 32169307451](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32169307451)，commit `2fbdeb7`，工件 `artifacts/official-webui/welcome-no-workspace-light.png`、`artifacts/native-shell/welcome-dark.png`、`artifacts/visual-diff/welcome-no-workspace-light-comparison.png`、amplified diff 与报告 JSON。该 run 已成功编译全部 SwiftPM target、执行 `OfficialUISpecBuildTests`（包括 162 个生成 CSS theme token 的 source/revision/RGBA 测试）、生成原生截图并完成官方配对。
 
 人工检查三栏对照图确认：侧栏、wordmark、New Session、Workspaces 空态、hero 标题、chooser/mode 行与 composer 的文案顺序和主要边界没有因 T2.3 将手写颜色/字体/几何替换为官方语义 token 而产生新的可观察偏移或文本替换。量化报告仍为 `report-only`：materially changed ratio `0.02957217`、mean absolute channel difference `2.829776`、exact changed ratio `0.30839937`；差异仍集中在此前已记录的原生虚线/描边、composer seat、阴影/材质与数像素几何偏差。它们不是本次 token catalog 迁移新增的差异，且本记录**不构成 welcome 场景视觉验收通过**；下游 UI 场景任务仍须逐项关闭这些差异。
+
+## 2026-08-19 — T2.4 official three-column fixture review
+
+证据：macOS-26 [run 32171801347](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32171801347)，commit `4f6c7e5`，工件中的官方 PNG、`welcome-dark.png`、三栏 comparison、amplified diff 与报告 JSON。该 run 成功执行直接调用锁定 `computeColumns` 的 30 个 fixture gate、SwiftPM resource 编译、逐 fixture `OfficialColumnLayout` XCTest、直接 Swiftc app 装配、原生截图和官方配对。
+
+人工检查并排图确认：该提交只增加算法 fixture、bundle 加载与资源复制，不修改 renderer；侧栏、hero、chooser/mode 行、composer、文案及可见三栏边界均与前一成功对照保持相同。报告的 materially changed ratio 为 `0.02959635`、mean absolute channel difference 为 `2.812569`、exact changed ratio 为 `0.30891369`；相对前一 run 的极小像素波动没有对应的结构或 token 变更，属于同一截图/光栅管线的 report-only 波动。原有 composer 描边、材质和几何差异仍未关闭，且本记录**不构成 welcome 场景视觉验收通过**。

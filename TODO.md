@@ -161,9 +161,9 @@
   - 依赖：T2.1。
   - 验收证据：`generate_official_theme_tokens.py`、`check-official-theme-tokens.py` 与 `OfficialUISpecBuildTests.testGeneratedOfficialThemeCatalogMatchesLockedBuildAndResolvesSchemes` 已覆盖可重现性、162 token 数、commit、build revision 及 light/dark RGBA；macOS-26 [run 32169307451](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32169307451)（commit `2fbdeb7`）成功完成全部门禁、SwiftPM 编译、XCTest、原生截图与官方视觉配对。人工对照及量化报告已记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`；该基础设施变更未新增可观察 welcome 回归，既有 `report-only` 差异仍明确保留给后续 UI 场景关闭。
 
-- [ ] **T2.4：固化官方三栏算法。** 按官方 constants 实现侧栏默认 280px、范围 264–420px、收缩轨 56px、窄窗口阈值 1024px、中心目标最小宽度 640px、详情默认 360px、范围 300–520px，并保留“先压缩详情、后关闭详情”的规则。[4] [5]
+- [x] **T2.4：固化官方三栏算法。** `OfficialColumnLayout.resolve` 与锁定 `packages/client/ui-layout/src/client/columns.ts` 的三段让步链保持一致：侧栏不让步、详情先缩至 300px、再派生关闭详情、最终中心列吸收余量。`generate_official_column_layout_fixtures.ts` 通过锁定 Node 24/tsx 直接调用官方 `computeColumns` 生成 30 个 fixture，覆盖默认、收缩、自动关闭、恢复、closed rail、viewport 极限、clamp 与小数 round 边界；fixture 保留源路径、commit 和 SHA-256，作为 GlassSpec resource 与 app resource 双路径加载。
   - 依赖：T2.1。
-  - 验收：对官方 `computeColumns` 夹具的每一个输入，Swift `LayoutSolver` 输出相同列宽；边界值使用单元测试覆盖。
+  - 验收证据：`check-official-column-layout-fixtures.py` 对官方函数重生成并逐字节比对，`OfficialUISpecBuildTests.testOfficialColumnLayoutMatchesEveryGeneratedComputeColumnsFixture` 逐例比对 Swift 输出，另有常量断言。macOS-26 [run 32171801347](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32171801347)（commit `4f6c7e5`）成功完成 fixture gate、SwiftPM target 编译、XCTest、直接 Swiftc app 装配、截图和官方视觉对照；人工复核已记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`，无 renderer 变更造成的新可观察回归，既有 welcome `report-only` 差异仍保留给后续 UI 场景关闭。
 
 - [ ] **T2.5：建立官方交互场景目录。** 每个场景包含初始 Host fixture、窗口尺寸、颜色模式、辅助功能模式、动作序列、预期可见文案、预期布局树和截图基线。
   - 依赖：T2.2–T2.4。
