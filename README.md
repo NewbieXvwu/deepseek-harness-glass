@@ -13,7 +13,7 @@ A **native macOS client** for [DeepSeek Harness](https://github.com/deepseek-ai/
 | Item | Fixed support value |
 |---|---|
 | Official source | [`deepseek-ai/deepseek-harness@99f6f02fecdb7dff40c3fbc9470f5907c29f74ca`](https://github.com/deepseek-ai/deepseek-harness/tree/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca) |
-| Supported DSH package | `@deepseek-ai/dsh` and `@deepseek-ai/dsh-web-frontend` `0.1.0-rc.6` |
+| Supported DSH package | `@deepseek-ai/dsh` and `@deepseek-ai/dsh-web-frontend` `0.1.0-rc.7` |
 | Runtime | Node `24.19.0` bundled with the application |
 | Client platform | macOS 26+, Xcode 26+, Apple Silicon, Swift 6 |
 | Support record | `glass/Sources/Spec/SupportedHostBuilds.json` |

@@ -11,6 +11,8 @@ on:
       - "glass/scripts/**"
       - "glass/ci/**"
       - "glass/Sources/Spec/SupportedHostBuilds.json"
+      - "tools/reference-capture/**"
+      - "visual-review/**"
       - ".github/workflows/native-ui.yml"
       - "README.md"
       - "README.zh.md"
@@ -25,6 +27,8 @@ on:
       - "glass/scripts/**"
       - "glass/ci/**"
       - "glass/Sources/Spec/SupportedHostBuilds.json"
+      - "tools/reference-capture/**"
+      - "visual-review/**"
       - ".github/workflows/native-ui.yml"
       - "README.md"
       - "README.zh.md"
@@ -40,7 +44,7 @@ jobs:
     name: build and snapshot native shell
     # macos-26 is GitHub's arm64 hosted image with the macOS 26 SDK and Xcode 26.
     runs-on: macos-26
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
       - name: Checkout
@@ -54,6 +58,13 @@ jobs:
           xcrun --sdk macosx --show-sdk-version | tee macos-sdk-version.txt
           test "$(xcodebuild -version | awk '/Xcode/{print $2}' | cut -d. -f1)" = "26"
 
+      - name: Checkout locked official DeepSeek Harness source
+        uses: actions/checkout@v4
+        with:
+          repository: deepseek-ai/deepseek-harness
+          ref: 99f6f02fecdb7dff40c3fbc9470f5907c29f74ca
+          path: .reference/deepseek-harness
+
       - name: Download bundled Node runtime
         run: |
           curl -fsSL https://nodejs.org/dist/v24.19.0/node-v24.19.0-darwin-arm64.tar.gz -o /tmp/node.tgz
@@ -61,6 +72,20 @@ jobs:
           mkdir -p glass/build/node
           cp /tmp/node-v24.19.0-darwin-arm64/bin/node glass/build/node/node
           chmod +x glass/build/node/node
+          echo "NODE24_BIN=/tmp/node-v24.19.0-darwin-arm64/bin" >> "$GITHUB_ENV"
+
+      - name: Build and capture locked official WebUI baseline
+        run: |
+          export PATH="$NODE24_BIN:$PATH"
+          cd .reference/deepseek-harness
+          corepack pnpm install --frozen-lockfile
+          corepack pnpm --filter @deepseek-ai/dsh-web-frontend run build
+          cp "$GITHUB_WORKSPACE/tools/reference-capture/capture-official-welcome.e2e.ts" apps/web/tests/
+          corepack pnpm --filter @deepseek-ai/dsh-web-frontend exec playwright install chromium
+          DSH_REFERENCE_SCREENSHOT_DIR="$GITHUB_WORKSPACE/artifacts/official-webui" \
+            corepack pnpm exec vitest run --config vitest.web.config.ts apps/web/tests/capture-official-welcome.e2e.ts
+          test -s "$GITHUB_WORKSPACE/artifacts/official-webui/welcome-no-workspace-light.png"
+          test -s "$GITHUB_WORKSPACE/artifacts/official-webui/welcome-no-workspace-light.json"
 
       - name: Restore pinned DeepSeek Harness Host payload cache
         id: dsh-host-cache
@@ -93,6 +118,12 @@ jobs:
             ~/.npm
             glass/build/backend/node_modules
           key: dsh-host-payload-v1-macos-26-arm64-node-24.19.0-${{ hashFiles('glass/ci/dsh-backend-payload/package-lock.json') }}
+
+      - name: Verify fixed Host support boundary
+        run: |
+          python3 glass/ci/check-supported-host-build.py \
+            --payload-dir glass/build/backend \
+            --node glass/build/node/node
 
       - name: Enforce native-only core UI
         run: ./glass/ci/check-no-webview.sh
@@ -127,6 +158,17 @@ jobs:
           test -s "$snapshot_dir/question-composer-official-viewport.png"
           find "$snapshot_dir" -maxdepth 1 -type f -name '*.png' -print
 
+      - name: Compare official and native welcome screenshots
+        run: |
+          python3 -m pip install --disable-pip-version-check --no-input Pillow numpy
+          python3 glass/ci/compare_visual_pair.py \
+            --official artifacts/official-webui/welcome-no-workspace-light.png \
+            --native artifacts/native-shell/welcome-dark.png \
+            --out-dir artifacts/visual-diff \
+            --scene welcome-no-workspace-light
+          test -s artifacts/visual-diff/welcome-no-workspace-light-comparison.png
+          test -s artifacts/visual-diff/welcome-no-workspace-light-report.json
+
       - name: Upload native UI review bundle
         if: always()
         uses: actions/upload-artifact@v4
@@ -134,10 +176,13 @@ jobs:
           name: native-ui-${{ github.sha }}
           path: |
             artifacts/native-shell/
+            artifacts/official-webui/
+            artifacts/visual-diff/
             native-shell-snapshot.log
             xcodebuild-version.txt
             macos-sdk-version.txt
             glass/dist/DeepSeek Harness.app/Contents/Resources/SupportedHostBuilds.json
             glass/dist/DeepSeek Harness.app/Contents/Resources/BuildManifest.json
+            glass/ci/dsh-backend-payload/package-lock.json
           if-no-files-found: error
           retention-days: 14

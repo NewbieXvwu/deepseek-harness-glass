@@ -3,7 +3,7 @@
   "private": true,
   "description": "Pinned DeepSeek Harness Host payload for native shell CI",
   "dependencies": {
-    "@deepseek-ai/dsh": "0.1.0-rc.6",
-    "@deepseek-ai/dsh-web-frontend": "0.1.0-rc.6"
+    "@deepseek-ai/dsh": "0.1.0-rc.7",
+    "@deepseek-ai/dsh-web-frontend": "0.1.0-rc.7"
   }
 }

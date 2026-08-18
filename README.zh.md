@@ -13,7 +13,7 @@
 | 项目 | 固定支持值 |
 |---|---|
 | 官方源码 | [`deepseek-ai/deepseek-harness@99f6f02fecdb7dff40c3fbc9470f5907c29f74ca`](https://github.com/deepseek-ai/deepseek-harness/tree/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca) |
-| 支持的 DSH 包 | `@deepseek-ai/dsh` 与 `@deepseek-ai/dsh-web-frontend` `0.1.0-rc.6` |
+| 支持的 DSH 包 | `@deepseek-ai/dsh` 与 `@deepseek-ai/dsh-web-frontend` `0.1.0-rc.7` |
 | 运行时 | 应用内置 Node `24.19.0` |
 | 客户端平台 | macOS 26+、Xcode 26+、Apple Silicon、Swift 6 |
 | 支持记录 | `glass/Sources/Spec/SupportedHostBuilds.json` |

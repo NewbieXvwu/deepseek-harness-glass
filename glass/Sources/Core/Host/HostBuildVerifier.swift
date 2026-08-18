@@ -7,6 +7,7 @@ struct SupportedHostBuildCatalog: Codable, Sendable {
         let dshPackageVersion: String
         let webFrontendPackageVersion: String
         let nodeRuntimeVersion: String
+        let minimumAppVersion: String
         let minimumMacOS: String
         let ciRunner: String
         let minimumXcodeMajor: Int
@@ -28,6 +29,11 @@ enum HostBuildVerification: Equatable, Sendable {
 }
 
 struct HostBuildVerifier: Sendable {
+    private struct PackageManifest: Decodable {
+        let version: String
+    }
+
+    private static let lockedOfficialSourceCommit = "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
     private let catalog: SupportedHostBuildCatalog
 
     init(catalog: SupportedHostBuildCatalog) {
@@ -51,10 +57,43 @@ struct HostBuildVerifier: Sendable {
         guard let build = catalog.builds.first(where: { $0.id == catalog.defaultBuildId }) else {
             return .unsupported(reason: "The bundled Host catalog has no default build.")
         }
-        guard build.dshPackageVersion == "0.1.0-rc.6", build.webFrontendPackageVersion == "0.1.0-rc.6" else {
-            return .unsupported(reason: "Bundled Host catalog does not match the fixed payload contract.")
+        guard build.officialSourceCommit == Self.lockedOfficialSourceCommit else {
+            return .unsupported(reason: "Bundled Host catalog does not match the locked official source commit.")
+        }
+        guard !build.dshPackageVersion.isEmpty,
+              !build.webFrontendPackageVersion.isEmpty,
+              !build.nodeRuntimeVersion.isEmpty,
+              !build.protocolFixtureRevision.isEmpty,
+              !build.uiSpecRevision.isEmpty,
+              !build.minimumAppVersion.isEmpty else {
+            return .unsupported(reason: "Bundled Host catalog is missing fixed payload support metadata.")
+        }
+
+        let dshPackageRoot = runtime.dshEntrypoint
+            .deletingLastPathComponent() // lib
+            .deletingLastPathComponent() // @deepseek-ai/dsh
+        let nodeModulesRoot = dshPackageRoot
+            .deletingLastPathComponent() // @deepseek-ai
+            .deletingLastPathComponent() // node_modules
+        let dshManifestURL = dshPackageRoot.appendingPathComponent("package.json")
+        let webManifestURL = nodeModulesRoot
+            .appendingPathComponent("@deepseek-ai/dsh-web-frontend/package.json")
+
+        guard let dshVersion = packageVersion(at: dshManifestURL), dshVersion == build.dshPackageVersion else {
+            return .unsupported(reason: "Bundled dsh package version does not match the supported Host catalog.")
+        }
+        guard let webVersion = packageVersion(at: webManifestURL), webVersion == build.webFrontendPackageVersion else {
+            return .unsupported(reason: "Bundled dsh web frontend version does not match the supported Host catalog.")
         }
         return .supported(build)
+    }
+
+    private func packageVersion(at url: URL) -> String? {
+        guard let data = try? Data(contentsOf: url),
+              let manifest = try? JSONDecoder().decode(PackageManifest.self, from: data) else {
+            return nil
+        }
+        return manifest.version
     }
 }
 

@@ -37,8 +37,8 @@ cat > "$STAGE/Contents/Resources/BuildManifest.json" <<EOF
   "schemaVersion": 1,
   "appSourceRevision": "$APP_SOURCE_REVISION",
   "officialSourceCommit": "$OFFICIAL_SOURCE_COMMIT",
-  "dshPackageVersion": "0.1.0-rc.6",
-  "webFrontendPackageVersion": "0.1.0-rc.6",
+  "dshPackageVersion": "0.1.0-rc.7",
+  "webFrontendPackageVersion": "0.1.0-rc.7",
   "nodeRuntimeVersion": "24.19.0",
   "minimumMacOS": "26.0",
   "supportedArchitectures": ["arm64"]

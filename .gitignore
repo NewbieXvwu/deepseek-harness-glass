@@ -8,3 +8,8 @@ glass/dist/
 
 # Unrelated local folders
 mac阵列音箱/
+
+# Reproducible CI and local visual-review artifacts; keep source tools and review notes tracked.
+.ci-artifacts/
+reference-artifacts/
+visual-review/**/artifacts/
