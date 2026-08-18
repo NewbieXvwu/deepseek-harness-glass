@@ -9,6 +9,7 @@ on:
       - "glass/Info.plist"
       - "glass/assets/**"
       - "glass/scripts/**"
+      - "glass/ci/dsh-backend-payload/**"
       - ".github/workflows/native-ui.yml"
       - "TODO.md"
   pull_request:
@@ -18,6 +19,7 @@ on:
       - "glass/Info.plist"
       - "glass/assets/**"
       - "glass/scripts/**"
+      - "glass/ci/dsh-backend-payload/**"
       - ".github/workflows/native-ui.yml"
       - "TODO.md"
   workflow_dispatch:
@@ -52,22 +54,37 @@ jobs:
           cp /tmp/node-v24.19.0-darwin-arm64/bin/node glass/build/node/node
           chmod +x glass/build/node/node
 
+      - name: Restore pinned DeepSeek Harness Host payload cache
+        id: dsh-host-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.npm
+            glass/build/backend/node_modules
+          key: dsh-host-payload-v1-macos-26-arm64-node-24.19.0-${{ hashFiles('glass/ci/dsh-backend-payload/package-lock.json') }}
+
       - name: Install pinned DeepSeek Harness Host payload
         run: |
           mkdir -p glass/build/backend
-          cd glass/build/backend
-          cat > package.json <<'EOF'
-          {
-            "name": "dsh-backend-payload",
-            "private": true,
-            "description": "Pinned dsh backend payload for native shell CI",
-            "dependencies": {
-              "@deepseek-ai/dsh": "0.1.0-rc.6",
-              "@deepseek-ai/dsh-web-frontend": "0.1.0-rc.6"
-            }
-          }
-          EOF
-          npm install --no-audit --no-fund
+          cp glass/ci/dsh-backend-payload/package.json glass/build/backend/package.json
+          cp glass/ci/dsh-backend-payload/package-lock.json glass/build/backend/package-lock.json
+          if [[ "${{ steps.dsh-host-cache.outputs.cache-hit }}" == "true" ]]; then
+            test -d glass/build/backend/node_modules/@deepseek-ai/dsh
+            test -d glass/build/backend/node_modules/@deepseek-ai/dsh-web-frontend
+            echo "Reused cached pinned DeepSeek Harness Host payload."
+          else
+            cd glass/build/backend
+            npm ci --no-audit --no-fund
+          fi
+
+      - name: Save pinned DeepSeek Harness Host payload cache
+        if: steps.dsh-host-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.npm
+            glass/build/backend/node_modules
+          key: dsh-host-payload-v1-macos-26-arm64-node-24.19.0-${{ hashFiles('glass/ci/dsh-backend-payload/package-lock.json') }}
 
       - name: Assemble native macOS app
         run: |
