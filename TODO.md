@@ -157,9 +157,9 @@
   - 依赖：T2.1。
   - 验收：核心 Swift View 不出现自行撰写的官方产品文案；字符串 lint 能发现未登记字面量；中英两种语言至少能解析。
 
-- [ ] **T2.3：提取主题与排版 token。** 将官方 `--dsw-*` 设计 token 映射为 `OfficialColorToken`、`OfficialSpacing`、`OfficialRadius`、`OfficialTypography` 和状态 token；映射需记录原始 CSS token 名，而不是把数值散落在 View 内。
+- [x] **T2.3：提取主题与排版 token。** 已从锁定的 `packages/client/ui-theme/src/styles/design-platform.css` 可重现生成 162 个 `--dsw-*` light/dark token；`official-theme-tokens.json` 保留原始 CSS 名、raw/resolved value、source line、commit、内容 revision 和与 T2.1 build 绑定的 source-input revision，`OfficialThemeCatalog.swift` 生成 `OfficialColorToken` 与自适应 light/dark `Color` bridge。`OfficialUISpec.Token`、`Spacing`、`Radius`、`Geometry`、`Shadow` 与 `Typography` 承载原生语义调用，核心 UI 不再直接构造可见产品颜色或 `.font(.system(...))`。
   - 依赖：T2.1。
-  - 验收：所有色彩、间距、圆角和文字样式均通过语义 token 调用；不在核心 UI 新增未经规格批准的常量。
+  - 验收证据：`generate_official_theme_tokens.py`、`check-official-theme-tokens.py` 与 `OfficialUISpecBuildTests.testGeneratedOfficialThemeCatalogMatchesLockedBuildAndResolvesSchemes` 已覆盖可重现性、162 token 数、commit、build revision 及 light/dark RGBA；macOS-26 [run 32169307451](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32169307451)（commit `2fbdeb7`）成功完成全部门禁、SwiftPM 编译、XCTest、原生截图与官方视觉配对。人工对照及量化报告已记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`；该基础设施变更未新增可观察 welcome 回归，既有 `report-only` 差异仍明确保留给后续 UI 场景关闭。
 
 - [ ] **T2.4：固化官方三栏算法。** 按官方 constants 实现侧栏默认 280px、范围 264–420px、收缩轨 56px、窄窗口阈值 1024px、中心目标最小宽度 640px、详情默认 360px、范围 300–520px，并保留“先压缩详情、后关闭详情”的规则。[4] [5]
   - 依赖：T2.1。

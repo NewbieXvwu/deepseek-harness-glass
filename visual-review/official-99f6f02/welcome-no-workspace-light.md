@@ -26,3 +26,9 @@
 ## 2026-08-18 — T2.2 locale catalog revision review
 
 证据：macOS-26 [run 32166053042](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32166053042)，commit `e9fc169`，工件 `artifacts/visual-diff/welcome-no-workspace-light-comparison.png`。三栏图仍显示锁定官方 WebUI、原生 macOS welcome 状态和放大差异层。侧栏、新会话按钮、空工作区、welcome 标题、模式控制行与 composer 的结构位置与 T1.2 对照一致；T2.2 生成语言包/规格输入 hash 迁移未引入新的可观察结构性偏移或文本替换。右侧放大差异仍集中在既有系统材质、边缘抗锯齿、原生虚线/描边与 composer seat 渲染，不得将本次“无新增回归”误记为 welcome 场景已视觉通过；该场景继续保持 `report-only`，直至下游界面任务按 T0.3 关闭现存差异。
+
+## 2026-08-19 — T2.3 official theme catalog review
+
+证据：macOS-26 [run 32169307451](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32169307451)，commit `2fbdeb7`，工件 `artifacts/official-webui/welcome-no-workspace-light.png`、`artifacts/native-shell/welcome-dark.png`、`artifacts/visual-diff/welcome-no-workspace-light-comparison.png`、amplified diff 与报告 JSON。该 run 已成功编译全部 SwiftPM target、执行 `OfficialUISpecBuildTests`（包括 162 个生成 CSS theme token 的 source/revision/RGBA 测试）、生成原生截图并完成官方配对。
+
+人工检查三栏对照图确认：侧栏、wordmark、New Session、Workspaces 空态、hero 标题、chooser/mode 行与 composer 的文案顺序和主要边界没有因 T2.3 将手写颜色/字体/几何替换为官方语义 token 而产生新的可观察偏移或文本替换。量化报告仍为 `report-only`：materially changed ratio `0.02957217`、mean absolute channel difference `2.829776`、exact changed ratio `0.30839937`；差异仍集中在此前已记录的原生虚线/描边、composer seat、阴影/材质与数像素几何偏差。它们不是本次 token catalog 迁移新增的差异，且本记录**不构成 welcome 场景视觉验收通过**；下游 UI 场景任务仍须逐项关闭这些差异。
