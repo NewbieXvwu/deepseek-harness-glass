@@ -24,13 +24,10 @@ private struct NativeActiveConversationSurface: View {
         VStack(spacing: 0) {
             NativeConversationHeader()
             transcriptBody
-            NativeComposerCard(
-                placeholder: OfficialUISpec.Text.composerDefaultPlaceholder,
-                isWorkspaceTrigger: false
-            )
-            .frame(maxWidth: OfficialUISpec.Layout.composerMaximum)
-            .padding(.horizontal, OfficialUISpec.Layout.composerClearance)
-            .padding(.bottom, 8)
+            NativeInteractiveComposerCard(sessionStore: sessionStore)
+                .frame(maxWidth: OfficialUISpec.Layout.composerMaximum)
+                .padding(.horizontal, OfficialUISpec.Layout.composerClearance)
+                .padding(.bottom, 8)
         }
         .background(OfficialUISpec.Token.base)
     }
@@ -288,6 +285,87 @@ struct NativeComposerCard: View {
                 )
         }
         .shadow(color: OfficialUISpec.Token.businessBlueGlow, radius: 22, y: 8)
+    }
+}
+
+private struct NativeInteractiveComposerCard: View {
+    @ObservedObject var sessionStore: NativeSessionStore
+    @FocusState private var draftFocused: Bool
+
+    private var sendEnabled: Bool {
+        !sessionStore.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !sessionStore.isSubmittingPrompt
+    }
+
+    var body: some View {
+        VStack(spacing: 12) {
+            ZStack(alignment: .topLeading) {
+                if sessionStore.draft.isEmpty {
+                    Text(OfficialUISpec.Text.composerDefaultPlaceholder)
+                        .font(.system(size: 16, weight: .regular))
+                        .foregroundStyle(OfficialUISpec.Token.caption)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
+                        .allowsHitTesting(false)
+                }
+                TextEditor(text: $sessionStore.draft)
+                    .font(.system(size: 16, weight: .regular))
+                    .foregroundStyle(OfficialUISpec.Token.primary)
+                    .scrollContentBackground(.hidden)
+                    .focused($draftFocused)
+                    .frame(minHeight: 48, maxHeight: 336)
+                    .padding(.horizontal, 10)
+                    .padding(.top, 2)
+                    .onKeyPress(.return) { press in
+                        if press.modifiers.contains(.shift) { return .ignored }
+                        sessionStore.submitDraft()
+                        return .handled
+                    }
+                    .accessibilityLabel(OfficialUISpec.Text.composerDefaultPlaceholder)
+            }
+
+            HStack(spacing: 8) {
+                Button(action: {}) {
+                    OfficialAssetImage(name: "icon-plus", template: true)
+                        .frame(width: 14, height: 14)
+                        .frame(width: 28, height: 28)
+                }
+                .buttonStyle(OfficialComposerIconButtonStyle())
+                .accessibilityLabel(OfficialUISpec.Text.commandsAccessibility)
+
+                Spacer(minLength: 0)
+
+                if sessionStore.isRunning {
+                    Button(action: sessionStore.cancelRunningTurn) {
+                        OfficialAssetImage(name: "icon-stop", template: true)
+                            .frame(width: 16, height: 16)
+                            .frame(width: 34, height: 34)
+                    }
+                    .buttonStyle(NativeSendButtonStyle(enabled: true))
+                    .accessibilityLabel(OfficialUISpec.Text.stopGeneratingAccessibility)
+                } else {
+                    Button(action: sessionStore.submitDraft) {
+                        OfficialAssetImage(name: "icon-send-up", template: true)
+                            .frame(width: 16, height: 16)
+                            .frame(width: 34, height: 34)
+                    }
+                    .buttonStyle(NativeSendButtonStyle(enabled: sendEnabled))
+                    .disabled(!sendEnabled)
+                    .accessibilityLabel(OfficialUISpec.Text.sendMessageAccessibility)
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.bottom, 6)
+        }
+        .padding(.top, 10)
+        .frame(maxWidth: .infinity, minHeight: 112)
+        .background(OfficialUISpec.Token.elevated, in: RoundedRectangle(cornerRadius: OfficialUISpec.Layout.composerCornerRadius, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: OfficialUISpec.Layout.composerCornerRadius, style: .continuous)
+                .strokeBorder(OfficialUISpec.Token.border, lineWidth: 1)
+        }
+        .shadow(color: OfficialUISpec.Token.businessBlueGlow, radius: 22, y: 8)
+        .onAppear { draftFocused = true }
     }
 }
 

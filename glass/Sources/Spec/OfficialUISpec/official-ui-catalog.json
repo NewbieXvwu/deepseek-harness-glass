@@ -77,7 +77,10 @@
     "archiveSession": { "value": "Archive session", "source": "packages/client/ui-workspace/src/client/locales.ts:menu.archiveSession" },
     "chatLoadingHistory": { "value": "Loading history…", "source": "packages/client/ui-conversation/src/client/locales.ts:chat.loadingHistory" },
     "chatLoadOlder": { "value": "Load earlier", "source": "packages/client/ui-conversation/src/client/locales.ts:chat.loadOlder" },
-    "chatToBottom": { "value": "Back to bottom", "source": "packages/client/ui-conversation/src/client/locales.ts:chat.toBottom" }
+    "chatToBottom": { "value": "Back to bottom", "source": "packages/client/ui-conversation/src/client/locales.ts:chat.toBottom" },
+    "sendMessageAccessibility": { "value": "Send message", "source": "packages/client/ui-conversation/src/client/locales.ts:input.send" },
+    "stopGeneratingAccessibility": { "value": "Stop generating", "source": "packages/client/ui-conversation/src/client/locales.ts:input.stop" },
+    "commandsAccessibility": { "value": "Commands", "source": "packages/client/ui-conversation/src/client/locales.ts:input.commands" }
   },
   "assets": {
     "brand-wordmark": { "source": "packages/client/ui-primitives/src/BrandWordmark.tsx" },
@@ -97,6 +100,7 @@
     "icon-folder-open": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconFolderOpen16" },
     "icon-ellipsis": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconEllipsisOutline16" },
     "icon-branch": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconBranchOutline16" },
-    "icon-archive": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconArchiveOutline20" }
+    "icon-archive": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconArchiveOutline20" },
+    "icon-stop": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconStopFill16" }
   }
 }

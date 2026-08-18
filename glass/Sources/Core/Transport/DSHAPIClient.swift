@@ -64,6 +64,24 @@ struct DSHAPIClient: Sendable {
         try await call("workspace.list", payload: EmptyPayload())
     }
 
+    /// Source: `sessions.schema.ts:sessionPromptRequestSchema`.
+    func sessionPrompt(sessionID: String, text: String, mode: SessionPromptMode) async throws -> SessionPromptResponse {
+        try await call(
+            "session.prompt",
+            payload: SessionPromptRequest(
+                sessionId: sessionID,
+                mode: mode,
+                content: [.text(text: text)],
+                clientTimeZone: TimeZone.current.identifier
+            )
+        )
+    }
+
+    /// Source: `sessions.schema.ts:sessionCancelRequestSchema`.
+    func sessionCancel(sessionID: String) async throws -> SessionCancelResponse {
+        try await call("session.cancel", payload: SessionCancelRequest(sessionId: sessionID))
+    }
+
     /// Source: `sessions.schema.ts:sessionCreateRequestSchema`.
     func sessionCreate(workspaceID: String? = nil) async throws -> SessionCreateResponse {
         try await call("session.create", payload: SessionCreateRequest(workspaceId: workspaceID))
@@ -117,6 +135,52 @@ struct SessionEventDTO: Decodable, Sendable, Identifiable {
 struct ToolEventViewDTO: Decodable, Sendable {
     let `for`: String
     let view: JSONValue
+}
+
+/// Source: `sessions.schema.ts:sessionPromptRequestSchema`.
+enum SessionPromptMode: String, Encodable, Sendable {
+    case queue
+    case steer
+}
+
+/// Source: `sessions.schema.ts:promptContentPartSchema`.
+enum SessionPromptContent: Encodable, Sendable {
+    case text(text: String)
+
+    private enum CodingKeys: String, CodingKey { case type, text }
+    private enum Kind: String, Encodable { case text }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case let .text(text):
+            try container.encode(Kind.text, forKey: .type)
+            try container.encode(text, forKey: .text)
+        }
+    }
+}
+
+/// Source: `sessions.schema.ts:sessionPromptRequestSchema`.
+struct SessionPromptRequest: Encodable, Sendable {
+    let sessionId: String
+    let mode: SessionPromptMode
+    let content: [SessionPromptContent]
+    let clientTimeZone: String?
+}
+
+/// Source: `sessions.schema.ts:sessionPromptValueSchema`.
+struct SessionPromptResponse: Decodable, Sendable {
+    let accepted: Bool
+}
+
+/// Source: `sessions.schema.ts:sessionCancelRequestSchema`.
+struct SessionCancelRequest: Encodable, Sendable {
+    let sessionId: String
+}
+
+/// Source: `sessions.schema.ts:sessionCancelValueSchema`.
+struct SessionCancelResponse: Decodable, Sendable {
+    let accepted: Bool
 }
 
 /// Source: `sessions.schema.ts:sessionCreateRequestSchema`.

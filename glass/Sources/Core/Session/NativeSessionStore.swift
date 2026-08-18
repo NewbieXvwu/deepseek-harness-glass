@@ -34,9 +34,14 @@ final class NativeSessionStore: ObservableObject {
     @Published private(set) var items: [TranscriptItem] = []
     @Published private(set) var hasMoreHistory = false
     @Published private(set) var isLoadingOlderHistory = false
+    @Published private(set) var isRunning = false
+    @Published private(set) var isSubmittingPrompt = false
+    @Published var draft = ""
     @Published private(set) var lastError: DSHTransportError?
 
     private var historyTask: Task<Void, Never>?
+    private var promptTask: Task<Void, Never>?
+    private var cancelTask: Task<Void, Never>?
     private var olderHistoryTask: Task<Void, Never>?
     private var streamTask: Task<Void, Never>?
     private var endpoint: URL?
@@ -47,6 +52,8 @@ final class NativeSessionStore: ObservableObject {
     deinit {
         historyTask?.cancel()
         olderHistoryTask?.cancel()
+        promptTask?.cancel()
+        cancelTask?.cancel()
         streamTask?.cancel()
     }
 
@@ -56,6 +63,8 @@ final class NativeSessionStore: ObservableObject {
         guard activeSessionID != sessionID || self.endpoint != endpoint else { return }
         historyTask?.cancel()
         olderHistoryTask?.cancel()
+        promptTask?.cancel()
+        cancelTask?.cancel()
         streamTask?.cancel()
         self.api = api
         self.endpoint = endpoint
@@ -64,6 +73,9 @@ final class NativeSessionStore: ObservableObject {
         appliedSequences = []
         hasMoreHistory = false
         isLoadingOlderHistory = false
+        isRunning = false
+        isSubmittingPrompt = false
+        draft = ""
         lastError = nil
         phase = .loading(sessionID: sessionID)
 
@@ -101,7 +113,45 @@ final class NativeSessionStore: ObservableObject {
         appliedSequences = []
         hasMoreHistory = false
         isLoadingOlderHistory = false
+        isRunning = false
+        isSubmittingPrompt = false
+        draft = ""
         lastError = nil
+    }
+
+    /// Source: `sessions.schema.ts:sessionPromptRequestSchema`. The native
+    /// composer sends text through the Host and clears only after acceptance.
+    func submitDraft() {
+        let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty,
+              !isSubmittingPrompt,
+              let api,
+              let sessionID = activeSessionID
+        else { return }
+
+        isSubmittingPrompt = true
+        promptTask?.cancel()
+        promptTask = Task { [weak self] in
+            defer { self?.isSubmittingPrompt = false }
+            do {
+                let response = try await api.sessionPrompt(sessionID: sessionID, text: text, mode: .queue)
+                guard !Task.isCancelled, response.accepted, self?.activeSessionID == sessionID else { return }
+                self?.draft = ""
+            } catch {
+                // The draft remains available after a rejected prompt, matching
+                // the official composer retry posture. Prompt-error presentation
+                // is added with the attachment/notice surface.
+            }
+        }
+    }
+
+    /// Source: `sessions.schema.ts:sessionCancelRequestSchema`.
+    func cancelRunningTurn() {
+        guard isRunning, let api, let sessionID = activeSessionID else { return }
+        cancelTask?.cancel()
+        cancelTask = Task {
+            _ = try? await api.sessionCancel(sessionID: sessionID)
+        }
     }
 
     /// Source: `sessions.schema.ts:sessionHistoryRequestSchema`. The Host owns
@@ -193,9 +243,13 @@ final class NativeSessionStore: ObservableObject {
                 isStreaming: false,
                 sequence: event.seq
             ))
+        case "turn/start":
+            isRunning = true
         case "assistant/chunk":
+            isRunning = true
             applyAssistantChunk(event)
         case "turn/end":
+            isRunning = false
             settleStreaming()
         default:
             break
