@@ -18,6 +18,7 @@ enum SnapshotExporter {
         }
     }
 
+    @MainActor
     static func exportIfRequested() throws -> Bool {
         guard let outputPath = ProcessInfo.processInfo.environment["DSH_GLASS_SNAPSHOT_PATH"], !outputPath.isEmpty else {
             return false
