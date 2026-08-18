@@ -50,3 +50,9 @@
 证据：macOS-26 [run 32175400591](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32175400591)，commit `229d0d9`。该 run 的 `HarnessHostControllerTests.testOwnedHostStartsReusesAndStopsWithoutLeavingProcess` 在 arm64e macOS runner 上以真实固定 rc.7 Node/payload 通过（3.488 秒）：验证 Host 启动、官方 `dsh web: http://127.0.0.1:<port>` announcement、`host.describe` ready、重复 start 复用同一 PID、stop 后 PID 消失、DSH_HOME 和日志落盘。完整 SwiftPM target 编译、直接 Swiftc app 装配、原生 snapshot 与官方 capture 亦成功。
 
 人工检查 comparison 确认 T3.1 只涉及 Core Host 进程监督、无 UI XCTest 和 CI 注入，不改变 native renderer；侧栏、hero、composer、文本顺序和主要可见边界没有新增变化。报告为既有 `report-only`：materially changed ratio `0.02923084`、mean absolute channel difference `2.737691`、exact changed ratio `0.30920666`。这些波动没有关联的 UI diff，且不构成 welcome 场景视觉完成；已有材质、composer 描边和几何差异继续由后续界面 TODO 关闭。
+
+## 2026-08-19 — T3.2 Host build trust review
+
+证据：macOS-26 [run 32178347783](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32178347783)，commit `ae35887`。该 run 在真实固定 payload 上通过两项无 UI `HarnessHostControllerTests`：已验证 rc.7 build 的启动/ready/reuse/stop（2.788 秒），以及人为不匹配 catalog 时 manifest/package metadata 返回 `unverified`、控制器不启动为 ready、默认仅准许 `host.describe` 而拒绝 `session.prompt`、开发者 override 才启用写入（0.002 秒）。所有 SwiftPM target 编译、Swiftc app 组装、snapshot 和官方 capture 均成功。
+
+人工检查 comparison 确认 T3.2 只更改 Core build verification state、显式 connection build metadata 和 transport access policy；没有 renderer、文案、asset 或布局变化。量化报告继续是既有 `report-only`：materially changed ratio `0.02958705`、mean absolute channel difference `2.787254`、exact changed ratio `0.30924386`。该条不是 welcome 像素完成声明；既有材质、composer 边缘和几何差异仍须由后续 UI TODO 同状态收敛。

@@ -181,9 +181,9 @@
   - 依赖：T1.2。
   - 验收证据：新增无 UI `GlassCoreTests` target 与 `HarnessHostControllerTests.testOwnedHostStartsReusesAndStopsWithoutLeavingProcess`，使用 CI 已验证 rc.7 Node/payload 真实启动、ready、重复 start 同 PID 复用、stop、PID 不存在、DSH_HOME/log 落盘。macOS-26 [run 32175400591](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32175400591)（commit `229d0d9`）执行该测试成功（3.488s），并完成全门禁、SwiftPM/Swiftc 编译、原生截图与官方配对；人工复核记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`，Host-only 改动未新增可观察 renderer 回归，既有 welcome `report-only` 差异仍由后续 UI TODO 关闭。
 
-- [ ] **T3.2：实现 Host build 验证。** 通过捆绑 manifest、package metadata 或 Host 可用的描述信息确认当前 payload 属于 `SupportedHostBuilds.json`；不要根据 URL 或端口猜测兼容性。
+- [x] **T3.2：实现 Host build 验证。** `HostBuildVerifier` 以 `SupportedHostBuilds.json`、锁定 official commit、dsh/package frontend manifest 版本和生成 UI spec revision 验证 payload；`HostBuildTrust` 将结果显式区分为 verified、unverified 与不可启动，绝不由 URL/port 猜测。verified metadata 随 `HostConnection` 传入每个 API transport；unverified 默认仅允许 `host.describe`，拒绝 mutation/response，只有显式 developer write override 才放行。
   - 依赖：T0.2、T3.1。
-  - 验收：已验证 build 进入 `ready`；未知 build 进入 `unverified`，并关闭写操作或要求开发者开关。
+  - 验收证据：`HarnessHostControllerTests.testUnknownBuildBecomesUnverifiedAndDefaultsToWriteProtection` 使用真实固定 payload 和故意不匹配 catalog，断言 unverified、无 ready PID、`session.prompt` 默认被拒绝且 override 才允许；`testOwnedHostStartsReusesAndStopsWithoutLeavingProcess` 继续验证真实 verified Host 可 ready。macOS-26 [run 32178347783](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32178347783)（commit `ae35887`）两项 Core test 全通过（2.790s）、完成全门禁、SwiftPM/Swiftc 编译、截图和官方配对；人工复核记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`，Core trust 改动未新增 renderer 回归，既有 welcome `report-only` 差异仍由后续 UI TODO 关闭。
 
 - [ ] **T3.3：定义显式生命周期状态。** 使用 `idle`、`probingExternal`、`startingOwned`、`verifying`、`ready`、`recovering`、`failed`、`stopping`，而非由 URL 是否为 `nil` 推断状态。
   - 依赖：T3.1。
