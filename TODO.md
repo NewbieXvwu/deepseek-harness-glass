@@ -217,9 +217,9 @@
   - 依赖：T4.1、T4.2。
   - 验收证据：`DSHClientTransportTests` 通过 URLProtocol mock carrier 发起 100 个并发 Host RPC，断言 100 个唯一 rpcId、每个 response 仅回到其原始 payload index、100 条成功 trace；另覆盖 duplicate id 在第二次发起前被拒绝且不发送、以及 crossed response rpcId 必须失败而不能交付。native-ui workflow 现将 `glass/Tests/**` 纳入 push/PR paths 并独立运行该 XCTest，避免 test-only 变更绕过 macOS gate。macOS-26 [run 32189390817](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32189390817)（commit `1555ddb`）通过所有门禁、SwiftPM/Swiftc 编译、transport/Host/DTO tests、app 组装、snapshot 和官方配对；人工工件复核已记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`。T4.3 无 renderer 变动，welcome 既有差异继续明确为 `report-only`，不构成 UI 场景视觉完成。
 
-- [ ] **T4.4：实现 `SSEClient`。** 支持 ServerRequest 帧、断线检测、指数退避、Host restart 后重订阅、最终取消与网络路径变化。
+- [x] **T4.4：实现 `SSEClient`。** 支持 ServerRequest 帧、断线检测、指数退避、Host restart 后重订阅、最终取消与网络路径变化。低层 `SSEFrameParser` 对齐锁定 `AbstractApiClient.readSse`：以 blank-line 组成 `data:` frame、跳过 comment/metadata/坏 JSON/错误 envelope 而不中止健康连接；`reconnectingStream` 在自然断流或 transport failure 后以确定性指数退避重开 endpoint，final cancellation 永远终止。跨 reconnect 的有界 rpcId fence 和按 session 分桶的 `session/event`/`session/projection` monotonic sequence fence 阻止 replay 低序号重复投影，且无 payload trace。
   - 依赖：T4.1。
-  - 验收：可重放录制 SSE stream；在重连后不会重复应用低序号事件。
+  - 验收证据：`SSEClientTests` 注入可重放录制 stream，验证坏 frame 丢弃、注释 framing、network disconnect 的 mux 重订阅、rpcId replay 去重、event/projection 低序号过滤、Host stream final cancellation 和 reconnect trace；`NativeSessionStore`、`NativeWorkspaceStore` 已使用 reconnecting mux/host stream，仍由 verified Host lifecycle 替换 endpoint。macOS-26 [run 32191536807](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32191536807)（commit `f8e0835`）通过所有门禁、SwiftPM/Swiftc 编译、SSE/transport/Host/DTO tests、app 组装、snapshot 和官方配对；人工工件复核已记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`。T4.4 无 renderer 变动，welcome 既有差异继续明确为 `report-only`，不构成 UI 场景视觉完成。
 
 - [ ] **T4.5：建立 API 域 facade。** 至少提供 `SessionsAPI`、`WorkspacesAPI`、`SettingsAPI`、`CredentialsAPI`、`LLMAPI`、`CommandsAPI`、`SkillsAPI`、`AgentPresetsAPI`、`DownloadsAPI` 与 `HostAPI`。
   - 依赖：T4.3、T4.4。
