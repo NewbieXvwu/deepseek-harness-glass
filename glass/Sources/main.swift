@@ -6,6 +6,7 @@ import SwiftUI
 /// 原生入口：窗口只装载 AppKit/SwiftUI 壳，业务数据仅通过已验证的
 /// DeepSeek Harness Host RPC/SSE 获取。
 @main
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var window: NSWindow?
     private var presentation: NativeShellPresentation?
