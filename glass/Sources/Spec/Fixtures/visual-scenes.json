@@ -43,18 +43,20 @@
       "id": "approval-composer-light",
       "surface": "conversation.approval-composer-takeover",
       "state": "approval-requested",
+      "viewport": { "width": 1280, "height": 1100 },
       "officialComponents": ["ConversationRoot", "ApprovalPanel"],
       "nativeEntry": "NativeAppShell.PresentationMode.approval",
-      "requiredEvidence": ["source-map", "official-screenshot", "native-screenshot", "layout-rectangles", "accessibility", "rpc-fixture"],
+      "requiredEvidence": ["source-map", "official-screenshot", "native-screenshot", "paired-viewport", "difference-ledger", "post-fix-recapture", "layout-rectangles", "accessibility", "rpc-fixture"],
       "allowedDifferenceClasses": ["font-rendering", "system-glass"]
     },
     {
       "id": "question-composer-light",
       "surface": "conversation.question-composer-takeover",
       "state": "question-requested",
+      "viewport": { "width": 1280, "height": 1100 },
       "officialComponents": ["ConversationRoot", "QuestionComposer"],
       "nativeEntry": "NativeAppShell.PresentationMode.question",
-      "requiredEvidence": ["source-map", "official-screenshot", "native-screenshot", "layout-rectangles", "accessibility", "rpc-fixture"],
+      "requiredEvidence": ["source-map", "official-screenshot", "native-screenshot", "paired-viewport", "difference-ledger", "post-fix-recapture", "layout-rectangles", "accessibility", "rpc-fixture"],
       "allowedDifferenceClasses": ["font-rendering", "system-glass"]
     },
     {

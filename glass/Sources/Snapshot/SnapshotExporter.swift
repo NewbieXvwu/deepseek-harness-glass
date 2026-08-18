@@ -50,7 +50,7 @@ enum SnapshotExporter {
         }
         let presentation = NativeShellPresentation(mode: mode, sessionStore: sessionStore)
         let shellController = NativeShellController(presentation: presentation)
-        let size = NSSize(width: 1280, height: 840)
+        let size = snapshotSize(environment: ProcessInfo.processInfo.environment)
         let window = NSWindow(
             contentRect: NSRect(origin: .zero, size: size),
             styleMask: [.borderless],
@@ -94,5 +94,20 @@ enum SnapshotExporter {
         try png.write(to: outputURL, options: .atomic)
         window.orderOut(nil)
         return true
+    }
+
+    /// A paired review may match an official browser's CSS viewport exactly.
+    /// Invalid or omitted values preserve the established 1280×840 CI baseline.
+    private static func snapshotSize(environment: [String: String]) -> NSSize {
+        let defaultSize = NSSize(width: 1280, height: 840)
+        guard let widthText = environment["DSH_GLASS_SNAPSHOT_WIDTH"],
+              let heightText = environment["DSH_GLASS_SNAPSHOT_HEIGHT"],
+              let width = Double(widthText),
+              let height = Double(heightText),
+              width.isFinite, height.isFinite,
+              width >= 1, height >= 1,
+              width <= 4096, height <= 4096
+        else { return defaultSize }
+        return NSSize(width: width, height: height)
     }
 }

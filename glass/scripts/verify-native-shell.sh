@@ -33,7 +33,20 @@ DSH_GLASS_SNAPSHOT_PATH="$OUTPUT_DIR/question-composer-light.png" \
 DSH_GLASS_SNAPSHOT_MODE="question" \
 "$BINARY"
 
-for image in "$OUTPUT_DIR/welcome-dark.png" "$OUTPUT_DIR/conversation-dark.png" "$OUTPUT_DIR/tooling-inspector-dark.png" "$OUTPUT_DIR/approval-panel-light.png" "$OUTPUT_DIR/question-composer-light.png"; do
+# Same CSS viewport measured in the locked official WebUI browser capture.
+DSH_GLASS_SNAPSHOT_PATH="$OUTPUT_DIR/approval-panel-official-viewport.png" \
+DSH_GLASS_SNAPSHOT_MODE="approval" \
+DSH_GLASS_SNAPSHOT_WIDTH="1280" \
+DSH_GLASS_SNAPSHOT_HEIGHT="1100" \
+"$BINARY"
+
+DSH_GLASS_SNAPSHOT_PATH="$OUTPUT_DIR/question-composer-official-viewport.png" \
+DSH_GLASS_SNAPSHOT_MODE="question" \
+DSH_GLASS_SNAPSHOT_WIDTH="1280" \
+DSH_GLASS_SNAPSHOT_HEIGHT="1100" \
+"$BINARY"
+
+for image in "$OUTPUT_DIR/welcome-dark.png" "$OUTPUT_DIR/conversation-dark.png" "$OUTPUT_DIR/tooling-inspector-dark.png" "$OUTPUT_DIR/approval-panel-light.png" "$OUTPUT_DIR/question-composer-light.png" "$OUTPUT_DIR/approval-panel-official-viewport.png" "$OUTPUT_DIR/question-composer-official-viewport.png"; do
   test -s "$image"
   sips -g pixelWidth -g pixelHeight "$image"
 done
