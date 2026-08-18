@@ -28,6 +28,9 @@ struct WorkspaceBrowserView: View {
         var forkSession: (String) -> Void = { _ in }
         var archiveSession: (String) -> Void = { _ in }
         var searchSessions: (String) -> Void = { _ in }
+        var presentWorkspaceRename: (String, String) -> Void = { _, _ in }
+        var presentWorkspaceDelete: (String, String) -> Void = { _, _ in }
+        var presentSessionRename: (String, String) -> Void = { _, _ in }
         var commitWorkspaceRename: (String, String) async throws -> Void = { _, _ in }
         var commitWorkspaceDelete: (String) async throws -> Void = { _ in }
         var commitSessionRename: (String, String) async throws -> Void = { _, _ in }
@@ -76,19 +79,19 @@ struct WorkspaceBrowserView: View {
             _deleteTarget = State(initialValue: nil)
             _renameDraft = State(initialValue: "")
         case .workspaceRename:
-            _workspaceRenameTarget = State(initialValue: RenameTarget(id: "fx-ws-fixture", title: "fixture"))
+            _workspaceRenameTarget = State(initialValue: nil)
             _sessionRenameTarget = State(initialValue: nil)
             _deleteTarget = State(initialValue: nil)
-            _renameDraft = State(initialValue: "fixture")
+            _renameDraft = State(initialValue: "")
         case .sessionRename:
             _workspaceRenameTarget = State(initialValue: nil)
-            _sessionRenameTarget = State(initialValue: RenameTarget(id: "fx-alpha", title: "Fixture 历史会话"))
+            _sessionRenameTarget = State(initialValue: nil)
             _deleteTarget = State(initialValue: nil)
-            _renameDraft = State(initialValue: "Fixture 历史会话")
+            _renameDraft = State(initialValue: "")
         case .workspaceDelete:
             _workspaceRenameTarget = State(initialValue: nil)
             _sessionRenameTarget = State(initialValue: nil)
-            _deleteTarget = State(initialValue: DeleteTarget(id: "fx-ws-fixture", title: "fixture"))
+            _deleteTarget = State(initialValue: nil)
             _renameDraft = State(initialValue: "")
         }
     }
@@ -430,18 +433,13 @@ struct WorkspaceBrowserView: View {
     private var rowActions: Actions {
         var local = actions
         local.renameWorkspace = { workspaceID, title in
-            workspaceRenameTarget = RenameTarget(id: workspaceID, title: title)
-            renameDraft = title
-            renameError = nil
+            actions.presentWorkspaceRename(workspaceID, title)
         }
         local.deleteWorkspace = { workspaceID, title in
-            deleteTarget = DeleteTarget(id: workspaceID, title: title)
-            deleteError = nil
+            actions.presentWorkspaceDelete(workspaceID, title)
         }
         local.renameSession = { sessionID, title in
-            sessionRenameTarget = RenameTarget(id: sessionID, title: title)
-            renameDraft = title
-            renameError = nil
+            actions.presentSessionRename(sessionID, title)
         }
         return local
     }

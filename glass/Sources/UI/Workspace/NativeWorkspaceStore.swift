@@ -286,6 +286,22 @@ final class NativeWorkspaceStore: ObservableObject {
         phase = .ready
     }
 
+    /// Snapshot-only projection used by the workspace management dialogs. The
+    /// official baseline keeps `fixture` selected while the welcome composer,
+    /// rather than a historical session transcript, remains visible.
+    func loadSnapshotFixtureWorkspaceWelcome() {
+        loadSnapshotFixtureWorkspace()
+        snapshot = Snapshot(
+            workspaces: snapshot.workspaces,
+            sessions: snapshot.sessions,
+            archivedSessionIDs: snapshot.archivedSessionIDs,
+            selectedSessionID: nil,
+            selectedWorkspaceID: snapshot.selectedWorkspaceID
+        )
+        searchQuery = ""
+        remoteSearch = .idle
+    }
+
     /// Snapshot-only projection for the official workspace browser's local +
     /// `session.search` merged-results state. The query and snippets are
     /// deterministic, while all session identity remains the shared fixture.

@@ -42,6 +42,27 @@ enum OfficialUISpec {
         // Source: packages/host/apiproxy/src/api/session-search.ts
         static let sessionSearchResultLimit = 20
 
+        // Source: ui-primitives/Modal.module.css + ui-workspace/WorkspaceBrowser.module.css
+        static let modalCardContentWidth: CGFloat = 380
+        static let modalCardBorder: CGFloat = 1
+        static let modalCardOuterWidth: CGFloat = 382
+        static let modalCardCornerRadius: CGFloat = 24
+        static let modalCardBottomPadding: CGFloat = 24
+        static let modalInterSectionGap: CGFloat = 20
+        static let modalHeaderLeading: CGFloat = 24
+        static let modalHeaderTop: CGFloat = 22
+        static let modalHeaderTrailing: CGFloat = 14
+        static let modalHeaderBottom: CGFloat = 12
+        static let modalHeaderHeight: CGFloat = 58
+        static let modalCloseControl: CGFloat = 28
+        static let modalContentHorizontalPadding: CGFloat = 24
+        static let modalBodyTopMargin: CGFloat = 20
+        static let modalRenameInputHeight: CGFloat = 44
+        static let modalRenameInputCornerRadius: CGFloat = 22
+        static let modalFooterGap: CGFloat = 8
+        static let modalDescriptionLineHeight: CGFloat = 22
+        static let modalActionButtonHeight: CGFloat = 36
+
         // Source: ui-conversation/skeleton/ApprovalPanel.module.css
         static let approvalCardOuterWidth: CGFloat = 750
         static let approvalCardOuterHeight: CGFloat = 140
@@ -239,6 +260,10 @@ enum OfficialUISpec {
         static let warningPrimary = Color(red: 181 / 255, green: 112 / 255, blue: 0 / 255)
         static let warningTertiary = Color(red: 255 / 255, green: 244 / 255, blue: 218 / 255)
         static let warningBorder = Color(red: 235 / 255, green: 188 / 255, blue: 97 / 255)
+        // Source: ui-theme design-platform.css (--dsw-alias-bg-mask-1 light)
+        static let modalMask = Color.black.opacity(0.24)
+        // Source: ui-theme design-platform.css (--dsw-alias-state-error-primary)
+        static let errorPrimary = Color(red: 209 / 255, green: 56 / 255, blue: 69 / 255)
     }
 }
 

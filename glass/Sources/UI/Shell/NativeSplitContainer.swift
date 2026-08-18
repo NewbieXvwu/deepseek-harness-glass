@@ -13,6 +13,14 @@ final class NativeShellPresentation: ObservableObject {
     @Published var manuallyCollapsed = false
     @Published var detailsVisible = false
 
+    enum WorkspaceManagementDialog: Equatable {
+        case workspaceRename(workspaceID: String, title: String)
+        case sessionRename(sessionID: String, title: String)
+        case workspaceDelete(workspaceID: String, title: String)
+    }
+
+    @Published var workspaceManagementDialog: WorkspaceManagementDialog?
+
     let workspaceStore: NativeWorkspaceStore
     let sessionStore: NativeSessionStore
     let workspaceSnapshotDialog: WorkspaceBrowserView.SnapshotDialog
@@ -31,6 +39,16 @@ final class NativeShellPresentation: ObservableObject {
         self.sessionStore = sessionStore ?? NativeSessionStore()
         self.workspaceSnapshotDialog = workspaceSnapshotDialog
         self.detailsVisible = self.sessionStore.selectedToolCallID != nil
+        switch workspaceSnapshotDialog {
+        case .none:
+            workspaceManagementDialog = nil
+        case .workspaceRename:
+            workspaceManagementDialog = .workspaceRename(workspaceID: "fx-ws-fixture", title: "fixture")
+        case .sessionRename:
+            workspaceManagementDialog = .sessionRename(sessionID: "fx-alpha", title: "Fixture 历史会话")
+        case .workspaceDelete:
+            workspaceManagementDialog = .workspaceDelete(workspaceID: "fx-ws-fixture", title: "fixture")
+        }
         selectedToolObservation = self.sessionStore.$selectedToolCallID.sink { [weak self] callID in
             self?.detailsVisible = callID != nil
         }
@@ -144,6 +162,22 @@ final class NativeShellPresentation: ObservableObject {
         workspaceStore.search(query: query, using: apiClient)
     }
 
+    func presentWorkspaceRename(workspaceID: String, title: String) {
+        workspaceManagementDialog = .workspaceRename(workspaceID: workspaceID, title: title)
+    }
+
+    func presentSessionRename(sessionID: String, title: String) {
+        workspaceManagementDialog = .sessionRename(sessionID: sessionID, title: title)
+    }
+
+    func presentWorkspaceDelete(workspaceID: String, title: String) {
+        workspaceManagementDialog = .workspaceDelete(workspaceID: workspaceID, title: title)
+    }
+
+    func dismissWorkspaceManagementDialog() {
+        workspaceManagementDialog = nil
+    }
+
     /// Source: `workspace.schema.ts:workspaceCreateRequestSchema`. macOS uses
     /// a native directory panel rather than a browser-mediated file picker.
     func addWorkspace() {
@@ -173,10 +207,14 @@ final class NativeShellPresentation: ObservableObject {
 @MainActor
 final class NativeShellController: NativeSplitViewController {
     private let presentation: NativeShellPresentation
+    private let managementDialogHost: NSHostingController<NativeWorkspaceManagementDialogOverlay>
     private var presentationObservation: AnyCancellable?
 
     init(presentation: NativeShellPresentation) {
         self.presentation = presentation
+        managementDialogHost = NSHostingController(
+            rootView: NativeWorkspaceManagementDialogOverlay(presentation: presentation)
+        )
         super.init(
             sidebar: Self.sidebar(for: presentation, collapsed: presentation.manuallyCollapsed),
             conversation: NativeConversationColumn(
@@ -197,6 +235,20 @@ final class NativeShellController: NativeSplitViewController {
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { nil }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        addChild(managementDialogHost)
+        let overlay = managementDialogHost.view
+        overlay.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(overlay)
+        NSLayoutConstraint.activate([
+            overlay.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            overlay.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            overlay.topAnchor.constraint(equalTo: view.topAnchor),
+            overlay.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+        ])
+    }
 
     override func viewDidLayout() {
         super.viewDidLayout()
@@ -251,6 +303,9 @@ final class NativeShellController: NativeSplitViewController {
                 forkSession: { presentation.forkSession($0) },
                 archiveSession: { presentation.archiveSession($0) },
                 searchSessions: { presentation.searchSessions($0) },
+                presentWorkspaceRename: { presentation.presentWorkspaceRename(workspaceID: $0, title: $1) },
+                presentWorkspaceDelete: { presentation.presentWorkspaceDelete(workspaceID: $0, title: $1) },
+                presentSessionRename: { presentation.presentSessionRename(sessionID: $0, title: $1) },
                 commitWorkspaceRename: { workspaceID, title in
                     try await presentation.renameWorkspace(workspaceID, title: title)
                 },
@@ -393,6 +448,315 @@ class NativeSplitViewController: NSSplitViewController {
             return splitView.bounds.width - min(constrained, availableDetails)
         default:
             return proposedPosition
+        }
+    }
+}
+
+/// Native full-window rendering of the locked official `Modal` primitive used
+/// by the workspace browser. It replaces a macOS sheet because the official
+/// WebUI dialog is a centered card over the complete three-column frame.
+private struct NativeWorkspaceManagementDialogOverlay: View {
+    @ObservedObject var presentation: NativeShellPresentation
+
+    @State private var renameDraft = ""
+    @State private var operationError: String?
+    @State private var submitting = false
+    @FocusState private var renameFieldFocused: Bool
+
+    var body: some View {
+        ZStack {
+            if let dialog = presentation.workspaceManagementDialog {
+                OfficialUISpec.Token.modalMask
+                    .contentShape(Rectangle())
+                    .onTapGesture { dismiss() }
+
+                dialogCard(dialog)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.clear)
+        .allowsHitTesting(presentation.workspaceManagementDialog != nil)
+        .onAppear { synchronizeDraft() }
+        .onChange(of: presentation.workspaceManagementDialog) { _, _ in
+            synchronizeDraft()
+        }
+    }
+
+    @ViewBuilder
+    private func dialogCard(_ dialog: NativeShellPresentation.WorkspaceManagementDialog) -> some View {
+        switch dialog {
+        case .workspaceRename(_, let title):
+            renameCard(
+                title: OfficialUISpec.Text.renameWorkspaceTitle,
+                fieldLabel: OfficialUISpec.Text.workspaceName,
+                originalTitle: title,
+                confirm: { submitWorkspaceRename() }
+            )
+        case .sessionRename(_, let title):
+            renameCard(
+                title: OfficialUISpec.Text.renameSessionTitle,
+                fieldLabel: OfficialUISpec.Text.sessionName,
+                originalTitle: title,
+                confirm: { submitSessionRename() }
+            )
+        case .workspaceDelete(_, let title):
+            deleteCard(workspaceTitle: title)
+        }
+    }
+
+    private func renameCard(
+        title: String,
+        fieldLabel: String,
+        originalTitle: String,
+        confirm: @escaping () -> Void
+    ) -> some View {
+        modalSurface(title: title, height: 208) {
+            TextField(fieldLabel, text: $renameDraft)
+                .textFieldStyle(.plain)
+                .font(.system(size: 14, weight: .regular))
+                .foregroundStyle(OfficialUISpec.Token.primary)
+                .padding(.horizontal, OfficialUISpec.Layout.actionButtonHorizontalPadding)
+                .frame(height: OfficialUISpec.Layout.modalRenameInputHeight)
+                .background(Color.clear, in: Capsule())
+                .overlay {
+                    Capsule().stroke(OfficialUISpec.Token.border, lineWidth: OfficialUISpec.Layout.modalCardBorder)
+                }
+                .accessibilityLabel(fieldLabel)
+                .disabled(submitting)
+                .focused($renameFieldFocused)
+                .onSubmit(confirm)
+                .padding(.top, OfficialUISpec.Layout.modalBodyTopMargin)
+                .padding(.horizontal, OfficialUISpec.Layout.modalContentHorizontalPadding)
+
+            if let operationError {
+                Text(operationError)
+                    .font(.system(size: 12, weight: .regular))
+                    .foregroundStyle(OfficialUISpec.Token.errorPrimary)
+                    .padding(.top, 8)
+                    .padding(.horizontal, OfficialUISpec.Layout.modalContentHorizontalPadding)
+            }
+        } footer: {
+            HStack(spacing: OfficialUISpec.Layout.modalFooterGap) {
+                Spacer(minLength: 0)
+                modalActionButton(
+                    OfficialUISpec.Text.cancel,
+                    width: 74,
+                    emphasis: .outline,
+                    disabled: submitting,
+                    action: dismiss
+                )
+                modalActionButton(
+                    OfficialUISpec.Text.rename,
+                    width: 81,
+                    emphasis: .primary,
+                    disabled: submitting || renameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || renameDraft.trimmingCharacters(in: .whitespacesAndNewlines) == originalTitle,
+                    action: confirm
+                )
+            }
+        }
+        .onAppear { renameFieldFocused = true }
+    }
+
+    private func deleteCard(workspaceTitle: String) -> some View {
+        modalSurface(title: OfficialUISpec.Text.deleteWorkspace, height: 230) {
+            Text(OfficialUISpec.Text.deleteWorkspaceDescription(name: workspaceTitle))
+                .font(.system(size: 14, weight: .regular))
+                .foregroundStyle(OfficialUISpec.Token.primary)
+                .lineSpacing(0)
+                .frame(maxWidth: .infinity, minHeight: 66, alignment: .topLeading)
+                .padding(.horizontal, OfficialUISpec.Layout.modalContentHorizontalPadding)
+
+            // The official Modal receives a conditional (empty) body, whose
+            // `.body` margin remains in layout even when no status/error text is visible.
+            Color.clear
+                .frame(height: OfficialUISpec.Layout.modalBodyTopMargin)
+        } footer: {
+            HStack(spacing: OfficialUISpec.Layout.modalFooterGap) {
+                Spacer(minLength: 0)
+                modalActionButton(
+                    OfficialUISpec.Text.cancel,
+                    width: 74,
+                    emphasis: .outline,
+                    disabled: submitting,
+                    action: dismiss
+                )
+                modalActionButton(
+                    OfficialUISpec.Text.deleteWorkspace,
+                    width: 141,
+                    emphasis: .danger,
+                    disabled: submitting,
+                    action: submitWorkspaceDelete
+                )
+            }
+        }
+    }
+
+    private func modalSurface<Content: View, Footer: View>(
+        title: String,
+        height: CGFloat,
+        @ViewBuilder content: () -> Content,
+        @ViewBuilder footer: () -> Footer
+    ) -> some View {
+        VStack(spacing: OfficialUISpec.Layout.modalInterSectionGap) {
+            VStack(spacing: 0) {
+                HStack(alignment: .center, spacing: 8) {
+                    Text(title)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(OfficialUISpec.Token.primary)
+                        .frame(height: 24, alignment: .leading)
+                    Spacer(minLength: 0)
+                    Button(action: dismiss) {
+                        OfficialAssetImage(name: "icon-close", template: true)
+                            .frame(width: 14, height: 14)
+                            .frame(
+                                width: OfficialUISpec.Layout.modalCloseControl,
+                                height: OfficialUISpec.Layout.modalCloseControl
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(OfficialUISpec.Text.close)
+                    .disabled(submitting)
+                }
+                .padding(.leading, OfficialUISpec.Layout.modalHeaderLeading)
+                .padding(.top, OfficialUISpec.Layout.modalHeaderTop)
+                .padding(.trailing, OfficialUISpec.Layout.modalHeaderTrailing)
+                .padding(.bottom, OfficialUISpec.Layout.modalHeaderBottom)
+
+                content()
+            }
+
+            HStack(spacing: 0) {
+                footer()
+            }
+            .padding(.horizontal, OfficialUISpec.Layout.modalContentHorizontalPadding)
+        }
+        .padding(.bottom, OfficialUISpec.Layout.modalCardBottomPadding)
+        .frame(
+            width: OfficialUISpec.Layout.modalCardOuterWidth,
+            height: height,
+            alignment: .top
+        )
+        .background(OfficialUISpec.Token.elevated, in: RoundedRectangle(cornerRadius: OfficialUISpec.Layout.modalCardCornerRadius, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: OfficialUISpec.Layout.modalCardCornerRadius, style: .continuous)
+                .stroke(OfficialUISpec.Token.hairline, lineWidth: OfficialUISpec.Layout.modalCardBorder)
+        }
+        .shadow(color: Color.black.opacity(0.16), radius: 24, x: 0, y: 12)
+    }
+
+    private enum ModalActionEmphasis {
+        case outline
+        case primary
+        case danger
+    }
+
+    private func modalActionButton(
+        _ title: String,
+        width: CGFloat,
+        emphasis: ModalActionEmphasis,
+        disabled: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 14, weight: .regular))
+                .frame(width: width, height: OfficialUISpec.Layout.modalActionButtonHeight)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(actionForeground(emphasis: emphasis, disabled: disabled))
+        .background(actionBackground(emphasis: emphasis, disabled: disabled), in: Capsule())
+        .overlay {
+            Capsule().stroke(actionBorder(emphasis: emphasis, disabled: disabled), lineWidth: OfficialUISpec.Layout.modalCardBorder)
+        }
+        .disabled(disabled)
+    }
+
+    private func actionForeground(emphasis: ModalActionEmphasis, disabled: Bool) -> Color {
+        if disabled { return OfficialUISpec.Token.elevated }
+        switch emphasis {
+        case .outline:
+            return OfficialUISpec.Token.primary
+        case .primary:
+            return OfficialUISpec.Token.elevated
+        case .danger:
+            return OfficialUISpec.Token.errorPrimary
+        }
+    }
+
+    private func actionBackground(emphasis: ModalActionEmphasis, disabled: Bool) -> Color {
+        if disabled { return OfficialUISpec.Token.caption }
+        switch emphasis {
+        case .outline, .danger:
+            return Color.clear
+        case .primary:
+            return OfficialUISpec.Token.businessBlue
+        }
+    }
+
+    private func actionBorder(emphasis: ModalActionEmphasis, disabled: Bool) -> Color {
+        switch emphasis {
+        case .primary:
+            return disabled ? OfficialUISpec.Token.caption : OfficialUISpec.Token.businessBlue
+        case .outline, .danger:
+            return OfficialUISpec.Token.border
+        }
+    }
+
+    private func synchronizeDraft() {
+        operationError = nil
+        submitting = false
+        switch presentation.workspaceManagementDialog {
+        case .workspaceRename(_, let title), .sessionRename(_, let title):
+            renameDraft = title
+        case .workspaceDelete, .none:
+            renameDraft = ""
+        }
+    }
+
+    private func dismiss() {
+        guard !submitting else { return }
+        presentation.dismissWorkspaceManagementDialog()
+    }
+
+    private func submitWorkspaceRename() {
+        guard case .workspaceRename(let workspaceID, let originalTitle)? = presentation.workspaceManagementDialog else { return }
+        submit {
+            try await presentation.renameWorkspace(
+                workspaceID,
+                title: renameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+            )
+        }
+    }
+
+    private func submitSessionRename() {
+        guard case .sessionRename(let sessionID, _)? = presentation.workspaceManagementDialog else { return }
+        submit {
+            try await presentation.renameSession(
+                sessionID,
+                title: renameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+            )
+        }
+    }
+
+    private func submitWorkspaceDelete() {
+        guard case .workspaceDelete(let workspaceID, _)? = presentation.workspaceManagementDialog else { return }
+        submit {
+            try await presentation.deleteWorkspace(workspaceID)
+        }
+    }
+
+    private func submit(_ operation: @escaping () async throws -> Void) {
+        guard !submitting else { return }
+        submitting = true
+        operationError = nil
+        Task {
+            do {
+                try await operation()
+                presentation.dismissWorkspaceManagementDialog()
+            } catch {
+                operationError = error.localizedDescription
+                submitting = false
+            }
         }
     }
 }
