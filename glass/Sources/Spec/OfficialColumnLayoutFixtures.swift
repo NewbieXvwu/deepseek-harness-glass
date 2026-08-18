@@ -32,8 +32,16 @@ struct OfficialColumnLayoutFixtureCatalog: Decodable {
     static let lockedSourcePath = "packages/client/ui-layout/src/client/columns.ts"
     static let lockedSourceSHA256 = "c2f002126fc671aeaad058eae310d265f7b1f9b77223686c0fe4619cda4e71e2"
 
+    private static var resourceBundle: Bundle {
+        #if SWIFT_PACKAGE
+        .module
+        #else
+        .main
+        #endif
+    }
+
     static let catalog: OfficialColumnLayoutFixtureCatalog = {
-        guard let url = Bundle.module.url(
+        guard let url = resourceBundle.url(
             forResource: "official-column-layout-fixtures",
             withExtension: "json"
         ) else {

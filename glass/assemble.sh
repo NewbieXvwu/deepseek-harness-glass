@@ -30,6 +30,7 @@ cp -RL "build/backend/node_modules" \
 echo "== 4/4 Info.plist / 官方基线 / 图标 / 签名 / 原子替换 =="
 cp Info.plist "$STAGE/Contents/Info.plist"
 cp Sources/Spec/SupportedHostBuilds.json "$STAGE/Contents/Resources/SupportedHostBuilds.json"
+cp Sources/Spec/Fixtures/official-column-layout-fixtures.json "$STAGE/Contents/Resources/official-column-layout-fixtures.json"
 OFFICIAL_SOURCE_COMMIT="99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
 APP_SOURCE_REVISION="$(git -C .. rev-parse HEAD 2>/dev/null || echo unknown)"
 cat > "$STAGE/Contents/Resources/BuildManifest.json" <<EOF
