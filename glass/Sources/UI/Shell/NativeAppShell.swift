@@ -3,6 +3,7 @@ import SwiftUI
 /// Native-only DeepSeek Harness shell. AppKit owns the three resizeable panes;
 /// SwiftUI owns official-spec content within each pane. No WebView participates
 /// in the core shell.
+@MainActor
 struct NativeAppShell: View {
     enum PresentationMode: Equatable {
         case welcome
