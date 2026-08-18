@@ -64,26 +64,39 @@ struct HostDescribeResponse: Decodable, Sendable {
 }
 
 struct SessionListResponse: Decodable, Sendable {
-    let sessions: [SessionSummaryDTO]?
+    let items: [SessionSummaryDTO]
 }
 
+/// Source: `sessions.schema.ts:sessionSummarySchema`.
 struct SessionSummaryDTO: Decodable, Sendable, Identifiable {
-    let id: String
-    let title: String?
-    let blank: Bool?
-    let running: Bool?
+    let sessionId: String
+    let updatedAt: Double
+    let running: Bool
+    let blank: Bool
+    let parentSessionId: String?
+    let origin: String?
+    let cwd: String?
+    let agentPreset: String?
+
+    var id: String { sessionId }
 }
 
+/// Source: `workspace.schema.ts:workspaceListValueSchema`.
 struct WorkspaceListResponse: Decodable, Sendable {
-    let workspaces: [WorkspaceSummaryDTO]?
-    let archivedSessionIds: [String]?
+    let items: [WorkspaceSummaryDTO]
+    let archivedSessionIds: [String]
 }
 
+/// Source: `workspace.schema.ts:workspaceViewSchema`.
 struct WorkspaceSummaryDTO: Decodable, Sendable, Identifiable {
-    let id: String
-    let path: String?
-    let name: String?
-    let sessionIds: [String]?
+    let workspaceId: String
+    let path: String
+    let title: String
+    let sessionIds: [String]
+    let createdAt: String
+    let updatedAt: String
+
+    var id: String { workspaceId }
 }
 
 struct SettingsDescribeResponse: Decodable, Sendable {
