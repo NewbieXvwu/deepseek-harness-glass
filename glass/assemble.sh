@@ -30,9 +30,7 @@ cp -RL "build/backend/node_modules" \
 echo "== 4/4 Info.plist / 图标 / 签名 / 原子替换 =="
 cp Info.plist "$STAGE/Contents/Info.plist"
 cp ../build/icon.icns "$STAGE/Contents/Resources/icon.icns"
-cp assets/brand-wordmark.svg "$STAGE/Contents/Resources/brand-wordmark.svg"
-cp assets/fish-logo.svg "$STAGE/Contents/Resources/fish-logo.svg"
-cp assets/fish.svg "$STAGE/Contents/Resources/fish.svg"
+cp assets/*.svg "$STAGE/Contents/Resources/"
 codesign --force --deep -s - "$STAGE"
 
 rm -rf "$APP"

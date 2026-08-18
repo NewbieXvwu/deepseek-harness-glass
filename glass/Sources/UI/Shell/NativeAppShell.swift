@@ -76,8 +76,8 @@ private struct SidebarColumn: View {
                 .padding(.top, 12)
 
                 Button(action: {}) {
-                    Image(systemName: "square.and.pencil")
-                        .font(.system(size: 18, weight: .regular))
+                    OfficialAssetImage(name: "icon-new-chat", template: true)
+                        .frame(width: 18, height: 18)
                         .frame(width: 36, height: 36)
                 }
                 .buttonStyle(OfficialSidebarIconStyle())
@@ -89,11 +89,13 @@ private struct SidebarColumn: View {
                         .frame(width: 182, height: 24, alignment: .leading)
                     Spacer(minLength: 0)
                     Button(action: {}) {
-                        Image(systemName: "sidebar.leading")
-                            .font(.system(size: 14, weight: .regular))
+                        OfficialAssetImage(name: "icon-panel-left", template: true)
+                            .frame(width: 16, height: 16)
                             .frame(width: 28, height: 28)
                     }
-                    .buttonStyle(OfficialSidebarIconStyle())
+                    // Liquid Glass is deliberately reserved for the native navigation
+                    // control. The official WebUI's content surface stays untouched.
+                    .buttonStyle(NativeGlassNavigationButtonStyle())
                     .accessibilityLabel(OfficialUISpec.Text.collapseSidebarAccessibility)
                 }
                 .frame(height: 60)
@@ -102,8 +104,8 @@ private struct SidebarColumn: View {
 
                 Button(action: {}) {
                     HStack(spacing: 6) {
-                        Image(systemName: "plus.circle")
-                            .font(.system(size: 14, weight: .regular))
+                        OfficialAssetImage(name: "icon-new-chat", template: true)
+                            .frame(width: 14, height: 14)
                         Text(OfficialUISpec.Text.newSession)
                             .font(.system(size: 14, weight: .medium))
                         Spacer(minLength: 0)
@@ -121,9 +123,9 @@ private struct SidebarColumn: View {
                         .font(.system(size: 14, weight: .regular))
                         .foregroundStyle(OfficialUISpec.Token.secondary)
                     Spacer(minLength: 0)
-                    SidebarUtilityIcon(symbol: "magnifyingglass", label: "")
-                    SidebarUtilityIcon(symbol: "slider.horizontal.3", label: "")
-                    SidebarUtilityIcon(symbol: "folder.badge.plus", label: OfficialUISpec.Text.addWorkspace)
+                    SidebarUtilityIcon(asset: "icon-search", label: "")
+                    SidebarUtilityIcon(asset: "icon-personalization", label: "")
+                    SidebarUtilityIcon(asset: "icon-project-add", label: OfficialUISpec.Text.addWorkspace)
                 }
                 .frame(height: 32)
                 .padding(.horizontal, 4)
@@ -140,8 +142,8 @@ private struct SidebarColumn: View {
 
             Button(action: {}) {
                 HStack(spacing: 6) {
-                    Image(systemName: "gearshape")
-                        .font(.system(size: collapsed ? 18 : 14, weight: .regular))
+                    OfficialAssetImage(name: "icon-settings", template: true)
+                        .frame(width: collapsed ? 18 : 16, height: collapsed ? 18 : 16)
                         .frame(width: collapsed ? 36 : nil, height: 36)
                     if !collapsed {
                         Text(OfficialUISpec.Text.settings)
@@ -226,12 +228,12 @@ private struct OfficialWelcomeSurface: View {
                 VStack(spacing: 8) {
                     HStack(spacing: 2) {
                         OfficialHeroChip(
-                            symbol: "folder",
+                            asset: "icon-folder-close",
                             text: OfficialUISpec.Text.chooseWorkspace,
                             showsChevron: true
                         )
                         OfficialHeroChip(
-                            symbol: "point.3.connected.trianglepath.dotted",
+                            asset: "icon-agent-preset",
                             text: OfficialUISpec.Text.standardMode,
                             showsChevron: true
                         )
@@ -243,17 +245,6 @@ private struct OfficialWelcomeSurface: View {
                         placeholder: OfficialUISpec.Text.composerWorkspacePlaceholder,
                         isWorkspaceTrigger: true
                     )
-                    // The glow is painted behind the fixed-size card. It must not
-                    // take part in the stack's proposed width, unlike the first
-                    // snapshot implementation where a wide ZStack stretched the card.
-                    .background {
-                        Ellipse()
-                            .fill(OfficialUISpec.Token.businessBlueGlow.opacity(0.44))
-                            .frame(width: cardWidth * 1.25, height: 132)
-                            .blur(radius: 42)
-                            .offset(y: 42)
-                            .allowsHitTesting(false)
-                    }
                 }
                 .frame(width: cardWidth)
             }
@@ -266,19 +257,19 @@ private struct OfficialWelcomeSurface: View {
 }
 
 private struct OfficialHeroChip: View {
-    let symbol: String
+    let asset: String
     let text: String
     let showsChevron: Bool
 
     var body: some View {
         HStack(spacing: 4) {
-            Image(systemName: symbol)
-                .font(.system(size: 13, weight: .regular))
+            OfficialAssetImage(name: asset, template: true)
+                .frame(width: 16, height: 16)
             Text(text)
                 .font(.system(size: 13, weight: .medium))
             if showsChevron {
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 9, weight: .medium))
+                OfficialAssetImage(name: "icon-chevron-down", template: true)
+                    .frame(width: 12, height: 12)
                     .foregroundStyle(OfficialUISpec.Token.caption)
             }
         }
@@ -299,8 +290,8 @@ private struct DetailsColumn: View {
                     .font(.system(size: 14, weight: .medium))
                 Spacer(minLength: 0)
                 Button(action: close) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 12, weight: .regular))
+                    OfficialAssetImage(name: "icon-close", template: true)
+                        .frame(width: 16, height: 16)
                         .frame(width: 28, height: 28)
                 }
                 .buttonStyle(OfficialSidebarIconStyle())
@@ -339,8 +330,8 @@ private struct OfficialComposerCard: View {
 
             HStack(spacing: 8) {
                 Button(action: {}) {
-                    Image(systemName: "plus")
-                        .font(.system(size: 16, weight: .regular))
+                    OfficialAssetImage(name: "icon-plus", template: true)
+                        .frame(width: 14, height: 14)
                         .frame(width: 28, height: 28)
                 }
                 .buttonStyle(OfficialComposerIconStyle())
@@ -349,8 +340,8 @@ private struct OfficialComposerCard: View {
                 Spacer(minLength: 0)
 
                 Button(action: {}) {
-                    Image(systemName: "arrow.up")
-                        .font(.system(size: 15, weight: .medium))
+                    OfficialAssetImage(name: "icon-send-up", template: true)
+                        .frame(width: 16, height: 16)
                         .frame(width: 34, height: 34)
                 }
                 .buttonStyle(OfficialSendButtonStyle(enabled: !isWorkspaceTrigger))
@@ -366,7 +357,7 @@ private struct OfficialComposerCard: View {
         .overlay {
             RoundedRectangle(cornerRadius: OfficialUISpec.Layout.composerCornerRadius, style: .continuous)
                 .strokeBorder(
-                    isWorkspaceTrigger ? OfficialUISpec.Token.businessBlueSoft : OfficialUISpec.Token.border,
+                    isWorkspaceTrigger ? OfficialUISpec.Token.businessBlue : OfficialUISpec.Token.border,
                     style: StrokeStyle(lineWidth: 1, dash: isWorkspaceTrigger ? [4, 4] : [])
                 )
         }
@@ -376,29 +367,36 @@ private struct OfficialComposerCard: View {
 
 private struct OfficialAssetImage: View {
     let name: String
+    var template = false
 
     var body: some View {
         Group {
             if let url = Bundle.main.url(forResource: name, withExtension: "svg"),
                let image = NSImage(contentsOf: url) {
-                Image(nsImage: image)
+                Image(nsImage: configured(image))
                     .resizable()
+                    .renderingMode(template ? .template : .original)
                     .interpolation(.high)
                     .scaledToFit()
             }
         }
         .accessibilityHidden(true)
     }
+
+    private func configured(_ image: NSImage) -> NSImage {
+        image.isTemplate = template
+        return image
+    }
 }
 
 private struct SidebarUtilityIcon: View {
-    let symbol: String
+    let asset: String
     let label: String
 
     var body: some View {
         Button(action: {}) {
-            Image(systemName: symbol)
-                .font(.system(size: 12, weight: .regular))
+            OfficialAssetImage(name: asset, template: true)
+                .frame(width: 16, height: 16)
                 .frame(width: 20, height: 20)
         }
         .buttonStyle(OfficialSidebarIconStyle())
@@ -429,6 +427,18 @@ private struct OfficialSidebarIconStyle: ButtonStyle {
                 configuration.isPressed ? OfficialUISpec.Token.interactiveHover : Color.clear,
                 in: Circle()
             )
+    }
+}
+
+/// A single native navigation affordance receives Liquid Glass. Keeping the
+/// effect out of the official content surface prevents a macOS treatment from
+/// rewriting the official hierarchy or spacing.
+private struct NativeGlassNavigationButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(OfficialUISpec.Token.primary)
+            .glassEffect(.regular, in: .circle)
+            .opacity(configuration.isPressed ? 0.82 : 1)
     }
 }
 
