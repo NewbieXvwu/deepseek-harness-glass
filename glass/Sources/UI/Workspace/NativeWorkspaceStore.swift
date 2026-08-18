@@ -49,8 +49,26 @@ final class NativeWorkspaceStore: ObservableObject {
     @Published var searchQuery = ""
 
     private var refreshTask: Task<Void, Never>?
+    private var eventTask: Task<Void, Never>?
+    private var eventRefreshTask: Task<Void, Never>?
 
-    deinit { refreshTask?.cancel() }
+    /// Source: `events.schema.ts:hostFrameSchema`. A single list reload folds
+    /// batches of related host increments into the host-authoritative snapshot.
+    private static let browserAffectingHostMethods: Set<String> = [
+        "host/session-added",
+        "host/session-removed",
+        "host/session-status",
+        "host/workspace-changed",
+        "host/workspace-removed",
+        "host/workspace-order-changed",
+        "host/archived-sessions-changed",
+    ]
+
+    deinit {
+        refreshTask?.cancel()
+        eventTask?.cancel()
+        eventRefreshTask?.cancel()
+    }
 
     func refresh(using api: DSHAPIClient) {
         refreshTask?.cancel()
@@ -74,6 +92,43 @@ final class NativeWorkspaceStore: ObservableObject {
                 guard !Task.isCancelled else { return }
                 self?.phase = .failed(error.localizedDescription)
             }
+        }
+    }
+
+    /// Opens the official Host stream only after the controller has verified a
+    /// supported endpoint. Server-request `method` is the official frame type.
+    func observeHostEvents(at endpoint: URL, using api: DSHAPIClient) {
+        eventTask?.cancel()
+        let client = SSEClient(baseURL: endpoint)
+        eventTask = Task { [weak self] in
+            let stream = await client.stream(.host)
+            do {
+                for try await frame in stream {
+                    guard Self.browserAffectingHostMethods.contains(frame.method) else { continue }
+                    self?.scheduleRefresh(using: api)
+                }
+            } catch is CancellationError {
+                return
+            } catch {
+                // Event reconnection policy belongs to Host lifecycle ownership.
+                // A later successful host transition calls this method again.
+            }
+        }
+    }
+
+    func stopObservingHostEvents() {
+        eventTask?.cancel()
+        eventTask = nil
+        eventRefreshTask?.cancel()
+        eventRefreshTask = nil
+    }
+
+    private func scheduleRefresh(using api: DSHAPIClient) {
+        eventRefreshTask?.cancel()
+        eventRefreshTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(250))
+            guard !Task.isCancelled else { return }
+            self?.refresh(using: api)
         }
     }
 
