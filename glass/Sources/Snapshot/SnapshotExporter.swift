@@ -24,9 +24,11 @@ enum SnapshotExporter {
             return false
         }
 
+        let requestedMode = ProcessInfo.processInfo.environment["DSH_GLASS_SNAPSHOT_MODE"]
         let mode: NativeAppShell.PresentationMode
-        switch ProcessInfo.processInfo.environment["DSH_GLASS_SNAPSHOT_MODE"] {
-        case "conversation":
+        let workspaceSnapshotDialog: WorkspaceBrowserView.SnapshotDialog
+        switch requestedMode {
+        case "conversation", "workspace-search", "workspace-rename", "session-rename", "workspace-delete":
             mode = .conversation
         case "tooling":
             mode = .tooling
@@ -36,6 +38,16 @@ enum SnapshotExporter {
             mode = .question
         default:
             mode = .welcome
+        }
+        switch requestedMode {
+        case "workspace-rename":
+            workspaceSnapshotDialog = .workspaceRename
+        case "session-rename":
+            workspaceSnapshotDialog = .sessionRename
+        case "workspace-delete":
+            workspaceSnapshotDialog = .workspaceDelete
+        default:
+            workspaceSnapshotDialog = .none
         }
         let sessionStore = NativeSessionStore()
         let workspaceStore = NativeWorkspaceStore()
@@ -48,13 +60,20 @@ enum SnapshotExporter {
         case .question:
             sessionStore.loadSnapshotQuestionFixture()
             workspaceStore.loadSnapshotFixtureWorkspace()
+        case .conversation where requestedMode == "workspace-search":
+            workspaceStore.loadSnapshotFixtureSearch()
+        case .conversation where requestedMode == "workspace-rename"
+            || requestedMode == "session-rename"
+            || requestedMode == "workspace-delete":
+            workspaceStore.loadSnapshotFixtureWorkspace()
         case .welcome, .conversation:
             break
         }
         let presentation = NativeShellPresentation(
             mode: mode,
             workspaceStore: workspaceStore,
-            sessionStore: sessionStore
+            sessionStore: sessionStore,
+            workspaceSnapshotDialog: workspaceSnapshotDialog
         )
         let shellController = NativeShellController(presentation: presentation)
         let size = snapshotSize(environment: ProcessInfo.processInfo.environment)

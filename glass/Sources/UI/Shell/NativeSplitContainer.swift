@@ -15,6 +15,7 @@ final class NativeShellPresentation: ObservableObject {
 
     let workspaceStore: NativeWorkspaceStore
     let sessionStore: NativeSessionStore
+    let workspaceSnapshotDialog: WorkspaceBrowserView.SnapshotDialog
     private var apiClient: DSHAPIClient?
     private var selectedToolObservation: AnyCancellable?
     private var observedEndpoint: URL?
@@ -22,11 +23,13 @@ final class NativeShellPresentation: ObservableObject {
     init(
         mode: NativeAppShell.PresentationMode = .welcome,
         workspaceStore: NativeWorkspaceStore? = nil,
-        sessionStore: NativeSessionStore? = nil
+        sessionStore: NativeSessionStore? = nil,
+        workspaceSnapshotDialog: WorkspaceBrowserView.SnapshotDialog = .none
     ) {
         self.mode = mode
         self.workspaceStore = workspaceStore ?? NativeWorkspaceStore()
         self.sessionStore = sessionStore ?? NativeSessionStore()
+        self.workspaceSnapshotDialog = workspaceSnapshotDialog
         self.detailsVisible = self.sessionStore.selectedToolCallID != nil
         selectedToolObservation = self.sessionStore.$selectedToolCallID.sink { [weak self] callID in
             self?.detailsVisible = callID != nil
@@ -245,6 +248,7 @@ final class NativeShellController: NativeSplitViewController {
                     try await presentation.renameSession(sessionID, title: title)
                 }
             ),
+            workspaceSnapshotDialog: presentation.workspaceSnapshotDialog,
             onNewSession: { presentation.createSession(in: presentation.workspaceStore.snapshot.selectedWorkspaceID) },
             onOpenSettings: {}
         )

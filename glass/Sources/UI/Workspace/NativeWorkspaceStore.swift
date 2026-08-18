@@ -286,6 +286,23 @@ final class NativeWorkspaceStore: ObservableObject {
         phase = .ready
     }
 
+    /// Snapshot-only projection for the official workspace browser's local +
+    /// `session.search` merged-results state. The query and snippets are
+    /// deterministic, while all session identity remains the shared fixture.
+    func loadSnapshotFixtureSearch() {
+        loadSnapshotFixtureWorkspace()
+        searchQuery = "fixture"
+        remoteSearch = RemoteSearch(
+            query: "fixture",
+            status: .ready,
+            items: [
+                SessionSearchItemDTO(sessionId: "fx-alpha", snippet: "fixture history content match"),
+                SessionSearchItemDTO(sessionId: "fx-gamma", snippet: "fixture content result"),
+            ],
+            hasMore: false
+        )
+    }
+
     func applyHostWorkspaceList(_ workspaces: WorkspaceListResponse, sessions: SessionListResponse) {
         let old = snapshot
         snapshot = Snapshot(

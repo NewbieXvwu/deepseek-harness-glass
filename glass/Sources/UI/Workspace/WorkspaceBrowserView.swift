@@ -8,6 +8,14 @@ struct WorkspaceBrowserView: View {
     let collapsed: Bool
     let requestSidebarExpansion: () -> Void
     let actions: Actions
+    let snapshotDialog: SnapshotDialog
+
+    enum SnapshotDialog {
+        case none
+        case workspaceRename
+        case sessionRename
+        case workspaceDelete
+    }
 
     struct Actions {
         var addWorkspace: () -> Void = {}
@@ -51,13 +59,37 @@ struct WorkspaceBrowserView: View {
         store: NativeWorkspaceStore,
         collapsed: Bool,
         requestSidebarExpansion: @escaping () -> Void,
-        actions: Actions
+        actions: Actions,
+        snapshotDialog: SnapshotDialog = .none
     ) {
         self.store = store
         self.collapsed = collapsed
         self.requestSidebarExpansion = requestSidebarExpansion
         self.actions = actions
+        self.snapshotDialog = snapshotDialog
         _expandedWorkspaceIDs = State(initialValue: Set(store.snapshot.selectedWorkspaceID.map { [$0] } ?? []))
+        switch snapshotDialog {
+        case .none:
+            _workspaceRenameTarget = State(initialValue: nil)
+            _sessionRenameTarget = State(initialValue: nil)
+            _deleteTarget = State(initialValue: nil)
+            _renameDraft = State(initialValue: "")
+        case .workspaceRename:
+            _workspaceRenameTarget = State(initialValue: RenameTarget(id: "fx-ws-fixture", title: "fixture"))
+            _sessionRenameTarget = State(initialValue: nil)
+            _deleteTarget = State(initialValue: nil)
+            _renameDraft = State(initialValue: "fixture")
+        case .sessionRename:
+            _workspaceRenameTarget = State(initialValue: nil)
+            _sessionRenameTarget = State(initialValue: RenameTarget(id: "fx-alpha", title: "Fixture 历史会话"))
+            _deleteTarget = State(initialValue: nil)
+            _renameDraft = State(initialValue: "Fixture 历史会话")
+        case .workspaceDelete:
+            _workspaceRenameTarget = State(initialValue: nil)
+            _sessionRenameTarget = State(initialValue: nil)
+            _deleteTarget = State(initialValue: DeleteTarget(id: "fx-ws-fixture", title: "fixture"))
+            _renameDraft = State(initialValue: "")
+        }
     }
 
     var body: some View {

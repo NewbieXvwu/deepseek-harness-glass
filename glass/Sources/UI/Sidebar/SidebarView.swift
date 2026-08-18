@@ -5,6 +5,7 @@ struct NativeSidebarView: View {
     let collapsed: Bool
     let setCollapsed: (Bool) -> Void
     let workspaceActions: WorkspaceBrowserView.Actions
+    let workspaceSnapshotDialog: WorkspaceBrowserView.SnapshotDialog = .none
     let onNewSession: () -> Void
     let onOpenSettings: () -> Void
 
@@ -21,7 +22,8 @@ struct NativeSidebarView: View {
                 store: workspaceStore,
                 collapsed: collapsed,
                 requestSidebarExpansion: { setCollapsed(false) },
-                actions: workspaceActions
+                actions: workspaceActions,
+                snapshotDialog: workspaceSnapshotDialog
             )
 
             settingsButton
