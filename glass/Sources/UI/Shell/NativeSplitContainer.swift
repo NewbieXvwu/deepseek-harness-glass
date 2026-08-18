@@ -17,10 +17,10 @@ final class NativeShellPresentation: ObservableObject {
 
     init(
         mode: NativeAppShell.PresentationMode = .welcome,
-        workspaceStore: NativeWorkspaceStore = NativeWorkspaceStore()
+        workspaceStore: NativeWorkspaceStore? = nil
     ) {
         self.mode = mode
-        self.workspaceStore = workspaceStore
+        self.workspaceStore = workspaceStore ?? NativeWorkspaceStore()
     }
 }
 
