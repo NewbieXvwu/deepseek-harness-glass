@@ -159,6 +159,7 @@ enum OfficialUISpec {
         static let chooseWorkspace = "Choose workspace"
         static let composerWorkspacePlaceholder = "Choose a workspace to start"
         static let composerDefaultPlaceholder = "Message the agent"
+        static let composerHeroPlaceholder = "Describe what you want to build"
         static let sendMessageAccessibility = "Send message"
         static let stopGeneratingAccessibility = "Stop generating"
         static let commandsAccessibility = "Commands"

@@ -179,7 +179,11 @@ final class NativeShellController: NativeSplitViewController {
         self.presentation = presentation
         super.init(
             sidebar: Self.sidebar(for: presentation, collapsed: presentation.manuallyCollapsed),
-            conversation: NativeConversationColumn(mode: presentation.mode, sessionStore: presentation.sessionStore),
+            conversation: NativeConversationColumn(
+                mode: presentation.mode,
+                selectedWorkspaceTitle: Self.selectedWorkspaceTitle(for: presentation),
+                sessionStore: presentation.sessionStore
+            ),
             details: Self.details(for: presentation),
             sidebarPreference: presentation.sidebarPreference,
             detailsPreference: presentation.detailsPreference,
@@ -209,12 +213,21 @@ final class NativeShellController: NativeSplitViewController {
         renderPresentation()
     }
 
+    private static func selectedWorkspaceTitle(for presentation: NativeShellPresentation) -> String? {
+        guard let workspaceID = presentation.workspaceStore.snapshot.selectedWorkspaceID else { return nil }
+        return presentation.workspaceStore.snapshot.workspaces.first { $0.workspaceId == workspaceID }?.title
+    }
+
     private func renderPresentation() {
         let automaticRail = isViewLoaded && view.bounds.width < OfficialUISpec.Layout.sidebarAutoCollapse
         let collapsed = automaticRail || presentation.manuallyCollapsed
         update(
             sidebar: Self.sidebar(for: presentation, collapsed: collapsed),
-            conversation: NativeConversationColumn(mode: presentation.mode, sessionStore: presentation.sessionStore),
+            conversation: NativeConversationColumn(
+                mode: presentation.mode,
+                selectedWorkspaceTitle: Self.selectedWorkspaceTitle(for: presentation),
+                sessionStore: presentation.sessionStore
+            ),
             details: Self.details(for: presentation),
             sidebarPreference: presentation.sidebarPreference,
             detailsPreference: presentation.detailsPreference,

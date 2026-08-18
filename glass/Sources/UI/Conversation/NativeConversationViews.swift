@@ -4,12 +4,13 @@ import UniformTypeIdentifiers
 
 struct NativeConversationColumn: View {
     let mode: NativeAppShell.PresentationMode
+    let selectedWorkspaceTitle: String?
     @ObservedObject var sessionStore: NativeSessionStore
 
     var body: some View {
         switch mode {
         case .welcome:
-            NativeWelcomeSurface()
+            NativeWelcomeSurface(selectedWorkspaceTitle: selectedWorkspaceTitle)
         case .conversation, .tooling, .approval, .question:
             NativeActiveConversationSurface(sessionStore: sessionStore)
         }
@@ -219,6 +220,8 @@ private struct NativeTranscriptBubble: View {
 }
 
 struct NativeWelcomeSurface: View {
+    let selectedWorkspaceTitle: String?
+
     var body: some View {
         GeometryReader { geometry in
             let cardWidth = min(
@@ -250,7 +253,7 @@ struct NativeWelcomeSurface: View {
                     HStack(spacing: 2) {
                         NativeHeroChip(
                             asset: "icon-folder-close",
-                            text: OfficialUISpec.Text.chooseWorkspace,
+                            text: selectedWorkspaceTitle ?? OfficialUISpec.Text.chooseWorkspace,
                             showsChevron: true
                         )
                         NativeHeroChip(
@@ -263,8 +266,10 @@ struct NativeWelcomeSurface: View {
                     .padding(.leading, 20)
 
                     NativeComposerCard(
-                        placeholder: OfficialUISpec.Text.composerWorkspacePlaceholder,
-                        isWorkspaceTrigger: true
+                        placeholder: selectedWorkspaceTitle == nil
+                            ? OfficialUISpec.Text.composerWorkspacePlaceholder
+                            : OfficialUISpec.Text.composerHeroPlaceholder,
+                        isWorkspaceTrigger: selectedWorkspaceTitle == nil
                     )
                 }
                 .frame(width: cardWidth)

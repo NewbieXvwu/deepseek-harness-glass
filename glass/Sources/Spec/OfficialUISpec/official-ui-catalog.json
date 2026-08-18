@@ -106,6 +106,7 @@
     "chooseWorkspace": { "value": "Choose workspace", "source": "packages/client/ui-conversation/src/client/locales.ts" },
     "composerWorkspacePlaceholder": { "value": "Choose a workspace to start", "source": "packages/client/ui-conversation/src/client/locales.ts" },
     "composerDefaultPlaceholder": { "value": "Message the agent", "source": "packages/client/ui-conversation/src/client/locales.ts" },
+    "composerHeroPlaceholder": { "value": "Describe what you want to build", "source": "packages/client/ui-conversation/src/client/locales.ts:placeholder.hero" },
     "chat": { "value": "Chat", "source": "packages/client/ui-conversation/src/client/locales.ts" },
     "details": { "value": "Details", "source": "packages/client/ui-conversation/src/client/locales.ts" },
     "detailsEmpty": { "value": "Click a tool row in the message flow to view its details", "source": "packages/client/ui-conversation/src/client/locales.ts" },
