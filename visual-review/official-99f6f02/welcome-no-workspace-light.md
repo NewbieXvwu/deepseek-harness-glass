@@ -68,3 +68,9 @@
 证据：macOS-26 [run 32181832902](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32181832902)，commit `e93273a`。`HarnessHostControllerTests` 在真实固定 payload 路径执行 4 项无 UI 测试并全通过（4.392 秒）。新增测试断言可复制 `HostDiagnosticSnapshot` 含 Host build、port、DSH_HOME、ownership/PID、last SSE time、last RPC error、protocol fixture revision、plugin compatibility 与 lifecycle；fixture 注入 API key、cookie、Bearer、URL user-info/secret 后，copy text 不含任一原文 secret，保留 `<redacted>`。RPC facade、Core readiness/probe 和 Host SSE consumer 现共用 actor-isolated recorder，保存的仅是错误摘要，不含 request/response payload。
 
 人工 comparison 检查确认 T3.4 只改变 Core diagnostics 和事件/API 注入；原生 renderer、文案、资产、布局保持不变。量化报告仍为既有 `report-only`：materially changed ratio `0.02942987`、mean absolute channel difference `2.743943`、exact changed ratio `0.30950521`。该结论不把 welcome 标为视觉完成；既有材质、composer 与几何差异继续由后续 UI TODO 对照关闭。
+
+## 2026-08-19 — T4.1 RPC envelope/error-model review
+
+证据：macOS-26 [run 32183487572](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32183487572)，commit `a3d86a3`。新增 `RPCModelsTests` 经 Xcode 编译；`RPCEnvelope` 保留 request/response `rpcId` 和 closed business-error branch，`RPCBusinessError` 与 `DSHTransportError` 分类覆盖 retryable、requires refresh、requires user correction、unsupported 和 program fault。URLSession 亦将 timeout、cancelled 与网络失败映射为显式 transport 状态。现有真实 Host Core test 继续成功，完整 native app 组装、snapshot 和官方 capture 完成。
+
+人工 comparison 检查确认此项只修改 Core HTTP/RPC model 和错误映射；原生 renderer、文案、资产与布局未改。量化报告仍为既有 `report-only`：materially changed ratio `0.02958705`、mean absolute channel difference `2.789118`、exact changed ratio `0.30974888`。该结论不将 welcome 标为视觉完成；既有材质、composer 与几何差异仍由后续界面 TODO 收敛。

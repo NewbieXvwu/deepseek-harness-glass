@@ -205,9 +205,9 @@
 
 官方 API 的请求/响应通过 `rpcId` 关联，并将 ClientRequest、ServerResponse、ServerRequest、ClientResponse 映射在 HTTP POST 与 SSE 上。会话、工作区、设置、凭据、模型、命令和远程事件都应经过同一个可测试传输层。[7]
 
-- [ ] **T4.1：定义 `RPCEnvelope` 与通用错误模型。** 覆盖 request/response envelope、`rpcId`、成功/错误分支、HTTP transport error、业务 error、超时与取消。
+- [x] **T4.1：定义 `RPCEnvelope` 与通用错误模型。** 以锁定 `packages/client/connection/src/rpc.ts` 的 request/response 契约为来源，`RPCEnvelope` 汇总 ClientRequest/ServerResponse/ServerRequest/ClientResponse 并保留 `rpcId` 与 closed success/business-error branch；`RPCBusinessError` 与 `DSHTransportError` 将 HTTP、network、timeout、cancelled、content/envelope/rpcId mismatch、unverified build 统一投影为 retryable、requires refresh、requires user correction、unsupported 或 program fault。URLSession 错误不再泛化为 decoding。
   - 依赖：T3.1。
-  - 验收：每种错误可被上层区分为“可重试”“需刷新”“需用户修正”“不支持”“程序错误”。
+  - 验收证据：`RPCModelsTests` 覆盖 revision conflict、validation、unsupported method、unavailable/internal、429/503/400、timeout/network/cancel/unverified 及 envelope rpcId/business branch。macOS-26 [run 32183487572](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32183487572)（commit `a3d86a3`）成功完成完整 SwiftPM/Swiftc 编译、RPC model/Core Host tests、截图和官方配对；人工复核记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`，Core transport model 改动未新增 renderer 回归，既有 welcome `report-only` 差异仍由后续 UI TODO 关闭。
 
 - [ ] **T4.2：生成或维护 Swift DTO。** 从官方 TypeScript/Zod schema 建立受控生成步骤；若第一版手工建模，也必须记录 schema source path 与 fixture revision。
   - 依赖：T4.1、T0.2。
