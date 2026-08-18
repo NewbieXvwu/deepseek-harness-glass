@@ -18,3 +18,7 @@
 ## 当前结论
 
 官方 WebUI 已在本地从锁定源码成功构建并运行，Playwright 截图无 console warning 或 page error。原生 CI 工件也已成功下载、查看。两者已经证实并非零差异，因此后续 UI 工作必须先建立自动对齐/差异报告，随后再开始以“完成”为目标的界面实现；任何受影响 TODO 保持未勾选。
+
+## 2026-08-18 — T1.2 模块边界复核
+
+证据：macOS-26 [run 32161795843](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32161795843) 的 `welcome-no-workspace-light-comparison.png`、官方 PNG、原生 PNG 和报告 JSON。该提交引入独立 SwiftPM target 编译、Core/UI 文件选择边界和模块依赖门禁；三栏对照未显示由这些结构改动引入的新增可观察 welcome 回归。官方与原生之间原有的全图差异仍然存在，尤其是主区域的原生材质/背景与 composer 边界；它们继续保持 `report-only`，不得因本次 CI 成功或本条复核而被视为视觉验收通过。
