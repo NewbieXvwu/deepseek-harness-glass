@@ -157,6 +157,11 @@ jobs:
             --official-root .reference/deepseek-harness \
             --node "$NODE24_BIN/node"
 
+      - name: Validate official interaction scene directory
+        run: |
+          python3 glass/ci/check-official-interaction-scenes.py \
+            --official-root .reference/deepseek-harness
+
       - name: Enforce native-only core UI
         run: ./glass/ci/check-no-webview.sh
 
@@ -244,6 +249,7 @@ jobs:
             glass/Sources/Spec/Tokens/official-theme-tokens.json
             glass/Sources/Spec/OfficialThemeCatalog.swift
             glass/Sources/Spec/Fixtures/official-column-layout-fixtures.json
+            glass/Sources/Spec/Fixtures/official-interaction-scenes.json
             glass/Package.swift
           if-no-files-found: error
           retention-days: 14
