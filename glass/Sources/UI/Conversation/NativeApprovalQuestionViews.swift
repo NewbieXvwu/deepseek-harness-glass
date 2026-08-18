@@ -93,7 +93,7 @@ struct NativeApprovalPanel: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
         }
-        .frame(maxWidth: OfficialUISpec.Layout.chatContentMaximum)
+        .frame(maxWidth: OfficialUISpec.Layout.approvalCardOuterWidth)
         .background(OfficialUISpec.Token.elevated, in: RoundedRectangle(cornerRadius: OfficialUISpec.Layout.approvalCardCornerRadius, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: OfficialUISpec.Layout.approvalCardCornerRadius, style: .continuous)
@@ -101,6 +101,7 @@ struct NativeApprovalPanel: View {
         }
         .shadow(color: Color.black.opacity(0.10), radius: 16, y: 6)
         .padding(.horizontal, OfficialUISpec.Layout.composerClearance + 16)
+        .padding(.trailing, OfficialUISpec.Layout.composerSeatTrailingGutter)
         .padding(.top, OfficialUISpec.Layout.approvalSeatTop)
         .padding(.bottom, OfficialUISpec.Layout.approvalSeatBottom)
     }
@@ -186,6 +187,7 @@ struct NativeQuestionComposer: View {
         }
         .shadow(color: Color.black.opacity(0.10), radius: 16, y: 6)
         .padding(.horizontal, OfficialUISpec.Layout.composerClearance + 16)
+        .padding(.trailing, OfficialUISpec.Layout.composerSeatTrailingGutter)
         .padding(.top, OfficialUISpec.Layout.questionSeatTop)
         .padding(.bottom, OfficialUISpec.Layout.questionSeatBottom)
         .id(pending.id)

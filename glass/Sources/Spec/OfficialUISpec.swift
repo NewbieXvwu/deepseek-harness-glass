@@ -21,6 +21,7 @@ enum OfficialUISpec {
         static let chatContentMaximum: CGFloat = 748
         static let composerMaximum: CGFloat = 780
         static let composerClearance: CGFloat = 16
+        static let composerSeatTrailingGutter: CGFloat = 8
         static let composerCornerRadius: CGFloat = 22
         static let heroGap: CGFloat = 12
         // Source: ui-conversation/chat/MessageItem.module.css
@@ -40,6 +41,7 @@ enum OfficialUISpec {
         static let workspaceGroupSessionLimit = 5
 
         // Source: ui-conversation/skeleton/ApprovalPanel.module.css
+        static let approvalCardOuterWidth: CGFloat = 750
         static let approvalCardCornerRadius: CGFloat = 20
         static let approvalStripHorizontalPadding: CGFloat = 16
         static let approvalStripVerticalPadding: CGFloat = 10
