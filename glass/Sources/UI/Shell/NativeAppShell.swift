@@ -302,6 +302,7 @@ private struct OfficialIconButtonStyle: ButtonStyle {
         configuration.label
             .foregroundStyle(OfficialUISpec.Token.labelSecondaryDark)
             .background(configuration.isPressed ? OfficialUISpec.Token.activeFillDark : Color.clear, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .glassEffect(.regular, in: .rect(cornerRadius: 7, style: .continuous))
     }
 }
 
