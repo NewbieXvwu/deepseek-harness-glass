@@ -219,7 +219,10 @@ class NativeSplitViewController: NSSplitViewController {
         let sidebarSubviews = sidebarHost.view.subviews.enumerated().map { index, view in
             "sidebarSubview=\(index),type=\(String(describing: type(of: view))),frame=\(NSStringFromRect(view.frame)),hidden=\(view.isHidden)"
         }
-        return "split=\(NSStringFromRect(splitView.frame)); \(itemStates.joined(separator: \"; \")); \(sidebarSubviews.joined(separator: \"; \"))"
+        return "split=\(NSStringFromRect(splitView.frame)); "
+            + itemStates.joined(separator: "; ")
+            + "; "
+            + sidebarSubviews.joined(separator: "; ")
     }
 
     override func splitView(
