@@ -143,6 +143,7 @@
     "relativeTimeDaysTemplate": { "value": "{n}d", "source": "packages/client/ui-workspace/src/client/locales.ts:time.days" },
     "relativeTimeMonthsTemplate": { "value": "{n}mo", "source": "packages/client/ui-workspace/src/client/locales.ts:time.months" },
     "relativeTimeYearsTemplate": { "value": "{n}y", "source": "packages/client/ui-workspace/src/client/locales.ts:time.years" },
+    "fixtureSearchSnippet": { "value": "[fixture] 上下文注入（turn 4）", "source": "packages/client/connection/src/client/fixture.ts:395" },
     "chatLoadingHistory": { "value": "Loading history…", "source": "packages/client/ui-conversation/src/client/locales.ts:chat.loadingHistory" },
     "chatLoadOlder": { "value": "Load earlier", "source": "packages/client/ui-conversation/src/client/locales.ts:chat.loadOlder" },
     "chatToBottom": { "value": "Back to bottom", "source": "packages/client/ui-conversation/src/client/locales.ts:chat.toBottom" },

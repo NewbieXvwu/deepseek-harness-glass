@@ -140,6 +140,8 @@ enum OfficialUISpec {
         static let relativeTimeDaysTemplate = "{n}d"
         static let relativeTimeMonthsTemplate = "{n}mo"
         static let relativeTimeYearsTemplate = "{n}y"
+        // Source: packages/client/connection/src/client/fixture.ts (fx-alpha fixture history)
+        static let fixtureSearchSnippet = "[fixture] 上下文注入（turn 4）"
         static func relativeTime(_ template: String, value: Int) -> String {
             template.replacingOccurrences(of: "{n}", with: String(value))
         }

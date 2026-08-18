@@ -232,7 +232,7 @@ final class NativeWorkspaceStore: ObservableObject {
         let sessions = [
             SessionSummaryDTO(
                 sessionId: alphaID,
-                updatedAt: now - 17 * 60 * 1_000,
+                updatedAt: now,
                 running: true,
                 blank: false,
                 pendingInteraction: "question",
@@ -244,7 +244,7 @@ final class NativeWorkspaceStore: ObservableObject {
             ),
             SessionSummaryDTO(
                 sessionId: betaID,
-                updatedAt: now - 18 * 60 * 1_000,
+                updatedAt: now - 60 * 1_000,
                 running: false,
                 blank: false,
                 pendingInteraction: nil,
@@ -256,7 +256,7 @@ final class NativeWorkspaceStore: ObservableObject {
             ),
             SessionSummaryDTO(
                 sessionId: gammaID,
-                updatedAt: now - 19 * 60 * 1_000,
+                updatedAt: now - 2 * 60 * 1_000,
                 running: false,
                 blank: false,
                 pendingInteraction: nil,
@@ -296,8 +296,10 @@ final class NativeWorkspaceStore: ObservableObject {
             query: "fixture",
             status: .ready,
             items: [
-                SessionSearchItemDTO(sessionId: "fx-alpha", snippet: "fixture history content match"),
-                SessionSearchItemDTO(sessionId: "fx-gamma", snippet: "fixture content result"),
+                SessionSearchItemDTO(
+                    sessionId: "fx-alpha",
+                    snippet: OfficialUISpec.Text.fixtureSearchSnippet
+                ),
             ],
             hasMore: false
         )
