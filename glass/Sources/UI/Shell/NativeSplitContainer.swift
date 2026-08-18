@@ -128,7 +128,7 @@ class NativeSplitViewController: NSSplitViewController {
         sidebarHost = OfficialSidebarHostController(rootView: sidebar)
         conversationHost = NSHostingController(rootView: conversation)
         detailsHost = NSHostingController(rootView: details)
-        sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebarHost)
+        sidebarItem = NSSplitViewItem(viewController: sidebarHost)
         conversationItem = NSSplitViewItem(viewController: conversationHost)
         detailsItem = NSSplitViewItem(viewController: detailsHost)
         self.sidebarPreference = sidebarPreference
