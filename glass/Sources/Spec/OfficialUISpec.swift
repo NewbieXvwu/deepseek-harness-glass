@@ -29,6 +29,9 @@ enum OfficialUISpec {
         static let workspaces = "工作区"
         static let addWorkspace = "添加工作区"
 
+        // Source: packages/client/ui-settings-general/src/client/locales.ts (zh)
+        static let settings = "设置"
+
         // Source: packages/client/ui-conversation/src/client/locales.ts (zh)
         static let chat = "对话"
         static let heroHeadline = "探索未至之境"

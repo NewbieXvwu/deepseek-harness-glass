@@ -75,10 +75,6 @@ private struct SidebarColumn: View {
                 .padding(.top, 12)
             } else {
                 HStack(spacing: 8) {
-                    Text("HARNESS")
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
-                        .tracking(1.6)
-                        .foregroundStyle(OfficialUISpec.Token.labelPrimaryDark)
                     Spacer(minLength: 0)
                     Button(action: {}) {
                         Image(systemName: "sidebar.leading")
@@ -126,19 +122,20 @@ private struct SidebarColumn: View {
 
             Spacer(minLength: 0)
 
-            if !collapsed {
-                Divider().overlay(OfficialUISpec.Token.separatorThinDark)
-                HStack(spacing: 10) {
-                    Image(systemName: "gearshape")
-                        .font(.system(size: 13, weight: .medium))
-                    Text(OfficialUISpec.Text.preview)
+            Divider().overlay(OfficialUISpec.Token.separatorThinDark)
+            HStack(spacing: 10) {
+                Image(systemName: "gearshape")
+                    .font(.system(size: collapsed ? 14 : 16, weight: .medium))
+                    .frame(width: collapsed ? 36 : nil, height: 36)
+                if !collapsed {
+                    Text(OfficialUISpec.Text.settings)
                         .font(.system(size: 13, weight: .regular))
-                    Spacer(minLength: 0)
                 }
-                .foregroundStyle(OfficialUISpec.Token.labelSecondaryDark)
-                .padding(.horizontal, 16)
-                .frame(height: 52)
+                Spacer(minLength: 0)
             }
+            .foregroundStyle(OfficialUISpec.Token.labelSecondaryDark)
+            .padding(.horizontal, collapsed ? 10 : 16)
+            .frame(height: 52)
         }
         .background(darkAppearance ? OfficialUISpec.Token.sidebarDark : Color(nsColor: .controlBackgroundColor))
     }
