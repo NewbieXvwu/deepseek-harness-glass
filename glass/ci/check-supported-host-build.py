@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from datetime import date
 import json
 import plistlib
 import subprocess
@@ -59,6 +60,16 @@ def main() -> None:
         raise SystemExit("supported build officialSourceCommit does not match the locked official source")
     if build["verificationState"] not in {"planned", "verified"}:
         raise SystemExit("supported build verificationState must be planned or verified")
+    verified_at = build.get("verifiedAt")
+    if build["verificationState"] == "verified":
+        if not isinstance(verified_at, str):
+            raise SystemExit("verified supported build must include verifiedAt as an ISO date")
+        try:
+            date.fromisoformat(verified_at)
+        except ValueError as error:
+            raise SystemExit("verifiedAt must be an ISO-8601 date") from error
+    elif verified_at is not None:
+        raise SystemExit("planned supported build must not claim a verification date")
 
     info_path = root / "Info.plist"
     with info_path.open("rb") as handle:
