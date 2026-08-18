@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "officialSourceCommit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca",
+  "captureContract": {
+    "logicalViewport": { "width": 1280, "height": 840 },
+    "deviceScaleFactor": 1,
+    "locale": "en-US",
+    "colorScheme": "light",
+    "reduceTransparency": false,
+    "increaseContrast": false,
+    "reduceMotion": false,
+    "sourceOfTruth": "locked official WebUI running against an isolated DSH_HOME and matching fixture"
+  },
+  "scenes": [
+    {
+      "id": "welcome-no-workspace-light",
+      "surface": "conversation.empty-hero",
+      "state": "no-workspace",
+      "officialComponents": ["SidebarRoot", "EmptyHero", "InputBar"],
+      "nativeEntry": "NativeAppShell.PresentationMode.welcome",
+      "requiredEvidence": ["source-map", "official-screenshot", "native-screenshot", "layout-rectangles", "accessibility"],
+      "allowedDifferenceClasses": ["font-rendering", "system-glass"]
+    },
+    {
+      "id": "conversation-details-light",
+      "surface": "conversation.chat-with-details",
+      "state": "session-selected",
+      "officialComponents": ["AppFrame", "ConversationRoot", "DetailsPane"],
+      "nativeEntry": "NativeAppShell.PresentationMode.conversation",
+      "requiredEvidence": ["source-map", "official-screenshot", "native-screenshot", "layout-rectangles", "accessibility", "rpc-fixture"],
+      "allowedDifferenceClasses": ["font-rendering", "system-glass"]
+    },
+    {
+      "id": "sidebar-rail-narrow-light",
+      "surface": "sidebar.compact-rail",
+      "state": "viewport-below-auto-collapse",
+      "viewport": { "width": 1023, "height": 840 },
+      "officialComponents": ["AppFrame", "SidebarRoot"],
+      "requiredEvidence": ["source-map", "official-screenshot", "native-screenshot", "layout-rectangles", "keyboard-focus"],
+      "allowedDifferenceClasses": ["font-rendering", "system-glass"]
+    }
+  ],
+  "differenceClasses": {
+    "source-missing": "No locked upstream source is recorded for a native element.",
+    "text": "Visible content does not match the locale entry for the scene.",
+    "asset": "Icon or vector differs from the recorded upstream asset.",
+    "geometry": "Box, spacing, alignment, ordering, or responsive behavior differs.",
+    "state": "The UI exposes a state that differs from fixture or Host authority.",
+    "system-glass": "Platform material/refraction differs while documented policy and bounds match.",
+    "font-rendering": "Platform text rasterization differs but text, font token, baseline and bounds match."
+  }
+}

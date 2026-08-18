@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "officialSourceCommit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca",
+  "scope": "native-welcome-pilot",
+  "inputs": [
+    "packages/client/ui-layout/src/client/columns.ts",
+    "packages/client/ui-sidebar/src/client/locales.ts",
+    "packages/client/ui-workspace/src/client/locales.ts",
+    "packages/client/ui-conversation/src/client/locales.ts",
+    "packages/client/ui-settings-general/src/client/locales.ts",
+    "packages/client/ui-agent-preset/src/client/locales.ts",
+    "packages/client/ui-theme/src/styles/design-platform.css",
+    "packages/client/ui-conversation/src/client/skeleton/HeroShell.module.css",
+    "packages/client/ui-conversation/src/client/skeleton/InputBar.module.css",
+    "packages/client/ui-conversation/src/client/skeleton/ConversationRoot.module.css"
+  ],
+  "layout": {
+    "sidebarDefault": { "value": 280, "source": "packages/client/ui-layout/src/client/columns.ts:SIDEBAR_DEFAULT" },
+    "sidebarMinimum": { "value": 264, "source": "packages/client/ui-layout/src/client/columns.ts:SIDEBAR_MIN" },
+    "sidebarMaximum": { "value": 420, "source": "packages/client/ui-layout/src/client/columns.ts:SIDEBAR_MAX" },
+    "sidebarCollapsed": { "value": 56, "source": "packages/client/ui-layout/src/client/columns.ts:SIDEBAR_COLLAPSED" },
+    "sidebarAutoCollapse": { "value": 1024, "source": "packages/client/ui-layout/src/client/columns.ts:SIDEBAR_AUTO_COLLAPSE" },
+    "centerMinimum": { "value": 640, "source": "packages/client/ui-layout/src/client/columns.ts:CENTER_MIN" },
+    "detailsDefault": { "value": 360, "source": "packages/client/ui-layout/src/client/columns.ts:DETAILS_DEFAULT" },
+    "detailsMinimum": { "value": 300, "source": "packages/client/ui-layout/src/client/columns.ts:DETAILS_MIN" },
+    "detailsMaximum": { "value": 520, "source": "packages/client/ui-layout/src/client/columns.ts:DETAILS_MAX" },
+    "composerMaximum": { "value": 780, "source": "packages/client/ui-conversation/src/client/skeleton/ConversationRoot.module.css:--conversation-composer-max" },
+    "composerCornerRadius": { "value": 22, "source": "packages/client/ui-conversation/src/client/skeleton/InputBar.module.css:border-radius" },
+    "composerDash": { "value": [4, 4], "source": "runtime computed style: official welcome workspace-required composer" }
+  },
+  "text": {
+    "newSession": { "value": "New Session", "source": "packages/client/ui-sidebar/src/client/locales.ts" },
+    "workspaces": { "value": "Workspaces", "source": "packages/client/ui-workspace/src/client/locales.ts" },
+    "noSessionsYet": { "value": "No sessions yet", "source": "packages/client/ui-workspace/src/client/locales.ts" },
+    "settings": { "value": "Settings", "source": "packages/client/ui-settings-general/src/client/locales.ts" },
+    "standardMode": { "value": "Standard mode", "source": "packages/client/ui-agent-preset/src/client/locales.ts" },
+    "heroHeadline": { "value": "Into the Unknown", "source": "packages/client/ui-conversation/src/client/locales.ts" },
+    "preview": { "value": "Preview", "source": "packages/client/ui-conversation/src/client/locales.ts" },
+    "chooseWorkspace": { "value": "Choose workspace", "source": "packages/client/ui-conversation/src/client/locales.ts" },
+    "composerWorkspacePlaceholder": { "value": "Choose a workspace to start", "source": "packages/client/ui-conversation/src/client/locales.ts" },
+    "composerDefaultPlaceholder": { "value": "Message the agent", "source": "packages/client/ui-conversation/src/client/locales.ts" },
+    "chat": { "value": "Chat", "source": "packages/client/ui-conversation/src/client/locales.ts" },
+    "details": { "value": "Details", "source": "packages/client/ui-conversation/src/client/locales.ts" },
+    "detailsEmpty": { "value": "Click a tool row in the message flow to view its details", "source": "packages/client/ui-conversation/src/client/locales.ts" }
+  },
+  "assets": {
+    "brand-wordmark": { "source": "packages/client/ui-primitives/src/BrandWordmark.tsx" },
+    "fish-logo": { "source": "packages/client/ui-primitives/src/FishLogo.tsx" },
+    "icon-new-chat": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconNewChatOutline16" },
+    "icon-panel-left": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconPanelLeftOutline16" },
+    "icon-search": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconSearchOutline16" },
+    "icon-personalization": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconPersonalizationOutline16" },
+    "icon-project-add": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconProjectAddOutline16" },
+    "icon-settings": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconSettingsOutline16" },
+    "icon-folder-close": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconFolderClose16" },
+    "icon-agent-preset": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconAgentPresetOutline16" },
+    "icon-plus": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconPlusOutline16" },
+    "icon-send-up": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconSendUpOutline16" },
+    "icon-close": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconCloseOutline16" }
+  }
+}
