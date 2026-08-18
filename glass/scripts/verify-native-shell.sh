@@ -40,6 +40,24 @@ DSH_GLASS_SNAPSHOT_WIDTH="1280" \
 DSH_GLASS_SNAPSHOT_HEIGHT="1100" \
 "$BINARY"
 
+DSH_GLASS_SNAPSHOT_PATH="$OUTPUT_DIR/workspace-rename-official-viewport.png" \
+DSH_GLASS_SNAPSHOT_MODE="workspace-rename" \
+DSH_GLASS_SNAPSHOT_WIDTH="1280" \
+DSH_GLASS_SNAPSHOT_HEIGHT="1100" \
+"$BINARY"
+
+DSH_GLASS_SNAPSHOT_PATH="$OUTPUT_DIR/session-rename-official-viewport.png" \
+DSH_GLASS_SNAPSHOT_MODE="session-rename" \
+DSH_GLASS_SNAPSHOT_WIDTH="1280" \
+DSH_GLASS_SNAPSHOT_HEIGHT="1100" \
+"$BINARY"
+
+DSH_GLASS_SNAPSHOT_PATH="$OUTPUT_DIR/workspace-delete-official-viewport.png" \
+DSH_GLASS_SNAPSHOT_MODE="workspace-delete" \
+DSH_GLASS_SNAPSHOT_WIDTH="1280" \
+DSH_GLASS_SNAPSHOT_HEIGHT="1100" \
+"$BINARY"
+
 # Same CSS viewport measured in the locked official WebUI browser capture.
 DSH_GLASS_SNAPSHOT_PATH="$OUTPUT_DIR/approval-panel-official-viewport.png" \
 DSH_GLASS_SNAPSHOT_MODE="approval" \
@@ -53,7 +71,7 @@ DSH_GLASS_SNAPSHOT_WIDTH="1280" \
 DSH_GLASS_SNAPSHOT_HEIGHT="1100" \
 "$BINARY"
 
-for image in "$OUTPUT_DIR/welcome-dark.png" "$OUTPUT_DIR/conversation-dark.png" "$OUTPUT_DIR/tooling-inspector-dark.png" "$OUTPUT_DIR/approval-panel-light.png" "$OUTPUT_DIR/question-composer-light.png" "$OUTPUT_DIR/workspace-search-official-viewport.png" "$OUTPUT_DIR/approval-panel-official-viewport.png" "$OUTPUT_DIR/question-composer-official-viewport.png"; do
+for image in "$OUTPUT_DIR/welcome-dark.png" "$OUTPUT_DIR/conversation-dark.png" "$OUTPUT_DIR/tooling-inspector-dark.png" "$OUTPUT_DIR/approval-panel-light.png" "$OUTPUT_DIR/question-composer-light.png" "$OUTPUT_DIR/workspace-search-official-viewport.png" "$OUTPUT_DIR/workspace-rename-official-viewport.png" "$OUTPUT_DIR/session-rename-official-viewport.png" "$OUTPUT_DIR/workspace-delete-official-viewport.png" "$OUTPUT_DIR/approval-panel-official-viewport.png" "$OUTPUT_DIR/question-composer-official-viewport.png"; do
   test -s "$image"
   sips -g pixelWidth -g pixelHeight "$image"
 done

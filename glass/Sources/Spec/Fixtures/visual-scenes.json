@@ -50,6 +50,36 @@
       "allowedDifferenceClasses": ["font-rendering", "system-glass"]
     },
     {
+      "id": "workspace-rename-light",
+      "surface": "workspace.rename-dialog",
+      "state": "fixture-workspace-rename-open",
+      "viewport": { "width": 1280, "height": 1100 },
+      "officialComponents": ["WorkspaceBrowser", "Modal", "Button"],
+      "nativeEntry": "SnapshotExporter.DSH_GLASS_SNAPSHOT_MODE=workspace-rename",
+      "requiredEvidence": ["source-map", "official-screenshot", "native-screenshot", "paired-viewport", "difference-ledger", "post-fix-recapture", "layout-rectangles", "accessibility", "rpc-fixture"],
+      "allowedDifferenceClasses": ["font-rendering", "system-glass"]
+    },
+    {
+      "id": "session-rename-light",
+      "surface": "workspace.session-rename-dialog",
+      "state": "fixture-session-rename-open",
+      "viewport": { "width": 1280, "height": 1100 },
+      "officialComponents": ["WorkspaceBrowser", "Modal", "Button"],
+      "nativeEntry": "SnapshotExporter.DSH_GLASS_SNAPSHOT_MODE=session-rename",
+      "requiredEvidence": ["source-map", "official-screenshot", "native-screenshot", "paired-viewport", "difference-ledger", "post-fix-recapture", "layout-rectangles", "accessibility", "rpc-fixture"],
+      "allowedDifferenceClasses": ["font-rendering", "system-glass"]
+    },
+    {
+      "id": "workspace-delete-light",
+      "surface": "workspace.delete-dialog",
+      "state": "fixture-workspace-delete-open",
+      "viewport": { "width": 1280, "height": 1100 },
+      "officialComponents": ["WorkspaceBrowser", "Modal", "Button"],
+      "nativeEntry": "SnapshotExporter.DSH_GLASS_SNAPSHOT_MODE=workspace-delete",
+      "requiredEvidence": ["source-map", "official-screenshot", "native-screenshot", "paired-viewport", "difference-ledger", "post-fix-recapture", "layout-rectangles", "accessibility", "rpc-fixture"],
+      "allowedDifferenceClasses": ["font-rendering", "system-glass"]
+    },
+    {
       "id": "approval-composer-light",
       "surface": "conversation.approval-composer-takeover",
       "state": "approval-requested",
