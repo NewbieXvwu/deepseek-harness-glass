@@ -23,7 +23,20 @@ struct WorkspaceBrowserView: View {
     @State private var searchExpanded = false
     @State private var appliedSearchQuery = ""
     @State private var searchTask: Task<Void, Never>?
-    @State private var expandedWorkspaceIDs: Set<String> = []
+    @State private var expandedWorkspaceIDs: Set<String>
+
+    init(
+        store: NativeWorkspaceStore,
+        collapsed: Bool,
+        requestSidebarExpansion: @escaping () -> Void,
+        actions: Actions
+    ) {
+        self.store = store
+        self.collapsed = collapsed
+        self.requestSidebarExpansion = requestSidebarExpansion
+        self.actions = actions
+        _expandedWorkspaceIDs = State(initialValue: Set(store.snapshot.selectedWorkspaceID.map { [$0] } ?? []))
+    }
 
     var body: some View {
         if collapsed {
@@ -39,6 +52,9 @@ struct WorkspaceBrowserView: View {
             .padding(.trailing, OfficialUISpec.Layout.sidebarInlinePadding)
             .onChange(of: store.searchQuery) { _, value in
                 scheduleSearch(for: value)
+            }
+            .onChange(of: store.snapshot.selectedWorkspaceID) { _, workspaceID in
+                if let workspaceID { expandedWorkspaceIDs.insert(workspaceID) }
             }
             .onDisappear { searchTask?.cancel() }
         }
