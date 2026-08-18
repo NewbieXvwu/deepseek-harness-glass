@@ -14,6 +14,8 @@ final class NativeShellPresentation: ObservableObject {
     @Published var detailsVisible = true
 
     let workspaceStore: NativeWorkspaceStore
+    private var apiClient: DSHAPIClient?
+    private var observedEndpoint: URL?
 
     init(
         mode: NativeAppShell.PresentationMode = .welcome,
@@ -21,6 +23,72 @@ final class NativeShellPresentation: ObservableObject {
     ) {
         self.mode = mode
         self.workspaceStore = workspaceStore ?? NativeWorkspaceStore()
+    }
+
+    /// Called only after `HarnessHostController` has verified host.describe on
+    /// the pinned bundled Host. The browser obtains its truth from list RPCs
+    /// and the official Host SSE stream, never from a web surface.
+    func connectVerifiedHost(_ connection: HostConnection) {
+        guard observedEndpoint != connection.endpoint else { return }
+        workspaceStore.stopObservingHostEvents()
+        let api = DSHAPIClient(baseURL: connection.endpoint)
+        apiClient = api
+        observedEndpoint = connection.endpoint
+        workspaceStore.refresh(using: api)
+        workspaceStore.observeHostEvents(at: connection.endpoint, using: api)
+    }
+
+    func disconnectHost() {
+        apiClient = nil
+        observedEndpoint = nil
+        workspaceStore.detachHost()
+        mode = .welcome
+        detailsVisible = false
+    }
+
+    func selectSession(_ sessionID: String, workspaceID: String?) {
+        workspaceStore.select(sessionID: sessionID, workspaceID: workspaceID)
+        mode = .conversation
+        detailsVisible = true
+    }
+
+    /// Source: `sessions.schema.ts:sessionCreateRequestSchema`.
+    func createSession(in workspaceID: String?) {
+        guard let apiClient else { return }
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                let created = try await apiClient.sessionCreate(workspaceID: workspaceID)
+                guard !Task.isCancelled else { return }
+                selectSession(created.sessionId, workspaceID: workspaceID)
+                workspaceStore.refresh(using: apiClient)
+            } catch {
+                // Store refresh remains Host-authoritative; no synthetic session
+                // row or error copy is created on a rejected create operation.
+            }
+        }
+    }
+
+    /// Source: `workspace.schema.ts:workspaceCreateRequestSchema`. macOS uses
+    /// a native directory panel rather than a browser-mediated file picker.
+    func addWorkspace() {
+        guard let apiClient else { return }
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                _ = try await apiClient.workspaceCreate(path: url.path)
+                guard !Task.isCancelled else { return }
+                workspaceStore.refresh(using: apiClient)
+            } catch {
+                // The Host owns validation of adopted directories; no local
+                // workspace state is invented when adoption is refused.
+            }
+        }
     }
 }
 
@@ -88,8 +156,12 @@ final class NativeShellController: NativeSplitViewController {
             workspaceStore: presentation.workspaceStore,
             collapsed: collapsed,
             setCollapsed: { presentation.manuallyCollapsed = $0 },
-            workspaceActions: WorkspaceBrowserView.Actions(),
-            onNewSession: {},
+            workspaceActions: WorkspaceBrowserView.Actions(
+                addWorkspace: { presentation.addWorkspace() },
+                createSession: { presentation.createSession(in: $0) },
+                selectSession: { presentation.selectSession($0, workspaceID: $1) }
+            ),
+            onNewSession: { presentation.createSession(in: presentation.workspaceStore.snapshot.selectedWorkspaceID) },
             onOpenSettings: {}
         )
     }

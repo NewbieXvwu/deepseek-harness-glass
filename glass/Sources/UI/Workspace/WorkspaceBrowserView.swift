@@ -12,6 +12,7 @@ struct WorkspaceBrowserView: View {
     struct Actions {
         var addWorkspace: () -> Void = {}
         var createSession: (String?) -> Void = { _ in }
+        var selectSession: (String, String?) -> Void = { _, _ in }
         var renameWorkspace: (String, String) -> Void = { _, _ in }
         var deleteWorkspace: (String, String) -> Void = { _, _ in }
         var renameSession: (String, String) -> Void = { _, _ in }
@@ -161,7 +162,7 @@ struct WorkspaceBrowserView: View {
                     expanded: expandedWorkspaceIDs.contains(workspace.workspaceId),
                     onToggle: { toggleWorkspace(workspace.workspaceId) },
                     onCreateSession: { actions.createSession(workspace.workspaceId) },
-                    onSelectSession: { store.select(sessionID: $0, workspaceID: workspace.workspaceId) },
+                    onSelectSession: { actions.selectSession($0, workspace.workspaceId) },
                     actions: actions
                 )
             }
@@ -172,7 +173,7 @@ struct WorkspaceBrowserView: View {
                     selectedSessionID: snapshot.selectedSessionID,
                     expanded: expandedWorkspaceIDs.contains(ungroupedWorkspaceKey),
                     onToggle: { toggleWorkspace(ungroupedWorkspaceKey) },
-                    onSelectSession: { store.select(sessionID: $0, workspaceID: nil) },
+                    onSelectSession: { actions.selectSession($0, nil) },
                     actions: actions
                 )
             }
@@ -189,7 +190,7 @@ struct WorkspaceBrowserView: View {
                 NativeSessionRow(
                     session: result.session,
                     selected: result.session.sessionId == store.snapshot.selectedSessionID,
-                    onSelect: { store.select(sessionID: result.session.sessionId, workspaceID: result.workspaceID) },
+                    onSelect: { actions.selectSession(result.session.sessionId, result.workspaceID) },
                     actions: actions
                 )
             }

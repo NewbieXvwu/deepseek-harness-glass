@@ -48,12 +48,44 @@ struct DSHAPIClient: Sendable {
         try await call("workspace.list", payload: EmptyPayload())
     }
 
+    /// Source: `sessions.schema.ts:sessionCreateRequestSchema`.
+    func sessionCreate(workspaceID: String? = nil) async throws -> SessionCreateResponse {
+        try await call("session.create", payload: SessionCreateRequest(workspaceId: workspaceID))
+    }
+
+    /// Source: `workspace.schema.ts:workspaceCreateRequestSchema`.
+    func workspaceCreate(path: String) async throws -> WorkspaceCreateResponse {
+        try await call("workspace.create", payload: WorkspaceCreateRequest(path: path))
+    }
+
     func settingsDescribe() async throws -> SettingsDescribeResponse {
         try await call("settings.describe", payload: EmptyPayload())
     }
 }
 
 struct EmptyPayload: Codable, Sendable {}
+
+/// Source: `sessions.schema.ts:sessionCreateRequestSchema`.
+struct SessionCreateRequest: Encodable, Sendable {
+    let workspaceId: String?
+}
+
+/// Source: `sessions.schema.ts:sessionCreateValueSchema`.
+struct SessionCreateResponse: Decodable, Sendable {
+    let sessionId: String
+    let agentPreset: String?
+}
+
+/// Source: `workspace.schema.ts:workspaceCreateRequestSchema`.
+struct WorkspaceCreateRequest: Encodable, Sendable {
+    let path: String
+}
+
+/// Source: `workspace.schema.ts:workspaceCreateValueSchema`.
+struct WorkspaceCreateResponse: Decodable, Sendable {
+    let workspace: WorkspaceSummaryDTO
+    let created: Bool
+}
 
 /// These intentionally retain only stable top-level fields needed by the first
 /// native readiness/browser phases. Per-domain DTOs expand only with official

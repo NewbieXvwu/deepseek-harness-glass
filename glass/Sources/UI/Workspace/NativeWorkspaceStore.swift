@@ -132,6 +132,17 @@ final class NativeWorkspaceStore: ObservableObject {
         eventRefreshTask = nil
     }
 
+    /// Called by lifecycle ownership whenever the verified Host endpoint is no
+    /// longer ready. No durable browser data is retained outside the Host.
+    func detachHost() {
+        refreshTask?.cancel()
+        refreshTask = nil
+        stopObservingHostEvents()
+        phase = .idle
+        snapshot = .empty
+        searchQuery = ""
+    }
+
     private func scheduleRefresh(using api: DSHAPIClient) {
         eventRefreshTask?.cancel()
         eventRefreshTask = Task { [weak self] in
