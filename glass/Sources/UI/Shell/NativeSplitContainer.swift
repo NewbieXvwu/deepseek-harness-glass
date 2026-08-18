@@ -131,6 +131,17 @@ class NativeSplitViewController: NSSplitViewController {
         self.detailsVisible = detailsVisible
         super.init(nibName: nil, bundle: nil)
 
+        // NSHostingController's root can remain transparent inside an AppKit
+        // split sidebar. Apply the official sidebar fill at the host layer so
+        // the authored black wordmark/text never falls onto AppKit's dark pane.
+        sidebarHost.view.wantsLayer = true
+        sidebarHost.view.layer?.backgroundColor = NSColor(
+            red: 249 / 255,
+            green: 250 / 255,
+            blue: 251 / 255,
+            alpha: 1
+        ).cgColor
+
         sidebarItem.canCollapse = false
         conversationItem.canCollapse = false
         detailsItem.canCollapse = true
