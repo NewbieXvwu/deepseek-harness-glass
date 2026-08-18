@@ -1,4 +1,6 @@
+import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct NativeConversationColumn: View {
     let mode: NativeAppShell.PresentationMode
@@ -293,12 +295,19 @@ private struct NativeInteractiveComposerCard: View {
     @FocusState private var draftFocused: Bool
 
     private var sendEnabled: Bool {
-        !sessionStore.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        (!sessionStore.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || !sessionStore.pendingImages.isEmpty)
             && !sessionStore.isSubmittingPrompt
     }
 
     var body: some View {
         VStack(spacing: 12) {
+            if !sessionStore.pendingImages.isEmpty {
+                NativePendingImageRail(
+                    images: sessionStore.pendingImages,
+                    remove: sessionStore.removePendingImage
+                )
+            }
             ZStack(alignment: .topLeading) {
                 if sessionStore.draft.isEmpty {
                     Text(OfficialUISpec.Text.composerDefaultPlaceholder)
@@ -321,6 +330,17 @@ private struct NativeInteractiveComposerCard: View {
                         if press.modifiers.contains(.shift) { return .ignored }
                         sessionStore.submitDraft()
                         return .handled
+                    }
+                    .onDrop(of: [.fileURL], isTargeted: nil) { providers in
+                        for provider in providers {
+                            provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
+                                guard let data = item as? Data,
+                                      let url = URL(dataRepresentation: data, relativeTo: nil)
+                                else { return }
+                                Task { @MainActor in sessionStore.addPendingImage(url) }
+                            }
+                        }
+                        return !providers.isEmpty
                     }
                     .accessibilityLabel(OfficialUISpec.Text.composerDefaultPlaceholder)
             }
@@ -367,6 +387,39 @@ private struct NativeInteractiveComposerCard: View {
         }
         .shadow(color: OfficialUISpec.Token.businessBlueGlow, radius: 22, y: 8)
         .onAppear { draftFocused = true }
+    }
+}
+
+private struct NativePendingImageRail: View {
+    let images: [NativeSessionStore.PendingImage]
+    let remove: (UUID) -> Void
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(images) { image in
+                    ZStack(alignment: .topTrailing) {
+                        if let nativeImage = NSImage(data: image.data) {
+                            Image(nsImage: nativeImage)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 56, height: 56)
+                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        }
+                        Button(action: { remove(image.id) }) {
+                            OfficialAssetImage(name: "icon-close", template: true)
+                                .frame(width: 12, height: 12)
+                                .frame(width: 22, height: 22)
+                        }
+                        .buttonStyle(OfficialCircleIconButtonStyle())
+                        .accessibilityLabel(OfficialUISpec.Text.removePendingImage(name: image.name))
+                        .padding(2)
+                    }
+                }
+            }
+            .padding(.horizontal, 12)
+        }
+        .accessibilityLabel(OfficialUISpec.Text.pendingImages)
     }
 }
 

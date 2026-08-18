@@ -83,6 +83,11 @@ enum OfficialUISpec {
         static let sendMessageAccessibility = "Send message"
         static let stopGeneratingAccessibility = "Stop generating"
         static let commandsAccessibility = "Commands"
+        static let pendingImages = "Pending images"
+        static let removeImageTemplate = "Remove image {name}"
+        static func removePendingImage(name: String) -> String {
+            removeImageTemplate.replacingOccurrences(of: "{name}", with: name)
+        }
         static let details = "Details"
         static let closeDetailsAccessibility = "Close details"
         static let detailsEmpty = "Click a tool row in the message flow to view its details"

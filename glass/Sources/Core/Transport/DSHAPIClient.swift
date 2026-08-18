@@ -65,13 +65,17 @@ struct DSHAPIClient: Sendable {
     }
 
     /// Source: `sessions.schema.ts:sessionPromptRequestSchema`.
-    func sessionPrompt(sessionID: String, text: String, mode: SessionPromptMode) async throws -> SessionPromptResponse {
+    func sessionPrompt(
+        sessionID: String,
+        content: [SessionPromptContent],
+        mode: SessionPromptMode
+    ) async throws -> SessionPromptResponse {
         try await call(
             "session.prompt",
             payload: SessionPromptRequest(
                 sessionId: sessionID,
                 mode: mode,
-                content: [.text(text: text)],
+                content: content,
                 clientTimeZone: TimeZone.current.identifier
             )
         )
@@ -146,9 +150,10 @@ enum SessionPromptMode: String, Encodable, Sendable {
 /// Source: `sessions.schema.ts:promptContentPartSchema`.
 enum SessionPromptContent: Encodable, Sendable {
     case text(text: String)
+    case image(mediaType: String, data: String, name: String?)
 
-    private enum CodingKeys: String, CodingKey { case type, text }
-    private enum Kind: String, Encodable { case text }
+    private enum CodingKeys: String, CodingKey { case type, text, mediaType, data, name }
+    private enum Kind: String, Encodable { case text, image }
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
@@ -156,6 +161,11 @@ enum SessionPromptContent: Encodable, Sendable {
         case let .text(text):
             try container.encode(Kind.text, forKey: .type)
             try container.encode(text, forKey: .text)
+        case let .image(mediaType, data, name):
+            try container.encode(Kind.image, forKey: .type)
+            try container.encode(mediaType, forKey: .mediaType)
+            try container.encode(data, forKey: .data)
+            try container.encodeIfPresent(name, forKey: .name)
         }
     }
 }

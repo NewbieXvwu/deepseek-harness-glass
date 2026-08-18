@@ -1,3 +1,4 @@
+import AppKit
 import Combine
 import Foundation
 
@@ -30,6 +31,15 @@ final class NativeSessionStore: ObservableObject {
         let sequence: Int
     }
 
+    /// Source: `sessions.schema.ts:promptContentPartSchema`. This is transient
+    /// composer state only; durable attachment identities remain Host-owned.
+    struct PendingImage: Identifiable {
+        let id: UUID
+        let name: String
+        let mediaType: String
+        let data: Data
+    }
+
     @Published private(set) var phase: Phase = .idle
     @Published private(set) var items: [TranscriptItem] = []
     @Published private(set) var hasMoreHistory = false
@@ -37,6 +47,7 @@ final class NativeSessionStore: ObservableObject {
     @Published private(set) var isRunning = false
     @Published private(set) var isSubmittingPrompt = false
     @Published var draft = ""
+    @Published private(set) var pendingImages: [PendingImage] = []
     @Published private(set) var lastError: DSHTransportError?
 
     private var historyTask: Task<Void, Never>?
@@ -76,6 +87,7 @@ final class NativeSessionStore: ObservableObject {
         isRunning = false
         isSubmittingPrompt = false
         draft = ""
+        pendingImages = []
         lastError = nil
         phase = .loading(sessionID: sessionID)
 
@@ -116,14 +128,46 @@ final class NativeSessionStore: ObservableObject {
         isRunning = false
         isSubmittingPrompt = false
         draft = ""
+        pendingImages = []
         lastError = nil
+    }
+
+    /// Uses the native macOS file panel. The Host remains responsible for final
+    /// attachment validation at submit; this store only accepts the official
+    /// raster media types declared by `imageMediaTypeSchema`.
+    func choosePendingImages() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = true
+        guard panel.runModal() == .OK else { return }
+        panel.urls.forEach(addPendingImage)
+    }
+
+    func addPendingImage(_ url: URL) {
+        guard let mediaType = Self.mediaType(for: url),
+              let data = try? Data(contentsOf: url)
+        else { return }
+        pendingImages.append(PendingImage(
+            id: UUID(),
+            name: url.lastPathComponent,
+            mediaType: mediaType,
+            data: data
+        ))
+    }
+
+    func removePendingImage(_ id: UUID) {
+        pendingImages.removeAll { $0.id == id }
     }
 
     /// Source: `sessions.schema.ts:sessionPromptRequestSchema`. The native
     /// composer sends text through the Host and clears only after acceptance.
     func submitDraft() {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty,
+        let content: [SessionPromptContent] =
+            (text.isEmpty ? [] : [.text(text: text)])
+            + pendingImages.map { .image(mediaType: $0.mediaType, data: $0.data.base64EncodedString(), name: $0.name) }
+        guard !content.isEmpty,
               !isSubmittingPrompt,
               let api,
               let sessionID = activeSessionID
@@ -134,9 +178,10 @@ final class NativeSessionStore: ObservableObject {
         promptTask = Task { [weak self] in
             defer { self?.isSubmittingPrompt = false }
             do {
-                let response = try await api.sessionPrompt(sessionID: sessionID, text: text, mode: .queue)
+                let response = try await api.sessionPrompt(sessionID: sessionID, content: content, mode: .queue)
                 guard !Task.isCancelled, response.accepted, self?.activeSessionID == sessionID else { return }
                 self?.draft = ""
+                self?.pendingImages = []
             } catch {
                 // The draft remains available after a rejected prompt, matching
                 // the official composer retry posture. Prompt-error presentation
@@ -307,6 +352,16 @@ final class NativeSessionStore: ObservableObject {
             return object["text"]?.stringValue
         }.joined()
         return text.isEmpty ? nil : text
+    }
+
+    private static func mediaType(for url: URL) -> String? {
+        switch url.pathExtension.lowercased() {
+        case "png": return "image/png"
+        case "jpg", "jpeg": return "image/jpeg"
+        case "webp": return "image/webp"
+        case "gif": return "image/gif"
+        default: return nil
+        }
     }
 
     private func decode<Value: Decodable>(_ type: Value.Type, from value: JSONValue) -> Value? {

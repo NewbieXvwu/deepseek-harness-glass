@@ -80,7 +80,9 @@
     "chatToBottom": { "value": "Back to bottom", "source": "packages/client/ui-conversation/src/client/locales.ts:chat.toBottom" },
     "sendMessageAccessibility": { "value": "Send message", "source": "packages/client/ui-conversation/src/client/locales.ts:input.send" },
     "stopGeneratingAccessibility": { "value": "Stop generating", "source": "packages/client/ui-conversation/src/client/locales.ts:input.stop" },
-    "commandsAccessibility": { "value": "Commands", "source": "packages/client/ui-conversation/src/client/locales.ts:input.commands" }
+    "commandsAccessibility": { "value": "Commands", "source": "packages/client/ui-conversation/src/client/locales.ts:input.commands" },
+    "pendingImages": { "value": "Pending images", "source": "packages/client/ui-conversation/src/client/locales.ts:image.pending" },
+    "removeImageTemplate": { "value": "Remove image {name}", "source": "packages/client/ui-conversation/src/client/locales.ts:image.remove" }
   },
   "assets": {
     "brand-wordmark": { "source": "packages/client/ui-primitives/src/BrandWordmark.tsx" },
