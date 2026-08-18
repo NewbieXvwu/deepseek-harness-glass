@@ -59,7 +59,7 @@
 | D4 | 插件兼容有明确分级。 | 每个插件处于 `native-manifest`、`swift-adapter`、`web-fallback`、`host-only` 或 `unsupported` 的一种状态，状态可在诊断页面查询。 |
 | D5 | 未验证的 DSH Host 不冒充兼容。 | 启动时检查支持的 Host build；不在矩阵中的版本显示“未验证”，并禁止写入可能造成协议漂移的数据。 |
 
-- [ ] **T0.1：在 README 与贡献指南中写入 D0–D5。** 说明 `WebKit` 只能位于 `PluginWebHost` 目标中，禁止在主应用 target 或任何核心 renderer 中导入。
+- [x] **T0.1：在 README 与贡献指南中写入 D0–D5。** 说明 `WebKit` 只能位于 `PluginWebHost` 目标中，禁止在主应用 target 或任何核心 renderer 中导入。
   - 依赖：无。
   - 验收：CI 的静态规则可阻止 `glass/Sources/Core/**`、`glass/Sources/UI/**`、`glass/Sources/Features/**` 导入 `WebKit`。
 
@@ -541,13 +541,13 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 | 最新已完成CI | [run 32147888544](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32147888544)，HEAD `61574f0`，success |
 | 当前HEAD CI | 本次快照元数据提交刚刚推送，需由新会话查询其对应run；上一版完整TODO提交的 [run 32148563313](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32148563313) 当时为 `in_progress`，不可把它当作本HEAD的完成证据 |
 | 当前主阶段 | 阶段4：原生Settings Root与插件兼容基础，尚未完成 |
-| 已勾选TODO条目 | 仅T1.3、T2.6、T7.3；其余条目保持未勾选 |
+| 已勾选TODO条目 | T0.1、T1.3、T2.6、T7.3；其余条目保持未勾选 |
 
 ### B. 阶段状态矩阵
 
 | 阶段 | 状态 | 已完成事实 | 尚未完成或不可勾选的内容 |
 |---|---|---|---|
-| 0. 原则与边界 | 部分完成 | 项目宪章、D0/D1规则、三条已验证任务已写入本文件 | README/贡献指南、支持矩阵、完整D0–D5产品边界仍未形成独立验收闭环 |
+| 0. 原则与边界 | 部分完成 | 项目宪章、D0/D1规则、README/README.zh/贡献指南的 D0–D5 边界、核心 WebKit 静态门禁已建立；T0.1 已闭环 | 支持矩阵的可验证日期、完整 D2–D5 产品行为与 Host 支持边界仍未形成验收闭环 |
 | 1. 仓库与模块化基础 | 部分完成 | Host、Transport、Session、UI、Spec、Snapshot等源码职责已拆分；T1.3已勾选 | 运行时资产迁移清单、独立target/package结构、旧路径全量审计仍未完成 |
 | 2. 官方规格 | 部分完成 | `OfficialUISpec.swift`、official-ui-catalog、visual-scenes、D1校验和来源映射已存在；T2.6已勾选 | locale/token全量生成、布局solver完整夹具、全覆盖场景规格与辅助功能矩阵仍未完成 |
 | 3. Host生命周期 | 部分完成 | `HarnessHostController`、`HostBuildVerifier`、payload缓存和运行时启动路径已实现 | 未验证Host策略、完整诊断页、生命周期混沌测试、下载导出与全面恢复仍未完成 |
@@ -564,10 +564,11 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 
 ### C. TODO勾选的完整证据边界
 
-当前只允许以下三项保持勾选。任何新会话都不得为了“看起来更完整”额外勾选其他条目：
+当前只允许以下四项保持勾选。任何新会话都不得为了“看起来更完整”额外勾选其他条目：
 
 | 条目 | 状态 | 证据与边界 |
 |---|---|---|
+| T0.1 | `[x]` 完成 | `f0e3549` 写入双语 README 与 `CONTRIBUTING.md` 的 D0–D5、官方来源/截图协议、逐项 TODO 勾选纪律和 `PluginWebHost` 唯一例外边界；`.github/workflows/native-ui.yml` 已在这些文件变更时运行静态门禁。当前提交的 macOS-26 [run 32152858091](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32152858091) 成功，D0/D1、构建与原生截图工件均已复核。此勾选不代表 T0.2/T0.3 的支持矩阵或完整视觉策略已完成。 |
 | T1.3 | `[x]` 完成 | `check-no-webview.sh` 通过；核心Swift路径不依赖WKWebView、DOM、JavaScript或CSS注入。此勾选不代表PluginWebHost例外已实现。 |
 | T2.6 | `[x]` 完成 | 已建立官方/原生同状态同视口配对、放大局部检查、差异记录、立即修复和CI截图存在性规则。此勾选不代表所有视觉场景都已人工验收。 |
 | T7.3 | `[x]` 完成 | workspace-search、workspace rename、session rename、workspace delete已接入官方场景契约和Host行操作；管理Dialog按钮端帽/描边/禁用色/输入全选已在run 32142821176配对核验。此勾选不代表全部sidebar功能完成。 |
@@ -597,7 +598,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 
 新会话必须按以下顺序开始，不得跳到更下游页面：
 
-1. 阅读本TODO的项目宪章和本“当前进度”章节，确认只剩T1.3、T2.6、T7.3为已勾选项。
+1. 阅读本TODO的项目宪章和本“当前进度”章节，确认仅T0.1、T1.3、T2.6、T7.3为已勾选项。
 2. 执行 `git status --short`、`git log -10 --oneline`、`python3 glass/ci/check-official-spec.py` 和 `bash glass/ci/check-no-webview.sh`。
 3. 阅读锁定官方的 `packages/client/ui-settings-general/src/client/SettingsRoot.tsx`、`SettingsRoot.module.css`、`packages/host/apiproxy/src/api/settings.ts`、`settings.schema.ts`。
 4. 将Settings侧栏入口连接到全窗口原生Settings Root；复刻800px面板、188px导航轨、54px header、24px圆角、24% mask、section顺序和关闭/焦点行为。
