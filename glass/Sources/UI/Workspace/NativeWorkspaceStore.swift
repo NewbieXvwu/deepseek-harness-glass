@@ -162,6 +162,70 @@ final class NativeWorkspaceStore: ObservableObject {
         )
     }
 
+    /// Snapshot-only projection of the locked official resident fixture. It uses
+    /// the same list-RPC DTOs as production and never participates in Host I/O.
+    func loadSnapshotFixtureWorkspace() {
+        let workspaceID = "fx-ws-fixture"
+        let alphaID = "fx-alpha"
+        let betaID = "fx-beta"
+        let gammaID = "fx-gamma"
+        let projection = { (title: String) in
+            SessionProjectionsDTO(asOfSeq: 0, values: ["title": .string(title)])
+        }
+        let sessions = [
+            SessionSummaryDTO(
+                sessionId: alphaID,
+                updatedAt: 0,
+                running: true,
+                blank: false,
+                parentSessionId: nil,
+                origin: nil,
+                cwd: "/tmp/fixture",
+                agentPreset: nil,
+                projections: projection("Fixture 历史会话")
+            ),
+            SessionSummaryDTO(
+                sessionId: betaID,
+                updatedAt: -60,
+                running: false,
+                blank: false,
+                parentSessionId: alphaID,
+                origin: nil,
+                cwd: "/tmp/fixture",
+                agentPreset: nil,
+                projections: projection("fixture")
+            ),
+            SessionSummaryDTO(
+                sessionId: gammaID,
+                updatedAt: -120,
+                running: false,
+                blank: false,
+                parentSessionId: nil,
+                origin: nil,
+                cwd: "/tmp/fixture",
+                agentPreset: nil,
+                projections: projection("fixture")
+            ),
+        ]
+        snapshot = Snapshot(
+            workspaces: [
+                WorkspaceSummaryDTO(
+                    workspaceId: workspaceID,
+                    path: "/tmp/fixture",
+                    title: "fixture",
+                    sessionIds: [alphaID, betaID, gammaID],
+                    createdAt: "1970-01-01T00:00:00.000Z",
+                    updatedAt: "1970-01-01T00:00:00.000Z"
+                ),
+            ],
+            sessions: sessions,
+            archivedSessionIDs: [],
+            selectedSessionID: alphaID,
+            selectedWorkspaceID: workspaceID
+        )
+        phase = .ready
+    }
+
     func applyHostWorkspaceList(_ workspaces: WorkspaceListResponse, sessions: SessionListResponse) {
         let old = snapshot
         snapshot = Snapshot(

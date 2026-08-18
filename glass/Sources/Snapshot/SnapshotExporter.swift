@@ -38,17 +38,24 @@ enum SnapshotExporter {
             mode = .welcome
         }
         let sessionStore = NativeSessionStore()
+        let workspaceStore = NativeWorkspaceStore()
         switch mode {
         case .tooling:
             sessionStore.loadSnapshotToolingFixture()
         case .approval:
             sessionStore.loadSnapshotApprovalFixture()
+            workspaceStore.loadSnapshotFixtureWorkspace()
         case .question:
             sessionStore.loadSnapshotQuestionFixture()
+            workspaceStore.loadSnapshotFixtureWorkspace()
         case .welcome, .conversation:
             break
         }
-        let presentation = NativeShellPresentation(mode: mode, sessionStore: sessionStore)
+        let presentation = NativeShellPresentation(
+            mode: mode,
+            workspaceStore: workspaceStore,
+            sessionStore: sessionStore
+        )
         let shellController = NativeShellController(presentation: presentation)
         let size = snapshotSize(environment: ProcessInfo.processInfo.environment)
         let window = NSWindow(
