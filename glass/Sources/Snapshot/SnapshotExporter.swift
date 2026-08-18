@@ -27,7 +27,8 @@ enum SnapshotExporter {
         let mode: NativeAppShell.PresentationMode = ProcessInfo.processInfo.environment["DSH_GLASS_SNAPSHOT_MODE"] == "conversation"
             ? .conversation
             : .welcome
-        let shell = NativeAppShell(mode: mode, viewportWidth: 1280, darkAppearance: false)
+        let presentation = NativeShellPresentation(mode: mode)
+        let shellController = NativeShellController(presentation: presentation)
         let size = NSSize(width: 1280, height: 840)
         let window = NSWindow(
             contentRect: NSRect(origin: .zero, size: size),
@@ -36,7 +37,7 @@ enum SnapshotExporter {
             defer: false
         )
         window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: shell)
+        window.contentViewController = shellController
         window.contentView?.frame = NSRect(origin: .zero, size: size)
         window.orderFrontRegardless()
         window.contentViewController?.view.layoutSubtreeIfNeeded()

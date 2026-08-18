@@ -1,46 +1,102 @@
 import AppKit
+import Combine
 import SwiftUI
 
-/// AppKit owns the resize dividers and split persistence semantics; SwiftUI
-/// supplies only the three native content surfaces. The sidebar's collapsed
-/// state remains a 56px rail rather than a hidden split item.
-struct NativeSplitContainer: NSViewControllerRepresentable {
-    typealias NSViewControllerType = NativeSplitViewController
+/// Main-actor presentation ownership for the native shell. It deliberately
+/// holds only window-local presentation state; Host workspace/session truth
+/// stays in `NativeWorkspaceStore`.
+@MainActor
+final class NativeShellPresentation: ObservableObject {
+    @Published var mode: NativeAppShell.PresentationMode
+    @Published var sidebarPreference: CGFloat = OfficialUISpec.Layout.sidebarDefault
+    @Published var detailsPreference: CGFloat = OfficialUISpec.Layout.detailsDefault
+    @Published var manuallyCollapsed = false
+    @Published var detailsVisible = true
 
-    let sidebar: NativeSidebarView
-    let conversation: NativeConversationColumn
-    let details: NativeDetailsView
-    let sidebarPreference: CGFloat
-    let detailsPreference: CGFloat
-    let sidebarCollapsed: Bool
-    let detailsVisible: Bool
+    let workspaceStore: NativeWorkspaceStore
 
-    func makeNSViewController(context: Context) -> NativeSplitViewController {
-        NativeSplitViewController(
-            sidebar: sidebar,
-            conversation: conversation,
-            details: details,
-            sidebarPreference: sidebarPreference,
-            detailsPreference: detailsPreference,
-            sidebarCollapsed: sidebarCollapsed,
-            detailsVisible: detailsVisible
-        )
-    }
-
-    func updateNSViewController(_ controller: NativeSplitViewController, context: Context) {
-        controller.update(
-            sidebar: sidebar,
-            conversation: conversation,
-            details: details,
-            sidebarPreference: sidebarPreference,
-            detailsPreference: detailsPreference,
-            sidebarCollapsed: sidebarCollapsed,
-            detailsVisible: detailsVisible
-        )
+    init(
+        mode: NativeAppShell.PresentationMode = .welcome,
+        workspaceStore: NativeWorkspaceStore = NativeWorkspaceStore()
+    ) {
+        self.mode = mode
+        self.workspaceStore = workspaceStore
     }
 }
 
-final class NativeSplitViewController: NSSplitViewController {
+/// The real AppKit root controller. Both the running application and the CI
+/// snapshot window use this controller directly, so NSSplitViewController owns
+/// the complete view-controller tree rather than being embedded in SwiftUI.
+@MainActor
+final class NativeShellController: NativeSplitViewController {
+    private let presentation: NativeShellPresentation
+    private var presentationObservation: AnyCancellable?
+
+    init(presentation: NativeShellPresentation) {
+        self.presentation = presentation
+        super.init(
+            sidebar: Self.sidebar(for: presentation, collapsed: presentation.manuallyCollapsed),
+            conversation: NativeConversationColumn(mode: presentation.mode),
+            details: Self.details(for: presentation),
+            sidebarPreference: presentation.sidebarPreference,
+            detailsPreference: presentation.detailsPreference,
+            sidebarCollapsed: presentation.manuallyCollapsed,
+            detailsVisible: presentation.detailsVisible && presentation.mode == .conversation
+        )
+        presentationObservation = presentation.objectWillChange.sink { [weak self] _ in
+            DispatchQueue.main.async { self?.renderPresentation() }
+        }
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { nil }
+
+    override func viewDidLayout() {
+        let automaticRail = view.bounds.width < OfficialUISpec.Layout.sidebarAutoCollapse
+        let expectedRail = automaticRail || presentation.manuallyCollapsed
+        if expectedRail != renderedSidebarCollapsed {
+            renderPresentation()
+        }
+        super.viewDidLayout()
+    }
+
+    private func renderPresentation() {
+        let automaticRail = isViewLoaded && view.bounds.width < OfficialUISpec.Layout.sidebarAutoCollapse
+        let collapsed = automaticRail || presentation.manuallyCollapsed
+        update(
+            sidebar: Self.sidebar(for: presentation, collapsed: collapsed),
+            conversation: NativeConversationColumn(mode: presentation.mode),
+            details: Self.details(for: presentation),
+            sidebarPreference: presentation.sidebarPreference,
+            detailsPreference: presentation.detailsPreference,
+            sidebarCollapsed: collapsed,
+            detailsVisible: presentation.detailsVisible && presentation.mode == .conversation
+        )
+    }
+
+    private static func sidebar(
+        for presentation: NativeShellPresentation,
+        collapsed: Bool
+    ) -> NativeSidebarView {
+        NativeSidebarView(
+            workspaceStore: presentation.workspaceStore,
+            collapsed: collapsed,
+            setCollapsed: { presentation.manuallyCollapsed = $0 },
+            workspaceActions: WorkspaceBrowserView.Actions(),
+            onNewSession: {},
+            onOpenSettings: {}
+        )
+    }
+
+    private static func details(for presentation: NativeShellPresentation) -> NativeDetailsView {
+        NativeDetailsView(close: { presentation.detailsVisible = false })
+    }
+}
+
+/// AppKit owns resize dividers and child-controller containment. SwiftUI is
+/// confined to the official-spec content surfaces inside the three panes.
+@MainActor
+class NativeSplitViewController: NSSplitViewController {
     private let sidebarHost: NSHostingController<NativeSidebarView>
     private let conversationHost: NSHostingController<NativeConversationColumn>
     private let detailsHost: NSHostingController<NativeDetailsView>
@@ -50,7 +106,7 @@ final class NativeSplitViewController: NSSplitViewController {
 
     private var sidebarPreference: CGFloat
     private var detailsPreference: CGFloat
-    private var sidebarCollapsed: Bool
+    private(set) var renderedSidebarCollapsed: Bool
     private var detailsVisible: Bool
     private var hasAppliedInitialLayout = false
 
@@ -71,7 +127,7 @@ final class NativeSplitViewController: NSSplitViewController {
         detailsItem = NSSplitViewItem(viewController: detailsHost)
         self.sidebarPreference = sidebarPreference
         self.detailsPreference = detailsPreference
-        self.sidebarCollapsed = sidebarCollapsed
+        renderedSidebarCollapsed = sidebarCollapsed
         self.detailsVisible = detailsVisible
         super.init(nibName: nil, bundle: nil)
 
@@ -79,11 +135,9 @@ final class NativeSplitViewController: NSSplitViewController {
         conversationItem.canCollapse = false
         detailsItem.canCollapse = true
         detailsItem.collapseBehavior = .useConstraints
-
         addSplitViewItem(sidebarItem)
         addSplitViewItem(conversationItem)
         addSplitViewItem(detailsItem)
-        splitView.delegate = self
         splitView.dividerStyle = .thin
     }
 
@@ -114,11 +168,11 @@ final class NativeSplitViewController: NSSplitViewController {
         conversationHost.rootView = conversation
         detailsHost.rootView = details
 
-        let behaviorChanged = self.sidebarCollapsed != sidebarCollapsed
+        let behaviorChanged = renderedSidebarCollapsed != sidebarCollapsed
             || self.detailsVisible != detailsVisible
         self.sidebarPreference = sidebarPreference
         self.detailsPreference = detailsPreference
-        self.sidebarCollapsed = sidebarCollapsed
+        renderedSidebarCollapsed = sidebarCollapsed
         self.detailsVisible = detailsVisible
         if behaviorChanged { hasAppliedInitialLayout = false }
         applyLayout()
@@ -128,15 +182,13 @@ final class NativeSplitViewController: NSSplitViewController {
         guard isViewLoaded, splitView.bounds.width > 0 else { return }
         let columns = OfficialColumnLayout.resolve(
             viewport: splitView.bounds.width,
-            sidebarPreference: sidebarCollapsed ? 0 : sidebarPreference,
+            sidebarPreference: renderedSidebarCollapsed ? 0 : sidebarPreference,
             detailsPreference: detailsVisible ? detailsPreference : 0
         )
         detailsItem.isCollapsed = columns.details == 0
-
         splitView.setPosition(columns.sidebar, ofDividerAt: 0)
         if columns.details > 0, splitViewItems.count > 2 {
-            let detailsDividerPosition = splitView.bounds.width - columns.details
-            splitView.setPosition(detailsDividerPosition, ofDividerAt: 1)
+            splitView.setPosition(splitView.bounds.width - columns.details, ofDividerAt: 1)
         }
         hasAppliedInitialLayout = true
     }
@@ -148,16 +200,14 @@ final class NativeSplitViewController: NSSplitViewController {
     ) -> CGFloat {
         switch dividerIndex {
         case 0:
-            if sidebarCollapsed { return OfficialUISpec.Layout.sidebarCollapsed }
+            if renderedSidebarCollapsed { return OfficialUISpec.Layout.sidebarCollapsed }
             return min(max(proposedPosition, OfficialUISpec.Layout.sidebarMinimum), OfficialUISpec.Layout.sidebarMaximum)
         case 1:
             let detailsWidth = splitView.bounds.width - proposedPosition
             let constrained = min(max(detailsWidth, OfficialUISpec.Layout.detailsMinimum), OfficialUISpec.Layout.detailsMaximum)
-            let sidebarWidth = sidebarCollapsed ? OfficialUISpec.Layout.sidebarCollapsed : sidebarPreference
+            let sidebarWidth = renderedSidebarCollapsed ? OfficialUISpec.Layout.sidebarCollapsed : sidebarPreference
             let availableDetails = splitView.bounds.width - sidebarWidth - OfficialUISpec.Layout.centerMinimum
-            guard availableDetails >= OfficialUISpec.Layout.detailsMinimum else {
-                return splitView.bounds.width
-            }
+            guard availableDetails >= OfficialUISpec.Layout.detailsMinimum else { return splitView.bounds.width }
             return splitView.bounds.width - min(constrained, availableDetails)
         default:
             return proposedPosition

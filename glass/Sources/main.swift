@@ -27,8 +27,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             return
         }
 
-        let root = NativeAppShell(mode: .welcome, viewportWidth: 1280, darkAppearance: false)
-        let hostingView = NSHostingView(rootView: root)
+        let presentation = NativeShellPresentation(mode: .welcome)
+        let shellController = NativeShellController(presentation: presentation)
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1280, height: 840),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
@@ -39,7 +39,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.contentMinSize = NSSize(width: 880, height: 600)
-        window.contentView = hostingView
+        window.contentViewController = shellController
         window.delegate = self
         window.center()
         window.makeKeyAndOrderFront(nil)
