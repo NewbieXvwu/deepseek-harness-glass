@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct NativeSidebarView: View {
-    @ObservedObject var workspaceStore: NativeWorkspaceStore
+    let workspaceStore: NativeWorkspaceStore
     let collapsed: Bool
     let setCollapsed: (Bool) -> Void
     let workspaceActions: WorkspaceBrowserView.Actions
