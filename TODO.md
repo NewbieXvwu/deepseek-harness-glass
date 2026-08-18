@@ -105,7 +105,7 @@
   - 依赖：T1.1。
   - 验收：每一层有独立 target 或最少独立 Swift package；UI 不能直接启动子进程；reducer 不能直接访问 `NSApplication`。
 
-- [ ] **T1.3：删除旧 WebUI 路径的迁移分支。** 初期可临时保留 legacy build target 用于官方对照，但主应用 target 不再链接 `GlassWebView`、`WKUserScript`、CSS 注入、`evaluateJavaScript` 与页面 DOM mutation 逻辑。
+- [x] **T1.3：删除旧 WebUI 路径的迁移分支。** 初期可临时保留 legacy build target 用于官方对照，但主应用 target 不再链接 `GlassWebView`、`WKUserScript`、CSS 注入、`evaluateJavaScript` 与页面 DOM mutation 逻辑。
   - 依赖：T1.2、T3.6。
   - 验收：`grep -R "WKWebView\|WKUserScript\|evaluateJavaScript\|MutationObserver" glass/` 只命中 `Plugins/PluginWebHost` 或 legacy 对照 target；核心功能可运行。
 
@@ -133,7 +133,7 @@
   - 依赖：T2.2–T2.4。
   - 验收：至少覆盖启动、无工作区、空会话、流式回答、工具调用、审批、队列、设置、窄窗口、详情栏关闭/重开、深色模式和错误恢复。
 
-- [ ] **T2.6：定义视觉差异策略。** 普通布局层使用结构树断言和截图差异；系统 Glass 区域使用位置、尺寸、层级、对比度和系统状态断言，不对系统动态折射作像素级失败判定。
+- [x] **T2.6：定义视觉差异策略。** 普通布局层使用结构树断言和截图差异；系统 Glass 区域使用位置、尺寸、层级、对比度和系统状态断言，不对系统动态折射作像素级失败判定。
   - 依赖：T2.5。
   - 验收：视觉报告能够区分“官方布局偏移”与“系统材质自然差异”。
 
@@ -265,7 +265,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
   - 依赖：T4.5、T6.1、T7.1。
   - 验收：Host workspace/session change 帧到达后列表更新正确，不依赖页面刷新。
 
-- [ ] **T7.3：实现 sidebar 搜索与行操作。** 行为、可见性、快捷键、空状态、结果排序和文案必须以锁定官方 UI 为准。
+- [x] **T7.3：实现 sidebar 搜索与行操作。** 行为、可见性、快捷键、空状态、结果排序和文案必须以锁定官方 UI 为准。
   - 依赖：T7.2、T2.5。
   - 验收：每个官方测试场景可复现，搜索不创建未记录的原生私有索引。
 
@@ -485,3 +485,49 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 [12]: https://github.com/deepseek-ai/deepseek-harness/blob/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca/packages/client/ui-sidebar/README.md "官方 Sidebar 模块说明"
 [13]: https://github.com/deepseek-ai/deepseek-harness/blob/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca/packages/client/ui-conversation/README.md "官方 Conversation UI 模块说明"
 [14]: https://github.com/deepseek-ai/deepseek-harness/blob/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca/packages/client/ui-settings-plugins/README.md "官方插件设置机制"
+## 当前进度与跨会话续跑说明（2026-08-18）
+
+本文件现作为**唯一跨会话续跑入口**。新的会话不应依赖外部 `CONTINUE_NEXT_SESSION.md`；开始工作时只需阅读本文件、检查当前分支并运行本节列出的门禁。仓库当前目标分支为 `main`，最新已推送提交为 `9fe78655d5bf7578a033f4af1d8c6699756578be`，对应阶段4设置基础提交；官方规格仍锁定在 `deepseek-ai/deepseek-harness@99f6f02fecdb7dff40c3fbc9470f5907c29f74ca`。
+
+### 已完全完成并已勾选的闭环
+
+下列条目只有在**代码实现、官方来源、D0/D1门禁和GitHub Actions证据**同时存在时才被勾选。最新成功回归为 [GitHub Actions run 32146828998](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32146828998)，其HEAD为 `9fe7865`，D1报告为91个text、77个layout、29个asset和10个visual scene，D0 native-only gate通过。
+
+| TODO条目 | 完成证据 |
+|---|---|
+| T1.3 | 核心Swift UI路径通过无WebView静态门禁；主应用不依赖WebUI渲染、DOM脚本或CSS注入。 |
+| T2.6 | 已建立官方/原生同状态同视口配对规则、放大局部核验记录、差异修复记录和CI截图存在性门禁。 |
+| T7.3 | workspace-search、workspace rename、session rename、workspace delete场景均已接入官方配对契约；搜索、行操作和管理Dialog在macOS-26截图回归中生成并验收。 |
+
+### 最近已完成的视觉修复
+
+管理Dialog动作按钮曾出现用户指出的左右端帽重复、断裂或方形残留描边。提交 `eca42c2` 将按钮改为单一胶囊绘制路径；提交 `7db32ed` 将禁用primary按钮映射到官方中性品牌token；提交 `082ddfb` 用AppKit桥接复刻官方打开时自动全选预填rename文本。最新配对截图确认workspace/session rename和workspace delete三类场景的按钮端帽、描边、禁用颜色以及输入全选状态已收敛。
+
+### 当前已实现但仍未勾选的部分
+
+`settings.describe` / `settings.mutate` 的类型化DTO已在 `DSHAPIClient.swift` 中接入，`UI/Settings/NativeSettingsStore.swift` 已提供Host驱动的redacted namespace加载、secret槽位状态和revision保护的mutate基础。但它尚未完成Settings Root、draft/dirty/discard、schema表单、credentials/models页面、插件Manifest/Adapter Registry及视觉回归，因此T10.x和T11.x必须继续保持未勾选。
+
+同理，完整的窗口恢复、官方全部会话节点、完整工具renderer、General/Models/Credentials/Plugin设置页、无障碍/性能/契约测试、签名公证和发布审计均未完成；不能因为部分fixture或单一场景通过而勾选对应高层任务。阶段3的管理操作已完成视觉闭环，下一工作焦点是阶段4的原生设置中心。
+
+### 新会话首要命令
+
+```bash
+cd /path/to/deepseek-harness-glass/glass
+# 确认只从本TODO继续
+sed -n '1,520p' TODO.md
+python3 glass/ci/check-official-spec.py
+bash glass/ci/check-no-webview.sh
+git status --short
+git log -8 --oneline
+```
+
+如果继续实现设置中心，应先读取锁定官方源码中的 `packages/client/ui-settings-general/src/client/SettingsRoot.tsx`、`SettingsRoot.module.css`、`packages/host/apiproxy/src/api/settings.ts` 和 `settings.schema.ts`，再为原生实现新增视觉场景；每一轮必须同时捕获同状态官方截图和原生截图，发现任何可观察差异立即修复。
+
+### 明确未完成的主要阶段
+
+| 阶段 | 当前状态 |
+|---|---|
+| 阶段4：原生Settings Root、schema form、models/credentials与插件设置 | 进行中，仅RPC/Store基础已完成 |
+| 阶段5：命令、窗口偏好与恢复 | 未开始 |
+| 阶段6：全场景视觉、无障碍、性能与回归门禁 | 未完成 |
+| 阶段7：签名、公证、升级流程与发布候选审计 | 未完成 |
