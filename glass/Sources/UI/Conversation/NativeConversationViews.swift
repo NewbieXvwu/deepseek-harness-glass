@@ -328,7 +328,29 @@ struct NativeComposerCard: View {
                 .buttonStyle(OfficialComposerIconButtonStyle())
                 .disabled(isWorkspaceTrigger)
 
+                if !isWorkspaceTrigger {
+                    NativeHeroComposerControl(
+                        asset: "icon-permission-workspace-write",
+                        title: OfficialUISpec.Text.fixtureWorkspaceWrite
+                    )
+                }
+
                 Spacer(minLength: 0)
+
+                if !isWorkspaceTrigger {
+                    HStack(spacing: 2) {
+                        Text(OfficialUISpec.Text.fixtureModelName)
+                        Text(OfficialUISpec.Text.fixtureReasoningEffort)
+                            .foregroundStyle(OfficialUISpec.Token.secondary)
+                        OfficialAssetImage(name: "icon-chevron-down", template: true)
+                            .frame(width: 12, height: 12)
+                            .foregroundStyle(OfficialUISpec.Token.caption)
+                    }
+                    .font(.system(size: 12, weight: .regular))
+                    .foregroundStyle(OfficialUISpec.Token.primary)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel(OfficialUISpec.Text.fixtureModelName)
+                }
 
                 Button(action: {}) {
                     OfficialAssetImage(name: "icon-send-up", template: true)
@@ -353,6 +375,27 @@ struct NativeComposerCard: View {
                 )
         }
         .shadow(color: OfficialUISpec.Token.businessBlueGlow, radius: 22, y: 8)
+    }
+}
+
+private struct NativeHeroComposerControl: View {
+    let asset: String
+    let title: String
+
+    var body: some View {
+        HStack(spacing: 2) {
+            OfficialAssetImage(name: asset, template: true)
+                .frame(width: 16, height: 16)
+            Text(title)
+            OfficialAssetImage(name: "icon-chevron-down", template: true)
+                .frame(width: 12, height: 12)
+                .foregroundStyle(OfficialUISpec.Token.caption)
+        }
+        .font(.system(size: 12, weight: .regular))
+        .foregroundStyle(OfficialUISpec.Token.primary)
+        .frame(height: 28)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(title)
     }
 }
 
