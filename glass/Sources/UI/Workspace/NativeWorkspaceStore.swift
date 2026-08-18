@@ -13,7 +13,7 @@ final class NativeWorkspaceStore: ObservableObject {
         case failed(String)
     }
 
-    struct Snapshot: Equatable {
+    struct Snapshot {
         let workspaces: [WorkspaceSummaryDTO]
         let sessions: [SessionSummaryDTO]
         let archivedSessionIDs: Set<String>
