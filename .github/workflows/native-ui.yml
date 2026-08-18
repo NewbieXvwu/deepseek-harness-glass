@@ -151,6 +151,12 @@ jobs:
           python3 glass/ci/check-official-theme-tokens.py \
             --official-root .reference/deepseek-harness
 
+      - name: Validate official three-column layout fixtures
+        run: |
+          python3 glass/ci/check-official-column-layout-fixtures.py \
+            --official-root .reference/deepseek-harness \
+            --node "$NODE24_BIN/node"
+
       - name: Enforce native-only core UI
         run: ./glass/ci/check-no-webview.sh
 
@@ -237,6 +243,7 @@ jobs:
             glass/Sources/Spec/OfficialLocaleCatalog.swift
             glass/Sources/Spec/Tokens/official-theme-tokens.json
             glass/Sources/Spec/OfficialThemeCatalog.swift
+            glass/Sources/Spec/Fixtures/official-column-layout-fixtures.json
             glass/Package.swift
           if-no-files-found: error
           retention-days: 14

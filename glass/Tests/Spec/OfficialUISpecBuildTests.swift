@@ -52,3 +52,43 @@ extension OfficialUISpecBuildTests {
         XCTAssertEqual(warning.dark, warning.light)
     }
 }
+
+
+extension OfficialUISpecBuildTests {
+    func testOfficialColumnLayoutMatchesEveryGeneratedComputeColumnsFixture() {
+        let catalog = OfficialColumnLayoutFixtureCatalog.catalog
+        XCTAssertEqual(catalog.sourceCommit, OfficialUISpec.Build.sourceCommit)
+        XCTAssertEqual(catalog.source.path, OfficialColumnLayoutFixtureCatalog.lockedSourcePath)
+        XCTAssertEqual(catalog.source.sha256, OfficialColumnLayoutFixtureCatalog.lockedSourceSHA256)
+        XCTAssertGreaterThanOrEqual(catalog.fixtures.count, 30)
+
+        for fixture in catalog.fixtures {
+            let actual = OfficialColumnLayout.resolve(
+                viewport: fixture.viewport,
+                sidebarPreference: fixture.sidebarPreference,
+                detailsPreference: fixture.detailsPreference
+            )
+            XCTAssertEqual(
+                actual,
+                OfficialColumnLayout(
+                    sidebar: fixture.expected.sidebar,
+                    center: fixture.expected.center,
+                    details: fixture.expected.details
+                ),
+                fixture.name
+            )
+        }
+    }
+
+    func testOfficialColumnLayoutExposesLockedComputeColumnsConstants() {
+        XCTAssertEqual(OfficialUISpec.Layout.centerMinimum, 640)
+        XCTAssertEqual(OfficialUISpec.Layout.sidebarMinimum, 264)
+        XCTAssertEqual(OfficialUISpec.Layout.sidebarMaximum, 420)
+        XCTAssertEqual(OfficialUISpec.Layout.sidebarDefault, 280)
+        XCTAssertEqual(OfficialUISpec.Layout.sidebarCollapsed, 56)
+        XCTAssertEqual(OfficialUISpec.Layout.sidebarAutoCollapse, 1024)
+        XCTAssertEqual(OfficialUISpec.Layout.detailsMinimum, 300)
+        XCTAssertEqual(OfficialUISpec.Layout.detailsMaximum, 520)
+        XCTAssertEqual(OfficialUISpec.Layout.detailsDefault, 360)
+    }
+}

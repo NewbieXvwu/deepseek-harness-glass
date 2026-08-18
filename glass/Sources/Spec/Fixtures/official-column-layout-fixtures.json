@@ -1,0 +1,341 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca",
+  "source": {
+    "path": "packages/client/ui-layout/src/client/columns.ts",
+    "sha256": "c2f002126fc671aeaad058eae310d265f7b1f9b77223686c0fe4619cda4e71e2"
+  },
+  "generator": "generate_official_column_layout_fixtures.ts",
+  "fixtures": [
+    {
+      "name": "default-preferred-fits",
+      "viewport": 1280,
+      "sidebarPreference": 280,
+      "detailsPreference": 360,
+      "expected": {
+        "sidebar": 280,
+        "center": 640,
+        "details": 360
+      }
+    },
+    {
+      "name": "default-preferred-one-pixel-short",
+      "viewport": 1279,
+      "sidebarPreference": 280,
+      "detailsPreference": 360,
+      "expected": {
+        "sidebar": 280,
+        "center": 640,
+        "details": 359
+      }
+    },
+    {
+      "name": "default-details-minimum-boundary",
+      "viewport": 1220,
+      "sidebarPreference": 280,
+      "detailsPreference": 360,
+      "expected": {
+        "sidebar": 280,
+        "center": 640,
+        "details": 300
+      }
+    },
+    {
+      "name": "default-details-auto-closes-below-minimum",
+      "viewport": 1219,
+      "sidebarPreference": 280,
+      "detailsPreference": 360,
+      "expected": {
+        "sidebar": 280,
+        "center": 939,
+        "details": 0
+      }
+    },
+    {
+      "name": "default-details-reopens-on-widen",
+      "viewport": 1221,
+      "sidebarPreference": 280,
+      "detailsPreference": 360,
+      "expected": {
+        "sidebar": 280,
+        "center": 640,
+        "details": 301
+      }
+    },
+    {
+      "name": "collapsed-sidebar-preferred-fits",
+      "viewport": 1056,
+      "sidebarPreference": 0,
+      "detailsPreference": 360,
+      "expected": {
+        "sidebar": 56,
+        "center": 640,
+        "details": 360
+      }
+    },
+    {
+      "name": "collapsed-sidebar-details-minimum-boundary",
+      "viewport": 996,
+      "sidebarPreference": 0,
+      "detailsPreference": 360,
+      "expected": {
+        "sidebar": 56,
+        "center": 640,
+        "details": 300
+      }
+    },
+    {
+      "name": "collapsed-sidebar-details-auto-closes-below-minimum",
+      "viewport": 995,
+      "sidebarPreference": 0,
+      "detailsPreference": 360,
+      "expected": {
+        "sidebar": 56,
+        "center": 939,
+        "details": 0
+      }
+    },
+    {
+      "name": "details-closed-center-absorbs",
+      "viewport": 900,
+      "sidebarPreference": 280,
+      "detailsPreference": 0,
+      "expected": {
+        "sidebar": 280,
+        "center": 620,
+        "details": 0
+      }
+    },
+    {
+      "name": "details-closed-narrow-center-floor-fallback",
+      "viewport": 200,
+      "sidebarPreference": 280,
+      "detailsPreference": 0,
+      "expected": {
+        "sidebar": 280,
+        "center": 0,
+        "details": 0
+      }
+    },
+    {
+      "name": "sidebar-min-preferred-boundary",
+      "viewport": 1264,
+      "sidebarPreference": 264,
+      "detailsPreference": 360,
+      "expected": {
+        "sidebar": 264,
+        "center": 640,
+        "details": 360
+      }
+    },
+    {
+      "name": "sidebar-min-details-minimum-boundary",
+      "viewport": 1204,
+      "sidebarPreference": 264,
+      "detailsPreference": 360,
+      "expected": {
+        "sidebar": 264,
+        "center": 640,
+        "details": 300
+      }
+    },
+    {
+      "name": "sidebar-max-preferred-boundary",
+      "viewport": 1420,
+      "sidebarPreference": 420,
+      "detailsPreference": 360,
+      "expected": {
+        "sidebar": 420,
+        "center": 640,
+        "details": 360
+      }
+    },
+    {
+      "name": "sidebar-max-details-minimum-boundary",
+      "viewport": 1360,
+      "sidebarPreference": 420,
+      "detailsPreference": 360,
+      "expected": {
+        "sidebar": 420,
+        "center": 640,
+        "details": 300
+      }
+    },
+    {
+      "name": "details-min-preferred-boundary",
+      "viewport": 1220,
+      "sidebarPreference": 280,
+      "detailsPreference": 300,
+      "expected": {
+        "sidebar": 280,
+        "center": 640,
+        "details": 300
+      }
+    },
+    {
+      "name": "details-max-preferred-boundary",
+      "viewport": 1440,
+      "sidebarPreference": 280,
+      "detailsPreference": 520,
+      "expected": {
+        "sidebar": 280,
+        "center": 640,
+        "details": 520
+      }
+    },
+    {
+      "name": "sidebar-negative-preference-clamps",
+      "viewport": 1280,
+      "sidebarPreference": -100,
+      "detailsPreference": 360,
+      "expected": {
+        "sidebar": 264,
+        "center": 656,
+        "details": 360
+      }
+    },
+    {
+      "name": "sidebar-low-fraction-rounds-then-clamps",
+      "viewport": 1280,
+      "sidebarPreference": 263.49,
+      "detailsPreference": 360,
+      "expected": {
+        "sidebar": 264,
+        "center": 656,
+        "details": 360
+      }
+    },
+    {
+      "name": "sidebar-half-rounds-up",
+      "viewport": 1280,
+      "sidebarPreference": 264.5,
+      "detailsPreference": 360,
+      "expected": {
+        "sidebar": 265,
+        "center": 655,
+        "details": 360
+      }
+    },
+    {
+      "name": "sidebar-high-fraction-rounds-then-clamps",
+      "viewport": 1440,
+      "sidebarPreference": 420.49,
+      "detailsPreference": 360,
+      "expected": {
+        "sidebar": 420,
+        "center": 660,
+        "details": 360
+      }
+    },
+    {
+      "name": "sidebar-too-wide-clamps",
+      "viewport": 1440,
+      "sidebarPreference": 999,
+      "detailsPreference": 360,
+      "expected": {
+        "sidebar": 420,
+        "center": 660,
+        "details": 360
+      }
+    },
+    {
+      "name": "details-negative-preference-clamps",
+      "viewport": 1280,
+      "sidebarPreference": 280,
+      "detailsPreference": -100,
+      "expected": {
+        "sidebar": 280,
+        "center": 700,
+        "details": 300
+      }
+    },
+    {
+      "name": "details-low-fraction-rounds-then-clamps",
+      "viewport": 1280,
+      "sidebarPreference": 280,
+      "detailsPreference": 299.49,
+      "expected": {
+        "sidebar": 280,
+        "center": 700,
+        "details": 300
+      }
+    },
+    {
+      "name": "details-half-rounds-up",
+      "viewport": 1280,
+      "sidebarPreference": 280,
+      "detailsPreference": 300.5,
+      "expected": {
+        "sidebar": 280,
+        "center": 699,
+        "details": 301
+      }
+    },
+    {
+      "name": "details-high-fraction-rounds-then-clamps",
+      "viewport": 1440,
+      "sidebarPreference": 280,
+      "detailsPreference": 520.49,
+      "expected": {
+        "sidebar": 280,
+        "center": 640,
+        "details": 520
+      }
+    },
+    {
+      "name": "details-too-wide-clamps",
+      "viewport": 1440,
+      "sidebarPreference": 280,
+      "detailsPreference": 999,
+      "expected": {
+        "sidebar": 280,
+        "center": 640,
+        "details": 520
+      }
+    },
+    {
+      "name": "zero-viewport",
+      "viewport": 0,
+      "sidebarPreference": 0,
+      "detailsPreference": 0,
+      "expected": {
+        "sidebar": 56,
+        "center": 0,
+        "details": 0
+      }
+    },
+    {
+      "name": "sub-rail-viewport",
+      "viewport": 55,
+      "sidebarPreference": 0,
+      "detailsPreference": 0,
+      "expected": {
+        "sidebar": 56,
+        "center": 0,
+        "details": 0
+      }
+    },
+    {
+      "name": "rail-viewport",
+      "viewport": 56,
+      "sidebarPreference": 0,
+      "detailsPreference": 0,
+      "expected": {
+        "sidebar": 56,
+        "center": 0,
+        "details": 0
+      }
+    },
+    {
+      "name": "fractional-viewport",
+      "viewport": 1220.5,
+      "sidebarPreference": 280,
+      "detailsPreference": 360,
+      "expected": {
+        "sidebar": 280,
+        "center": 640,
+        "details": 300.5
+      }
+    }
+  ]
+}
