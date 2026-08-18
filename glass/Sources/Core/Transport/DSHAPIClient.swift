@@ -172,6 +172,23 @@ struct DSHAPIClient: Sendable {
             throw error
         }
     }
+
+    /// Converts a domain response value into the official ClientResponse result
+    /// inside Core, so feature callers cannot construct JSON wire values.
+    func respond<Value: Encodable>(rpcID: String, value: Value) async throws -> RPCReceipt {
+        do {
+            let data = try encoder.encode(value)
+            let wire = try decoder.decode(JSONValue.self, from: data)
+            return try await respond(rpcID: rpcID, result: .success(wire))
+        } catch {
+            await diagnostics.recordRPCError(error)
+            throw error
+        }
+    }
+
+    func respondFailure(rpcID: String, error: RPCBusinessError) async throws -> RPCReceipt {
+        try await respond(rpcID: rpcID, result: .failure(error))
+    }
 }
 
 struct EmptyPayload: Codable, Sendable {}

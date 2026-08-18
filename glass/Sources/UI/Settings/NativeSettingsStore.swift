@@ -15,12 +15,12 @@ final class NativeSettingsStore: ObservableObject {
     @Published private(set) var hasDocument = false
     @Published private(set) var namespaces: [SettingsNamespaceDTO] = []
 
-    func load(using api: DSHAPIClient?) {
+    func load(using api: SettingsAPI?) {
         guard let api else { phase = .idle; return }
         phase = .loading
         Task {
             do {
-                let response = try await api.settingsDescribe()
+                let response = try await api.describe()
                 writable = response.writable
                 hasDocument = response.hasDocument
                 namespaces = response.namespaces
@@ -34,10 +34,10 @@ final class NativeSettingsStore: ObservableObject {
     func mutate(
         namespace: SettingsNamespaceDTO,
         operation: SettingsPathOperationDTO,
-        using api: DSHAPIClient?
+        using api: SettingsAPI?
     ) async throws {
         guard let api else { throw URLError(.notConnectedToInternet) }
-        let updated = try await api.settingsMutate(
+        let updated = try await api.mutate(
             namespace: namespace.ns,
             operations: [operation],
             expectedRevision: namespace.revision

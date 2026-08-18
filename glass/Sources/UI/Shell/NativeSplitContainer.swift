@@ -28,7 +28,7 @@ final class NativeShellPresentation: ObservableObject {
     let workspaceStore: NativeWorkspaceStore
     let sessionStore: NativeSessionStore
     let workspaceSnapshotDialog: WorkspaceBrowserView.SnapshotDialog
-    private var apiClient: DSHAPIClient?
+    private var apis: HarnessAPIs?
     private var selectedToolObservation: AnyCancellable?
     private var observedEndpoint: URL?
 
@@ -64,19 +64,19 @@ final class NativeShellPresentation: ObservableObject {
     func connectVerifiedHost(_ connection: HostConnection) {
         guard observedEndpoint != connection.endpoint else { return }
         workspaceStore.stopObservingHostEvents()
-        let api = DSHAPIClient(
+        let apis = HarnessAPIs(
             baseURL: connection.endpoint,
             accessPolicy: HostRPCAccessPolicy(trust: .verified(connection.build)),
             diagnostics: connection.diagnostics
         )
-        apiClient = api
+        self.apis = apis
         observedEndpoint = connection.endpoint
-        workspaceStore.refresh(using: api)
-        workspaceStore.observeHostEvents(at: connection.endpoint, using: api, diagnostics: connection.diagnostics)
+        workspaceStore.refresh(using: apis)
+        workspaceStore.observeHostEvents(at: connection.endpoint, using: apis, diagnostics: connection.diagnostics)
     }
 
     func disconnectHost() {
-        apiClient = nil
+        apis = nil
         observedEndpoint = nil
         workspaceStore.detachHost()
         sessionStore.disconnect()
@@ -86,8 +86,8 @@ final class NativeShellPresentation: ObservableObject {
 
     func selectSession(_ sessionID: String, workspaceID: String?) {
         workspaceStore.select(sessionID: sessionID, workspaceID: workspaceID)
-        if let apiClient, let observedEndpoint {
-            sessionStore.open(sessionID: sessionID, using: apiClient, endpoint: observedEndpoint)
+        if let apis, let observedEndpoint {
+            sessionStore.open(sessionID: sessionID, using: apis.sessions, endpoint: observedEndpoint)
         }
         mode = .conversation
         detailsVisible = sessionStore.selectedToolCallID != nil
@@ -95,14 +95,14 @@ final class NativeShellPresentation: ObservableObject {
 
     /// Source: `sessions.schema.ts:sessionCreateRequestSchema`.
     func createSession(in workspaceID: String?) {
-        guard let apiClient else { return }
+        guard let apis else { return }
         Task { [weak self] in
             guard let self else { return }
             do {
-                let created = try await apiClient.sessionCreate(workspaceID: workspaceID)
+                let created = try await apis.sessions.create(workspaceID: workspaceID)
                 guard !Task.isCancelled else { return }
                 selectSession(created.sessionId, workspaceID: workspaceID)
-                workspaceStore.refresh(using: apiClient)
+                workspaceStore.refresh(using: apis)
             } catch {
                 // Store refresh remains Host-authoritative; no synthetic session
                 // row or error copy is created on a rejected create operation.
@@ -112,38 +112,38 @@ final class NativeShellPresentation: ObservableObject {
 
     /// Source: `workspace.schema.ts:workspaceRenameRequestSchema`.
     func renameWorkspace(_ workspaceID: String, title: String) async throws {
-        guard let apiClient else { throw URLError(.notConnectedToInternet) }
-        _ = try await apiClient.workspaceRename(workspaceID: workspaceID, title: title)
+        guard let apis else { throw URLError(.notConnectedToInternet) }
+        _ = try await apis.workspaces.rename(workspaceID: workspaceID, title: title)
         guard !Task.isCancelled else { return }
-        workspaceStore.refresh(using: apiClient)
+        workspaceStore.refresh(using: apis)
     }
 
     /// Source: `workspace.schema.ts:workspaceDeleteRequestSchema`.
     func deleteWorkspace(_ workspaceID: String) async throws {
-        guard let apiClient else { throw URLError(.notConnectedToInternet) }
-        _ = try await apiClient.workspaceDelete(workspaceID: workspaceID)
+        guard let apis else { throw URLError(.notConnectedToInternet) }
+        _ = try await apis.workspaces.delete(workspaceID: workspaceID)
         guard !Task.isCancelled else { return }
-        workspaceStore.refresh(using: apiClient)
+        workspaceStore.refresh(using: apis)
     }
 
     /// Source: `sessions.schema.ts:sessionRenameRequestSchema`.
     func renameSession(_ sessionID: String, title: String) async throws {
-        guard let apiClient else { throw URLError(.notConnectedToInternet) }
-        _ = try await apiClient.sessionRename(sessionID: sessionID, title: title)
+        guard let apis else { throw URLError(.notConnectedToInternet) }
+        _ = try await apis.sessions.rename(sessionID: sessionID, title: title)
         guard !Task.isCancelled else { return }
-        workspaceStore.refresh(using: apiClient)
+        workspaceStore.refresh(using: apis)
     }
 
     /// Source: `sessions.schema.ts:sessionForkRequestSchema`.
     func forkSession(_ sessionID: String) {
-        guard let apiClient else { return }
+        guard let apis else { return }
         let workspaceID = workspaceStore.snapshot.workspaces.first { $0.sessionIds.contains(sessionID) }?.workspaceId
         Task { [weak self] in
             guard let self else { return }
             do {
-                let forked = try await apiClient.sessionFork(sessionID: sessionID)
+                let forked = try await apis.sessions.fork(sessionID: sessionID)
                 guard !Task.isCancelled else { return }
-                workspaceStore.refresh(using: apiClient)
+                workspaceStore.refresh(using: apis)
                 selectSession(forked.sessionId, workspaceID: workspaceID)
             } catch {
                 // Fork rejection leaves the Host projection untouched.
@@ -153,13 +153,13 @@ final class NativeShellPresentation: ObservableObject {
 
     /// Source: `workspace.schema.ts:workspaceArchiveSessionRequestSchema`.
     func archiveSession(_ sessionID: String) {
-        guard let apiClient else { return }
+        guard let apis else { return }
         Task { [weak self] in
             guard let self else { return }
             do {
-                _ = try await apiClient.workspaceArchiveSession(sessionID: sessionID)
+                _ = try await apis.workspaces.archiveSession(sessionID: sessionID)
                 guard !Task.isCancelled else { return }
-                workspaceStore.refresh(using: apiClient)
+                workspaceStore.refresh(using: apis)
             } catch {
                 // Archive is dialog-free in the official browser; the Host owns failures.
             }
@@ -167,7 +167,7 @@ final class NativeShellPresentation: ObservableObject {
     }
 
     func searchSessions(_ query: String) {
-        workspaceStore.search(query: query, using: apiClient)
+        workspaceStore.search(query: query, using: apis?.sessions)
     }
 
     func presentWorkspaceRename(workspaceID: String, title: String) {
@@ -189,7 +189,7 @@ final class NativeShellPresentation: ObservableObject {
     /// Source: `workspace.schema.ts:workspaceCreateRequestSchema`. macOS uses
     /// a native directory panel rather than a browser-mediated file picker.
     func addWorkspace() {
-        guard let apiClient else { return }
+        guard let apis else { return }
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
@@ -198,9 +198,9 @@ final class NativeShellPresentation: ObservableObject {
         Task { [weak self] in
             guard let self else { return }
             do {
-                _ = try await apiClient.workspaceCreate(path: url.path)
+                _ = try await apis.workspaces.create(path: url.path)
                 guard !Task.isCancelled else { return }
-                workspaceStore.refresh(using: apiClient)
+                workspaceStore.refresh(using: apis)
             } catch {
                 // The Host owns validation of adopted directories; no local
                 // workspace state is invented when adoption is refused.

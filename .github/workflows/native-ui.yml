@@ -173,6 +173,9 @@ jobs:
       - name: Validate module boundaries
         run: python3 glass/ci/check-module-boundaries.py
 
+      - name: Enforce feature facade boundary
+        run: python3 glass/ci/check-no-feature-transport.py
+
       - name: Validate official RPC DTO source manifest
         run: |
           python3 glass/ci/check-official-rpc-dto-manifest.py \

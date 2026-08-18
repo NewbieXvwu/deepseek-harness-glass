@@ -102,13 +102,13 @@ final class NativeWorkspaceStore: ObservableObject {
         eventRefreshTask?.cancel()
     }
 
-    func refresh(using api: DSHAPIClient) {
+    func refresh(using apis: HarnessAPIs) {
         refreshTask?.cancel()
         phase = .loading
         refreshTask = Task { [weak self] in
             do {
-                async let workspaceResponse = api.workspaceList()
-                async let sessionResponse = api.sessionList()
+                async let workspaceResponse = apis.workspaces.list()
+                async let sessionResponse = apis.sessions.list()
                 let (workspaces, sessions) = try await (workspaceResponse, sessionResponse)
                 guard !Task.isCancelled else { return }
                 let old = self?.snapshot ?? .empty
@@ -129,7 +129,7 @@ final class NativeWorkspaceStore: ObservableObject {
 
     /// Opens the official Host stream only after the controller has verified a
     /// supported endpoint. Server-request `method` is the official frame type.
-    func observeHostEvents(at endpoint: URL, using api: DSHAPIClient, diagnostics: HostDiagnosticRecorder) {
+    func observeHostEvents(at endpoint: URL, using apis: HarnessAPIs, diagnostics: HostDiagnosticRecorder) {
         eventTask?.cancel()
         let client = SSEClient(baseURL: endpoint)
         eventTask = Task { [weak self] in
@@ -138,7 +138,7 @@ final class NativeWorkspaceStore: ObservableObject {
                 for try await frame in stream {
                     await diagnostics.recordSSEActivity()
                     guard Self.browserAffectingHostMethods.contains(frame.method) else { continue }
-                    self?.scheduleRefresh(using: api)
+                    self?.scheduleRefresh(using: apis)
                 }
             } catch is CancellationError {
                 return
@@ -174,7 +174,7 @@ final class NativeWorkspaceStore: ObservableObject {
     /// Source: `WorkspaceBrowser.tsx:SEARCH_DEBOUNCE_MS` and
     /// `session-search.ts:SESSION_SEARCH_RESULT_LIMIT`. The store owns request
     /// cancellation and stale result suppression; the view only binds text.
-    func search(query: String, using api: DSHAPIClient?) {
+    func search(query: String, using api: SessionsAPI?) {
         let normalized = query.trimmingCharacters(in: .whitespacesAndNewlines)
         searchTask?.cancel()
         guard !normalized.isEmpty else {
@@ -190,7 +190,7 @@ final class NativeWorkspaceStore: ObservableObject {
             try? await Task.sleep(for: .milliseconds(250))
             guard !Task.isCancelled else { return }
             do {
-                let response = try await api.sessionSearch(query: normalized)
+                let response = try await api.search(query: normalized)
                 guard !Task.isCancelled, self?.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines) == normalized else { return }
                 self?.remoteSearch = RemoteSearch(
                     query: normalized,
@@ -205,12 +205,12 @@ final class NativeWorkspaceStore: ObservableObject {
         }
     }
 
-    private func scheduleRefresh(using api: DSHAPIClient) {
+    private func scheduleRefresh(using apis: HarnessAPIs) {
         eventRefreshTask?.cancel()
         eventRefreshTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(250))
             guard !Task.isCancelled else { return }
-            self?.refresh(using: api)
+            self?.refresh(using: apis)
         }
     }
 

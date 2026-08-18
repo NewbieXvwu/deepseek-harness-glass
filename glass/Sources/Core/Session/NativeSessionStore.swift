@@ -84,19 +84,10 @@ final class NativeSessionStore: ObservableObject {
     }
 
     /// Source: `dsh-user-questions/types:QuestionAnswer`.
-    struct QuestionAnswer: Equatable {
+    struct QuestionAnswer: Equatable, Sendable {
         let id: String
         let selected: [String]
         let custom: String?
-
-        var wireValue: JSONValue {
-            var object: [String: JSONValue] = [
-                "id": .string(id),
-                "selected": .array(selected.map(JSONValue.string))
-            ]
-            if let custom, !custom.isEmpty { object["custom"] = .string(custom) }
-            return .object(object)
-        }
     }
 
     struct ToolInvocation: Identifiable {
@@ -138,7 +129,7 @@ final class NativeSessionStore: ObservableObject {
     private var olderHistoryTask: Task<Void, Never>?
     private var streamTask: Task<Void, Never>?
     private var endpoint: URL?
-    private var api: DSHAPIClient?
+    private var api: SessionsAPI?
     private var activeSessionID: String?
     private var appliedSequences: Set<Int> = []
 
@@ -152,7 +143,7 @@ final class NativeSessionStore: ObservableObject {
 
     /// Opens one selected Host session. The existing view remains mounted while
     /// a new history baseline loads, mirroring the official resident scrollport.
-    func open(sessionID: String, using api: DSHAPIClient, endpoint: URL) {
+    func open(sessionID: String, using api: SessionsAPI, endpoint: URL) {
         guard activeSessionID != sessionID || self.endpoint != endpoint else { return }
         historyTask?.cancel()
         olderHistoryTask?.cancel()
@@ -181,7 +172,7 @@ final class NativeSessionStore: ObservableObject {
 
         historyTask = Task { [weak self] in
             do {
-                let response = try await api.sessionHistory(sessionID: sessionID)
+                let response = try await api.history(sessionID: sessionID)
                 guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
                 self?.applyHistory(response.events)
                 self?.hasMoreHistory = response.hasMore
@@ -260,7 +251,7 @@ final class NativeSessionStore: ObservableObject {
         promptTask = Task { [weak self] in
             defer { self?.isSubmittingPrompt = false }
             do {
-                let response = try await api.sessionPrompt(sessionID: sessionID, content: content, mode: .queue)
+                let response = try await api.prompt(sessionID: sessionID, content: content, mode: .queue)
                 guard !Task.isCancelled, response.accepted, self?.activeSessionID == sessionID else { return }
                 self?.draft = ""
                 self?.pendingImages = []
@@ -277,7 +268,7 @@ final class NativeSessionStore: ObservableObject {
         guard isRunning, let api, let sessionID = activeSessionID else { return }
         cancelTask?.cancel()
         cancelTask = Task {
-            _ = try? await api.sessionCancel(sessionID: sessionID)
+            _ = try? await api.cancel(sessionID: sessionID)
         }
     }
 
@@ -296,7 +287,7 @@ final class NativeSessionStore: ObservableObject {
         olderHistoryTask = Task { [weak self] in
             defer { self?.isLoadingOlderHistory = false }
             do {
-                let response = try await api.sessionHistory(sessionID: sessionID, beforeSeq: beforeSeq)
+                let response = try await api.history(sessionID: sessionID, beforeSeq: beforeSeq)
                 guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
                 self?.applyHistory(response.events)
                 self?.hasMoreHistory = response.hasMore
@@ -435,15 +426,15 @@ final class NativeSessionStore: ObservableObject {
               !isSubmittingApproval
         else { return }
         isSubmittingApproval = true
-        let outcome = allowOnce ? "allowed-once" : "rejected"
-        let value: JSONValue = .object([
-            "sessionId": .string(approval.sessionID),
-            "approvalId": .string(approval.approvalID),
-            "outcome": .string(outcome)
-        ])
+        let outcome: ApprovalOutcome = allowOnce ? .allowedOnce : .rejected
         Task { [weak self] in
             do {
-                let receipt = try await api.respond(rpcID: approval.rpcID, result: .success(value))
+                let receipt = try await api.answerApproval(
+                    rpcID: approval.rpcID,
+                    sessionID: approval.sessionID,
+                    approvalID: approval.approvalID,
+                    outcome: outcome
+                )
                 guard !Task.isCancelled, !receipt.accepted else { return }
                 self?.isSubmittingApproval = false
             } catch {
@@ -461,13 +452,10 @@ final class NativeSessionStore: ObservableObject {
               answers.count == question.items.count
         else { return }
         isSubmittingQuestion = true
-        let value: JSONValue = .object([
-            "sessionId": .string(question.sessionID),
-            "answer": .object(["answers": .array(answers.map(\.wireValue))])
-        ])
+        let responseAnswers = answers.map { QuestionAnswerResponse(id: $0.id, selected: $0.selected, custom: $0.custom) }
         Task { [weak self] in
             do {
-                let receipt = try await api.respond(rpcID: question.rpcID, result: .success(value))
+                let receipt = try await api.answerQuestion(rpcID: question.rpcID, sessionID: question.sessionID, answers: responseAnswers)
                 guard !Task.isCancelled, !receipt.accepted else { return }
                 self?.isSubmittingQuestion = false
             } catch {
@@ -484,14 +472,9 @@ final class NativeSessionStore: ObservableObject {
               !isSubmittingQuestion
         else { return }
         isSubmittingQuestion = true
-        let cancellation = RPCBusinessError(
-            code: "cancelled",
-            message: "the user closed this question request",
-            details: .object([:])
-        )
         Task { [weak self] in
             do {
-                let receipt = try await api.respond(rpcID: question.rpcID, result: .failure(cancellation))
+                let receipt = try await api.cancelQuestion(rpcID: question.rpcID)
                 guard !Task.isCancelled, !receipt.accepted else { return }
                 self?.isSubmittingQuestion = false
             } catch {
