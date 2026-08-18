@@ -213,9 +213,9 @@
   - 依赖：T4.1、T0.2。
   - 验收证据：`RPCDTOFixtureTests` 从 GlassCore resource 加载与 `OfficialUISpec.Build` 绑定的 capture，验证 16 条真实 envelope 的 rpcId/type/canonical Codable round-trip、16 个对应 production request DTO 的 typed round-trip、6 个成功 value DTO 与 10 个真实 `RPCBusinessError` branch。macOS-26 [run 32186518136](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32186518136)（commit `944bee3`）通过 manifest gate、完整 SwiftPM/Swiftc 编译、fixture XCTest、Host tests、app 组装、snapshot 和官方配对；人工工件复核已记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`。T4.2 无 renderer 改动，welcome 既有差异继续为明确的 `report-only`，不被误记为 UI 场景视觉完成。
 
-- [ ] **T4.3：实现 `DSHClientTransport`。** 使用 `URLSession` 实现 JSON POST、Content-Type、请求取消、统一超时、`rpcId` 去重和调用 tracing。
+- [x] **T4.3：实现 `DSHClientTransport`。** 使用 `URLSession` 实现 JSON POST、Content-Type、请求取消、统一超时、`rpcId` 去重和调用 tracing。`DSHClientTransport` actor 现以注入式、可测试 rpcId generator 分配 id，并在发送前执行 in-flight 与最近 1,024 个已签发 id 去重；任何 duplicate 在抵达 carrier 前被拒绝。每个调用强制 `server-response`/echo rpcId 后才交付，trace 有界保留 method、rpcId、terminal outcome 和脱敏错误类别，绝不保存 payload；cancel/timeout/network/HTTP/content-type 映射沿用 T4.1 taxonomy。
   - 依赖：T4.1、T4.2。
-  - 验收：并发 100 个 mock RPC 不串线；response 必须匹配 request 的 `rpcId` 才能交付调用者。
+  - 验收证据：`DSHClientTransportTests` 通过 URLProtocol mock carrier 发起 100 个并发 Host RPC，断言 100 个唯一 rpcId、每个 response 仅回到其原始 payload index、100 条成功 trace；另覆盖 duplicate id 在第二次发起前被拒绝且不发送、以及 crossed response rpcId 必须失败而不能交付。native-ui workflow 现将 `glass/Tests/**` 纳入 push/PR paths 并独立运行该 XCTest，避免 test-only 变更绕过 macOS gate。macOS-26 [run 32189390817](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32189390817)（commit `1555ddb`）通过所有门禁、SwiftPM/Swiftc 编译、transport/Host/DTO tests、app 组装、snapshot 和官方配对；人工工件复核已记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`。T4.3 无 renderer 变动，welcome 既有差异继续明确为 `report-only`，不构成 UI 场景视觉完成。
 
 - [ ] **T4.4：实现 `SSEClient`。** 支持 ServerRequest 帧、断线检测、指数退避、Host restart 后重订阅、最终取消与网络路径变化。
   - 依赖：T4.1。
