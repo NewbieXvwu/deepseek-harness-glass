@@ -61,7 +61,7 @@ final class DeepSeekHarnessGlassApp: NSObject, NSApplicationDelegate {
         switch state {
         case let .ready(connection):
             windowCoordinator.connectVerifiedHost(connection)
-        case .idle, .stopping, .failed:
+        case .idle, .stopping, .failed, .unverified:
             windowCoordinator.disconnectHost()
         case .startingOwned, .verifying, .recovering:
             break
