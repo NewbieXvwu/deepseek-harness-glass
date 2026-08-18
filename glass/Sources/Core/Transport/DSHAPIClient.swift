@@ -10,8 +10,8 @@ struct DSHAPIClient: Sendable {
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
 
-    init(baseURL: URL, session: URLSession = .shared) {
-        self.transport = DSHClientTransport(baseURL: baseURL, session: session)
+    init(baseURL: URL, accessPolicy: HostRPCAccessPolicy, session: URLSession = .shared) {
+        self.transport = DSHClientTransport(baseURL: baseURL, accessPolicy: accessPolicy, session: session)
     }
 
     func call<Request: Encodable, Response: Decodable>(

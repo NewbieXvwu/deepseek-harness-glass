@@ -101,3 +101,68 @@ final class HarnessHostControllerTests: XCTestCase {
         )]
     )
 }
+
+
+extension HarnessHostControllerTests {
+    func testUnknownBuildBecomesUnverifiedAndDefaultsToWriteProtection() throws {
+        let environment = ProcessInfo.processInfo.environment
+        guard let nodePath = environment["DSH_GLASS_HOST_NODE"],
+              let entrypointPath = environment["DSH_GLASS_HOST_ENTRY"] else {
+            XCTFail("T3.2 Host command-line test requires DSH_GLASS_HOST_NODE and DSH_GLASS_HOST_ENTRY")
+            return
+        }
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("dsh-glass-unverified-test-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let runtime = HostRuntimeConfiguration(
+            nodeExecutable: URL(fileURLWithPath: nodePath),
+            dshEntrypoint: URL(fileURLWithPath: entrypointPath),
+            homeDirectory: root.appendingPathComponent("dsh", isDirectory: true),
+            logFile: root.appendingPathComponent("logs/host.log")
+        )
+        let unknownCatalog = SupportedHostBuildCatalog(
+            schemaVersion: 1,
+            defaultBuildId: "unknown-dsh-build",
+            builds: [SupportedHostBuildCatalog.Build(
+                id: "unknown-dsh-build",
+                officialSourceCommit: "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca",
+                dshPackageVersion: "0.0.0-unreviewed",
+                webFrontendPackageVersion: "0.0.0-unreviewed",
+                nodeRuntimeVersion: "24.19.0",
+                minimumAppVersion: "0.4.0",
+                minimumMacOS: "26.0",
+                ciRunner: "macos-26",
+                minimumXcodeMajor: 26,
+                protocolFixtureRevision: "unknown",
+                uiSpecRevision: "unknown",
+                supportedArchitectures: ["arm64"],
+                verifiedAt: nil,
+                verificationState: "unverified"
+            )]
+        )
+        let verifier = HostBuildVerifier(catalog: unknownCatalog)
+        guard case let .unverified(reason) = verifier.verify(runtime: runtime) else {
+            XCTFail("mismatched payload version must be unverified")
+            return
+        }
+        XCTAssertTrue(reason.contains("version"))
+
+        let controller = HarnessHostController(runtime: runtime, verifier: verifier)
+        controller.start()
+        guard case let .unverified(status) = controller.state else {
+            XCTFail("unknown payload must enter explicit unverified state")
+            return
+        }
+        XCTAssertFalse(status.developerWriteOverrideEnabled)
+        XCTAssertNil(controller.ownedProcessIdentifier, "unverified build must not be launched as ready")
+
+        let defaultPolicy = HostRPCAccessPolicy(trust: .unverified(reason: reason, developerWriteOverride: false))
+        XCTAssertTrue(defaultPolicy.permits(method: "host.describe"))
+        XCTAssertFalse(defaultPolicy.permits(method: "session.prompt"))
+        XCTAssertFalse(defaultPolicy.trust.permitsWrites)
+
+        let overridePolicy = HostRPCAccessPolicy(trust: .unverified(reason: reason, developerWriteOverride: true))
+        XCTAssertTrue(overridePolicy.permits(method: "session.prompt"))
+        XCTAssertTrue(overridePolicy.trust.permitsWrites)
+    }
+}

@@ -139,6 +139,7 @@ enum DSHTransportError: LocalizedError, Equatable, Sendable {
     case mismatchedRPCID(expected: String, actual: String)
     case invalidContentType(String?)
     case decoding(String)
+    case unverifiedHostBuild(String)
     case cancelled
 
     var errorDescription: String? {
@@ -149,6 +150,7 @@ enum DSHTransportError: LocalizedError, Equatable, Sendable {
         case let .mismatchedRPCID(expected, actual): return "Mismatched RPC response id: expected \(expected), got \(actual)."
         case let .invalidContentType(value): return "Unexpected DeepSeek Harness content type: \(value ?? "missing")."
         case let .decoding(message): return "Could not decode DeepSeek Harness response: \(message)"
+        case let .unverifiedHostBuild(reason): return "DeepSeek Harness build is unverified; write operation is blocked: \(reason)"
         case .cancelled: return "DeepSeek Harness request was cancelled."
         }
     }

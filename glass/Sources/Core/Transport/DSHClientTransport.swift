@@ -10,15 +10,20 @@ actor DSHClientTransport {
     private let session: URLSession
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
+    private let accessPolicy: HostRPCAccessPolicy
 
-    init(baseURL: URL, session: URLSession = .shared) {
+    init(baseURL: URL, accessPolicy: HostRPCAccessPolicy, session: URLSession = .shared) {
         self.baseURL = baseURL
+        self.accessPolicy = accessPolicy
         self.session = session
         self.encoder = JSONEncoder()
         self.decoder = JSONDecoder()
     }
 
     func call(method: String, payload: JSONValue, timeout: TimeInterval = 30) async throws -> RPCServerResponse {
+        guard accessPolicy.permits(method: method) else {
+            throw DSHTransportError.unverifiedHostBuild(accessPolicy.trust.diagnosticSummary)
+        }
         let rpcId = UUID().uuidString.lowercased()
         let request = RPCClientRequest(rpcId: rpcId, method: method, payload: payload)
         let response = try await post(path: method, body: request, timeout: timeout)
@@ -32,6 +37,9 @@ actor DSHClientTransport {
     }
 
     func respond(_ response: RPCClientResponse, timeout: TimeInterval = 30) async throws -> RPCReceipt {
+        guard accessPolicy.trust.permitsWrites else {
+            throw DSHTransportError.unverifiedHostBuild(accessPolicy.trust.diagnosticSummary)
+        }
         var request = try makeRequest(path: "respond", timeout: timeout)
         request.httpBody = try encoder.encode(response)
         let (data, http) = try await perform(request)

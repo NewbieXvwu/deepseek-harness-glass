@@ -59,6 +59,14 @@ final class HarnessHostController: ObservableObject {
             return
         }
         switch verifier.verify(runtime: runtime, fileManager: fileManager) {
+        case let .unverified(reason):
+            state = .unverified(HostUnverified(
+                reason: reason,
+                developerWriteOverrideEnabled: false,
+                logPath: runtime.logFile.path
+            ))
+            appendLog("[host] unverified write-protected: \(reason)")
+            return
         case let .unsupported(reason):
             state = .failed(HostFailure(
                 kind: .invalidBundledBaseline,
@@ -67,7 +75,7 @@ final class HarnessHostController: ObservableObject {
                 logPath: runtime.logFile.path
             ))
             return
-        case let .supported(build):
+        case let .verified(build):
             guard OfficialUISpec.Build.isCompatible(with: build.id),
                   build.officialSourceCommit == OfficialUISpec.Build.sourceCommit,
                   build.uiSpecRevision == OfficialUISpec.Build.uiSpecRevision
@@ -219,7 +227,10 @@ final class HarnessHostController: ObservableObject {
         verificationTask?.cancel()
         verificationTask = Task { [weak self] in
             do {
-                let transport = DSHClientTransport(baseURL: endpoint)
+                let transport = DSHClientTransport(
+                    baseURL: endpoint,
+                    accessPolicy: HostRPCAccessPolicy(trust: .verified(build))
+                )
                 let response = try await transport.call(method: "host.describe", payload: .object([:]))
                 guard case .success = response.result else {
                     throw DSHTransportError.decoding("host.describe returned a business error")
