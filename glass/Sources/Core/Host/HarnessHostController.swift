@@ -16,6 +16,7 @@ final class HarnessHostController: ObservableObject {
             stateTransitions.append(transition)
             if stateTransitions.count > 200 { stateTransitions.removeFirst(stateTransitions.count - 200) }
             appendLog("[host] transition \(transition.summary)")
+            Task { [diagnostics] in await diagnostics.recordLifecycle(state, ownedPID: process?.processIdentifier) }
         }
     }
     @Published private(set) var recentLogLines: [String] = []
@@ -24,6 +25,7 @@ final class HarnessHostController: ObservableObject {
     private let runtime: HostRuntimeConfiguration
     private let verifier: HostBuildVerifier
     private let fileManager: FileManager
+    private let diagnostics: HostDiagnosticRecorder
     private var process: Process?
     private var outputPipe: Pipe?
     private var announcedOutput = ""
@@ -43,6 +45,7 @@ final class HarnessHostController: ObservableObject {
         self.runtime = runtime
         self.verifier = verifier
         self.fileManager = fileManager
+        self.diagnostics = HostDiagnosticRecorder(dshHome: runtime.homeDirectory.path)
         self.startupTimeoutNanoseconds = startupTimeoutNanoseconds
     }
 
@@ -62,6 +65,10 @@ final class HarnessHostController: ObservableObject {
     var homeDirectory: URL { runtime.homeDirectory }
     var ownedProcessIdentifier: Int32? { process?.processIdentifier }
 
+    func diagnosticSnapshot() async -> HostDiagnosticSnapshot {
+        await diagnostics.snapshot()
+    }
+
     func start() {
         guard process == nil else {
             appendLog("[host] start reused existing owned process pid=\(process?.processIdentifier ?? 0)")
@@ -75,6 +82,7 @@ final class HarnessHostController: ObservableObject {
                 logPath: runtime.logFile.path
             ))
             appendLog("[host] unverified write-protected: \(reason)")
+            Task { [diagnostics] in await diagnostics.recordUnverified(reason: reason) }
             return
         case let .unsupported(reason):
             state = .failed(HostFailure(
@@ -130,6 +138,7 @@ final class HarnessHostController: ObservableObject {
                 ))
             } catch {
                 guard !Task.isCancelled else { return }
+                if let self { await self.diagnostics.recordRPCError(error) }
                 self?.state = .failed(HostFailure(
                     kind: .verificationFailed,
                     message: "Could not probe external DeepSeek Harness Host: \(error.localizedDescription)",
@@ -284,10 +293,13 @@ final class HarnessHostController: ObservableObject {
                     throw DSHTransportError.decoding("host.describe returned a business error")
                 }
                 guard !Task.isCancelled else { return }
-                self?.state = .ready(HostConnection(endpoint: endpoint, build: build, startedAt: Date()))
-                self?.appendLog("[host] verified endpoint=\(endpoint.absoluteString) build=\(build.id)")
+                guard let self else { return }
+                await self.diagnostics.recordVerified(build: build, endpoint: endpoint, pid: self.process?.processIdentifier)
+                self.state = .ready(HostConnection(endpoint: endpoint, build: build, startedAt: Date(), diagnostics: self.diagnostics))
+                self.appendLog("[host] verified endpoint=\(endpoint.absoluteString) build=\(build.id)")
             } catch {
                 guard !Task.isCancelled else { return }
+                if let self { await self.diagnostics.recordRPCError(error) }
                 self?.state = .failed(HostFailure(
                     kind: .verificationFailed,
                     message: "DeepSeek Harness Host started but could not complete host.describe verification: \(error.localizedDescription)",

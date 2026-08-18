@@ -129,19 +129,21 @@ final class NativeWorkspaceStore: ObservableObject {
 
     /// Opens the official Host stream only after the controller has verified a
     /// supported endpoint. Server-request `method` is the official frame type.
-    func observeHostEvents(at endpoint: URL, using api: DSHAPIClient) {
+    func observeHostEvents(at endpoint: URL, using api: DSHAPIClient, diagnostics: HostDiagnosticRecorder) {
         eventTask?.cancel()
         let client = SSEClient(baseURL: endpoint)
         eventTask = Task { [weak self] in
             let stream = await client.stream(.host)
             do {
                 for try await frame in stream {
+                    await diagnostics.recordSSEActivity()
                     guard Self.browserAffectingHostMethods.contains(frame.method) else { continue }
                     self?.scheduleRefresh(using: api)
                 }
             } catch is CancellationError {
                 return
             } catch {
+                await diagnostics.recordRPCError(error)
                 // Event reconnection policy belongs to Host lifecycle ownership.
                 // A later successful host transition calls this method again.
             }

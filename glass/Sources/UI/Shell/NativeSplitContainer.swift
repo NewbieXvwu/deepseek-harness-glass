@@ -66,12 +66,13 @@ final class NativeShellPresentation: ObservableObject {
         workspaceStore.stopObservingHostEvents()
         let api = DSHAPIClient(
             baseURL: connection.endpoint,
-            accessPolicy: HostRPCAccessPolicy(trust: .verified(connection.build))
+            accessPolicy: HostRPCAccessPolicy(trust: .verified(connection.build)),
+            diagnostics: connection.diagnostics
         )
         apiClient = api
         observedEndpoint = connection.endpoint
         workspaceStore.refresh(using: api)
-        workspaceStore.observeHostEvents(at: connection.endpoint, using: api)
+        workspaceStore.observeHostEvents(at: connection.endpoint, using: api, diagnostics: connection.diagnostics)
     }
 
     func disconnectHost() {

@@ -213,3 +213,36 @@ extension HarnessHostControllerTests {
         XCTAssertEqual(failed.retryTitle, OfficialUISpec.LocaleCatalog.value(namespace: "locale", key: "retry", language: "en"))
     }
 }
+
+
+extension HarnessHostControllerTests {
+    func testDiagnosticsAreCopyableCompleteAndRedacted() async throws {
+        let recorder = HostDiagnosticRecorder(dshHome: "/tmp/diagnostic-home")
+        let endpoint = try XCTUnwrap(URL(string: "http://127.0.0.1:43123"))
+        await recorder.recordVerified(build: Self.fixedCatalog.builds[0], endpoint: endpoint, pid: 4321)
+        let sseTime = Date(timeIntervalSince1970: 1_700_000_000)
+        await recorder.recordSSEActivity(at: sseTime)
+        await recorder.recordRPCError(NSError(
+            domain: "fixture",
+            code: 1,
+            userInfo: [NSLocalizedDescriptionKey: "api_key=top-secret cookie=session-cookie Authorization: Bearer bearer-secret https://user:password@example.test"]
+        ))
+        let snapshot = await recorder.snapshot()
+        XCTAssertEqual(snapshot.hostBuildID, Self.fixedCatalog.defaultBuildId)
+        XCTAssertEqual(snapshot.port, 43123)
+        XCTAssertEqual(snapshot.dshHome, "/tmp/diagnostic-home")
+        XCTAssertEqual(snapshot.ownedProcessID, 4321)
+        XCTAssertEqual(snapshot.ownership, "owned")
+        XCTAssertEqual(snapshot.lastSSEAt, sseTime)
+        XCTAssertEqual(snapshot.protocolFixtureRevision, "official-99f6f02-web-ui-r1")
+        XCTAssertEqual(snapshot.pluginCompatibility, "pinned-compatible")
+        let copy = snapshot.copyableText()
+        for required in ["hostBuild=", "port=", "dshHome=", "ownership=", "pid=", "lastSSEAt=", "lastRPCError=", "protocolFixtureRevision=", "pluginCompatibility=", "lifecycle="] {
+            XCTAssertTrue(copy.contains(required), "diagnostic copy must include \(required)")
+        }
+        for secret in ["top-secret", "session-cookie", "bearer-secret", "user:password"] {
+            XCTAssertFalse(copy.contains(secret), "diagnostic copy must redact \(secret)")
+        }
+        XCTAssertTrue(copy.contains("<redacted>"))
+    }
+}

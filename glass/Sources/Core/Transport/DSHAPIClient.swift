@@ -7,11 +7,18 @@ import Foundation
 /// request/response DTOs and never construct HTTP requests or wire envelopes.
 struct DSHAPIClient: Sendable {
     let transport: DSHClientTransport
+    private let diagnostics: HostDiagnosticRecorder
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
 
-    init(baseURL: URL, accessPolicy: HostRPCAccessPolicy, session: URLSession = .shared) {
+    init(
+        baseURL: URL,
+        accessPolicy: HostRPCAccessPolicy,
+        diagnostics: HostDiagnosticRecorder,
+        session: URLSession = .shared
+    ) {
         self.transport = DSHClientTransport(baseURL: baseURL, accessPolicy: accessPolicy, session: session)
+        self.diagnostics = diagnostics
     }
 
     func call<Request: Encodable, Response: Decodable>(
@@ -19,22 +26,27 @@ struct DSHAPIClient: Sendable {
         payload: Request,
         timeout: TimeInterval = 30
     ) async throws -> Response {
-        let payloadData = try encoder.encode(payload)
-        let wirePayload: JSONValue
         do {
-            wirePayload = try decoder.decode(JSONValue.self, from: payloadData)
-        } catch {
-            throw DSHTransportError.decoding("Could not encode \(method) payload: \(error.localizedDescription)")
-        }
-        let envelope = try await transport.call(method: method, payload: wirePayload, timeout: timeout)
-        switch envelope.result {
-        case let .success(value):
+            let payloadData = try encoder.encode(payload)
+            let wirePayload: JSONValue
             do {
-                return try decoder.decode(Response.self, from: encoder.encode(value))
+                wirePayload = try decoder.decode(JSONValue.self, from: payloadData)
             } catch {
-                throw DSHTransportError.decoding("Could not decode \(method) result: \(error.localizedDescription)")
+                throw DSHTransportError.decoding("Could not encode \(method) payload: \(error.localizedDescription)")
             }
-        case let .failure(error):
+            let envelope = try await transport.call(method: method, payload: wirePayload, timeout: timeout)
+            switch envelope.result {
+            case let .success(value):
+                do {
+                    return try decoder.decode(Response.self, from: encoder.encode(value))
+                } catch {
+                    throw DSHTransportError.decoding("Could not decode \(method) result: \(error.localizedDescription)")
+                }
+            case let .failure(error):
+                throw error
+            }
+        } catch {
+            await diagnostics.recordRPCError(error)
             throw error
         }
     }
@@ -153,7 +165,12 @@ struct DSHAPIClient: Sendable {
     /// Source: `rpc.ts:ClientResponse`; reply to an answerable mux ServerRequest
     /// by echoing its original rpcId to POST `/api/respond`.
     func respond(rpcID: String, result: RPCResult) async throws -> RPCReceipt {
-        try await transport.respond(RPCClientResponse(rpcId: rpcID, result: result))
+        do {
+            return try await transport.respond(RPCClientResponse(rpcId: rpcID, result: result))
+        } catch {
+            await diagnostics.recordRPCError(error)
+            throw error
+        }
     }
 }
 

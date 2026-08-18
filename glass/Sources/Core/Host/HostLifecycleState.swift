@@ -31,12 +31,17 @@ enum HostLifecycleState: Equatable, Sendable {
     }
 }
 
-struct HostConnection: Equatable, Sendable {
+struct HostConnection: Sendable, Equatable {
     let endpoint: URL
     let build: SupportedHostBuildCatalog.Build
     let startedAt: Date
+    let diagnostics: HostDiagnosticRecorder
 
     var buildID: String { build.id }
+
+    static func == (lhs: HostConnection, rhs: HostConnection) -> Bool {
+        lhs.endpoint == rhs.endpoint && lhs.build == rhs.build && lhs.startedAt == rhs.startedAt
+    }
 }
 
 struct HostUnverified: Equatable, Sendable {
