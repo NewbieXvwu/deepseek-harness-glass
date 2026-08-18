@@ -19,6 +19,13 @@ final class OfficialSidebarHostController: NSViewController {
 
     override func loadView() {
         let canvas = OfficialSidebarCanvasView()
+        canvas.wantsLayer = true
+        canvas.layer?.backgroundColor = NSColor(
+            red: 249 / 255,
+            green: 250 / 255,
+            blue: 251 / 255,
+            alpha: 1
+        ).cgColor
         let hostedView = hostingController.view
         hostedView.translatesAutoresizingMaskIntoConstraints = false
         canvas.addSubview(hostedView)
