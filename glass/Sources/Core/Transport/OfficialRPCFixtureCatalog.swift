@@ -22,7 +22,7 @@ enum OfficialRPCFixtureCatalog {
     }
 
     static func load() throws -> Fixture {
-        guard let url = Bundle.module.url(forResource: "official-host-rpc-fixtures", withExtension: "json") else {
+        guard let url = fixtureBundle.url(forResource: "official-host-rpc-fixtures", withExtension: "json") else {
             throw FixtureError.missingResource
         }
         let fixture = try JSONDecoder().decode(Fixture.self, from: Data(contentsOf: url))
@@ -32,6 +32,14 @@ enum OfficialRPCFixtureCatalog {
             throw FixtureError.incompatibleRevision
         }
         return fixture
+    }
+
+    private static var fixtureBundle: Bundle {
+#if SWIFT_PACKAGE
+        return .module
+#else
+        return .main
+#endif
     }
 
     enum FixtureError: LocalizedError {
