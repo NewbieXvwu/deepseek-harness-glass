@@ -56,3 +56,9 @@
 证据：macOS-26 [run 32178347783](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32178347783)，commit `ae35887`。该 run 在真实固定 payload 上通过两项无 UI `HarnessHostControllerTests`：已验证 rc.7 build 的启动/ready/reuse/stop（2.788 秒），以及人为不匹配 catalog 时 manifest/package metadata 返回 `unverified`、控制器不启动为 ready、默认仅准许 `host.describe` 而拒绝 `session.prompt`、开发者 override 才启用写入（0.002 秒）。所有 SwiftPM target 编译、Swiftc app 组装、snapshot 和官方 capture 均成功。
 
 人工检查 comparison 确认 T3.2 只更改 Core build verification state、显式 connection build metadata 和 transport access policy；没有 renderer、文案、asset 或布局变化。量化报告继续是既有 `report-only`：materially changed ratio `0.02958705`、mean absolute channel difference `2.787254`、exact changed ratio `0.30924386`。该条不是 welcome 像素完成声明；既有材质、composer 边缘和几何差异仍须由后续 UI TODO 同状态收敛。
+
+## 2026-08-19 — T3.3 lifecycle-state review
+
+证据：macOS-26 [run 32180108638](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32180108638)，commit `363b534`。`HarnessHostControllerTests` 在真实固定 rc.7 payload 上执行 3 项无 UI 测试并全通过（3.519 秒）：verified Host start/reuse/stop、unknown build write protection、以及 `idle → startingOwned → verifying → ready → stopping → idle` transition ledger/日志与官方 locale `Loading…`、`Failed to load`、`Retry` presentation。实现同时加入 explicit `probingExternal`，其 diagnostics-only `host.describe` 成功也保留 `unverified`，不能由 endpoint 是否存在推断 ready 或取得写权限。
+
+人工 comparison 检查确认本项仅改动生命周期模型、Core 日志与文案 projection；无 renderer、资产、布局或产品可见文案替换。量化报告仍为既有 `report-only`：materially changed ratio `0.02955357`、mean absolute channel difference `2.761307`、exact changed ratio `0.30867467`。这不构成 welcome 完成，既有材质、composer 与几何差异仍由后续 UI TODO 同状态关闭。

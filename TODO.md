@@ -185,9 +185,9 @@
   - 依赖：T0.2、T3.1。
   - 验收证据：`HarnessHostControllerTests.testUnknownBuildBecomesUnverifiedAndDefaultsToWriteProtection` 使用真实固定 payload 和故意不匹配 catalog，断言 unverified、无 ready PID、`session.prompt` 默认被拒绝且 override 才允许；`testOwnedHostStartsReusesAndStopsWithoutLeavingProcess` 继续验证真实 verified Host 可 ready。macOS-26 [run 32178347783](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32178347783)（commit `ae35887`）两项 Core test 全通过（2.790s）、完成全门禁、SwiftPM/Swiftc 编译、截图和官方配对；人工复核记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`，Core trust 改动未新增 renderer 回归，既有 welcome `report-only` 差异仍由后续 UI TODO 关闭。
 
-- [ ] **T3.3：定义显式生命周期状态。** 使用 `idle`、`probingExternal`、`startingOwned`、`verifying`、`ready`、`recovering`、`failed`、`stopping`，而非由 URL 是否为 `nil` 推断状态。
+- [x] **T3.3：定义显式生命周期状态。** `HostLifecycleState` 现显式覆盖 `idle`、`probingExternal`、`unverified`、`startingOwned`、`verifying`、`ready`、`recovering`、`failed`、`stopping`；announcement、termination 分类和 startup timeout 直接 pattern-match state，Core 中无 `state.endpoint == nil` 推断。`HarnessHostController` 集中发布有界 `HostLifecycleTransition` ledger 和日志；external probe 仅使用 diagnostics-only `host.describe`，不会授予 build authority。
   - 依赖：T3.1。
-  - 验收：状态转换有日志和单元测试；UI 可展示来自官方规格的启动、失败和重试文案。
+  - 验收证据：`HostLifecyclePresentation` 仅使用生成的官方 locale `locale.loading`、`locale.load.failed` 和 `locale.retry` 导出启动/失败/重试 UI 模型；`testLifecycleTransitionsAreLoggedAndPresentationUsesOfficialLocale` 以真实 rc.7 Host 验证完整 owned transition edge、日志和 locale presentation。macOS-26 [run 32180108638](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32180108638)（commit `363b534`）3 项 Core tests 全通过（3.519s），并完成全门禁、SwiftPM/Swiftc 编译、截图和官方配对；人工复核记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`，Core 生命周期改动未新增 renderer 回归，既有 welcome `report-only` 差异仍由后续 UI TODO 关闭。
 
 - [ ] **T3.4：重做诊断与日志。** 提供可复制的 Host build、端口、DSH_HOME、进程所有权、最后 SSE 时间、最后 RPC 错误、协议 fixture revision 和插件兼容状态；敏感凭据永不写入日志。
   - 依赖：T3.2、T3.3。
