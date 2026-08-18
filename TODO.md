@@ -63,7 +63,7 @@
   - 依赖：无。
   - 验收：CI 的静态规则可阻止 `glass/Sources/Core/**`、`glass/Sources/UI/**`、`glass/Sources/Features/**` 导入 `WebKit`。
 
-- [ ] **T0.2：确定产品支持边界。** 第一版仅支持一个固定的 DSH package/commit 与其捆绑 Node 运行时；不支持任意外部 `dsh web` 实例作为写入目标。
+- [x] **T0.2：确定产品支持边界。** 第一版仅支持一个固定的 DSH package/commit 与其捆绑 Node 运行时；不支持任意外部 `dsh web` 实例作为写入目标。
   - 依赖：T0.1。
   - 验收：`SupportedHostBuilds.json` 包含 package version、git commit、protocol fixture revision、Node version、最小 App version 和验证日期。
 
@@ -532,22 +532,22 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 |---|---|
 | 远端仓库 | `NewbieXvwu/deepseek-harness-glass` |
 | 分支 | `main` |
-| 最新HEAD | `9aaaaff84a6fba13bb6109e544bda0bd83df271b` — `docs: refresh TODO snapshot metadata` |
-| 上一个功能提交 | `9fe78655d5bf7578a033f4af1d8c6699756578be` — `feat: add host-driven native settings store` |
+| 最新HEAD | `d90b0913f1dc15f8ab903b35680941f1dc1d2418` — `docs(T0.2): record verified fixed Host baseline` |
+| 上一个功能提交 | `97cf0c8a42301b276f4a53602a0cf94d150474dd` — `feat(T0.2): pin verified rc.7 Host baseline and visual capture` |
 | 锁定官方来源 | `deepseek-ai/deepseek-harness@99f6f02fecdb7dff40c3fbc9470f5907c29f74ca` |
 | 目标平台 | macOS 26+、Xcode 26+、Apple Silicon、Swift 6 |
 | D1规格门禁 | 通过：91 text、77 layout、29 assets、10 visual scenes |
 | D0原生门禁 | 通过：核心UI无WebView、DOM脚本和CSS注入 |
-| 最新已完成CI | [run 32147888544](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32147888544)，HEAD `61574f0`，success |
-| 当前HEAD CI | 本次快照元数据提交刚刚推送，需由新会话查询其对应run；上一版完整TODO提交的 [run 32148563313](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32148563313) 当时为 `in_progress`，不可把它当作本HEAD的完成证据 |
+| 最新已完成CI | [run 32156374393](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32156374393)，HEAD `d90b091`，success；从锁定官方源码构建 WebUI、捕获官方/原生 GUI、验证 rc.7 payload 与支持矩阵并上传量化差异工件。 |
+| 当前HEAD CI | `d90b091` 的 [run 32156374393](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32156374393) 已 success；此 TODO 更新提交后仍须查询它自己的 run，不能以本行替代当前提交证据。 |
 | 当前主阶段 | 阶段4：原生Settings Root与插件兼容基础，尚未完成 |
-| 已勾选TODO条目 | T0.1、T1.3、T2.6、T7.3；其余条目保持未勾选 |
+| 已勾选TODO条目 | T0.1、T0.2、T1.3、T2.6、T7.3；其余条目保持未勾选 |
 
 ### B. 阶段状态矩阵
 
 | 阶段 | 状态 | 已完成事实 | 尚未完成或不可勾选的内容 |
 |---|---|---|---|
-| 0. 原则与边界 | 部分完成 | 项目宪章、D0/D1规则、README/README.zh/贡献指南的 D0–D5 边界、核心 WebKit 静态门禁已建立；T0.1 已闭环 | 支持矩阵的可验证日期、完整 D2–D5 产品行为与 Host 支持边界仍未形成验收闭环 |
+| 0. 原则与边界 | 部分完成 | 项目宪章、D0/D1规则、README/README.zh/贡献指南的 D0–D5 边界、核心 WebKit 静态门禁、唯一 rc.7/Node 24.19.0/官方 commit 支持矩阵及当前 CI 复验已建立；T0.1、T0.2 已闭环 | T0.3 的明确官方复刻判定层级、结构差异阈值与人工审阅准则，以及完整 D2–D5 产品行为仍未形成验收闭环 |
 | 1. 仓库与模块化基础 | 部分完成 | Host、Transport、Session、UI、Spec、Snapshot等源码职责已拆分；T1.3已勾选 | 运行时资产迁移清单、独立target/package结构、旧路径全量审计仍未完成 |
 | 2. 官方规格 | 部分完成 | `OfficialUISpec.swift`、official-ui-catalog、visual-scenes、D1校验和来源映射已存在；T2.6已勾选 | locale/token全量生成、布局solver完整夹具、全覆盖场景规格与辅助功能矩阵仍未完成 |
 | 3. Host生命周期 | 部分完成 | `HarnessHostController`、`HostBuildVerifier`、payload缓存和运行时启动路径已实现 | 未验证Host策略、完整诊断页、生命周期混沌测试、下载导出与全面恢复仍未完成 |
@@ -564,11 +564,12 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 
 ### C. TODO勾选的完整证据边界
 
-当前只允许以下四项保持勾选。任何新会话都不得为了“看起来更完整”额外勾选其他条目：
+当前只允许以下五项保持勾选。任何新会话都不得为了“看起来更完整”额外勾选其他条目：
 
 | 条目 | 状态 | 证据与边界 |
 |---|---|---|
 | T0.1 | `[x]` 完成 | `f0e3549` 写入双语 README 与 `CONTRIBUTING.md` 的 D0–D5、官方来源/截图协议、逐项 TODO 勾选纪律和 `PluginWebHost` 唯一例外边界；`.github/workflows/native-ui.yml` 已在这些文件变更时运行静态门禁。当前提交的 macOS-26 [run 32152858091](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32152858091) 成功，D0/D1、构建与原生截图工件均已复核。此勾选不代表 T0.2/T0.3 的支持矩阵或完整视觉策略已完成。 |
+| T0.2 | `[x]` 完成 | `SupportedHostBuilds.json` 明确锁定 `deepseek-ai/deepseek-harness@99f6f02fecdb7dff40c3fbc9470f5907c29f74ca`、`@deepseek-ai/dsh`/`dsh-web-frontend` `0.1.0-rc.7`、Node `24.19.0`、最小 App `0.4.0`、protocol/UI revision 与验证日期 `2026-08-18`；`check-supported-host-build.py` 将 catalog、Info.plist、精确 lockfile、实际 payload package.json 和 Node 版本绑定验证。`d90b091` 的 macOS-26 [run 32156374393](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32156374393) 成功，验证并打包该基线。原生 Host 仅从 app bundle 受控启动，未提供任意外部 `dsh web` 作为写入目标的连接路径。此勾选不代表完整 Host 生命周期、RPC 协议或 T0.3 视觉判定策略已完成。 |
 | T1.3 | `[x]` 完成 | `check-no-webview.sh` 通过；核心Swift路径不依赖WKWebView、DOM、JavaScript或CSS注入。此勾选不代表PluginWebHost例外已实现。 |
 | T2.6 | `[x]` 完成 | 已建立官方/原生同状态同视口配对、放大局部检查、差异记录、立即修复和CI截图存在性规则。此勾选不代表所有视觉场景都已人工验收。 |
 | T7.3 | `[x]` 完成 | workspace-search、workspace rename、session rename、workspace delete已接入官方场景契约和Host行操作；管理Dialog按钮端帽/描边/禁用色/输入全选已在run 32142821176配对核验。此勾选不代表全部sidebar功能完成。 |
@@ -579,7 +580,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 
 | 场景 | 当前证据状态 | 下一步 |
 |---|---|---|
-| `welcome-no-workspace-light` | CI存在性与原生fixture已建立 | 补全完整官方/原生人工差异闭环 |
+| `welcome-no-workspace-light` | run 32156374393 已从锁定官方源码捕获 1280×840 官方截图、原生截图和量化热图/对照图；当前存在可观察差异且已记录 | 按 T0.3 的阈值与人工审阅准则分类、修复并关闭差异，不得把工件存在性当作视觉通过 |
 | `conversation-details-light` | CI场景契约存在 | 补全RPC fixture、完整node和配对核验 |
 | `tooling-inspector-light` | CI场景契约存在 | 补全tool renderer与详情栏核验 |
 | `workspace-search-light` | 官方/原生配对已验收，WS-01–WS-07已关闭 | 继续纳入全场景回归 |
@@ -598,13 +599,10 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 
 新会话必须按以下顺序开始，不得跳到更下游页面：
 
-1. 阅读本TODO的项目宪章和本“当前进度”章节，确认仅T0.1、T1.3、T2.6、T7.3为已勾选项。
-2. 执行 `git status --short`、`git log -10 --oneline`、`python3 glass/ci/check-official-spec.py` 和 `bash glass/ci/check-no-webview.sh`。
-3. 阅读锁定官方的 `packages/client/ui-settings-general/src/client/SettingsRoot.tsx`、`SettingsRoot.module.css`、`packages/host/apiproxy/src/api/settings.ts`、`settings.schema.ts`。
-4. 将Settings侧栏入口连接到全窗口原生Settings Root；复刻800px面板、188px导航轨、54px header、24px圆角、24% mask、section顺序和关闭/焦点行为。
-5. 在同一fixture下捕获官方设置页面基线，再生成原生截图；任何可观察差异立即修复，随后加入visual-scenes和macOS-26门禁。
-6. 实现schema驱动NativeSchemaForm、secret configured/写入/清除、revision conflict、draft/dirty/discard和`settings.openDocument`，再推进General、Models/Credentials和内置插件设置卡片。
-7. 只有阶段4完整视觉与契约验收后，才进入窗口恢复、全场景审计和发布工作；不得以当前Settings DTO/Store基础勾选T10.x或T11.x。
+1. 阅读本TODO的项目宪章和本“当前进度”章节，确认仅T0.1、T0.2、T1.3、T2.6、T7.3为已勾选项。
+2. 执行 `git status --short`、`git log -10 --oneline`、`python3 glass/ci/check-official-spec.py`、`bash glass/ci/check-no-webview.sh` 和 `python3 glass/ci/check-supported-host-build.py --payload-dir glass/build/backend --node glass/build/node/node`（或等价 Node 24 路径）。
+3. 完成 T0.3：将官方/原生同状态对照的结构差异阈值、文本/布局/状态/交互严格项、系统材质例外、截图场景和人工审阅判定固化为版本化测试计划；先使 CI 报告能按阈值失败。
+4. 仅在 T0.3 通过当前提交 CI 后，才进入 T1.1；随后按 TODO 依赖顺序继续模块化、Host、RPC、窗口和界面任务，不得跳到 Settings 或以既有 DTO/Store 基础勾选下游条目。
 
 ### G. 当前验证命令与远端证据
 
