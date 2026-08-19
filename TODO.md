@@ -237,9 +237,9 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
   - 依赖：T1.2。
   - 验收证据：独立 `GlassAppTests/WindowCoordinatorTests` 在无 WindowServer 的 XCTest host 验证迁移几何、native style mask、toolbar policy、stable autosave/restoration key，以及 `visible → hidden/minimized → visible` close-to-menu-bar/reopen policy；避免以不可靠的 headless AppKit 显示替代真实应用组装。workflow 在 Host + transport smoke 后独立运行该 test target。macOS-26 [run 32215096026](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32215096026)（commit `126cd24`）通过该新窗口门、所有静态/module/transport gates、SwiftPM/Swiftc、真实 rc.7 Host smoke、app 组装、snapshot与官方 pairing；人工 contact sheet 复核已记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`。本项无 SwiftUI renderer 修改，welcome 仍明确为 `report-only`，不构成 UI 场景视觉完成。
 
-- [ ] **T5.2：实现 AppKit 三栏容器。** 使用 `NSSplitViewController` 或等价 AppKit 层，分别配置 sidebar、content、inspector；SwiftUI 只作为各列内部 View。
+- [x] **T5.2：实现 AppKit 三栏容器。** `NativeShellRootController` 将 `NativeShellController: NSSplitViewController` 与 modal overlay 作为 AppKit siblings；sidebar、conversation、details 三个 `NSSplitViewItem` 仅承载各自 SwiftUI 内容，divider 与 containment 不经 SwiftUI 模拟。`NativeSplitViewController` 以锁定 `OfficialColumnLayout` 应用官方 sidebar/center/details 解析，details 为 `.useConstraints` 可折叠列；实际 divider constraint 经 `NativeSplitLayoutPolicy` 统一，拖动后的受限 sidebar/details 宽度会写回 `NativeShellPresentation` preferences，故 Host/SwiftUI状态刷新和窗口重布局保留用户选择。自动窄窗口或手工收起时 sidebar 恒为官方 56px rail；details 若会侵蚀官方 640px center minimum 即折叠。
   - 依赖：T2.4、T5.1。
-  - 验收：官方列宽算法、拖动 divider、折叠详情栏、56px sidebar rail 和窄窗口策略均通过单元与 UI 测试。
+  - 验收证据：`NativeSplitLayoutPolicyTests` 覆盖锁定 1280px `280/640/360` 基线、sidebar 264–420 clamp、56px collapsed rail、details 300–520 clamp、divider的可用宽度限制与无法容纳 center minimum 时 details collapse；T2.4 的 30+ official `computeColumns` fixtures 继续在 `OfficialUISpecBuildTests` 全量比较。`GlassAppTests` 已在 workflow Host + transport smoke 后独立执行。macOS-26 [run 32216703475](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32216703475)（commit `304da29`）通过 split policy、全部静态/module/transport gates、SwiftPM/Swiftc、真实 rc.7 Host smoke、app 组装、snapshot和官方 pairing；人工 contact sheet 复核记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`。本项无 renderer 文案/asset/token变更，welcome仍明确为 `report-only`，不构成 UI 场景视觉完成。
 
 - [ ] **T5.3：让系统负责 sidebar/inspector 材质。** 禁止在这两个结构区域再加旧的 `NSVisualEffectView` 或一层全窗自定义模糊来“模拟”玻璃。
   - 依赖：T5.2。
