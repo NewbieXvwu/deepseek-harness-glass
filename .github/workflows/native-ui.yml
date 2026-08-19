@@ -220,6 +220,11 @@ jobs:
           cd glass
           swift test --filter GlassAppTests
 
+      - name: Run native snapshot compositor fallback tests
+        run: |
+          cd glass
+          swift test --filter SnapshotExporterTests
+
       - name: Run official RPC DTO fixture tests
         run: |
           cd glass

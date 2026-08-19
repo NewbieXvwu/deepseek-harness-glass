@@ -124,22 +124,35 @@ enum SnapshotExporter {
 
         // `cacheDisplay` cannot render WindowServer-owned materials. macOS 26
         // replaces the obsolete CGWindowList image APIs with this supported
-        // single-frame ScreenCaptureKit compositor path.
+        // single-frame ScreenCaptureKit compositor path. GitHub's headless
+        // runner can nevertheless return an all-black, non-error SDR frame
+        // when its WindowServer denies compositing. Such a frame is invalid
+        // evidence, so retain an explicit deterministic AppKit fallback for
+        // layout review rather than exporting a false black visual result.
         let configuration = SCScreenshotConfiguration()
         configuration.width = Int(size.width)
         configuration.height = Int(size.height)
         configuration.showsCursor = false
         configuration.ignoreShadows = true
         configuration.displayIntent = .local
-        let screenshot = try await SCScreenshotManager.captureScreenshot(
+        let compositorBitmap: NSBitmapImageRep? = if let screenshot = try? await SCScreenshotManager.captureScreenshot(
             rect: window.frame,
             configuration: configuration
-        )
-        guard let composited = screenshot.sdrImage else {
-            throw SnapshotError.cannotCreateBitmap
+        ), let composited = screenshot.sdrImage {
+            let candidate = NSBitmapImageRep(cgImage: composited)
+            candidate.size = size
+            hasVisibleSDRContent(candidate) ? candidate : nil
+        } else {
+            nil
         }
-        let bitmap = NSBitmapImageRep(cgImage: composited)
-        bitmap.size = size
+        let bitmap: NSBitmapImageRep
+        if let compositorBitmap {
+            bitmap = compositorBitmap
+            FileHandle.standardError.write(Data("snapshot capture: ScreenCaptureKit compositor frame accepted\n".utf8))
+        } else {
+            bitmap = try fallbackBitmap(from: window, size: size)
+            FileHandle.standardError.write(Data("snapshot capture: ScreenCaptureKit compositor frame unavailable or black; using deterministic AppKit fallback\n".utf8))
+        }
         guard let png = bitmap.representation(using: .png, properties: [:]) else {
             throw SnapshotError.cannotEncodePNG
         }
@@ -149,6 +162,53 @@ enum SnapshotExporter {
         try png.write(to: outputURL, options: .atomic)
         window.orderOut(nil)
         return true
+    }
+
+    @MainActor
+    private static func fallbackBitmap(from window: NSWindow, size: NSSize) throws -> NSBitmapImageRep {
+        guard let hostedView = window.contentView,
+              let bitmap = NSBitmapImageRep(
+                bitmapDataPlanes: nil,
+                pixelsWide: Int(size.width),
+                pixelsHigh: Int(size.height),
+                bitsPerSample: 8,
+                samplesPerPixel: 4,
+                hasAlpha: true,
+                isPlanar: false,
+                colorSpaceName: .deviceRGB,
+                bytesPerRow: 0,
+                bitsPerPixel: 0
+              )
+        else {
+            throw SnapshotError.cannotCreateBitmap
+        }
+        bitmap.size = size
+        hostedView.cacheDisplay(in: hostedView.bounds, to: bitmap)
+        return bitmap
+    }
+
+    /// The macOS 26 screenshot API can return an all-black CGImage without an
+    /// error when a noninteractive WindowServer doesn't grant compositing.
+    /// Do not treat that transport artifact as a native visual snapshot.
+    @MainActor
+    static func hasVisibleSDRContent(_ bitmap: NSBitmapImageRep) -> Bool {
+        guard let data = bitmap.bitmapData,
+              bitmap.bitsPerPixel >= 24,
+              bitmap.pixelsWide > 0,
+              bitmap.pixelsHigh > 0
+        else { return false }
+        let horizontalStep = max(1, bitmap.pixelsWide / 24)
+        let verticalStep = max(1, bitmap.pixelsHigh / 24)
+        let bytesPerPixel = bitmap.bitsPerPixel / 8
+        for y in stride(from: 0, to: bitmap.pixelsHigh, by: verticalStep) {
+            for x in stride(from: 0, to: bitmap.pixelsWide, by: horizontalStep) {
+                let offset = y * bitmap.bytesPerRow + x * bytesPerPixel
+                if data[offset] > 8 || data[offset + 1] > 8 || data[offset + 2] > 8 {
+                    return true
+                }
+            }
+        }
+        return false
     }
 
     /// A paired review may match an official browser's CSS viewport exactly.
