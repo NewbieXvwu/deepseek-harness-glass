@@ -18,11 +18,21 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
             onNewSession: {},
             onOpenSettings: {}
         )
+        _ = NSApplication.shared
         let host = NSHostingView(rootView: view)
-        host.frame = NSRect(x: 0, y: 0, width: 56, height: 840)
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 56, height: 840),
+            styleMask: [.titled],
+            backing: .buffered,
+            defer: false
+        )
+        window.contentView = host
+        window.makeKeyAndOrderFront(nil)
         host.layoutSubtreeIfNeeded()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.1))
 
         let labels = accessibilityLabels(in: host)
+        window.orderOut(nil)
         XCTAssertTrue(labels.contains(OfficialUISpec.Text.openSidebarAccessibility))
         XCTAssertTrue(labels.contains(OfficialUISpec.Text.newSessionAccessibility))
         XCTAssertTrue(labels.contains(OfficialUISpec.Text.settings))
