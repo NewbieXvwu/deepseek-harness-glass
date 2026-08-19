@@ -99,7 +99,14 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
             throw XCTSkip("The test process is not a trusted accessibility client; static core-path gate remains mandatory and this runtime tree assertion executes in trusted GUI test environments.")
         }
 
-        _ = NSApplication.shared
+        let app = NSApplication.shared
+        // A plain `swift test` process is a background agent, so AppKit never
+        // materialises real accessibility elements. The snapshot probe showed
+        // that adopting the regular activation policy is what makes AppKit
+        // surfaces real on the hosted runner.
+        if app.activationPolicy() != .regular {
+            app.setActivationPolicy(.regular)
+        }
         let host = NSHostingView(rootView: view)
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 900, height: 840),
