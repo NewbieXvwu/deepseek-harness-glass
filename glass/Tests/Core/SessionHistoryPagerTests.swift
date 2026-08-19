@@ -11,19 +11,19 @@ final class SessionHistoryPagerTests: XCTestCase {
             calls.append((sessionID, beforeSeq, maxMessages))
             switch calls.count {
             case 1:
-                return response([
-                    event(10, "context/replacement"),
-                    event(11, "assistant/message"),
+                return self.response([
+                    self.entry(10, "context/replacement"),
+                    self.entry(11, "assistant/message"),
                 ], hasMore: true)
             case 2:
-                return response([
-                    event(7, "user/message"),
-                    event(8, "compaction/summary"),
-                    event(9, "context/injection"),
+                return self.response([
+                    self.entry(7, "user/message"),
+                    self.entry(8, "compaction/summary"),
+                    self.entry(9, "context/injection"),
                 ], hasMore: false)
             default:
                 XCTFail("hasMore=false must stop repeat backward calls")
-                return response([], hasMore: false)
+                return self.response([], hasMore: false)
             }
         }
 
@@ -51,10 +51,10 @@ final class SessionHistoryPagerTests: XCTestCase {
         var requests = 0
         pager.bind(sessionID: "session") { _, beforeSeq, _ in
             requests += 1
-            if beforeSeq == nil { return response([event(10, "assistant/message")], hasMore: true) }
+            if beforeSeq == nil { return self.response([self.entry(10, "assistant/message")], hasMore: true) }
             // The official client refuses an older page whose tail is not
             // immediately before the current base seq; this would create a gap.
-            return response([event(7, "user/message"), event(8, "compaction/summary")], hasMore: true)
+            return self.response([self.entry(7, "user/message"), self.entry(8, "compaction/summary")], hasMore: true)
         }
 
         let loadedTail = await pager.loadTail()
@@ -76,8 +76,8 @@ final class SessionHistoryPagerTests: XCTestCase {
         var attempts = 0
         pager.bind(sessionID: "session") { _, _, _ in
             attempts += 1
-            if attempts == 1 { return response([event(4, "user/message"), event(4, "assistant/message")], hasMore: false) }
-            return response([event(4, "user/message"), event(5, "assistant/message")], hasMore: false)
+            if attempts == 1 { return self.response([self.entry(4, "user/message"), self.entry(4, "assistant/message")], hasMore: false) }
+            return self.response([self.entry(4, "user/message"), self.entry(5, "assistant/message")], hasMore: false)
         }
 
         let loadedDuplicateTail = await pager.loadTail()
@@ -92,7 +92,7 @@ final class SessionHistoryPagerTests: XCTestCase {
 
     func testLiveAcceptanceIsSequenceGuardedAfterTailLoad() async {
         let pager = SessionHistoryPager()
-        pager.bind(sessionID: "session") { _, _, _ in response([entry(20, "assistant/message")], hasMore: false) }
+        pager.bind(sessionID: "session") { _, _, _ in self.response([self.entry(20, "assistant/message")], hasMore: false) }
         let loadedTail = await pager.loadTail()
         XCTAssertTrue(loadedTail)
 
