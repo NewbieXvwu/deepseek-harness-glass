@@ -158,7 +158,8 @@ private struct InputMessageDefinition: ConversationNodeDefinition {
     }
 
     func update(context: ConversationNodeContext<CoreUserMessageNode>, match _: ConversationMatch) -> CoreUserMessageNode {
-        context.state ?? preconditionFailure("input-message update requires start")
+        guard let state = context.state else { preconditionFailure("input-message update requires start") }
+        return state
     }
 
     func buildViewNode(context: ConversationNodeContext<CoreUserMessageNode>) -> ConversationViewNode? {
