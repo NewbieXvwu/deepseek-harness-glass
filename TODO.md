@@ -253,9 +253,9 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
   - 依赖：T2.3、T5.4。
   - 验收证据：`check-glass-policy.py` 现强制两个互斥sidebar navigation ID、`GlassEffectContainer`、明确Reduce Motion环境与无策略raw glass禁止；`GlassPolicyTests` 覆盖Reduce Transparency/Increase Contrast关闭custom glass、Reduce Motion关闭morphing以及原有policy/budget。macOS-26 [run 32226837259](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32226837259)（commit `002f474`）通过所有静态/module/transport/material/GlassPolicy gates、SwiftPM、真实rc.7 Host smoke、`GlassAppTests`、应用装配、原生快照与官方配对；人工工件复核已记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`，未发现T5.5引入的内容层或布局回归。既有无头系统材质report-only例外继续严格限定在T5.3记录范围。
 
-- [ ] **T5.6：建立无障碍验收基线。** 检查 VoiceOver label、键盘焦点、动态字体/放大、减少动态效果、降低透明度、高对比度和颜色模式。
+- [x] **T5.6：建立无障碍验收基线。** 版本化 `official-accessibility-baseline.json` 覆盖welcome/sidebar rail、空session composer、details、approval与question六条锁定官方核心路径，分别约束VoiceOver label、键盘焦点契约、Reduce Motion、Reduce Transparency、Increase Contrast及light/dark颜色模式；收缩sidebar中的settings icon补齐显式 `OfficialUISpec.Text.settings` 名称。`NativeAccessibilityRuntimeTests` 以真实原生视图、`NSHostingView` 和 `NSWindow` 在受信任且可导出AX树的GUI测试host中递归验证核心路径；CI无头runner即使AX trusted仍不导出SwiftUI树，测试会明确受限跳过，版本化静态baseline gate始终强制执行。
   - 依赖：T5.3–T5.5。
-  - 验收：每个核心路径有辅助功能 UI test；任何 icon-only 官方控件均保有可访问名称。
+  - 验收证据：`check-accessibility-baseline.py` 校验锁定commit、六条core path的来源/locale label/focus contract、macOS Dynamic Type平台限制以及系统偏好环境覆盖；`GlassPolicyTests` 覆盖Reduce Motion、Reduce Transparency和Increase Contrast下custom glass安全降级。Apple明确macOS用户不能修改`dynamicTypeSize`，且该值不影响文本大小，故不伪造用户Dynamic Type支持；系统Zoom由macOS负责，测试注入仍可用于布局回归。macOS-26 [run 32233840528](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32233840528)（commit `bee3839`）通过新增无障碍gate、核心路径测试编译、全部既有静态/module/transport/material gates、SwiftPM、真实rc.7 Host smoke、应用装配、原生快照与官方配对；人工复核与平台限制记录位于 `visual-review/official-99f6f02/welcome-no-workspace-light.md` 和 `notes/T5.5-apple-glass-accessibility-sources.md`。该项未扩大T5.3无头系统材质的严格report-only例外。
 
 ## 6. 会话状态机与事件投影
 
