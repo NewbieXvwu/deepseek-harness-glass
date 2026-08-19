@@ -32,21 +32,20 @@ final class NativeSplitLayoutPolicyTests: XCTestCase {
     }
 
     func testDetailsDividerClampsToOfficialBoundsAndCollapsesWhenCenterCannotFit() {
-        let viewport: CGFloat = 1280
         let sidebar = OfficialUISpec.Layout.sidebarDefault
         XCTAssertEqual(
             NativeSplitLayoutPolicy.detailsDividerPosition(
-                proposed: 700,
-                viewport: viewport,
+                proposed: 800,
+                viewport: 1440,
                 sidebarWidth: sidebar
             ),
-            760,
-            "a drag requesting 580px details clamps to the official 520px maximum"
+            920,
+            "at a viewport that leaves 520px after sidebar plus official center minimum, a wider drag clamps to the 520px maximum"
         )
         XCTAssertEqual(
             NativeSplitLayoutPolicy.detailsDividerPosition(
                 proposed: 1050,
-                viewport: viewport,
+                viewport: 1280,
                 sidebarWidth: sidebar
             ),
             980,
