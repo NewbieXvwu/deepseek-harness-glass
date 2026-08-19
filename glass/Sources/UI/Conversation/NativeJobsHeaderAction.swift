@@ -77,6 +77,6 @@ struct NativeJobsHeaderAction: View {
         return value
     }
     private func statusColor(_ status: NativeSessionStore.BackgroundJob.Status) -> Color {
-        switch status { case .running: OfficialUISpec.Token.businessBlue; case .stopping, .killed: OfficialUISpec.Token.warningPrimary; case .completed: OfficialUISpec.Token.success; case .failed: OfficialUISpec.Token.error }
+        switch status { case .running: OfficialUISpec.Token.businessBlue; case .stopping, .killed: OfficialUISpec.Token.warningPrimary; case .completed: OfficialUISpec.Token.success; case .failed: OfficialUISpec.Token.errorPrimary }
     }
 }
