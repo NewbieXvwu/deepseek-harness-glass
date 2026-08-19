@@ -233,9 +233,9 @@
 
 Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 macOS 上，`NSSplitViewController` 的 sidebar 和 inspector 行为能提供相应的系统材质。Liquid Glass 属于导航/控制层，不应用于整个内容层。[9] [10] [11]
 
-- [ ] **T5.1：实现 `WindowCoordinator`。** 保留最小窗口尺寸、全尺寸内容、标题栏策略、窗口恢复和菜单栏重开逻辑；删除“网页透明化”作为窗口玻璃实现的前提。
+- [x] **T5.1：实现 `WindowCoordinator`。** `NativeWindowPolicy` 将迁移窗口职责收敛为 1280×840 初始 content size、880×600 content/min size、`.fullSizeContentView`、标准 `.unifiedCompact` AppKit titlebar、stable `NSWindow` autosave/restoration identifier；不再将透明网页窗口作为玻璃实现。首次安装恢复同名 native frame 或居中，red-close 先保存 frame 再 `orderOut`，`showAndFocus` 会 deminiaturize、聚焦且不创建第二个 shell；`DeepSeekHarnessGlassApp.applicationShouldHandleReopen` 将 Dock reopen 直送同一 coordinator。`windowDidMiniaturize`、`windowDidDeminiaturize`、`windowShouldClose` 映射到可审计 lifecycle，实际窗口管理仍完全由标准 NSWindow/AppKit 负责。
   - 依赖：T1.2。
-  - 验收：窗口可正常 resize、minimize、close-to-menu-bar 和 reopen；内容不会撞到 macOS 26 圆角或窗口控制。
+  - 验收证据：独立 `GlassAppTests/WindowCoordinatorTests` 在无 WindowServer 的 XCTest host 验证迁移几何、native style mask、toolbar policy、stable autosave/restoration key，以及 `visible → hidden/minimized → visible` close-to-menu-bar/reopen policy；避免以不可靠的 headless AppKit 显示替代真实应用组装。workflow 在 Host + transport smoke 后独立运行该 test target。macOS-26 [run 32215096026](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32215096026)（commit `126cd24`）通过该新窗口门、所有静态/module/transport gates、SwiftPM/Swiftc、真实 rc.7 Host smoke、app 组装、snapshot与官方 pairing；人工 contact sheet 复核已记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`。本项无 SwiftUI renderer 修改，welcome 仍明确为 `report-only`，不构成 UI 场景视觉完成。
 
 - [ ] **T5.2：实现 AppKit 三栏容器。** 使用 `NSSplitViewController` 或等价 AppKit 层，分别配置 sidebar、content、inspector；SwiftUI 只作为各列内部 View。
   - 依赖：T2.4、T5.1。
