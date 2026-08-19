@@ -151,6 +151,12 @@ jobs:
           swiftc -O /tmp/preflight.swift -o /tmp/preflight 2>&1 | tail -5 || true
           /tmp/preflight || echo "preflight binary FAILED rc=$?"
 
+      - name: J. Probe window capture variants
+        continue-on-error: true
+        run: |
+          swiftc -O -parse-as-library glass/ci/probe-window-capture.swift -o /tmp/probe 2>&1 | tail -20
+          /tmp/probe || echo "probe FAILED rc=$?"
+
       - name: I. Upload diagnostic artifacts
         if: always()
         uses: actions/upload-artifact@v4
