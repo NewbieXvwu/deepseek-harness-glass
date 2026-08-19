@@ -279,12 +279,12 @@ private struct AssistantStepDefinition: ConversationNodeDefinition {
         case "text-delta", "reasoning-delta":
             let previous = state.blocks[index]
             let text = (previous?.text ?? "") + (chunk.string(named: "text") ?? "")
-            state.blocks[index] = .init(kind: type == "text-delta" ? .text : .reasoning, text: text, callID: nil, name: nil, argumentsRaw: nil, raw: chunk)
+            state.blocks[index] = .init(kind: type == "text-delta" ? .text : .reasoning, text: text, callID: nil, name: nil, argumentsRaw: nil, raw: .object(chunk))
             markVisible(event: event, state: &state, token: true)
         case "tool-call-delta":
             let previous = state.blocks[index]
             let arguments = (previous?.argumentsRaw ?? "") + (chunk.string(named: "argumentsDelta") ?? "")
-            state.blocks[index] = .init(kind: .toolCall, text: nil, callID: previous?.callID ?? chunk.string(named: "id"), name: chunk.string(named: "name") ?? previous?.name, argumentsRaw: arguments, raw: chunk)
+            state.blocks[index] = .init(kind: .toolCall, text: nil, callID: previous?.callID ?? chunk.string(named: "id"), name: chunk.string(named: "name") ?? previous?.name, argumentsRaw: arguments, raw: .object(chunk))
             markVisible(event: event, state: &state, token: true)
         case "block-end":
             if let block = chunk.value(named: "block") { state.blocks[index] = block.asContentBlock }
@@ -366,7 +366,7 @@ private struct ToolDefinition: ConversationNodeDefinition {
         let message = data.object(named: "message")
         let result = message?.content(named: "content") ?? []
         let error = data.object(named: "error")
-        state.result = .init(seq: match.event.seq, time: match.event.time, content: result, isError: result.contains { $0.raw.object(named: "isError")?.boolValue == true } || error != nil, errorCode: error?.string(named: "code"), resultView: match.view?.for == "result" ? match.view?.view : nil)
+        state.result = .init(seq: match.event.seq, time: match.event.time, content: result, isError: result.contains { $0.raw.objectValue?["isError"]?.boolValue == true } || error != nil, errorCode: error?.string(named: "code"), resultView: match.view?.for == "result" ? match.view?.view : nil)
         return state
     }
 
