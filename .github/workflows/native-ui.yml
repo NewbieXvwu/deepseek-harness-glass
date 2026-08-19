@@ -82,8 +82,13 @@ jobs:
         id: node-runtime-cache
         uses: actions/cache@v5
         with:
-          path: glass/build/node
-          key: node-runtime-v${{ env.DSH_NODE_VERSION }}-darwin-arm64
+          path: |
+            glass/build/node
+            glass/build/node-runtime
+          # v2 caches the full distribution, including the matching corepack
+          # and npm launchers. A node-only cache silently fell back to the
+          # runner's unrelated corepack on cold official WebUI builds.
+          key: node-runtime-v2-${{ env.DSH_NODE_VERSION }}-darwin-arm64
 
       - name: Download bundled Node runtime
         if: steps.node-runtime-cache.outputs.cache-hit != 'true'
@@ -92,14 +97,19 @@ jobs:
           NODE_TARBALL="node-v${DSH_NODE_VERSION}-darwin-arm64.tar.gz"
           curl -fsSL "${NODE_DIST}/v${DSH_NODE_VERSION}/${NODE_TARBALL}" -o /tmp/node.tgz
           tar -xzf /tmp/node.tgz -C /tmp
+          rm -rf glass/build/node-runtime
+          mv "/tmp/node-v${DSH_NODE_VERSION}-darwin-arm64" glass/build/node-runtime
           mkdir -p glass/build/node
-          cp "/tmp/node-v${DSH_NODE_VERSION}-darwin-arm64/bin/node" glass/build/node/node
+          cp glass/build/node-runtime/bin/node glass/build/node/node
 
       - name: Activate bundled Node runtime
         run: |
-          chmod +x glass/build/node/node
+          chmod +x glass/build/node/node glass/build/node-runtime/bin/node
           test "$(glass/build/node/node --version)" = "v${DSH_NODE_VERSION}"
-          echo "NODE24_BIN=$GITHUB_WORKSPACE/glass/build/node" >> "$GITHUB_ENV"
+          test "$(glass/build/node-runtime/bin/node --version)" = "v${DSH_NODE_VERSION}"
+          test -x glass/build/node-runtime/bin/corepack
+          test -x glass/build/node-runtime/bin/npm
+          echo "NODE24_BIN=$GITHUB_WORKSPACE/glass/build/node-runtime/bin" >> "$GITHUB_ENV"
 
       # The official source is pinned to OFFICIAL_COMMIT, so its rendered
       # baseline is a pure function of that commit, the capture script, and
