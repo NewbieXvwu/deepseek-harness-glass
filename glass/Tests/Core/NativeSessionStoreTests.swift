@@ -99,6 +99,37 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.items.last?.text, "admitted steering")
     }
 
+    func testPendingApprovalAndQuestionClearOnlyOnMatchingHostResolution() {
+        let store = NativeSessionStore()
+        store.loadSnapshotToolingFixture()
+        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "approval-rpc", method: "approval/requested", payload: .object([
+            "type": .string("approval/requested"), "sessionId": .string("snapshot-tooling"), "approvalId": .string("approval-1"), "toolName": .string("bash"),
+        ])), sessionID: "snapshot-tooling")
+        XCTAssertEqual(store.pendingApproval?.rpcID, "approval-rpc")
+        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "wrong", method: "approval/resolved", payload: .object([
+            "type": .string("approval/resolved"), "sessionId": .string("snapshot-tooling"), "approvalId": .string("other"),
+        ])), sessionID: "snapshot-tooling")
+        XCTAssertNotNil(store.pendingApproval)
+        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "right", method: "approval/resolved", payload: .object([
+            "type": .string("approval/resolved"), "sessionId": .string("snapshot-tooling"), "approvalId": .string("approval-1"),
+        ])), sessionID: "snapshot-tooling")
+        XCTAssertNil(store.pendingApproval)
+
+        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "question-rpc", method: "question/requested", payload: .object([
+            "type": .string("question/requested"), "sessionId": .string("snapshot-tooling"),
+            "questions": .array([.object(["id": .string("q-1"), "question": .string("Proceed?")])]),
+        ])), sessionID: "snapshot-tooling")
+        XCTAssertEqual(store.pendingQuestion?.rpcID, "question-rpc")
+        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "wrong", method: "question/resolved", payload: .object([
+            "type": .string("question/resolved"), "sessionId": .string("snapshot-tooling"), "questionRpcId": .string("other"),
+        ])), sessionID: "snapshot-tooling")
+        XCTAssertNotNil(store.pendingQuestion)
+        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "right", method: "question/resolved", payload: .object([
+            "type": .string("question/resolved"), "sessionId": .string("snapshot-tooling"), "questionRpcId": .string("question-rpc"),
+        ])), sessionID: "snapshot-tooling")
+        XCTAssertNil(store.pendingQuestion)
+    }
+
     private func eventFrame(sessionID: String, seq: Int, messageID: String, text: String) -> RPCServerRequest {
         RPCServerRequest(
             type: "server-request",
