@@ -249,9 +249,9 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
   - 依赖：T5.2。
   - 验收证据：`check-glass-policy.py` 在CI拒绝GlassUI任何未通过 `approvedGlassEffect(policy:in:)` 声明的原始 `.glassEffect`，并拒绝未经实现审查的custom policy；`GlassPolicyTests` 覆盖内容/系统导航禁止custom glass、仅批准类别可用、system navigation material ownership和单控件预算。macOS-26 [run 32225877836](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32225877836)（commit `7ebaefd`）通过新增policy gate、全部既有静态/module/transport/material gates、SwiftPM、真实rc.7 Host smoke、`GlassAppTests`、`SnapshotExporterTests`、应用组装、原生快照和官方配对；人工审阅及报告已记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`，未发现T5.4引入的可观察内容层或布局回归。欢迎页既有无头系统材质`report-only`例外仍严格受T5.3记录约束，绝不扩展为其他视觉差异豁免。
 
-- [ ] **T5.5：实现有限的自定义 glass controls。** 仅用于官方已有的悬浮操作、模型选择或关键确认控制；使用 `GlassEffectContainer` 管理相邻形变元素，并应用官方间距和形状。
+- [x] **T5.5：实现有限的自定义 glass controls。** 仅将既有、互斥的官方sidebar打开/收起导航操作置入 `GlassEffectContainer`，共用稳定 `glassEffectID` 管理形变；保持官方图标、尺寸、间距和accessible label，绝不向正文、composer、list row、modal或系统sidebar/inspector添加glass。`NativeGlassNavigationButtonStyle` 仅在批准的 `.regularGlassCustomControl` 下使用交互式效果，单场景预算仍为一个。
   - 依赖：T2.3、T5.4。
-  - 验收：使用 `prefersReducedMotion`、Reduce Transparency、Increase Contrast 时可读且无令人不适的强制动画。[10]
+  - 验收证据：`check-glass-policy.py` 现强制两个互斥sidebar navigation ID、`GlassEffectContainer`、明确Reduce Motion环境与无策略raw glass禁止；`GlassPolicyTests` 覆盖Reduce Transparency/Increase Contrast关闭custom glass、Reduce Motion关闭morphing以及原有policy/budget。macOS-26 [run 32226837259](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32226837259)（commit `002f474`）通过所有静态/module/transport/material/GlassPolicy gates、SwiftPM、真实rc.7 Host smoke、`GlassAppTests`、应用装配、原生快照与官方配对；人工工件复核已记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`，未发现T5.5引入的内容层或布局回归。既有无头系统材质report-only例外继续严格限定在T5.3记录范围。
 
 - [ ] **T5.6：建立无障碍验收基线。** 检查 VoiceOver label、键盘焦点、动态字体/放大、减少动态效果、降低透明度、高对比度和颜色模式。
   - 依赖：T5.3–T5.5。
