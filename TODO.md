@@ -193,9 +193,9 @@
   - 依赖：T3.2、T3.3。
   - 验收证据：`testDiagnosticsAreCopyableCompleteAndRedacted` 覆盖全部必填字段及 API key/cookie/Bearer/URL credential/secret 全部不泄露；macOS-26 [run 32181832902](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32181832902)（commit `e93273a`）4 项 Core tests 全通过（4.392s），完成全门禁、SwiftPM/Swiftc 编译、截图和官方配对。人工复核记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`，diagnostics-only 改动未新增 renderer 回归，既有 welcome `report-only` 差异仍由后续 UI TODO 关闭。
 
-- [ ] **T3.5：实现下载与导出替代路径。** 对 session log export 和其他 Host 下载使用 `URLSessionDownloadTask`，在原生下载目录策略中保留同名冲突处理。
+- [x] **T3.5：实现下载与导出替代路径。** `SessionLogExporter` 通过 `URLSessionDownloadTask` 调用锁定 `DownloadsApi.sessionLog` 的 host-only GET `api/session.export`；下载 completion 在返回前将短生命周期临时文件原子移入受控 `.partial` staging，随后在用户 Downloads/DeepSeek Harness（无 Downloads directory 时 Documents、再无则 temporary）采用 Content-Disposition 安全文件名和 ` (2)` 递增冲突策略落盘。`DownloadsAPI.exportSessionLog` 只向 Feature 暴露 typed export；UI 层 `NativeSessionLogExportOpener` 仅对已落盘 `SessionLogExport` 调用 AppKit workspace 打开。unverified diagnostic-only Host 不能生成会物化本地文件的 download URL，保持 T3.2 信任边界。
   - 依赖：T3.1、T4.4。
-  - 验收：不需要 WebKit delegate 即可下载和打开导出文件。
+  - 验收证据：`SessionLogExporterTests` 以 URLProtocol 运行真实 `URLSessionDownloadTask`，覆盖官方 attachment GET、UTF-8 Content-Disposition name、同名 ` (2)`、staging-file 生命周期、404、取消分类的基础 URLSession path、活动挂起 download task 的最终 cancellation（精确映射为 `DSHTransportError.cancelled`），以及 unverified Host 的 URL 拒绝。macOS-26 [run 32208063025](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32208063025)（commit `0d57ee4`）通过初始完整 source/module/native-only/transport gates、SwiftPM/Swiftc 编译、native export/Core tests、app 组装、snapshot 和官方配对；最终 cancellation regression 由 macOS-26 [run 32208551395](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32208551395)（commit `cad9cea`）成功验证，且该当前成功工件已完成人工 visual-review。证据与分类均记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`。T3.5 无 renderer 改动，welcome 既有差异继续明确为 `report-only`，不构成 UI 场景视觉完成。
 
 - [ ] **T3.6：Host + transport 冒烟门。** 第一个可演示里程碑应只显示原生诊断页，但能够启动 Host、创建/选择 session、执行只读 RPC、订阅 SSE 并重新连接。
   - 依赖：T3.1–T3.4、T4.1–T4.5。
