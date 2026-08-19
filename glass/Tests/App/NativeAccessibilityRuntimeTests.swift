@@ -1,4 +1,5 @@
 import AppKit
+import ApplicationServices
 import SwiftUI
 import XCTest
 
@@ -8,7 +9,10 @@ import XCTest
 
 @MainActor
 final class NativeAccessibilityRuntimeTests: XCTestCase {
-    func testCollapsedSidebarExportsAccessibleNamesForVisibleIconControls() {
+    func testCollapsedSidebarExportsAccessibleNamesForVisibleIconControls() throws {
+        guard AXIsProcessTrusted() else {
+            throw XCTSkip("The macOS-26 CI runner is not a trusted accessibility client; static core-path gate remains mandatory and this runtime tree test executes in trusted UI-test environments.")
+        }
         let view = NativeSidebarView(
             workspaceStore: NativeWorkspaceStore(),
             collapsed: true,
