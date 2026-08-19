@@ -95,7 +95,7 @@ struct NativeGlassNavigationButtonStyle: ButtonStyle {
             .overlay {
                 Circle().strokeBorder(OfficialUISpec.Token.primaryForeground.opacity(0.72), lineWidth: 0.8)
             }
-            .glassEffect(.regular, in: .circle)
+            .approvedGlassEffect(.regularGlassCustomControl, in: Circle())
             .opacity(configuration.isPressed ? 0.82 : 1)
     }
 }
