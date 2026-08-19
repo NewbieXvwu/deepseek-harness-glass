@@ -110,6 +110,11 @@ jobs:
           test "$(glass/build/node-runtime/bin/node --version)" = "v${DSH_NODE_VERSION}"
           test -x glass/build/node-runtime/bin/corepack
           test -x glass/build/node-runtime/bin/npm
+          # Upstream root scripts invoke `pnpm` again through nested npm run
+          # calls. Enable the corepack shims alongside this exact Node runtime
+          # so nested invocations cannot fall back to a runner-global tool.
+          glass/build/node-runtime/bin/corepack enable --install-directory "$GITHUB_WORKSPACE/glass/build/node-runtime/bin"
+          test -x glass/build/node-runtime/bin/pnpm
           echo "NODE24_BIN=$GITHUB_WORKSPACE/glass/build/node-runtime/bin" >> "$GITHUB_ENV"
 
       # The official source is pinned to OFFICIAL_COMMIT, so its rendered
