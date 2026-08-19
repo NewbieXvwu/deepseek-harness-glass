@@ -63,6 +63,11 @@ final class NativeShellPresentation: ObservableObject {
     /// and the official Host SSE stream, never from a web surface.
     func connectVerifiedHost(_ connection: HostConnection) {
         guard observedEndpoint != connection.endpoint else { return }
+        // Preserve the user-selected session across an owned Host restart. The
+        // new port means all old HTTP/WebSocket carriers are invalid; reopen()
+        // creates only fresh typed facades and uses the Host's official
+        // read-only cold-resume path before observing the new mux endpoint.
+        let selectedSessionID = sessionStore.selectedSessionID
         workspaceStore.stopObservingHostEvents()
         let apis = HarnessAPIs(
             baseURL: connection.endpoint,
@@ -73,6 +78,9 @@ final class NativeShellPresentation: ObservableObject {
         observedEndpoint = connection.endpoint
         workspaceStore.refresh(using: apis)
         workspaceStore.observeHostEvents(at: connection.endpoint, using: apis, diagnostics: connection.diagnostics)
+        if let selectedSessionID {
+            sessionStore.open(sessionID: selectedSessionID, using: apis.sessions, endpoint: connection.endpoint)
+        }
     }
 
     func disconnectHost() {

@@ -105,6 +105,11 @@ final class HarnessHostTransportSmokeTests: XCTestCase {
             recoveredSessions.items.contains { $0.sessionId == created.sessionId },
             "DSH_HOME-owned session must survive the Host process restart"
         )
+        // `events.mux` emits subscribed baselines only for attached sessions.
+        // A restarted Host starts with persisted sessions cold, and the locked
+        // `agentFor` resolver documented for session.models is the official
+        // read-only path that composes and reattaches the selected session.
+        _ = try await recoveredAPIs.sessions.models(sessionID: created.sessionId)
         let recoveredSubscriber = SSEClient(baseURL: recovered.endpoint)
         let recoveredSubscribed = try await awaitSubscription(
             from: recoveredSubscriber,

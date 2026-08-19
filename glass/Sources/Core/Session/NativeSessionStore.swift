@@ -133,6 +133,10 @@ final class NativeSessionStore: ObservableObject {
     private var activeSessionID: String?
     private var appliedSequences: Set<Int> = []
 
+    /// The shell uses this only to replay an existing selection against a new
+    /// verified endpoint after Host recovery; the Host remains session truth.
+    var selectedSessionID: String? { activeSessionID }
+
     deinit {
         historyTask?.cancel()
         olderHistoryTask?.cancel()
@@ -172,6 +176,12 @@ final class NativeSessionStore: ObservableObject {
 
         historyTask = Task { [weak self] in
             do {
+                // The locked Host's `agentFor` resolver is the official
+                // read-only cold-resume path. After a Host restart, models()
+                // reattaches a persisted selected session before mux opens;
+                // history() alone intentionally serves detached logs.
+                _ = try await api.models(sessionID: sessionID)
+                guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
                 let response = try await api.history(sessionID: sessionID)
                 guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
                 self?.applyHistory(response.events)
