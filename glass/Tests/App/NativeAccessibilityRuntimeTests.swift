@@ -28,10 +28,10 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         XCTAssertTrue(labels.contains(OfficialUISpec.Text.settings))
     }
 
-    private func accessibilityLabels(in element: any NSAccessibility) -> [String] {
+    private func accessibilityLabels(in element: NSAccessibility) -> [String] {
         let ownLabel = element.accessibilityLabel().map { [$0] } ?? []
         let childLabels = (element.accessibilityChildren() ?? []).flatMap { child -> [String] in
-            guard let child = child as? any NSAccessibility else { return [] }
+            guard let child = child as? NSAccessibility else { return [] }
             return accessibilityLabels(in: child)
         }
         return ownLabel + childLabels
