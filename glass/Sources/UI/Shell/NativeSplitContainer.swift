@@ -238,7 +238,15 @@ final class NativeShellController: NativeSplitViewController {
             sidebarPreference: presentation.sidebarPreference,
             detailsPreference: presentation.detailsPreference,
             sidebarCollapsed: presentation.manuallyCollapsed,
-            detailsVisible: presentation.detailsVisible && presentation.mode != .welcome
+            detailsVisible: presentation.detailsVisible && presentation.mode != .welcome,
+            sidebarPreferenceChanged: { width in
+                guard abs(presentation.sidebarPreference - width) > 0.5 else { return }
+                presentation.sidebarPreference = width
+            },
+            detailsPreferenceChanged: { width in
+                guard abs(presentation.detailsPreference - width) > 0.5 else { return }
+                presentation.detailsPreference = width
+            }
         )
         presentationObservation = presentation.objectWillChange.sink { [weak self] _ in
             DispatchQueue.main.async { self?.renderPresentation() }
@@ -328,6 +336,28 @@ final class NativeShellController: NativeSplitViewController {
     }
 }
 
+/// Shared divider policy used by the production `NSSplitViewController` and
+/// deterministic T5.2 regression tests. It mirrors the official columns
+/// constraints rather than relying on AppKit's implicit proportional resize.
+struct NativeSplitLayoutPolicy {
+    static func sidebarDividerPosition(proposed: CGFloat, collapsed: Bool) -> CGFloat {
+        if collapsed { return OfficialUISpec.Layout.sidebarCollapsed }
+        return min(max(proposed, OfficialUISpec.Layout.sidebarMinimum), OfficialUISpec.Layout.sidebarMaximum)
+    }
+
+    static func detailsDividerPosition(
+        proposed: CGFloat,
+        viewport: CGFloat,
+        sidebarWidth: CGFloat
+    ) -> CGFloat {
+        let detailsWidth = viewport - proposed
+        let constrained = min(max(detailsWidth, OfficialUISpec.Layout.detailsMinimum), OfficialUISpec.Layout.detailsMaximum)
+        let availableDetails = viewport - sidebarWidth - OfficialUISpec.Layout.centerMinimum
+        guard availableDetails >= OfficialUISpec.Layout.detailsMinimum else { return viewport }
+        return viewport - min(constrained, availableDetails)
+    }
+}
+
 /// AppKit owns resize dividers and child-controller containment. SwiftUI is
 /// confined to the official-spec content surfaces inside the three panes.
 @MainActor
@@ -338,6 +368,8 @@ class NativeSplitViewController: NSSplitViewController {
     private let sidebarItem: NSSplitViewItem
     private let conversationItem: NSSplitViewItem
     private let detailsItem: NSSplitViewItem
+    private let sidebarPreferenceChanged: (CGFloat) -> Void
+    private let detailsPreferenceChanged: (CGFloat) -> Void
 
     private var sidebarPreference: CGFloat
     private var detailsPreference: CGFloat
@@ -352,7 +384,9 @@ class NativeSplitViewController: NSSplitViewController {
         sidebarPreference: CGFloat,
         detailsPreference: CGFloat,
         sidebarCollapsed: Bool,
-        detailsVisible: Bool
+        detailsVisible: Bool,
+        sidebarPreferenceChanged: @escaping (CGFloat) -> Void,
+        detailsPreferenceChanged: @escaping (CGFloat) -> Void
     ) {
         sidebarHost = OfficialSidebarHostController(rootView: sidebar)
         conversationHost = NSHostingController(rootView: conversation)
@@ -362,6 +396,8 @@ class NativeSplitViewController: NSSplitViewController {
         detailsItem = NSSplitViewItem(viewController: detailsHost)
         self.sidebarPreference = sidebarPreference
         self.detailsPreference = detailsPreference
+        self.sidebarPreferenceChanged = sidebarPreferenceChanged
+        self.detailsPreferenceChanged = detailsPreferenceChanged
         renderedSidebarCollapsed = sidebarCollapsed
         self.detailsVisible = detailsVisible
         super.init(nibName: nil, bundle: nil)
@@ -435,15 +471,28 @@ class NativeSplitViewController: NSSplitViewController {
     ) -> CGFloat {
         switch dividerIndex {
         case 0:
-            if renderedSidebarCollapsed { return OfficialUISpec.Layout.sidebarCollapsed }
-            return min(max(proposedPosition, OfficialUISpec.Layout.sidebarMinimum), OfficialUISpec.Layout.sidebarMaximum)
+            let constrained = NativeSplitLayoutPolicy.sidebarDividerPosition(
+                proposed: proposedPosition,
+                collapsed: renderedSidebarCollapsed
+            )
+            if !renderedSidebarCollapsed, abs(constrained - sidebarPreference) > 0.5 {
+                sidebarPreference = constrained
+                sidebarPreferenceChanged(constrained)
+            }
+            return constrained
         case 1:
-            let detailsWidth = splitView.bounds.width - proposedPosition
-            let constrained = min(max(detailsWidth, OfficialUISpec.Layout.detailsMinimum), OfficialUISpec.Layout.detailsMaximum)
             let sidebarWidth = renderedSidebarCollapsed ? OfficialUISpec.Layout.sidebarCollapsed : sidebarPreference
-            let availableDetails = splitView.bounds.width - sidebarWidth - OfficialUISpec.Layout.centerMinimum
-            guard availableDetails >= OfficialUISpec.Layout.detailsMinimum else { return splitView.bounds.width }
-            return splitView.bounds.width - min(constrained, availableDetails)
+            let constrained = NativeSplitLayoutPolicy.detailsDividerPosition(
+                proposed: proposedPosition,
+                viewport: splitView.bounds.width,
+                sidebarWidth: sidebarWidth
+            )
+            let detailsWidth = splitView.bounds.width - constrained
+            if detailsWidth > 0, abs(detailsWidth - detailsPreference) > 0.5 {
+                detailsPreference = detailsWidth
+                detailsPreferenceChanged(detailsWidth)
+            }
+            return constrained
         default:
             return proposedPosition
         }

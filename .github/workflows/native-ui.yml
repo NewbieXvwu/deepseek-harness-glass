@@ -215,7 +215,7 @@ jobs:
       - name: Run native window lifecycle tests
         run: |
           cd glass
-          swift test --filter WindowCoordinatorTests
+          swift test --filter GlassAppTests
 
       - name: Run official RPC DTO fixture tests
         run: |
