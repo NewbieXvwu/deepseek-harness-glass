@@ -28,6 +28,7 @@ enum SnapshotExporter {
         case viewportClamped(requested: NSSize, actual: NSSize, display: NSSize)
         case compositorUnavailable
         case blackFrame
+        case titlebarInsetUnavailable
 
         var errorDescription: String? {
             switch self {
@@ -46,6 +47,8 @@ enum SnapshotExporter {
                 return "ScreenCaptureKit could not capture the snapshot window."
             case .blackFrame:
                 return "The compositor returned an all-black frame."
+            case .titlebarInsetUnavailable:
+                return "Could not determine the titlebar safe-area inset to crop."
             }
         }
     }
@@ -144,8 +147,22 @@ enum SnapshotExporter {
         // the window collapsed to 1x1 and every capture sampled a degenerate
         // window. Setting contentView.frame alone does not resize the window;
         // the window itself must be sized after the controller is installed.
+        // The official WebUI baseline has no titlebar, but a `.titled` window
+        // insets its content by the titlebar safe area: measured against the
+        // baseline, top-anchored elements sat 40px low while bottom-anchored
+        // ones stayed put. That is a shorter usable height, not a translation,
+        // so cropping alone would misplace bottom-anchored content.
+        //
+        // Instead grow the window by the inset so the safe area measures
+        // exactly the requested viewport, then crop the titlebar band off the
+        // capture. Both top- and bottom-anchored content then match, and the
+        // exported PNG is still exactly `size`.
         window.setContentSize(size)
-        window.contentView?.frame = NSRect(origin: .zero, size: size)
+        window.contentView?.layoutSubtreeIfNeeded()
+        let titlebarInset = window.contentView?.safeAreaInsets.top ?? 0
+        let captureSize = NSSize(width: size.width, height: size.height + titlebarInset)
+        window.setContentSize(captureSize)
+        window.contentView?.frame = NSRect(origin: .zero, size: captureSize)
         // Place the window explicitly; `center()` would re-apply the visible
         // frame constraint this window deliberately opts out of.
         if let screen = NSScreen.main {
@@ -162,9 +179,10 @@ enum SnapshotExporter {
         // so the capture was a two-column shell compared against a
         // three-column baseline. Refuse to export a mislaid viewport.
         let actualContentSize = window.contentRect(forFrameRect: window.frame).size
-        if abs(actualContentSize.width - size.width) > 1 || abs(actualContentSize.height - size.height) > 1 {
+        if abs(actualContentSize.width - captureSize.width) > 1
+            || abs(actualContentSize.height - captureSize.height) > 1 {
             throw SnapshotError.viewportClamped(
-                requested: size,
+                requested: captureSize,
                 actual: actualContentSize,
                 display: NSScreen.main?.frame.size ?? .zero
             )
@@ -181,8 +199,8 @@ enum SnapshotExporter {
         // materials (sidebar and inspector bands both >99% non-black), so a
         // black frame here means a real defect rather than a platform limit.
         let configuration = SCScreenshotConfiguration()
-        configuration.width = Int(size.width)
-        configuration.height = Int(size.height)
+        configuration.width = Int(captureSize.width)
+        configuration.height = Int(captureSize.height)
         configuration.showsCursor = false
         configuration.ignoreShadows = true
         configuration.displayIntent = .local
@@ -200,7 +218,7 @@ enum SnapshotExporter {
             configuration: configuration
            ), let composited = screenshot.sdrImage {
             let candidate = NSBitmapImageRep(cgImage: composited)
-            candidate.size = size
+            candidate.size = captureSize
             compositorBitmap = hasVisibleSDRContent(candidate) ? candidate : nil
         } else {
             compositorBitmap = nil
@@ -214,7 +232,7 @@ enum SnapshotExporter {
         if let compositorBitmap {
             bitmap = compositorBitmap
             FileHandle.standardError.write(Data("snapshot capture: current-process ScreenCaptureKit compositor frame accepted\n".utf8))
-        } else if let systemBitmap = systemWindowBitmap(windowID: CGWindowID(window.windowNumber), size: size) {
+        } else if let systemBitmap = systemWindowBitmap(windowID: CGWindowID(window.windowNumber), size: captureSize) {
             bitmap = systemBitmap
             FileHandle.standardError.write(Data("snapshot capture: system screencapture window compositor frame accepted\n".utf8))
         } else if shareableWindow == nil {
@@ -222,7 +240,8 @@ enum SnapshotExporter {
         } else {
             throw SnapshotError.blackFrame
         }
-        guard let png = bitmap.representation(using: .png, properties: [:]) else {
+        let exported = try cropTitlebar(from: bitmap, inset: titlebarInset, outputSize: size)
+        guard let png = exported.representation(using: .png, properties: [:]) else {
             throw SnapshotError.cannotEncodePNG
         }
 
@@ -231,6 +250,35 @@ enum SnapshotExporter {
         try png.write(to: outputURL, options: .atomic)
         window.orderOut(nil)
         return true
+    }
+
+    /// Removes the titlebar band so the exported frame matches the official
+    /// WebUI baseline, which has no titlebar. The window was grown by exactly
+    /// this inset beforehand, so the remaining pixels are the requested
+    /// viewport with its layout anchored the same way as the baseline.
+    @MainActor
+    private static func cropTitlebar(
+        from bitmap: NSBitmapImageRep,
+        inset: CGFloat,
+        outputSize: NSSize
+    ) throws -> NSBitmapImageRep {
+        guard inset > 0 else { return bitmap }
+        guard let source = bitmap.cgImage else { throw SnapshotError.titlebarInsetUnavailable }
+        // Work in pixels: a Retina capture has more pixels than points.
+        let scale = CGFloat(source.height) / (outputSize.height + inset)
+        let insetPixels = (inset * scale).rounded()
+        let cropped = CGRect(
+            x: 0,
+            y: insetPixels,
+            width: CGFloat(source.width),
+            height: CGFloat(source.height) - insetPixels
+        )
+        guard let image = source.cropping(to: cropped) else {
+            throw SnapshotError.titlebarInsetUnavailable
+        }
+        let result = NSBitmapImageRep(cgImage: image)
+        result.size = outputSize
+        return result
     }
 
     /// Uses macOS's own window screenshot service only for the CI review
