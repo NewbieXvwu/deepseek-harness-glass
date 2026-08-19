@@ -171,7 +171,7 @@ final class ConversationCoreNodesTests: XCTestCase {
             publications.append(reducer.append(.init(event: entry)))
             chatKindsAfterAppend.append(reducer.snapshot(target: "chat").map(\.kind))
         }
-        XCTAssertEqual(publications, [.none, .none, .immediate, .animationFrame, .animationFrame, .immediate, .immediate, .immediate, .none])
+        XCTAssertEqual(publications, [.immediate, .none, .immediate, .animationFrame, .animationFrame, .immediate, .immediate, .immediate, .none])
         XCTAssertEqual(chatKindsAfterAppend, [
             [],
             [],
