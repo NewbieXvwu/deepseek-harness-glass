@@ -13,7 +13,6 @@ final class WindowCoordinatorTests: XCTestCase {
         XCTAssertTrue(NativeWindowPolicy.styleMask.contains(.resizable))
         XCTAssertTrue(NativeWindowPolicy.styleMask.contains(.fullSizeContentView))
         XCTAssertEqual(NativeWindowPolicy.toolbarStyle, .unifiedCompact)
-        XCTAssertEqual(NativeWindowPolicy.titlebarSeparatorStyle, .none)
     }
 
     func testRestorationNamesAreStableAndNativeScoped() {

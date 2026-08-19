@@ -18,7 +18,6 @@ enum NativeWindowPolicy {
     static let restorationIdentifier = NSUserInterfaceItemIdentifier("DeepSeekHarnessGlass.MainWindow")
     static let styleMask: NSWindow.StyleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
     static let toolbarStyle: NSWindow.ToolbarStyle = .unifiedCompact
-    static let titlebarSeparatorStyle: NSWindow.TitlebarSeparatorStyle = .none
 
     static func makeWindow() -> NSWindow {
         let window = NSWindow(
@@ -31,7 +30,6 @@ enum NativeWindowPolicy {
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.toolbarStyle = toolbarStyle
-        window.titlebarSeparatorStyle = titlebarSeparatorStyle
         window.contentMinSize = minimumContentSize
         window.minSize = minimumContentSize
         window.isRestorable = true
