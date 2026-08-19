@@ -129,6 +129,40 @@ final class ConversationNodeTests: XCTestCase {
         XCTAssertEqual(resolvedStep.step, 2)
     }
 
+    func testReducerResolvesEngineOwnedTurnAndStepLocationDuringWindowReplay() {
+        let reducer = ConversationNodeReducer(definitions: [.init(LocationFixtureDefinition())])
+        let entries = [
+            ConversationEventInput(event: event(seq: 1, type: "turn/start", data: ["turn": .number(3)])),
+            ConversationEventInput(event: event(seq: 2, type: "step/start", data: ["turn": .number(3), "step": .number(2)])),
+            ConversationEventInput(event: event(seq: 3, type: "fixture/location", data: ["turn": .number(3), "step": .number(2)])),
+            ConversationEventInput(event: event(seq: 4, type: "step/end", data: ["turn": .number(3), "step": .number(2)])),
+            ConversationEventInput(event: event(seq: 5, type: "turn/end", data: ["turn": .number(3)])),
+        ]
+
+        XCTAssertEqual(reducer.replaceWindow(entries, hasMore: false), .immediate)
+        guard let state = reducer.snapshot(target: "chat").first?.data as? LocationFixtureDefinition.State else {
+            return XCTFail("location fixture must materialize a typed chat node")
+        }
+        XCTAssertEqual(state.turn, 3)
+        XCTAssertEqual(state.step, 2)
+        XCTAssertEqual(state.turnStatus, "closed")
+        XCTAssertEqual(state.stepStatus, "closed")
+        XCTAssertEqual(reducer.rawWindow().map(\.event.seq), [1, 2, 3, 4, 5])
+    }
+
+    func testReducerReturnsGreatestPublicationAcrossDefinitionsForOneEvent() {
+        let reducer = ConversationNodeReducer(definitions: [
+            .init(PublicationFixtureDefinition(kind: "fixture-frame", target: "chat", publication: .animationFrame)),
+            .init(PublicationFixtureDefinition(kind: "fixture-immediate", target: "inspector", publication: .immediate)),
+        ])
+        let input = ConversationEventInput(event: event(seq: 40, type: "fixture/publication"))
+
+        XCTAssertEqual(reducer.append(input), .immediate)
+        XCTAssertEqual(reducer.snapshot(target: "chat").count, 1)
+        XCTAssertEqual(reducer.snapshot(target: "inspector").count, 1)
+        XCTAssertEqual(reducer.rawWindow().map(\.event.seq), [40])
+    }
+
     private func event(seq: Int, type: String, data: [String: JSONValue] = [:]) -> SessionEventDTO {
         SessionEventDTO(
             type: type,
@@ -180,6 +214,86 @@ final class ConversationNodeTests: XCTestCase {
         func buildViewNode(context: ConversationNodeContext<State>) -> ConversationViewNode? {
             guard let state = context.state else { return nil }
             return .init(key: context.key, kind: context.kind, id: context.id, target: "chat", data: state)
+        }
+    }
+
+    private struct LocationFixtureDefinition: ConversationNodeDefinition {
+        struct State: Equatable {
+            let turn: Int
+            let step: Int
+            let turnStatus: String
+            let stepStatus: String
+        }
+
+        let kind = "fixture-location"
+        let target: String? = "chat"
+
+        func match(_ event: SessionEventDTO) -> ConversationMatchResult? {
+            event.type == "fixture/location" ? .init(id: "location", role: .start) : nil
+        }
+
+        func start(
+            context _: ConversationNodeContext<State>,
+            match: ConversationMatch,
+            reader _: any ConversationContextReader
+        ) -> State {
+            guard case let .step(turn, step) = match.location else {
+                preconditionFailure("fixture/location requires an engine-owned step location")
+            }
+            return .init(
+                turn: turn.turn,
+                step: step.step,
+                turnStatus: turn.status.rawValue,
+                stepStatus: step.status.rawValue
+            )
+        }
+
+        func update(context: ConversationNodeContext<State>, match _: ConversationMatch) -> State {
+            guard let state = context.state else { preconditionFailure("location update requires state") }
+            return state
+        }
+
+        func buildViewNode(context: ConversationNodeContext<State>) -> ConversationViewNode? {
+            guard let state = context.state else { return nil }
+            return .init(key: context.key, kind: context.kind, id: context.id, target: "chat", data: state)
+        }
+    }
+
+    private struct PublicationFixtureDefinition: ConversationNodeDefinition {
+        struct State: Equatable { let seq: Int }
+
+        let kind: String
+        let target: String?
+        let publicationValue: ConversationPublication
+
+        init(kind: String, target: String, publication: ConversationPublication) {
+            self.kind = kind
+            self.target = target
+            self.publicationValue = publication
+        }
+
+        func match(_ event: SessionEventDTO) -> ConversationMatchResult? {
+            event.type == "fixture/publication" ? .init(id: "publication", role: .start) : nil
+        }
+
+        func start(
+            context _: ConversationNodeContext<State>,
+            match: ConversationMatch,
+            reader _: any ConversationContextReader
+        ) -> State {
+            .init(seq: match.event.seq)
+        }
+
+        func update(context: ConversationNodeContext<State>, match _: ConversationMatch) -> State {
+            guard let state = context.state else { preconditionFailure("publication update requires state") }
+            return state
+        }
+
+        func publication(for _: ConversationMatch) -> ConversationPublication { publicationValue }
+
+        func buildViewNode(context: ConversationNodeContext<State>) -> ConversationViewNode? {
+            guard let state = context.state, let target else { return nil }
+            return .init(key: context.key, kind: context.kind, id: context.id, target: target, data: state)
         }
     }
 }
