@@ -135,15 +135,16 @@ enum SnapshotExporter {
         configuration.showsCursor = false
         configuration.ignoreShadows = true
         configuration.displayIntent = .local
-        let compositorBitmap: NSBitmapImageRep? = if let screenshot = try? await SCScreenshotManager.captureScreenshot(
+        let compositorBitmap: NSBitmapImageRep?
+        if let screenshot = try? await SCScreenshotManager.captureScreenshot(
             rect: window.frame,
             configuration: configuration
         ), let composited = screenshot.sdrImage {
             let candidate = NSBitmapImageRep(cgImage: composited)
             candidate.size = size
-            hasVisibleSDRContent(candidate) ? candidate : nil
+            compositorBitmap = hasVisibleSDRContent(candidate) ? candidate : nil
         } else {
-            nil
+            compositorBitmap = nil
         }
         let bitmap: NSBitmapImageRep
         if let compositorBitmap {
