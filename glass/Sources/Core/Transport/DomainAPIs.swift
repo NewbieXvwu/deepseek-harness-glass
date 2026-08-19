@@ -183,6 +183,14 @@ struct DownloadsAPI: Sendable {
     func sessionLogURL(sessionID: String, includeDescendants: Bool = true) async throws -> URL {
         try await client.transport.downloadURL(sessionID: sessionID, includeDescendants: includeDescendants)
     }
+
+    func exportSessionLog(
+        sessionID: String,
+        includeDescendants: Bool = true,
+        exporter: SessionLogExporter
+    ) async throws -> SessionLogExport {
+        try await exporter.export(sessionID: sessionID, includeDescendants: includeDescendants, downloads: self)
+    }
 }
 
 struct HostAPI: Sendable {

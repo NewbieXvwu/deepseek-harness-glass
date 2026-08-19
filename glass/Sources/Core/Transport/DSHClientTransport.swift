@@ -146,7 +146,12 @@ actor DSHClientTransport {
         }
     }
 
+    /// The attachment is read-only on the Host but materializes a native file,
+    /// so it remains unavailable to an unverified diagnostic-only endpoint.
     func downloadURL(sessionID: String, includeDescendants: Bool = true) throws -> URL {
+        guard accessPolicy.trust.permitsWrites else {
+            throw DSHTransportError.unverifiedHostBuild(accessPolicy.trust.diagnosticSummary)
+        }
         guard var components = URLComponents(url: baseURL.appendingPathComponent("api/session.export"), resolvingAgainstBaseURL: false) else {
             throw DSHTransportError.invalidEndpoint
         }
