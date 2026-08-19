@@ -33,9 +33,9 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
 
         let labels = accessibilityLabels(in: host)
         window.orderOut(nil)
-        XCTAssertTrue(labels.contains(OfficialUISpec.Text.openSidebarAccessibility))
-        XCTAssertTrue(labels.contains(OfficialUISpec.Text.newSessionAccessibility))
-        XCTAssertTrue(labels.contains(OfficialUISpec.Text.settings))
+        XCTAssertTrue(labels.contains(OfficialUISpec.Text.openSidebarAccessibility), "exported labels: \(labels)")
+        XCTAssertTrue(labels.contains(OfficialUISpec.Text.newSessionAccessibility), "exported labels: \(labels)")
+        XCTAssertTrue(labels.contains(OfficialUISpec.Text.settings), "exported labels: \(labels)")
     }
 
     private func accessibilityLabels(in element: any NSAccessibilityProtocol) -> [String] {
