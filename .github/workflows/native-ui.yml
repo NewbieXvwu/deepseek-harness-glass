@@ -151,21 +151,18 @@ jobs:
           swiftc -O /tmp/preflight.swift -o /tmp/preflight 2>&1 | tail -5 || true
           /tmp/preflight || echo "preflight binary FAILED rc=$?"
 
-      - name: J. Probe window capture variants
+      - name: J. Set display mode then re-probe window capture
         continue-on-error: true
         run: |
-          swiftc -O -parse-as-library glass/ci/probe-window-capture.swift -o /tmp/probe 2>&1 | tail -20
-          /tmp/probe || echo "probe FAILED rc=$?"
-
-      - name: K. Can the runner display be enlarged past 1280
-        continue-on-error: true
-        run: |
-          echo "--- current modes ---"
-          /usr/libexec/PlistBuddy -c print /dev/stdin <<< "$(system_profiler -xml SPDisplaysDataType 2>/dev/null)" 2>/dev/null | grep -i -m5 resolution || true
-          system_profiler SPDisplaysDataType 2>&1 | sed -n '1,40p'
-          echo "--- install displayplacer ---"
-          brew install displayplacer >/dev/null 2>&1 || echo "brew install failed"
-          displayplacer list 2>&1 | sed -n '1,60p' || echo "displayplacer unavailable"
+          brew install displayplacer >/dev/null 2>&1 || true
+          ID=$(displayplacer list | awk '/Persistent screen id:/{print $4; exit}')
+          echo "display id=$ID"
+          displayplacer "id:$ID res:1920x1080 hz:60 color_depth:7 enabled:true scaling:off origin:(0,0) degree:0" || echo "set mode FAILED"
+          sleep 3
+          echo "--- mode after change ---"
+          displayplacer list | grep -m1 "res:.*current mode" || true
+          swiftc -O -parse-as-library glass/ci/probe-window-capture.swift -o /tmp/probe 2>&1 | tail -5
+          /tmp/probe || echo "probe rc=$?"
 
       - name: I. Upload diagnostic artifacts
         if: always()
