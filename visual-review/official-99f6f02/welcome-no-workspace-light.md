@@ -150,3 +150,9 @@ T3.5 cancellation addendum：macOS-26 [run 32208551395](https://github.com/Newbi
 证据：macOS-26 [run 32226837259](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32226837259)，commit `002f4743ffb4bb0c3a511d71896506dddc6cb419`，工件 `native-ui-002f4743ffb4bb0c3a511d71896506dddc6cb419` 的官方 PNG、`welcome-light.png`、comparison、amplified diff 与报告 JSON。该run通过完整静态/module/transport/material/GlassPolicy gates、SwiftPM、真实rc.7 Host smoke、`GlassAppTests`（新增Reduce Transparency、Increase Contrast、Reduce Motion policy regression）、应用装配、快照与官方配对。
 
 人工检查对照确认：仅互斥的官方sidebar打开/收起导航操作置于 `GlassEffectContainer`，共用稳定 `glassEffectID`，保持既有官方尺寸、图标和accessibility label；不新增第二个同时存在的custom glass控件，正文、composer、list row、modal和系统sidebar/inspector结构材质均未被覆盖。Reduce Transparency或Increase Contrast会使批准glass效果降级为清晰的官方图标按钮，Reduce Motion会去除sidebar形变及pressed动画。欢迎页文本与三栏布局未出现T5.5可归因回归。报告仍为T5.3已限定的无头系统材质 `report-only`：materially changed ratio `0.03569754`、mean absolute channel difference `6.06478`、exact changed ratio `0.50733445`，不构成welcome像素验收通过。
+
+## 2026-08-19 — T5.6 accessibility-baseline implementation review (in progress)
+
+证据：macOS-26 [run 32228392619](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32228392619)，commit `a18dc20a05a3b19052f471d83c2dee614d8b5480`，通过新增 `check-accessibility-baseline.py`、全部既有静态/module/transport/material/GlassPolicy gates、SwiftPM、真实rc.7 Host smoke、应用装配、原生截图和官方配对。版本化清单覆盖 welcome、空session composer、details、approval、question及窄sidebar rail六条官方核心路径，核验锁定locale名称、焦点契约与Reduce Motion/Reduce Transparency/Increase Contrast/颜色模式环境标记；sidebar收缩状态下的settings icon现在具有显式 `OfficialUISpec.Text.settings` VoiceOver名称。
+
+人工查看官方/原生comparison确认：上述可访问性源代码和清单变更没有改变可见文本、三栏主锚点、wordmark、New Session、空态、hero、chooser/mode行或composer布局。报告继续为T5.3严格限定的无头系统材质 `report-only`，materially changed ratio `0.03574870`、mean absolute channel difference `6.160483`、exact changed ratio `0.50733445`。本条为正在实现中的证据，**尚不勾选T5.6**：还需为清单中的每条核心路径补齐运行时原生辅助功能UI测试，才能满足该TODO的完整验收。
