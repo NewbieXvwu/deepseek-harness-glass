@@ -101,6 +101,11 @@ struct DSHAPIClient: Sendable {
         try await call("session.cancel", payload: SessionCancelRequest(sessionId: sessionID))
     }
 
+    /// Source: `sessions.schema.ts:sessionModelsRequestSchema`.
+    func sessionModels(sessionID: String) async throws -> SessionModelsResponse {
+        try await call("session.models", payload: SessionModelsRequest(sessionId: sessionID))
+    }
+
     /// Source: `sessions.schema.ts:sessionCreateRequestSchema`.
     func sessionCreate(workspaceID: String? = nil) async throws -> SessionCreateResponse {
         try await call("session.create", payload: SessionCreateRequest(workspaceId: workspaceID))
@@ -229,6 +234,53 @@ struct SessionEventDTO: Decodable, Sendable, Identifiable {
 struct ToolEventViewDTO: Decodable, Sendable {
     let `for`: String
     let view: JSONValue
+}
+
+/// Source: `sessions.schema.ts:sessionModelsRequestSchema`.
+struct SessionModelsRequest: Codable, Sendable { let sessionId: String }
+
+/// Source: `sessions.schema.ts:sessionModelsValueSchema`.
+struct SessionModelsResponse: Decodable, Sendable {
+    let current: SessionModelSelectionDTO
+    let routable: Bool
+    let groups: [SessionModelProviderGroupDTO]
+    let failures: [SessionModelCatalogFailureDTO]
+}
+
+struct SessionModelSelectionDTO: Codable, Sendable {
+    let provider: String
+    let model: String
+    let reasoningEffort: String?
+}
+
+struct SessionModelReasoningEffortDTO: Codable, Sendable {
+    let id: String
+    let name: String
+    let description: String?
+}
+
+struct SessionModelReasoningDTO: Codable, Sendable {
+    let efforts: [SessionModelReasoningEffortDTO]
+    let defaultEffort: String?
+}
+
+struct SessionModelCatalogDTO: Codable, Sendable, Identifiable {
+    let id: String
+    let name: String
+    let description: String?
+    let reasoning: SessionModelReasoningDTO?
+}
+
+struct SessionModelProviderGroupDTO: Codable, Sendable, Identifiable {
+    let id: String
+    let name: String
+    let models: [SessionModelCatalogDTO]
+}
+
+struct SessionModelCatalogFailureDTO: Codable, Sendable, Identifiable {
+    let id: String
+    let name: String
+    let message: String
 }
 
 /// Source: `sessions.schema.ts:sessionPromptRequestSchema`.

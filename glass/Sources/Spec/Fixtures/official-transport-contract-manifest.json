@@ -1,0 +1,281 @@
+{
+  "schemaVersion": 1,
+  "officialSourceCommit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca",
+  "contractRevision": "official-99f6f02-transport-contract-r1",
+  "generation": "locked official apiproxy schema contract manifest",
+  "contracts": [
+    {
+      "id": "session.history",
+      "kind": "rpc",
+      "source": "packages/host/apiproxy/src/api/sessions.schema.ts",
+      "symbols": [
+        "sessionHistoryRequestSchema",
+        "sessionHistoryValueSchema"
+      ],
+      "requestFields": [
+        "sessionId",
+        "beforeSeq?",
+        "maxMessages?"
+      ],
+      "valueFields": [
+        "events",
+        "hasMore",
+        "projections?"
+      ],
+      "enums": [],
+      "sourceSHA256": "sha256:d2759645cd79226359e4f4da88b35ecb75956c1b7772fa4e983021e91efee372",
+      "contractSignatureSHA256": "sha256:e845f497c673635a947715d1f83a04d22b27a7c9d22c93b3c63c7791bf6a37d4"
+    },
+    {
+      "id": "session.prompt",
+      "kind": "rpc",
+      "source": "packages/host/apiproxy/src/api/sessions.schema.ts",
+      "symbols": [
+        "sessionPromptRequestSchema",
+        "sessionPromptValueSchema"
+      ],
+      "requestFields": [
+        "sessionId",
+        "mode",
+        "content",
+        "clientTimeZone?"
+      ],
+      "valueFields": [
+        "accepted",
+        "command?"
+      ],
+      "enums": [
+        "mode:queue",
+        "mode:steer",
+        "content.type:text",
+        "content.type:image"
+      ],
+      "sourceSHA256": "sha256:d2759645cd79226359e4f4da88b35ecb75956c1b7772fa4e983021e91efee372",
+      "contractSignatureSHA256": "sha256:353629edcf401176ed2dffee75e538012d373772e26e78943dccbd7104c70321"
+    },
+    {
+      "id": "session.cancel",
+      "kind": "rpc",
+      "source": "packages/host/apiproxy/src/api/sessions.schema.ts",
+      "symbols": [
+        "sessionCancelRequestSchema",
+        "sessionCancelValueSchema"
+      ],
+      "requestFields": [
+        "sessionId"
+      ],
+      "valueFields": [
+        "accepted"
+      ],
+      "enums": [],
+      "sourceSHA256": "sha256:d2759645cd79226359e4f4da88b35ecb75956c1b7772fa4e983021e91efee372",
+      "contractSignatureSHA256": "sha256:ce1a82ad565723e9d23e4fd016a7c34d3db8182feef643c567ba87fa70555cfa"
+    },
+    {
+      "id": "session.models",
+      "kind": "rpc",
+      "source": "packages/host/apiproxy/src/api/sessions.schema.ts",
+      "symbols": [
+        "sessionModelsRequestSchema",
+        "sessionModelsValueSchema"
+      ],
+      "requestFields": [
+        "sessionId"
+      ],
+      "valueFields": [
+        "current",
+        "routable",
+        "groups",
+        "failures"
+      ],
+      "enums": [],
+      "sourceSHA256": "sha256:d2759645cd79226359e4f4da88b35ecb75956c1b7772fa4e983021e91efee372",
+      "contractSignatureSHA256": "sha256:9cfbc2e6a99999d10daaa7a59a25748e43802a62512551d6bc672e23c7fccabc"
+    },
+    {
+      "id": "settings.describe",
+      "kind": "rpc",
+      "source": "packages/host/apiproxy/src/api/settings.schema.ts",
+      "symbols": [
+        "settingsDescribeRequestSchema",
+        "settingsDescribeValueSchema"
+      ],
+      "requestFields": [],
+      "valueFields": [
+        "writable",
+        "hasDocument",
+        "namespaces"
+      ],
+      "enums": [],
+      "sourceSHA256": "sha256:32950e0e0026c696d977b3600cd950a4614b0f1d2bbbd2478f347d7c0f29cb64",
+      "contractSignatureSHA256": "sha256:a80edecd313f909ddb29556f0280f55279ba66e1d4474012b385eb11ffe9906c"
+    },
+    {
+      "id": "settings.mutate",
+      "kind": "rpc",
+      "source": "packages/host/apiproxy/src/api/settings.schema.ts",
+      "symbols": [
+        "settingsMutateRequestSchema",
+        "settingsMutateValueSchema"
+      ],
+      "requestFields": [
+        "ns",
+        "ops",
+        "expectedRevision?"
+      ],
+      "valueFields": [
+        "ns",
+        "schema",
+        "value",
+        "base?",
+        "user?",
+        "applies",
+        "secrets",
+        "revision"
+      ],
+      "enums": [
+        "ops.op:set",
+        "ops.op:unset",
+        "applies:live",
+        "applies:restart"
+      ],
+      "sourceSHA256": "sha256:32950e0e0026c696d977b3600cd950a4614b0f1d2bbbd2478f347d7c0f29cb64",
+      "contractSignatureSHA256": "sha256:4629be271aa4d441328bf5d7a3fab1ad87304152a602ad19dd6f2734d2b4ab71"
+    },
+    {
+      "id": "credentials.set",
+      "kind": "rpc",
+      "source": "packages/host/apiproxy/src/api/credentials.schema.ts",
+      "symbols": [
+        "credentialsSetRequestSchema",
+        "credentialsSetValueSchema"
+      ],
+      "requestFields": [
+        "ref",
+        "value"
+      ],
+      "valueFields": [],
+      "enums": [],
+      "sourceSHA256": "sha256:ead70aedafdba3f515abe8a34398cef221b6ea99950396f44681c625083e4c17",
+      "contractSignatureSHA256": "sha256:5fb26bac964f194af3d8e5450caedd4b96a8efa34a51faf071087608a19f49ad"
+    },
+    {
+      "id": "llm.providers",
+      "kind": "rpc",
+      "source": "packages/host/apiproxy/src/api/llm.schema.ts",
+      "symbols": [
+        "llmProvidersRequestSchema",
+        "llmProvidersValueSchema"
+      ],
+      "requestFields": [],
+      "valueFields": [
+        "providers"
+      ],
+      "enums": [],
+      "sourceSHA256": "sha256:54cbed4003c2b1cbd24ab43bc8fac05f839f468c53bb751bd1cc1d9b80f8e4d4",
+      "contractSignatureSHA256": "sha256:e87a79887d9e965f2a4ff3a85d7f6a1db2fdf77f8031959688fcfc17092503e2"
+    },
+    {
+      "id": "sse.mux",
+      "kind": "sse",
+      "source": "packages/host/apiproxy/src/api/events.schema.ts",
+      "symbols": [
+        "muxFrameSchema"
+      ],
+      "requestFields": [
+        "server-request.rpcId",
+        "server-request.method",
+        "server-request.payload"
+      ],
+      "valueFields": [],
+      "enums": [
+        "session/event",
+        "session/subscribed",
+        "approval/requested",
+        "approval/resolved",
+        "question/requested",
+        "question/resolved",
+        "session/queue",
+        "session/jobs",
+        "session/projection",
+        "stream/error"
+      ],
+      "sourceSHA256": "sha256:3a032bb8e0668974ade12028db0a7b44305fc0da1ddb2b02eb2fb50b6382dc2f",
+      "contractSignatureSHA256": "sha256:9d938a8b96eaf4bbde14c997547d504b3def2868b2d8c03310a00965ac31fc69"
+    },
+    {
+      "id": "sse.host",
+      "kind": "sse",
+      "source": "packages/host/apiproxy/src/api/events.schema.ts",
+      "symbols": [
+        "hostFrameSchema"
+      ],
+      "requestFields": [
+        "server-request.rpcId",
+        "server-request.method",
+        "server-request.payload"
+      ],
+      "valueFields": [],
+      "enums": [
+        "host/session-added",
+        "host/session-removed",
+        "host/session-status",
+        "host/agent-error",
+        "host/workspace-changed",
+        "host/workspace-removed",
+        "host/workspace-order-changed",
+        "host/archived-sessions-changed",
+        "host/remote-event",
+        "stream/error"
+      ],
+      "sourceSHA256": "sha256:3a032bb8e0668974ade12028db0a7b44305fc0da1ddb2b02eb2fb50b6382dc2f",
+      "contractSignatureSHA256": "sha256:70f56c7ccdef6424481a9c2e554da8bf6b3c7f1931403ab63cdc45c12cd2e312"
+    },
+    {
+      "id": "rpc.business-error",
+      "kind": "rpc-error",
+      "source": "packages/host/apiproxy/src/api/rpc.schema.ts",
+      "symbols": [
+        "rpcErrorSchema",
+        "serverResponseSchema"
+      ],
+      "requestFields": [
+        "code",
+        "message",
+        "details"
+      ],
+      "valueFields": [],
+      "enums": [
+        "bad-request",
+        "cancelled",
+        "session-not-found",
+        "settings-conflict",
+        "credential-rejected",
+        "internal"
+      ],
+      "sourceSHA256": "sha256:436ef87a2a951ae592adf812e3a03642adcdf1255aa2aff6830cf269754c85ea",
+      "contractSignatureSHA256": "sha256:ee1e8ed1e86940f920de639020d3a0980ed7e69f6f08287a1087b54ef1d73704"
+    },
+    {
+      "id": "rpc.revision-conflict",
+      "kind": "rpc-error",
+      "source": "packages/host/apiproxy/src/api/rpc.schema.ts",
+      "symbols": [
+        "rpcErrorSchema"
+      ],
+      "requestFields": [
+        "code",
+        "message",
+        "details.ns",
+        "details.expected",
+        "details.actual"
+      ],
+      "valueFields": [],
+      "enums": [
+        "settings-conflict"
+      ],
+      "sourceSHA256": "sha256:436ef87a2a951ae592adf812e3a03642adcdf1255aa2aff6830cf269754c85ea",
+      "contractSignatureSHA256": "sha256:40e7569d026ca799ed941877aa5b6a9e885a7a2066b3e067a525894668dbd578"
+    }
+  ]
+}

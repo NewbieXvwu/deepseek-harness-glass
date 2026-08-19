@@ -59,6 +59,7 @@ struct SessionsAPI: Sendable {
         try await client.sessionPrompt(sessionID: sessionID, content: content, mode: mode)
     }
     func cancel(sessionID: String) async throws -> SessionCancelResponse { try await client.sessionCancel(sessionID: sessionID) }
+    func models(sessionID: String) async throws -> SessionModelsResponse { try await client.sessionModels(sessionID: sessionID) }
     func rename(sessionID: String, title: String) async throws -> SessionRenameResponse { try await client.sessionRename(sessionID: sessionID, title: title) }
     func fork(sessionID: String, atSeq: Int? = nil) async throws -> SessionForkResponse { try await client.sessionFork(sessionID: sessionID, atSeq: atSeq) }
 

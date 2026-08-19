@@ -181,6 +181,11 @@ jobs:
           python3 glass/ci/check-official-rpc-dto-manifest.py \
             --official-root .reference/deepseek-harness
 
+      - name: Validate official transport contract baseline
+        run: |
+          python3 glass/ci/check-official-transport-contract.py \
+            --official-root .reference/deepseek-harness
+
       - name: Independently compile declared SwiftPM targets
         run: |
           cd glass
@@ -213,6 +218,11 @@ jobs:
         run: |
           cd glass
           swift test --filter SSEClientTests
+
+      - name: Run transport contract regression fixtures
+        run: |
+          cd glass
+          swift test --filter TransportContractRegressionTests
 
       - name: Validate official UI specification provenance
         run: ./glass/ci/check-official-spec.py
@@ -285,6 +295,8 @@ jobs:
             glass/Sources/Spec/Fixtures/official-interaction-scenes.json
             glass/Sources/Spec/Fixtures/official-rpc-dto-manifest.json
             glass/Sources/Core/Resources/official-host-rpc-fixtures.json
+            glass/Sources/Spec/Fixtures/official-transport-contract-manifest.json
+            glass/Sources/Core/Resources/official-transport-contract-fixtures.json
             glass/Package.swift
           if-no-files-found: error
           retention-days: 14
