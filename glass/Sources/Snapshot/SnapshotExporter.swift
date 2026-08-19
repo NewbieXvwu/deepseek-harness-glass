@@ -10,6 +10,18 @@ import SwiftUI
 #endif
 /// 在 CI 中使用确定性的离屏 AppKit 位图生成原生 UI 快照。
 /// 它验证 SwiftUI 布局和官方 token 映射；系统真实折射效果仍由运行中的 macOS 窗口验收。
+/// A window that keeps the exact size the snapshot asks for.
+///
+/// `NSWindow` constrains any titled window to the screen's visible frame, so
+/// the menu bar and Dock silently shorten a tall snapshot: a 1280x1100 request
+/// became 1280x1091 on a 1600x1200 display. The captured viewport must equal
+/// the baseline viewport, so this override opts out of that constraint.
+private final class SnapshotWindow: NSWindow {
+    override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
+        frameRect
+    }
+}
+
 enum SnapshotExporter {
     enum SnapshotError: Error, LocalizedError {
         case cannotEncodePNG
@@ -111,7 +123,7 @@ enum SnapshotExporter {
         // running App. A borderless off-screen window does not host AppKit's
         // sidebar/inspector materials and rendered transparent structure as
         // black, which is not a valid production appearance.
-        let window = NSWindow(
+        let window = SnapshotWindow(
             contentRect: NSRect(origin: .zero, size: size),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,
@@ -134,7 +146,15 @@ enum SnapshotExporter {
         // the window itself must be sized after the controller is installed.
         window.setContentSize(size)
         window.contentView?.frame = NSRect(origin: .zero, size: size)
-        window.center()
+        // Place the window explicitly; `center()` would re-apply the visible
+        // frame constraint this window deliberately opts out of.
+        if let screen = NSScreen.main {
+            let frame = window.frame
+            window.setFrameOrigin(NSPoint(
+                x: screen.frame.minX + max(0, (screen.frame.width - frame.width) / 2),
+                y: screen.frame.maxY - frame.height
+            ))
+        }
         window.orderFrontRegardless()
         // AppKit silently shrinks a window that exceeds the display. On the
         // 1024x768 hosted runner a 1280x840 request became 1024 wide, and
