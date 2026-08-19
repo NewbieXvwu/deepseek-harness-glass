@@ -45,8 +45,25 @@ final class HarnessHostTransportSmokeTests: XCTestCase {
         )
 
         let firstSubscriber = SSEClient(baseURL: initial.endpoint)
-        let firstSubscribed = try await awaitSubscription(
-            from: firstSubscriber,
+        let firstRecorder = SmokeFrameRecorder()
+        let firstObserver = Task {
+            let stream = await firstSubscriber.reconnectingStream(
+                .mux,
+                policy: SSEReconnectPolicy(initialDelay: 0.05, maximumDelay: 0.1, multiplier: 1)
+            )
+            do {
+                for try await frame in stream {
+                    await firstRecorder.record(frame)
+                }
+            } catch is CancellationError {
+                return
+            } catch {
+                await firstRecorder.recordTerminalError(error)
+            }
+        }
+        defer { firstObserver.cancel() }
+        let firstSubscribed = try await waitForRecordedSubscription(
+            from: firstRecorder,
             sessionID: created.sessionId,
             timeout: 8
         )
@@ -130,22 +147,42 @@ final class HarnessHostTransportSmokeTests: XCTestCase {
         sessionID: String,
         timeout: TimeInterval
     ) async throws -> RPCServerRequest {
-        let collector = Task { () throws -> RPCServerRequest in
+        let recorder = SmokeFrameRecorder()
+        let observer = Task {
             let stream = await client.reconnectingStream(
                 .mux,
                 policy: SSEReconnectPolicy(initialDelay: 0.05, maximumDelay: 0.1, multiplier: 1)
             )
-            for try await frame in stream {
-                guard frame.method == "session/subscribed",
-                      frame.payload.objectValue?["sessionId"]?.stringValue == sessionID else {
-                    continue
+            do {
+                for try await frame in stream {
+                    await recorder.record(frame)
                 }
-                return frame
+            } catch is CancellationError {
+                return
+            } catch {
+                await recorder.recordTerminalError(error)
             }
-            throw SmokeError.streamEnded
         }
-        defer { collector.cancel() }
-        return try await value(of: collector, timeout: timeout)
+        defer { observer.cancel() }
+        return try await waitForRecordedSubscription(from: recorder, sessionID: sessionID, timeout: timeout)
+    }
+
+    private func waitForRecordedSubscription(
+        from recorder: SmokeFrameRecorder,
+        sessionID: String,
+        timeout: TimeInterval
+    ) async throws -> RPCServerRequest {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if let frame = await recorder.subscription(for: sessionID) { return frame }
+            if let errorDescription = await recorder.terminalErrorDescription() {
+                XCTFail("mux subscriber terminated before session/subscribed: \(errorDescription)")
+                throw SmokeError.streamEnded
+            }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        XCTFail("did not receive session/subscribed for \(sessionID)")
+        throw SmokeError.timeout
     }
 
     private func waitForReconnectTrace(from client: SSEClient, timeout: TimeInterval) async throws {
@@ -234,6 +271,28 @@ final class HarnessHostTransportSmokeTests: XCTestCase {
             verificationState: "verified"
         )]
     )
+}
+
+private actor SmokeFrameRecorder {
+    private var frames: [RPCServerRequest] = []
+    private var errorDescription: String?
+
+    func record(_ frame: RPCServerRequest) {
+        frames.append(frame)
+    }
+
+    func recordTerminalError(_ error: Error) {
+        errorDescription = String(describing: error)
+    }
+
+    func subscription(for sessionID: String) -> RPCServerRequest? {
+        frames.first {
+            $0.method == "session/subscribed"
+                && $0.payload.objectValue?["sessionId"]?.stringValue == sessionID
+        }
+    }
+
+    func terminalErrorDescription() -> String? { errorDescription }
 }
 
 private final class SmokeFiveHundredURLProtocol: URLProtocol {
