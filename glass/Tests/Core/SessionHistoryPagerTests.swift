@@ -105,7 +105,8 @@ final class SessionHistoryPagerTests: XCTestCase {
             return self.response([self.entry(9, "user/message")], hasMore: false)
         }
 
-        XCTAssertTrue(await pager.loadTail())
+        let loadedTail = await pager.loadTail()
+        XCTAssertTrue(loadedTail)
         let firstLoad = Task { await pager.loadOlder() }
         await self.waitUntil { pager.isLoadingOlder }
 
@@ -115,7 +116,8 @@ final class SessionHistoryPagerTests: XCTestCase {
         XCTAssertEqual(maxMessageRequests, [SessionHistoryPager.pageMessages, SessionHistoryPager.pageMessages])
 
         await gate.open()
-        XCTAssertTrue(await firstLoad.value)
+        let firstLoadResult = await firstLoad.value
+        XCTAssertTrue(firstLoadResult)
         XCTAssertEqual(pager.entries.map(\.event.seq), [9, 10])
         XCTAssertFalse(pager.hasMore)
     }
