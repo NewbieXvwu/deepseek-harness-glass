@@ -85,7 +85,10 @@ final class HarnessHostTransportSmokeTests: XCTestCase {
         }
         XCTAssertEqual(networkError.disposition, .retryable)
         let networkDiagnostics = await initial.diagnostics.snapshot()
-        XCTAssertEqual(networkDiagnostics.lifecycle, "recovering")
+        XCTAssertTrue(
+            controller.stateTransitions.map(\.summary).contains("ready -> recovering"),
+            "unexpected Host termination must publish explicit recovering state before restart"
+        )
         XCTAssertNotNil(networkDiagnostics.lastRPCError, "network transport failure must be retained in copyable diagnostics")
         XCTAssertTrue(networkDiagnostics.copyableText().contains("lastRPCError="))
 

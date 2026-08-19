@@ -250,12 +250,20 @@ actor SSEClient {
     }
 
     private static func normalize(_ error: Error) -> Error {
-        guard let urlError = error as? URLError else { return error }
-        switch urlError.code {
-        case .timedOut: return DSHTransportError.timeout
-        case .cancelled: return DSHTransportError.cancelled
-        default: return DSHTransportError.network(urlError.localizedDescription)
+        if let transport = error as? DSHTransportError { return transport }
+        if error is CancellationError { return DSHTransportError.cancelled }
+        if let urlError = error as? URLError {
+            switch urlError.code {
+            case .timedOut: return DSHTransportError.timeout
+            case .cancelled: return DSHTransportError.cancelled
+            default: return DSHTransportError.network(urlError.localizedDescription)
+            }
         }
+        // URLSessionWebSocketTask may report an abrupt peer close as an
+        // NSPOSIXErrorDomain `Socket is not connected` rather than URLError.
+        // This is a carrier outage, not an uncaught task failure or final
+        // cancellation; reconnectingStream must therefore reopen it.
+        return DSHTransportError.network(error.localizedDescription)
     }
 
     private static func errorCategory(_ error: Error) -> String {
