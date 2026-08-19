@@ -127,7 +127,14 @@ enum SnapshotExporter {
         // the running application never uses this snapshot-only override.
         shellController.view.appearance = NSAppearance(named: appearanceName)
         window.contentView?.appearance = NSAppearance(named: appearanceName)
+        // Assigning contentViewController makes AppKit resize the window to the
+        // controller's fitting size. The shell root has no intrinsic size, so
+        // the window collapsed to 1x1 and every capture sampled a degenerate
+        // window. Setting contentView.frame alone does not resize the window;
+        // the window itself must be sized after the controller is installed.
+        window.setContentSize(size)
         window.contentView?.frame = NSRect(origin: .zero, size: size)
+        window.center()
         window.orderFrontRegardless()
         // AppKit silently shrinks a window that exceeds the display. On the
         // 1024x768 hosted runner a 1280x840 request became 1024 wide, and

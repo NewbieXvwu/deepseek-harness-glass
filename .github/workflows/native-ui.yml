@@ -286,12 +286,14 @@ jobs:
         run: |
           # The hosted macOS runner boots at 1024x768. AppKit clamps any window
           # to the display, so the 1280x840 snapshot window silently became
-          # 1024x840 and refreshForCurrentViewport resolved the layout at a
+          # 1024 wide and refreshForCurrentViewport resolved the layout at a
           # 1024 viewport, which drops the details column entirely. Widen the
           # display so the snapshot viewport is the one the baseline expects.
+          # 1600x1200 is used rather than 1920x1080 because the tallest scene
+          # requests a 1280x1100 content size, which does not fit under 1080.
           brew list displayplacer >/dev/null 2>&1 || brew install displayplacer
           DISPLAY_ID="$(displayplacer list | awk '/Persistent screen id:/{print $4; exit}')"
-          displayplacer "id:${DISPLAY_ID} res:1920x1080 hz:60 color_depth:7 enabled:true scaling:off origin:(0,0) degree:0"
+          displayplacer "id:${DISPLAY_ID} res:1600x1200 hz:60 color_depth:7 enabled:true scaling:off origin:(0,0) degree:0"
           displayplacer list | grep -m1 'current mode'
 
       - name: Generate native UI layout snapshots
