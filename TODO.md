@@ -267,7 +267,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 
 - [ ] **T6.2：实现 `SessionHistoryPager`。** Core 代码已实现官方 tail/`beforeSeq`消息边界分页、连续 raw event range、重复/乱序页拒绝、compaction边界保留、loading/error/retry、live gap信号和已验证导出协作；但本条仍未完成正式证据闭环。
   - 依赖：T6.1。
-  - 验收证据状态：`SessionHistoryPagerTests` 已覆盖官方50-message tail、beforeSeq、连续范围、重复页、乱序拒绝、compaction、重试和live gap；macOS-26完整回归 [run 32248852966](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32248852966)（commit `e6ded222`）成功。仍需在当前整理后的证据链中补齐同状态官方/原生分页视觉或明确的Core-only视觉边界审阅，并将官方测试来源写入本条后才能勾选。
+  - 验收证据状态：`notes/T6.2-official-session-history-sources.md` 已将锁定官方 `session.ts` 的 `PAGE_MESSAGES`、tail/`beforeSeq`、连续 prepend、fail-soft、live gap 与 T6.7 边界映射到 Swift；同时引用官方 `session.client.spec.ts` 的连续页、断裂页和并发 `loadOlder` 回归。`SessionHistoryPagerTests` 现覆盖官方 50-message tail、beforeSeq、连续范围、重复页、乱序拒绝、compaction、重试、live gap 以及同一 older page in-flight coalescing。macOS-26完整回归 [run 32248852966](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32248852966)（commit `e6ded222`）曾成功；本次证据/测试提交必须通过其**自身**的 macOS-26 CI 后，才能将新的 run 与Core-only视觉边界审阅写入本条并勾选。T8.2完成后，用户可见的历史分页仍须在其所属 UI 场景中补齐同状态官方/原生视觉配对。
 
 - [x] **T6.3：实现 `ProjectionStore`。** `SessionProjectionStore` 以 `(sessionID, key)` 隔离 Host projection row，`seq` 只接受严格更高的值；history tail 的 projection baseline 以其 `asOfSeq` seed，清理同一cut内不再存在的旧键且绝不覆盖已收到的较新live value。NativeSessionStore 在history landing后seed并在`session/projection` mux frame到达时应用；disconnect清理所有Host会话投影，reconnect可按durable watermark截断超前值。
   - 依赖：T4.4、T6.1。

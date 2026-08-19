@@ -90,6 +90,36 @@ final class SessionHistoryPagerTests: XCTestCase {
         XCTAssertEqual(pager.tailState, .ready(sessionID: "session"))
     }
 
+    func testOlderPageLoadCoalescesWhileARequestIsInFlight() async {
+        let pager = SessionHistoryPager()
+        let gate = AsyncGate()
+        var beforeSeqRequests: [Int?] = []
+        var maxMessageRequests: [Int?] = []
+        pager.bind(sessionID: "session") { _, beforeSeq, maxMessages in
+            beforeSeqRequests.append(beforeSeq)
+            maxMessageRequests.append(maxMessages)
+            if beforeSeq == nil {
+                return self.response([self.entry(10, "assistant/message")], hasMore: true)
+            }
+            await gate.wait()
+            return self.response([self.entry(9, "user/message")], hasMore: false)
+        }
+
+        XCTAssertTrue(await pager.loadTail())
+        let firstLoad = Task { await pager.loadOlder() }
+        await self.waitUntil { pager.isLoadingOlder }
+
+        let secondLoad = await pager.loadOlder()
+        XCTAssertFalse(secondLoad)
+        XCTAssertEqual(beforeSeqRequests, [nil, 10])
+        XCTAssertEqual(maxMessageRequests, [SessionHistoryPager.pageMessages, SessionHistoryPager.pageMessages])
+
+        await gate.open()
+        XCTAssertTrue(await firstLoad.value)
+        XCTAssertEqual(pager.entries.map(\.event.seq), [9, 10])
+        XCTAssertFalse(pager.hasMore)
+    }
+
     func testLiveAcceptanceIsSequenceGuardedAfterTailLoad() async {
         let pager = SessionHistoryPager()
         pager.bind(sessionID: "session") { _, _, _ in self.response([self.entry(20, "assistant/message")], hasMore: false) }
@@ -100,6 +130,17 @@ final class SessionHistoryPagerTests: XCTestCase {
         XCTAssertEqual(pager.acceptLive(entry(22, "assistant/message")), .gap(expected: 21, received: 22))
         XCTAssertEqual(pager.acceptLive(entry(21, "assistant/message")), .appended)
         XCTAssertEqual(pager.entries.map(\.event.seq), [20, 21])
+    }
+
+    private func waitUntil(
+        _ predicate: @escaping @MainActor () -> Bool,
+        timeout: TimeInterval = 1
+    ) async {
+        let deadline = Date().addingTimeInterval(timeout)
+        while !predicate() && Date() < deadline {
+            await Task.yield()
+        }
+        XCTAssertTrue(predicate(), "timed out waiting for the expected state")
     }
 
     private func response(_ events: [SessionHistoryEntryDTO], hasMore: Bool) -> SessionHistoryResponse {
@@ -119,5 +160,27 @@ final class SessionHistoryPagerTests: XCTestCase {
             sourceEventSeqs: nil,
             ignorable: nil
         )
+    }
+}
+
+private actor AsyncGate {
+    private var opened = false
+    private var continuation: CheckedContinuation<Void, Never>?
+
+    func wait() async {
+        if opened { return }
+        await withCheckedContinuation { continuation in
+            if opened {
+                continuation.resume()
+            } else {
+                self.continuation = continuation
+            }
+        }
+    }
+
+    func open() {
+        opened = true
+        continuation?.resume()
+        continuation = nil
     }
 }
