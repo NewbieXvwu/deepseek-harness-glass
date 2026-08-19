@@ -1,5 +1,6 @@
 import AppKit
 import CoreGraphics
+import ScreenCaptureKit
 import SwiftUI
 
 #if DEEPSEEK_HARNESS_PACKAGE
@@ -25,7 +26,7 @@ enum SnapshotExporter {
     }
 
     @MainActor
-    static func exportIfRequested() throws -> Bool {
+    static func exportIfRequested() async throws -> Bool {
         guard let outputPath = ProcessInfo.processInfo.environment["DSH_GLASS_SNAPSHOT_PATH"], !outputPath.isEmpty else {
             return false
         }
@@ -121,37 +122,23 @@ enum SnapshotExporter {
         window.contentViewController?.view.layoutSubtreeIfNeeded()
         window.displayIfNeeded()
 
-        let bitmap: NSBitmapImageRep
-        if let composited = CGWindowListCreateImage(
-            .null,
-            .optionIncludingWindow,
-            CGWindowID(window.windowNumber),
-            [.boundsIgnoreFraming, .bestResolution]
-        ) {
-            // The WindowServer path includes system-owned sidebar and inspector
-            // material. `cacheDisplay` below is only a deterministic fallback
-            // for environments where a window image is unavailable.
-            bitmap = NSBitmapImageRep(cgImage: composited)
-        } else if let hostedView = window.contentView,
-                  let fallback = NSBitmapImageRep(
-                    bitmapDataPlanes: nil,
-                    pixelsWide: Int(size.width),
-                    pixelsHigh: Int(size.height),
-                    bitsPerSample: 8,
-                    samplesPerPixel: 4,
-                    hasAlpha: true,
-                    isPlanar: false,
-                    colorSpaceName: .deviceRGB,
-                    bytesPerRow: 0,
-                    bitsPerPixel: 0
-                  ) {
-            fallback.size = size
-            hostedView.cacheDisplay(in: hostedView.bounds, to: fallback)
-            bitmap = fallback
-        } else {
+        // `cacheDisplay` cannot render WindowServer-owned materials. macOS 26
+        // replaces the obsolete CGWindowList image APIs with this supported
+        // single-frame ScreenCaptureKit compositor path.
+        let configuration = SCScreenshotConfiguration()
+        configuration.width = Int(size.width)
+        configuration.height = Int(size.height)
+        configuration.showsCursor = false
+        configuration.ignoreShadows = true
+        configuration.displayIntent = .local
+        let screenshot = try await SCScreenshotManager.captureScreenshot(
+            rect: window.frame,
+            configuration: configuration
+        )
+        guard let composited = screenshot.sdrImage else {
             throw SnapshotError.cannotCreateBitmap
         }
-
+        let bitmap = NSBitmapImageRep(cgImage: composited)
         bitmap.size = size
         guard let png = bitmap.representation(using: .png, properties: [:]) else {
             throw SnapshotError.cannotEncodePNG

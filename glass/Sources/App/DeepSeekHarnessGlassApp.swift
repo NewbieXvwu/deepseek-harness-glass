@@ -22,17 +22,22 @@ final class DeepSeekHarnessGlassApp: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        do {
-            if try SnapshotExporter.exportIfRequested() {
+        Task { @MainActor [weak self] in
+            do {
+                if try await SnapshotExporter.exportIfRequested() {
+                    NSApp.terminate(nil)
+                    return
+                }
+            } catch {
+                FileHandle.standardError.write(Data("snapshot export failed: \(error.localizedDescription)\n".utf8))
                 NSApp.terminate(nil)
                 return
             }
-        } catch {
-            FileHandle.standardError.write(Data("snapshot export failed: \(error.localizedDescription)\n".utf8))
-            NSApp.terminate(nil)
-            return
+            self?.launchInteractiveApplication()
         }
+    }
 
+    private func launchInteractiveApplication() {
         let presentation = NativeShellPresentation(mode: .welcome)
         windowCoordinator.install(presentation: presentation)
         menuBarCoordinator = MenuBarCoordinator(
