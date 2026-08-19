@@ -119,8 +119,8 @@ enum ConversationCoreNodeRegistry {
     static func initialDefinitions() -> [AnyConversationNodeDefinition] {
         [
             .init(BoundaryDefinition()),
-            .init(InboxDefinition(target: .nextTurn)),
-            .init(InboxDefinition(target: .nextStep)),
+            .init(InboxDefinition(inboxTarget: .nextTurn)),
+            .init(InboxDefinition(inboxTarget: .nextStep)),
             .init(InputMessageDefinition()),
             .init(AssistantStepDefinition()),
             .init(ToolDefinition()),
