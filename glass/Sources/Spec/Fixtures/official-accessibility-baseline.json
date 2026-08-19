@@ -4,7 +4,8 @@
   "principles": {
     "iconOnlyControls": "Every icon-only official control has an explicit accessibilityLabel sourced from OfficialUISpec.Text.",
     "keyboard": "Each keyboardOnly official scene retains a visible focusable control and hidden/closed controls cannot receive focus.",
-    "systemPreferences": "Reduce Motion, Reduce Transparency, Increase Contrast, light and dark color schemes preserve readable controls without forced motion."
+    "systemPreferences": "Reduce Motion, Reduce Transparency, Increase Contrast, light and dark color schemes preserve readable controls without forced motion.",
+    "macOSDynamicType": "Apple documents that macOS users cannot change dynamicTypeSize and it does not affect text size; test-injected sizes are layout regression inputs, while user magnification is system Zoom."
   },
   "corePaths": [
     {
