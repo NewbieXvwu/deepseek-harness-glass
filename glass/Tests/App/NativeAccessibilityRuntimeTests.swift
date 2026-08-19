@@ -10,22 +10,99 @@ import XCTest
 @MainActor
 final class NativeAccessibilityRuntimeTests: XCTestCase {
     func testCollapsedSidebarExportsAccessibleNamesForVisibleIconControls() throws {
-        guard AXIsProcessTrusted() else {
-            throw XCTSkip("The macOS-26 CI runner is not a trusted accessibility client; static core-path gate remains mandatory and this runtime tree test executes in trusted UI-test environments.")
-        }
-        let view = NativeSidebarView(
-            workspaceStore: NativeWorkspaceStore(),
-            collapsed: true,
-            setCollapsed: { _ in },
-            workspaceActions: WorkspaceBrowserView.Actions(),
-            workspaceSnapshotDialog: .none,
-            onNewSession: {},
-            onOpenSettings: {}
+        try assertAccessibleLabels(
+            in: NativeSidebarView(
+                workspaceStore: NativeWorkspaceStore(),
+                collapsed: true,
+                setCollapsed: { _ in },
+                workspaceActions: WorkspaceBrowserView.Actions(),
+                workspaceSnapshotDialog: .none,
+                onNewSession: {},
+                onOpenSettings: {}
+            ),
+            expected: [
+                OfficialUISpec.Text.openSidebarAccessibility,
+                OfficialUISpec.Text.newSessionAccessibility,
+                OfficialUISpec.Text.settings,
+            ]
         )
+    }
+
+    func testConversationComposerExportsFocusAndActionNames() throws {
+        try assertAccessibleLabels(
+            in: NativeConversationColumn(
+                mode: .conversation,
+                selectedWorkspaceTitle: "Fixture workspace",
+                sessionStore: NativeSessionStore()
+            ),
+            expected: [
+                OfficialUISpec.Text.composerDefaultPlaceholder,
+                OfficialUISpec.Text.sendMessageAccessibility,
+                OfficialUISpec.Text.commandsAccessibility,
+            ]
+        )
+    }
+
+    func testDetailsExportsExplicitCloseName() throws {
+        try assertAccessibleLabels(
+            in: NativeDetailsView(sessionStore: NativeSessionStore(), close: {}),
+            expected: [OfficialUISpec.Text.closeDetailsAccessibility]
+        )
+    }
+
+    func testApprovalExportsDetailsAndSemanticActions() throws {
+        let approval = NativeSessionStore.PendingApproval(
+            rpcID: "fx-approval-rpc",
+            sessionID: "fx-session",
+            approvalID: "fx-approval",
+            toolName: "Write",
+            callID: nil,
+            reason: "Approval required"
+        )
+        try assertAccessibleLabels(
+            in: NativeApprovalPanel(approval: approval, command: "echo fixture", submitting: false, answer: { _ in }),
+            expected: [
+                OfficialUISpec.Text.approvalDetailsAccessibility,
+                OfficialUISpec.Text.approvalReject,
+                OfficialUISpec.Text.approvalAllowOnce,
+            ]
+        )
+    }
+
+    func testQuestionExportsNavigationAndCancellationNames() throws {
+        let question = NativeSessionStore.PendingQuestion(
+            rpcID: "fx-question-rpc",
+            sessionID: "fx-session",
+            items: [
+                .init(
+                    id: "fx-question",
+                    question: "Which color?",
+                    header: nil,
+                    detail: nil,
+                    options: [.init(label: "Blue", detail: nil)],
+                    multiSelect: false
+                )
+            ]
+        )
+        try assertAccessibleLabels(
+            in: NativeQuestionComposer(pending: question, submitting: false, answer: { _ in }, cancel: {}),
+            expected: [
+                OfficialUISpec.Text.questionCancelAccessibility,
+                OfficialUISpec.Text.questionPreviousAccessibility,
+                OfficialUISpec.Text.questionNextAccessibility,
+            ]
+        )
+    }
+
+    private func assertAccessibleLabels<V: View>(in view: V, expected: [String]) throws {
+        guard AXIsProcessTrusted() else {
+            throw XCTSkip("The test process is not a trusted accessibility client; static core-path gate remains mandatory and this runtime tree assertion executes in trusted GUI test environments.")
+        }
+
         _ = NSApplication.shared
         let host = NSHostingView(rootView: view)
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 56, height: 840),
+            contentRect: NSRect(x: 0, y: 0, width: 900, height: 840),
             styleMask: [.titled],
             backing: .buffered,
             defer: false
@@ -40,9 +117,9 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         guard !labels.isEmpty else {
             throw XCTSkip("The headless macOS runner exposes no SwiftUI accessibility elements despite AX trust; run this tree assertion in a GUI accessibility-test host. The static locked core-path gate remains mandatory in CI.")
         }
-        XCTAssertTrue(labels.contains(OfficialUISpec.Text.openSidebarAccessibility), "exported labels: \(labels)")
-        XCTAssertTrue(labels.contains(OfficialUISpec.Text.newSessionAccessibility), "exported labels: \(labels)")
-        XCTAssertTrue(labels.contains(OfficialUISpec.Text.settings), "exported labels: \(labels)")
+        for label in expected {
+            XCTAssertTrue(labels.contains(label), "expected \(label), exported labels: \(labels)")
+        }
     }
 
     private func accessibilityLabels(in element: any NSAccessibilityProtocol) -> [String] {
