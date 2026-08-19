@@ -265,21 +265,21 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
   - 依赖：T4.5。
   - 验收证据：`NativeSessionStoreTests` 使用锁定wire形状的`session/queue`、`session/jobs`、`session/subscribed` ServerRequest，验证完整快照替换、foreign session拒绝、空jobs清理、generation transient reset、projection durable-watermark截断以及resident window恢复tool selection/queue/jobs；该XCTest单列进入workflow。macOS-26 [run 32236473372](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32236473372)（commit `b9da559`）成功完成完整静态/module/transport gates、SwiftPM编译、Core/App tests、原生装配、全快照与官方欢迎页比较。人工欢迎页和tooling-inspector复核记录于 `visual-review/official-99f6f02/t6-1-b9da559-ci-review.md`；本项Core状态改动未新增可见布局/层级回归，既有welcome `report-only`例外未被扩展或误记为视觉完成。
 
-- [ ] **T6.2：实现 `SessionHistoryPager`。** 支持 tail history、向前分页、连续 raw event range、loading/error/retry 和 session export。
+- [ ] **T6.2：实现 `SessionHistoryPager`。** Core 代码已实现官方 tail/`beforeSeq`消息边界分页、连续 raw event range、重复/乱序页拒绝、compaction边界保留、loading/error/retry、live gap信号和已验证导出协作；但本条仍未完成正式证据闭环。
   - 依赖：T6.1。
-  - 验收：重复分页不会产生重复或乱序 event；compaction summary 等位于边界的 event 与官方夹具一致。
+  - 验收证据状态：`SessionHistoryPagerTests` 已覆盖官方50-message tail、beforeSeq、连续范围、重复页、乱序拒绝、compaction、重试和live gap；macOS-26完整回归 [run 32248852966](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32248852966)（commit `e6ded222`）成功。仍需在当前整理后的证据链中补齐同状态官方/原生分页视觉或明确的Core-only视觉边界审阅，并将官方测试来源写入本条后才能勾选。
 
 - [x] **T6.3：实现 `ProjectionStore`。** `SessionProjectionStore` 以 `(sessionID, key)` 隔离 Host projection row，`seq` 只接受严格更高的值；history tail 的 projection baseline 以其 `asOfSeq` seed，清理同一cut内不再存在的旧键且绝不覆盖已收到的较新live value。NativeSessionStore 在history landing后seed并在`session/projection` mux frame到达时应用；disconnect清理所有Host会话投影，reconnect可按durable watermark截断超前值。
   - 依赖：T4.4、T6.1。
   - 验收证据：`SessionProjectionStoreTests` 覆盖同key乱序与重复frame的higher-seq-wins、跨session隔离、baseline在cut内清除缺失键且不回滚较新live value，以及reconnect截断；workflow独立执行该XCTest。macOS-26 [run 32235326314](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32235326314)（commit `0853a1f`）成功通过完整静态/module/transport gates、SwiftPM编译、所有Core/App测试、原生装配、全部快照和官方欢迎页比较。人工复核记录于 `visual-review/official-99f6f02/t6-3-0853a1f-ci-review.md`；本项是Core-only改动，已逐项审阅既有welcome `report-only`差异，未将其误记为视觉场景完成或扩展系统材质例外。
 
-- [ ] **T6.4：定义 `ConversationNode` 协议。** 建立 `match`、`start`、`update`、`publication`、`buildViewNode` 的 Swift 等价物，并包含 turn/step location、visibility、stable key 和 target。
+- [ ] **T6.4：定义 `ConversationNode` 协议。** Core 已建立 `match`、`start`、`update`、`publication`、`buildViewNode`、turn/step location、visibility、stable key、target和Session-owned reducer；官方来源已保存于 `notes/T6.4-official-conversation-node-sources.md`。本条仍未完成正式证据闭环。
   - 依赖：T6.1、T6.2。
-  - 验收：节点生命周期只有 reducer 改写；SwiftUI renderer 无业务事件解析代码。
+  - 验收证据状态：`ConversationNodeTests` 已验证类型擦除、生命周期和renderer不接收raw event；macOS-26 [run 32250145259](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32250145259)（commit `0d35bd5`）成功。后续T6.5提交仍需在当前节点协议基础上补齐官方逐append replay snapshot、人工视觉复核并写回本条后才能勾选。
 
-- [ ] **T6.5：实现初始核心 nodes。** 依次支持 user message、assistant chunk/message、turn/step、tool call/result、error/retry、thinking、context injection 与 compaction。
+- [ ] **T6.5：实现初始核心 nodes。** Core 已接入 user/context message、assistant chunk/message/thinking、turn/step boundary、tool call/result、error/retry、compaction，以及关闭边界的assistant/tool interrupted状态与官方合成anchor；`surfaceOp`已在Core DTO中保留。当前仍未完成正式证据闭环。
   - 依赖：T6.4。
-  - 验收：同一官方事件 fixture 在每一次 append 后均生成预期 node snapshot；流式 assistant tail 不重复渲染。
+  - 验收证据状态：`ConversationCoreNodesTests` 已覆盖append式user/context、streaming/final去重、tool/result、retry/error、compaction和closed-step interrupted anchor；HEAD `5c08744` 的macOS-26 [run 32252884409](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32252884409) success，父功能提交 `c26a051` 的 [run 32252208679](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32252208679) success并完成原生快照/官方比较。仍需补齐当前HEAD对应的人工截图复核记录和逐append官方节点快照，完成后才能勾选。
 
 - [ ] **T6.6：实现扩展 nodes。** 支持 todo、goal、queue/steering、approval、user question、workflow、subagent、trajectory、deliverables、feedback、model/permission 状态和 jobs。
   - 依赖：T6.5。
@@ -522,7 +522,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 [13]: https://github.com/deepseek-ai/deepseek-harness/blob/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca/packages/client/ui-conversation/README.md "官方 Conversation UI 模块说明"
 [14]: https://github.com/deepseek-ai/deepseek-harness/blob/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca/packages/client/ui-settings-plugins/README.md "官方插件设置机制"
 
-## 当前进度：完整可审计状态与唯一续跑入口（2026-08-18）
+## 当前进度：完整可审计状态与唯一续跑入口（2026-08-19）
 
 本节是仓库内**唯一有效的跨会话状态记录**。新会话必须以本节和前文“项目宪章”为起点，不得依赖外部 `CONTINUE_NEXT_SESSION.md`、聊天摘要或未提交的本地笔记。所有状态均以代码、官方来源、视觉证据、门禁和GitHub Actions为准；“部分实现”“能编译”“单一fixture通过”均不等于完成。
 
@@ -532,16 +532,16 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 |---|---|
 | 远端仓库 | `NewbieXvwu/deepseek-harness-glass` |
 | 分支 | `main` |
-| 最新HEAD | `e9fc169ce24906b584eb434768b34eee168d57ee` — `fix(T2.2): bind locale catalog to source input revision` |
-| 上一个功能提交 | `710bec1c77187eaf011da5a4e52ceb1175a71450` — `feat(T2.2): generate provenance-backed official locales` |
+| 最新HEAD | `5c08744b8823b14683c71e97d4527e74ce1353c9` — `feat(T6.5): freeze interrupted conversation tails` |
+| 最近功能链 | `598a77a` T6.4/T6.5 reducer与初始nodes；`424c7e1` JSONValue封装；`430b92a` Swift 6 State收窄；`c26a051` chat anchor排序；`5c08744` interrupted assistant/tool synthetic anchor |
 | 锁定官方来源 | `deepseek-ai/deepseek-harness@99f6f02fecdb7dff40c3fbc9470f5907c29f74ca` |
 | 目标平台 | macOS 26+、Xcode 26+、Apple Silicon、Swift 6 |
 | D1规格门禁 | 通过：91 text、77 layout、29 assets、10 visual scenes |
 | D0原生门禁 | 通过：核心UI无WebView、DOM脚本和CSS注入 |
-| 最新已完成CI | [run 32166053042](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32166053042)，HEAD `e9fc169`，success；从锁定官方源码重生成 37 项 spec 输入、1,268 条 en/zh locale、拒绝未登记 UI 文案和 Host/spec mismatch，并通过 Swift XCTest/独立编译及官方/原生 GUI 对照。 |
-| 当前HEAD CI | `e9fc169` 的 [run 32166053042](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32166053042) 已 success；此 TODO 更新提交后仍须查询它自己的 run，不能以本行替代当前提交证据。 |
-| 当前主阶段 | 阶段2：锁定官方规格；T2.3 尚未完成 |
-| 已勾选TODO条目 | T0.1、T0.2、T0.3、T1.1、T1.2、T1.3、T2.1、T2.2、T2.6、T7.3；其余条目保持未勾选 |
+| 最新HEAD CI | [run 32252884409](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32252884409)，HEAD `5c08744`，success；通过官方规格与架构门禁、SwiftPM独立编译、全量XCTest、原生app组装、display设置、原生快照和官方视觉比较。 |
+| 上一个成功功能CI | [run 32252208679](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32252208679)，HEAD `c26a051`，success；覆盖T6.4/T6.5初始nodes、chat anchor排序及完整截图链。 |
+| 当前主阶段 | 阶段6：Conversation node/replay基础层；T6.5最新实现已通过当前HEAD CI，但人工视觉复核记录和逐append证据尚未写全，暂不勾选。 |
+| 已勾选TODO条目 | 共33项：T0.1–T0.3、T1.1–T1.3、T2.1–T2.2、T2.6、T3.1–T3.6、T4.1–T4.6、T5.1–T5.6、T6.1、T6.3、T7.3；T6.2、T6.4、T6.5及其余条目保持未勾选。 |
 
 ### B. 阶段状态矩阵
 
@@ -553,7 +553,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 | 3. Host生命周期 | 部分完成 | `HarnessHostController`、`HostBuildVerifier`、payload缓存和运行时启动路径已实现 | 未验证Host策略、完整诊断页、生命周期混沌测试、下载导出与全面恢复仍未完成 |
 | 4. RPC/SSE | 部分完成 | RPC envelope、URLSession transport、SSE reducer、多个session/workspace/settings DTO已实现；最新新增settings.describe/mutate类型 | 全域facade、round-trip/真实Host契约测试、revision冲突和完整重连测试尚未闭环 |
 | 5. 窗口、三栏与Liquid Glass | 部分完成 | AppKit三栏根容器、根包装overlay、sidebar控制和部分Liquid Glass导航控件已实现 | WindowCoordinator恢复、完整列宽算法测试、材质策略、Reduce Transparency/Contrast与无障碍验证未完成 |
-| 6. 会话状态机 | 部分完成 | NativeSessionStore、history/mux SSE reducer、approval/question pending状态和fixture投影已实现 | 全部ConversationNode、raw-event replay、projection乱序/reconnect、cold/live一致性仍未完成 |
+| 6. 会话状态机 | 部分完成 | T6.1 NativeSessionStore、T6.3 ProjectionStore已按各自CI/视觉证据勾选；T6.2 Pager、T6.4 reducer协议和T6.5初始nodes已有代码及部分成功CI | T6.2/T6.4/T6.5尚未完成TODO证据闭环；T6.6扩展nodes、T6.7 reconnect/replay、完整raw-event replay与cold/live一致性仍未完成 |
 | 7. 侧栏、工作区与会话浏览 | 阶段性完成 | Sidebar、workspace/session列表、搜索、行操作、rename/delete/fork/archive和Host RPC已实现；T7.3已勾选 | reorder、完整archive/ungrouped语义、所有窄窗口/键盘焦点和全场景回归尚未完成 |
 | 8. Conversation主界面与Composer | 部分完成 | welcome、composer、model/permission控制行和部分prompt/cancel路径已实现；approval/question composer已配对验收 | 完整ChatView、Markdown安全策略、queue/steer、附件、model discovery、stats/todo/goal dock尚未完成 |
 | 9. 工具与复杂节点 | 部分完成 | ApprovalPanel、QuestionComposer和部分tooling inspector fixture存在 | generic tool及bash/read/search/diff/web/workflow/subagent/trajectory/deliverables全套renderer未完成 |
@@ -564,7 +564,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 
 ### C. TODO勾选的完整证据边界
 
-当前只允许以下十项保持勾选。任何新会话都不得为了“看起来更完整”额外勾选其他条目：
+当前只允许以下33项保持勾选。T6.2、T6.4、T6.5即使已有代码或成功CI，也不得在人工视觉、来源和逐append/replay证据补齐前勾选：
 
 | 条目 | 状态 | 证据与边界 |
 |---|---|---|
@@ -604,10 +604,10 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 
 新会话必须按以下顺序开始，不得跳到更下游页面：
 
-1. 阅读本TODO的项目宪章和本“当前进度”章节，确认仅T0.1、T0.2、T0.3、T1.1、T1.2、T1.3、T2.1、T2.2、T2.6、T7.3为已勾选项。
-2. 执行 `git status --short`、`git log -10 --oneline`、`python3 glass/ci/check-runtime-asset-inventory.py`、`python3 glass/ci/check-module-boundaries.py`、`python3 glass/ci/check-official-ui-spec-build.py --official-root /path/to/locked/deepseek-harness`、`python3 glass/ci/check-official-locales.py --official-root /path/to/locked/deepseek-harness`、`python3 glass/ci/check-official-locale-literals.py`、`python3 glass/ci/check-official-spec.py`、`bash glass/ci/check-no-webview.sh`、`python3 glass/ci/test_visual_policy.py` 和 `python3 glass/ci/check-supported-host-build.py --payload-dir glass/build/backend --node glass/build/node/node`（或等价 Node 24 路径）。
-3. 完成 T2.3：从锁定官方 `ui-theme` 的 `--dsw-*` 设计 token 完整生成/映射 `OfficialColorToken`、`OfficialSpacing`、`OfficialRadius`、`OfficialTypography` 和状态 token；每个 native semantic token 必须记录 CSS 名、值、来源行号、commit 和适用状态，禁止 UI 新增未经 catalog 批准的色彩、间距、圆角或文字常量。
-4. 每次实现后从锁定官方源码捕获同状态场景、运行原生 app 截图和政策比较；达到具体条目验收、人工审阅和当前提交 macOS CI success 后才勾选；随后按 TODO 依赖顺序继续 T2.3，禁止跳到下游 Settings/Plugin 条目。
+1. 阅读本TODO的项目宪章和本“当前进度”章节；当前正式勾选共33项，T6.2、T6.4、T6.5暂不勾选。
+2. 执行 `git status --short`、`git log -10 --oneline`、`gh run list --repo NewbieXvwu/deepseek-harness-glass --workflow native-ui.yml --branch main --limit 10`，确认HEAD与CI一致；再运行 `python3 glass/ci/check-runtime-asset-inventory.py`、`python3 glass/ci/check-module-boundaries.py`、`python3 glass/ci/check-official-ui-spec-build.py --official-root /home/ubuntu/reference/deepseek-harness`、`python3 glass/ci/check-official-locales.py --official-root /home/ubuntu/reference/deepseek-harness`、`python3 glass/ci/check-official-locale-literals.py`、`python3 glass/ci/check-official-spec.py`、`bash glass/ci/check-no-webview.sh`、`python3 glass/ci/test_visual_policy.py` 和 `python3 glass/ci/check-supported-host-build.py --payload-dir glass/build/backend --node glass/build/node/node`（或等价 Node 24 路径）。
+3. 首先处理T6.2/T6.4/T6.5的证据整理和人工视觉复核；T6.5最新HEAD CI为run 32252884409，T6.2成功功能CI为run 32248852966，T6.4成功功能CI为run 32250145259。证据不足时保持未勾选。
+4. 证据闭环后按T6.6 → T6.7 → T7.1 → T7.2 → T7.4 → T8 → T9 → T10 → T11 → T12 → T13推进；不得跳到设置、插件或发布页以掩盖会话/节点基础层未闭环。
 
 ### G. 当前验证命令与远端证据
 
@@ -620,8 +620,8 @@ git log -10 --oneline
 gh run list --repo NewbieXvwu/deepseek-harness-glass --limit 10
 ```
 
-最新已完成的全门禁回归为 [run 32147888544](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32147888544)，对应提交 `61574f0`。完整TODO进度提交的 [run 32148563313](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32148563313) 以及本次快照元数据提交对应的回归，均必须由新会话重新查询状态，不得假设成功。项目宪章回归 [run 32148249434](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32148249434) 已成功。
+最新HEAD `5c08744` 的完整macOS-26回归为 [run 32252884409](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32252884409)，已成功；其父功能提交 `c26a051` 的 [run 32252208679](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32252208679) 已成功。T6.2的 [run 32248852966](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32248852966) 和T6.4的 [run 32250145259](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32250145259) 也已成功，但其条目仍需补齐人工视觉/逐append证据后才能勾选。后续新提交必须重新查询自己的run，不得沿用父提交成功状态。
 
 ### H. 明确的未完成范围
 
-完整Settings Root、schema form、General/Models/Credentials/Plugin pages、NativeUIManifest、SwiftAdapterRegistry、PluginWebHost隔离POC、完整ConversationNode和tool renderer、window recovery、commands、accessibility/performance/security tests、签名公证、升级支持矩阵和发布候选审计均未完成。任何新会话必须保持这些任务未勾选，直到代码、官方来源、测试、配对截图和macOS-26回归全部闭环。
+T6.2/T6.4/T6.5的正式证据同步和人工视觉复核、T6.6扩展nodes、T6.7 reconnect/replay、完整Settings Root/schema form/General/Models/Credentials/Plugin pages、NativeUIManifest、SwiftAdapterRegistry、PluginWebHost隔离POC、完整Chat/tool renderer、window recovery、commands、accessibility/performance/security tests、签名公证、升级支持矩阵和发布候选审计均未完成。任何新会话必须保持这些任务未勾选，直到代码、官方来源、测试、配对截图和macOS-26回归全部闭环。
