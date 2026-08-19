@@ -263,12 +263,22 @@ private struct AssistantStepDefinition: ConversationNodeDefinition {
     }
 
     func buildViewNode(context: ConversationNodeContext<State>) -> ConversationViewNode? {
-        guard let payload = projected(context) else { return nil }
-        let visible = payload.blocks.contains { block in
+        guard let projectedPayload = projected(context) else { return nil }
+        let visible = projectedPayload.blocks.contains { block in
             (block.kind == .text || block.kind == .reasoning) && !(block.text?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
         }
+        let boundary = context.start?.location.closedEvent
+        let interrupted = projectedPayload.status == .running && visible && boundary != nil
+        let payload: CoreAssistantNode
+        if let boundary, interrupted {
+            payload = .init(status: .interrupted, turn: projectedPayload.turn, step: projectedPayload.step, seq: boundary.seq, time: boundary.time, messageID: nil, blocks: projectedPayload.blocks, firstTokenTime: projectedPayload.firstTokenTime, completedTime: boundary.time, usage: projectedPayload.usage)
+        } else {
+            payload = projectedPayload
+        }
         guard payload.status != .running || visible else { return nil }
-        return chatNode(context: context, kind: "assistant-step", anchorSeq: payload.seq, data: payload)
+        return interrupted
+            ? chatNode(context: context, kind: "assistant-step", anchor: Double(payload.seq) - 0.9, data: payload)
+            : chatNode(context: context, kind: "assistant-step", anchorSeq: payload.seq, data: payload)
     }
 
     private func apply(chunkEvent event: SessionEventDTO, into state: inout State) {
@@ -374,7 +384,12 @@ private struct ToolDefinition: ConversationNodeDefinition {
     func buildViewNode(context: ConversationNodeContext<State>) -> ConversationViewNode? {
         guard let state = context.state else { return nil }
         let result = state.result
-        let payload = CoreToolCallNode(status: result == nil ? .running : .settled, callID: state.callID, name: state.name, argumentsRaw: state.argumentsRaw, turn: state.turn, step: state.step, callTime: state.callTime, resultSeq: result?.seq, resultTime: result?.time, resultContent: result?.content ?? [], isError: result?.isError ?? false, errorCode: result?.errorCode, callView: state.callView, resultView: result?.resultView)
+        let boundary = result == nil ? context.start?.location.closedEvent : nil
+        let interrupted = boundary != nil
+        let payload = CoreToolCallNode(status: result == nil ? (interrupted ? .interrupted : .running) : .settled, callID: state.callID, name: state.name, argumentsRaw: state.argumentsRaw, turn: state.turn, step: state.step, callTime: state.callTime, resultSeq: result?.seq ?? boundary?.seq, resultTime: result?.time ?? boundary?.time, resultContent: result?.content ?? [], isError: result?.isError ?? interrupted, errorCode: result?.errorCode ?? (interrupted ? "interrupted" : nil), callView: state.callView, resultView: result?.resultView)
+        if let boundary {
+            return chatNode(context: context, kind: "tool-call", anchor: Double(boundary.seq) - 0.8, data: payload)
+        }
         return chatNode(context: context, kind: "tool-call", anchorSeq: context.start?.event.seq ?? result?.seq ?? 0, data: payload)
     }
 }
@@ -486,7 +501,7 @@ private struct TurnErrorDefinition: ConversationNodeDefinition {
         default: step = 0
         }
         let payload = CoreTurnErrorNode(turn: state.turn, step: step, seq: failure.seq, time: failure.time, message: failure.message, code: failure.code, hiddenByRetry: state.hidden)
-        return chatNode(context: context, kind: "turn-error", anchorSeq: failure.seq, data: payload)
+        return chatNode(context: context, kind: "turn-error", anchor: Double(failure.seq), data: payload, visibility: state.hidden ? .hidden : .visible)
     }
 }
 
@@ -531,14 +546,18 @@ private struct CompactionDefinition: ConversationNodeDefinition {
 // MARK: - Core-only JSON and node helpers
 
 private func chatNode<State>(context: ConversationNodeContext<State>, kind: String, anchorSeq: Int, data: Any) -> ConversationViewNode {
+    chatNode(context: context, kind: kind, anchor: Double(anchorSeq), data: data)
+}
+
+private func chatNode<State>(context: ConversationNodeContext<State>, kind: String, anchor: Double, data: Any, visibility: ChatConversationViewNode.Visibility = .visible) -> ConversationViewNode {
     .init(
         key: context.key,
         kind: kind,
         id: context.id,
         target: "chat",
         data: data,
-        anchorSeq: anchorSeq,
-        visibility: .visible
+        anchorSeq: anchor,
+        visibility: visibility
     )
 }
 
@@ -555,6 +574,14 @@ private extension SessionEventDTO {
 }
 
 private extension ConversationLocation {
+    var closedEvent: SessionEventDTO? {
+        switch self {
+        case let .step(turn, step): return step.end ?? turn.end
+        case let .turn(turn): return turn.end
+        case .session, .unresolved: return nil
+        }
+    }
+
     var isClosedBoundary: Bool {
         switch self {
         case let .step(turn, step): return step.status == .closed || turn.status == .closed

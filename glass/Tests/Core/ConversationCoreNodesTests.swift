@@ -95,6 +95,28 @@ final class ConversationCoreNodesTests: XCTestCase {
         XCTAssertEqual(compaction.seq, 19, "checkpoint stays at its landed replacement event, not at summary")
     }
 
+    func testClosedStepFreezesStreamingAssistantAndRunningToolAtOfficialSyntheticAnchors() {
+        let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
+        let entries = [
+            event(seq: 60, type: "turn/start", data: ["turn": .number(3)]),
+            event(seq: 61, type: "step/start", data: ["turn": .number(3), "step": .number(1)]),
+            event(seq: 62, type: "assistant/chunk", data: [
+                "turn": .number(3), "step": .number(1),
+                "chunk": .object(["type": .string("text-delta"), "index": .number(0), "text": .string("partial")])
+            ]),
+            event(seq: 63, type: "tool/call", data: ["callId": .string("call-partial"), "name": .string("bash"), "arguments": .string("pwd"), "turn": .number(3), "step": .number(1)]),
+            event(seq: 64, type: "step/end", data: ["turn": .number(3), "step": .number(1)])
+        ]
+        reducer.replaceWindow(entries.map { .init(event: $0) }, hasMore: false)
+        let chat = reducer.snapshot(target: "chat")
+        let assistant = tryUnwrap(chat.first(where: { $0.kind == "assistant-step" }))
+        let tool = tryUnwrap(chat.first(where: { $0.kind == "tool-call" }))
+        XCTAssertEqual((assistant.data as? CoreAssistantNode)?.status, .interrupted)
+        XCTAssertEqual((tool.data as? CoreToolCallNode)?.status, .interrupted)
+        XCTAssertEqual(tryUnwrap(assistant.anchorSeq), 63.1, accuracy: 0.0001)
+        XCTAssertEqual(tryUnwrap(tool.anchorSeq), 63.2, accuracy: 0.0001)
+    }
+
     func testContextInjectionIsAVisibleContextNodeNotAnOrdinaryUserBubble() {
         let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
         let injected = event(seq: 50, type: "user/message", surface: .string("append"), data: [

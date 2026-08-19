@@ -142,7 +142,7 @@ struct ConversationViewNode {
     let data: Any
     /// Chat targets provide their official sortable render anchor. Other targets
     /// leave this nil and retain reducer context ordering.
-    let anchorSeq: Int?
+    let anchorSeq: Double?
     /// A materialized node stays keyed while its business definition requests a
     /// temporary hidden state; target renderers do not infer visibility from raw events.
     let visibility: ChatConversationViewNode.Visibility?
@@ -153,7 +153,7 @@ struct ConversationViewNode {
         id: String,
         target: String,
         data: Any,
-        anchorSeq: Int? = nil,
+        anchorSeq: Double? = nil,
         visibility: ChatConversationViewNode.Visibility? = nil
     ) {
         self.key = key
@@ -176,7 +176,7 @@ struct ChatConversationViewNode {
     }
 
     let node: ConversationViewNode
-    let anchorSeq: Int
+    let anchorSeq: Double
     let location: ConversationLocation
     let visibility: Visibility
 
@@ -185,7 +185,7 @@ struct ChatConversationViewNode {
         kind: String,
         id: String,
         data: Any,
-        anchorSeq: Int,
+        anchorSeq: Double,
         location: ConversationLocation,
         visibility: Visibility
     ) {
