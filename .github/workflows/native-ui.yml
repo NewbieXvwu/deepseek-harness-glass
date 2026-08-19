@@ -88,7 +88,9 @@ jobs:
       - name: Download bundled Node runtime
         if: steps.node-runtime-cache.outputs.cache-hit != 'true'
         run: |
-          curl -fsSL "https://nodejs.org/dist/v${DSH_NODE_VERSION}/node-v${DSH_NODE_VERSION}-darwin-arm64.tar.gz" -o /tmp/node.tgz
+          NODE_DIST="https://nodejs.org/dist"
+          NODE_TARBALL="node-v${DSH_NODE_VERSION}-darwin-arm64.tar.gz"
+          curl -fsSL "${NODE_DIST}/v${DSH_NODE_VERSION}/${NODE_TARBALL}" -o /tmp/node.tgz
           tar -xzf /tmp/node.tgz -C /tmp
           mkdir -p glass/build/node
           cp "/tmp/node-v${DSH_NODE_VERSION}-darwin-arm64/bin/node" glass/build/node/node
