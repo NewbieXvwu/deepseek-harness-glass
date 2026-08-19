@@ -46,132 +46,6 @@ permissions:
   contents: read
 
 jobs:
-  diagnose-capture-environment:
-    name: diagnose runner capture environment
-    runs-on: macos-26
-    timeout-minutes: 25
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: A. Runner and OS identity
-        continue-on-error: true
-        run: |
-          sw_vers
-          uname -m
-          xcrun --sdk macosx --show-sdk-version
-          echo "whoami=$(whoami) uid=$(id -u)"
-
-      - name: B. SIP status
-        continue-on-error: true
-        run: csrutil status
-
-      - name: C. GUI session / bootstrap namespace
-        continue-on-error: true
-        run: |
-          echo "--- launchctl managername ---"
-          launchctl managername || echo "managername FAILED"
-          echo "--- loginwindow ---"
-          pgrep -x loginwindow && echo "loginwindow PRESENT" || echo "loginwindow ABSENT"
-          echo "--- WindowServer ---"
-          pgrep -x WindowServer && echo "WindowServer PRESENT" || echo "WindowServer ABSENT"
-          echo "--- Dock (Aqua session indicator) ---"
-          pgrep -x Dock && echo "Dock PRESENT" || echo "Dock ABSENT"
-          echo "--- security session ---"
-          launchctl print gui/$(id -u) 2>/dev/null | head -20 || echo "no gui domain for uid"
-
-      - name: D. Displays
-        continue-on-error: true
-        run: system_profiler SPDisplaysDataType | head -60
-
-      - name: E. Existing TCC screen-capture grants
-        continue-on-error: true
-        run: |
-          for db in "/Library/Application Support/com.apple.TCC/TCC.db" \
-                    "$HOME/Library/Application Support/com.apple.TCC/TCC.db"; do
-            echo "=== $db ==="
-            echo "--- schema ---"
-            sudo sqlite3 "$db" "PRAGMA table_info(access);" 2>&1 | head -30 || true
-            echo "--- kTCCServiceScreenCapture rows ---"
-            sudo sqlite3 "$db" \
-              "SELECT service,client,client_type,auth_value FROM access WHERE service='kTCCServiceScreenCapture';" 2>&1 || true
-          done
-
-      - name: F. Baseline screencapture (no app involved)
-        continue-on-error: true
-        run: |
-          mkdir -p artifacts/diagnose
-          echo "--- plain full-screen capture ---"
-          /usr/sbin/screencapture -x artifacts/diagnose/plain-fullscreen.png \
-            && echo "rc=0" || echo "FAILED rc=$?"
-          echo "--- capture inside loginwindow bootstrap ---"
-          LW=$(pgrep -x loginwindow || true)
-          if [ -n "$LW" ]; then
-            sudo launchctl bsexec "$LW" /usr/sbin/screencapture -x artifacts/diagnose/bsexec-fullscreen.png \
-              && echo "rc=0" || echo "FAILED rc=$?"
-          else
-            echo "SKIPPED: no loginwindow pid"
-          fi
-          ls -la artifacts/diagnose/ || true
-
-      - name: G. Classify baseline captures (black vs real content)
-        continue-on-error: true
-        run: |
-          python3 -m venv /tmp/diag-venv
-          source /tmp/diag-venv/bin/activate
-          python -m pip install --disable-pip-version-check --no-input --quiet Pillow numpy
-          python - <<'PY'
-          import os
-          from PIL import Image
-          import numpy as np
-          for name in ("plain-fullscreen.png", "bsexec-fullscreen.png"):
-              p = os.path.join("artifacts/diagnose", name)
-              if not os.path.exists(p):
-                  print(f"{name}: MISSING")
-                  continue
-              a = np.asarray(Image.open(p).convert("RGB"), dtype=np.int16)
-              nonblack = float((a.max(axis=2) > 8).mean())
-              print(f"{name}: size={a.shape[1]}x{a.shape[0]} "
-                    f"mean={a.mean():.2f} max={a.max()} "
-                    f"nonblack_ratio={nonblack:.6f} "
-                    f"=> {'REAL CONTENT' if nonblack > 0.01 else 'ALL BLACK'}")
-          PY
-
-      - name: H. Preflight screen-capture authorization for a test binary
-        continue-on-error: true
-        run: |
-          cat > /tmp/preflight.swift <<'SWIFT'
-          import CoreGraphics
-          import Foundation
-          let pre = CGPreflightScreenCaptureAccess()
-          FileHandle.standardError.write(Data("CGPreflightScreenCaptureAccess=\(pre)\n".utf8))
-          let req = CGRequestScreenCaptureAccess()
-          FileHandle.standardError.write(Data("CGRequestScreenCaptureAccess=\(req)\n".utf8))
-          SWIFT
-          swiftc -O /tmp/preflight.swift -o /tmp/preflight 2>&1 | tail -5 || true
-          /tmp/preflight || echo "preflight binary FAILED rc=$?"
-
-      - name: J. Set display mode then re-probe window capture
-        continue-on-error: true
-        run: |
-          brew install displayplacer >/dev/null 2>&1 || true
-          ID=$(displayplacer list | awk '/Persistent screen id:/{print $4; exit}')
-          echo "display id=$ID"
-          displayplacer "id:$ID res:1920x1080 hz:60 color_depth:7 enabled:true scaling:off origin:(0,0) degree:0" || echo "set mode FAILED"
-          sleep 3
-          echo "--- mode after change ---"
-          displayplacer list | grep -m1 "res:.*current mode" || true
-          swiftc -O -parse-as-library glass/ci/probe-window-capture.swift -o /tmp/probe 2>&1 | tail -5
-          /tmp/probe || echo "probe rc=$?"
-
-      - name: I. Upload diagnostic artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: capture-diagnosis
-          path: artifacts/diagnose/
-          if-no-files-found: warn
-
   build-and-snapshot:
     name: build and snapshot native shell
     # macos-26 is GitHub's arm64 hosted image with the macOS 26 SDK and Xcode 26.
@@ -408,6 +282,18 @@ jobs:
           codesign -v "$APP_PATH"
           test -x "$APP_PATH/Contents/MacOS/DeepSeek Harness"
 
+      - name: Set display mode for snapshot viewport
+        run: |
+          # The hosted macOS runner boots at 1024x768. AppKit clamps any window
+          # to the display, so the 1280x840 snapshot window silently became
+          # 1024x840 and refreshForCurrentViewport resolved the layout at a
+          # 1024 viewport, which drops the details column entirely. Widen the
+          # display so the snapshot viewport is the one the baseline expects.
+          brew list displayplacer >/dev/null 2>&1 || brew install displayplacer
+          DISPLAY_ID="$(displayplacer list | awk '/Persistent screen id:/{print $4; exit}')"
+          displayplacer "id:${DISPLAY_ID} res:1920x1080 hz:60 color_depth:7 enabled:true scaling:off origin:(0,0) degree:0"
+          displayplacer list | grep -m1 'current mode'
+
       - name: Generate native UI layout snapshots
         run: |
           snapshot_dir="$PWD/artifacts/native-shell"
@@ -438,7 +324,8 @@ jobs:
             --native artifacts/native-shell/welcome-light.png \
             --out-dir artifacts/visual-diff \
             --scene welcome-no-workspace-light \
-            --policy glass/Sources/Spec/Fixtures/visual-validation-policy.json
+            --policy glass/Sources/Spec/Fixtures/visual-validation-policy.json \
+            --column-fixtures glass/Sources/Spec/Fixtures/official-column-layout-fixtures.json
           test -s artifacts/visual-diff/welcome-no-workspace-light-comparison.png
           test -s artifacts/visual-diff/welcome-no-workspace-light-report.json
 

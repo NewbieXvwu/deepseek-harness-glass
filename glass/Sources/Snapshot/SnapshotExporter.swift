@@ -12,15 +12,28 @@ import SwiftUI
 /// 它验证 SwiftUI 布局和官方 token 映射；系统真实折射效果仍由运行中的 macOS 窗口验收。
 enum SnapshotExporter {
     enum SnapshotError: Error, LocalizedError {
-        case cannotCreateBitmap
         case cannotEncodePNG
+        case viewportClamped(requested: NSSize, actual: NSSize, display: NSSize)
+        case compositorUnavailable
+        case blackFrame
 
         var errorDescription: String? {
             switch self {
-            case .cannotCreateBitmap:
-                return "Unable to create the snapshot bitmap."
             case .cannotEncodePNG:
                 return "Unable to encode the snapshot PNG."
+            case let .viewportClamped(requested, actual, display):
+                return """
+                Snapshot viewport was clamped by the display: requested \
+                \(Int(requested.width))x\(Int(requested.height)), got \
+                \(Int(actual.width))x\(Int(actual.height)) on a \
+                \(Int(display.width))x\(Int(display.height)) display. The column \
+                layout resolves against the clamped width, so the capture would \
+                not be the baseline layout. Widen the display mode before capturing.
+                """
+            case .compositorUnavailable:
+                return "ScreenCaptureKit could not capture the snapshot window."
+            case .blackFrame:
+                return "The compositor returned an all-black frame."
             }
         }
     }
@@ -116,19 +129,30 @@ enum SnapshotExporter {
         window.contentView?.appearance = NSAppearance(named: appearanceName)
         window.contentView?.frame = NSRect(origin: .zero, size: size)
         window.orderFrontRegardless()
+        // AppKit silently shrinks a window that exceeds the display. On the
+        // 1024x768 hosted runner a 1280x840 request became 1024 wide, and
+        // OfficialColumnLayout.resolve then took its details-dropped branch,
+        // so the capture was a two-column shell compared against a
+        // three-column baseline. Refuse to export a mislaid viewport.
+        let actualContentSize = window.contentRect(forFrameRect: window.frame).size
+        if abs(actualContentSize.width - size.width) > 1 || abs(actualContentSize.height - size.height) > 1 {
+            throw SnapshotError.viewportClamped(
+                requested: size,
+                actual: actualContentSize,
+                display: NSScreen.main?.frame.size ?? .zero
+            )
+        }
         window.contentViewController?.view.layoutSubtreeIfNeeded()
         window.contentView?.layoutSubtreeIfNeeded()
         shellController.refreshForCurrentViewport()
         window.contentViewController?.view.layoutSubtreeIfNeeded()
         window.displayIfNeeded()
 
-        // `cacheDisplay` cannot render WindowServer-owned materials. macOS 26
-        // replaces the obsolete CGWindowList image APIs with this supported
-        // single-frame ScreenCaptureKit compositor path. GitHub's headless
-        // runner can nevertheless return an all-black, non-error SDR frame
-        // when its WindowServer denies compositing. Such a frame is invalid
-        // evidence, so retain an explicit deterministic AppKit fallback for
-        // layout review rather than exporting a false black visual result.
+        // macOS 26 replaces the obsolete CGWindowList image APIs with this
+        // supported single-frame ScreenCaptureKit compositor path. Measured on
+        // a macos-26 hosted runner, it returns fully composited system
+        // materials (sidebar and inspector bands both >99% non-black), so a
+        // black frame here means a real defect rather than a platform limit.
         let configuration = SCScreenshotConfiguration()
         configuration.width = Int(size.width)
         configuration.height = Int(size.height)
@@ -154,6 +178,11 @@ enum SnapshotExporter {
         } else {
             compositorBitmap = nil
         }
+        // A degraded capture used to fall back to `cacheDisplay`, which by
+        // Apple's own account cannot render materials or blurs. That fallback
+        // turned every capture failure into a passing run with a wrong image,
+        // so the pipeline reported success while producing invalid evidence.
+        // Fail instead: an unusable compositor is a CI defect, not a variant.
         let bitmap: NSBitmapImageRep
         if let compositorBitmap {
             bitmap = compositorBitmap
@@ -161,9 +190,10 @@ enum SnapshotExporter {
         } else if let systemBitmap = systemWindowBitmap(windowID: CGWindowID(window.windowNumber), size: size) {
             bitmap = systemBitmap
             FileHandle.standardError.write(Data("snapshot capture: system screencapture window compositor frame accepted\n".utf8))
+        } else if shareableWindow == nil {
+            throw SnapshotError.compositorUnavailable
         } else {
-            bitmap = try fallbackBitmap(from: window, size: size)
-            FileHandle.standardError.write(Data("snapshot capture: ScreenCaptureKit and system compositor frames unavailable or black; using deterministic AppKit fallback\n".utf8))
+            throw SnapshotError.blackFrame
         }
         guard let png = bitmap.representation(using: .png, properties: [:]) else {
             throw SnapshotError.cannotEncodePNG
@@ -203,29 +233,6 @@ enum SnapshotExporter {
         let bitmap = NSBitmapImageRep(cgImage: cgImage)
         bitmap.size = size
         return hasVisibleSDRContent(bitmap) ? bitmap : nil
-    }
-
-    @MainActor
-    private static func fallbackBitmap(from window: NSWindow, size: NSSize) throws -> NSBitmapImageRep {
-        guard let hostedView = window.contentView,
-              let bitmap = NSBitmapImageRep(
-                bitmapDataPlanes: nil,
-                pixelsWide: Int(size.width),
-                pixelsHigh: Int(size.height),
-                bitsPerSample: 8,
-                samplesPerPixel: 4,
-                hasAlpha: true,
-                isPlanar: false,
-                colorSpaceName: .deviceRGB,
-                bytesPerRow: 0,
-                bitsPerPixel: 0
-              )
-        else {
-            throw SnapshotError.cannotCreateBitmap
-        }
-        bitmap.size = size
-        hostedView.cacheDisplay(in: hostedView.bounds, to: bitmap)
-        return bitmap
     }
 
     /// The macOS 26 screenshot API can return an all-black CGImage without an
