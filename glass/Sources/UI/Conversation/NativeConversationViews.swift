@@ -29,7 +29,7 @@ private struct NativeActiveConversationSurface: View {
 
     var body: some View {
         VStack(spacing: OfficialUISpec.Spacing.p0) {
-            NativeConversationHeader()
+            NativeConversationHeader(jobs: sessionStore.backgroundJobs)
             transcriptBody
             composerTakeover
         }
@@ -93,11 +93,14 @@ private struct NativeActiveConversationSurface: View {
 }
 
 private struct NativeConversationHeader: View {
+    let jobs: [NativeSessionStore.BackgroundJob]
+
     var body: some View {
         HStack {
             Text(OfficialUISpec.Text.chat)
                 .font(OfficialUISpec.Typography.sStrong14)
             Spacer(minLength: 0)
+            NativeJobsHeaderAction(jobs: jobs)
         }
         .frame(height: OfficialUISpec.Geometry.px56)
         .padding(.horizontal, OfficialUISpec.Spacing.p20)
