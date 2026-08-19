@@ -97,6 +97,7 @@ jobs:
           NODE_TARBALL="node-v${DSH_NODE_VERSION}-darwin-arm64.tar.gz"
           curl -fsSL "${NODE_DIST}/v${DSH_NODE_VERSION}/${NODE_TARBALL}" -o /tmp/node.tgz
           tar -xzf /tmp/node.tgz -C /tmp
+          mkdir -p glass/build
           rm -rf glass/build/node-runtime
           mv "/tmp/node-v${DSH_NODE_VERSION}-darwin-arm64" glass/build/node-runtime
           mkdir -p glass/build/node
