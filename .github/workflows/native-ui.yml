@@ -262,7 +262,7 @@ jobs:
           DSH_GLASS_SNAPSHOT_DIR="$snapshot_dir" \
             ./glass/scripts/verify-native-shell.sh "$PWD/glass/dist/DeepSeek Harness.app" \
             | tee native-shell-snapshot.log
-          test -s "$snapshot_dir/welcome-dark.png"
+          test -s "$snapshot_dir/welcome-light.png"
           test -s "$snapshot_dir/conversation-dark.png"
           test -s "$snapshot_dir/tooling-inspector-dark.png"
           test -s "$snapshot_dir/approval-panel-light.png"
@@ -283,7 +283,7 @@ jobs:
           python glass/ci/test_visual_policy.py
           python glass/ci/compare_visual_pair.py \
             --official artifacts/official-webui/welcome-no-workspace-light.png \
-            --native artifacts/native-shell/welcome-dark.png \
+            --native artifacts/native-shell/welcome-light.png \
             --out-dir artifacts/visual-diff \
             --scene welcome-no-workspace-light \
             --policy glass/Sources/Spec/Fixtures/visual-validation-policy.json

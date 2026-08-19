@@ -76,6 +76,14 @@ enum SnapshotExporter {
         case .welcome, .conversation:
             break
         }
+        let appearanceName: NSAppearance.Name = ProcessInfo.processInfo.environment["DSH_GLASS_SNAPSHOT_COLOR_SCHEME"] == "dark"
+            ? .darkAqua
+            : .aqua
+        // System split-item materials resolve from the application effective
+        // appearance, not only the borderless bitmap context. Set it before
+        // creating SwiftUI hosting views so a locked light/dark capture is
+        // truly paired with the official scene.
+        NSApp.appearance = NSAppearance(named: appearanceName)
         let presentation = NativeShellPresentation(
             mode: mode,
             workspaceStore: workspaceStore,
@@ -96,9 +104,10 @@ enum SnapshotExporter {
         )
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
-        window.appearance = NSAppearance(named: .aqua)
+        window.appearance = NSAppearance(named: appearanceName)
         window.isReleasedWhenClosed = false
         window.contentViewController = shellController
+        window.contentView?.appearance = NSAppearance(named: appearanceName)
         window.contentView?.frame = NSRect(origin: .zero, size: size)
         window.orderFrontRegardless()
         window.contentViewController?.view.layoutSubtreeIfNeeded()
