@@ -364,7 +364,7 @@ struct NativeSplitLayoutPolicy {
 class NativeSplitViewController: NSSplitViewController {
     private let sidebarHost: OfficialSidebarHostController
     private let conversationHost: NSHostingController<NativeConversationColumn>
-    private let detailsHost: NSHostingController<NativeDetailsView>
+    private let detailsHost: TransparentHostingController<NativeDetailsView>
     private let sidebarItem: NSSplitViewItem
     private let conversationItem: NSSplitViewItem
     private let detailsItem: NSSplitViewItem
@@ -390,7 +390,7 @@ class NativeSplitViewController: NSSplitViewController {
     ) {
         sidebarHost = OfficialSidebarHostController(rootView: sidebar)
         conversationHost = NSHostingController(rootView: conversation)
-        detailsHost = NSHostingController(rootView: details)
+        detailsHost = TransparentHostingController(rootView: details)
         sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebarHost)
         conversationItem = NSSplitViewItem(viewController: conversationHost)
         detailsItem = NSSplitViewItem(inspectorWithViewController: detailsHost)
@@ -556,7 +556,7 @@ private final class TransparentHostingView<Content: View>: NSHostingView<Content
     override var isOpaque: Bool { false }
 }
 
-private final class TransparentHostingController<Content: View>: NSHostingController<Content> {
+final class TransparentHostingController<Content: View>: NSHostingController<Content> {
     override func loadView() {
         let transparentView = TransparentHostingView(rootView: rootView)
         transparentView.wantsLayer = true

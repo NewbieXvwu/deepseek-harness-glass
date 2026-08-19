@@ -10,10 +10,10 @@ import SwiftUI
 /// and automatically adapts to Light/Dark, Reduce Transparency and contrast.
 @MainActor
 final class OfficialSidebarHostController: NSViewController {
-    private let hostingController: NSHostingController<NativeSidebarView>
+    private let hostingController: TransparentHostingController<NativeSidebarView>
 
     init(rootView: NativeSidebarView) {
-        hostingController = NSHostingController(rootView: rootView)
+        hostingController = TransparentHostingController(rootView: rootView)
         super.init(nibName: nil, bundle: nil)
     }
 
