@@ -6,9 +6,54 @@ import AppKit
 @testable import GlassUI
 @testable import GlassSnapshot
 #endif
+
+/// App-owned native window policy. It preserves the migrated AppKit geometry
+/// while deliberately delegating titlebar, corner avoidance and restoration to
+/// NSWindow rather than recreating any web-style transparent window effect.
+@MainActor
+enum NativeWindowPolicy {
+    static let initialContentSize = NSSize(width: 1280, height: 840)
+    static let minimumContentSize = NSSize(width: 880, height: 600)
+    static let frameAutosaveName = "DeepSeekHarnessGlass.MainWindow"
+    static let restorationIdentifier = NSUserInterfaceItemIdentifier("DeepSeekHarnessGlass.MainWindow")
+
+    static func makeWindow() -> NSWindow {
+        let window = NSWindow(
+            contentRect: NSRect(origin: .zero, size: initialContentSize),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "DeepSeek Harness"
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.toolbarStyle = .unifiedCompact
+        window.titlebarSeparatorStyle = .none
+        window.contentMinSize = minimumContentSize
+        window.minSize = minimumContentSize
+        window.isRestorable = true
+        window.identifier = restorationIdentifier
+        return window
+    }
+
+    /// Restores only a frame previously saved by this exact native window. A
+    /// first launch keeps the fixed visual-capture baseline centered on screen.
+    @discardableResult
+    static func restoreOrCenter(_ window: NSWindow) -> Bool {
+        window.setFrameAutosaveName(frameAutosaveName)
+        let restored = window.setFrameUsingName(frameAutosaveName)
+        if !restored { window.center() }
+        return restored
+    }
+
+    static func saveFrame(_ window: NSWindow) {
+        window.saveFrame(usingName: frameAutosaveName)
+    }
+}
+
 @MainActor
 final class WindowCoordinator: NSObject, NSWindowDelegate {
-    private var window: NSWindow?
+    private(set) var window: NSWindow?
     private var presentation: NativeShellPresentation?
 
     func install(presentation: NativeShellPresentation) {
@@ -18,27 +63,21 @@ final class WindowCoordinator: NSObject, NSWindowDelegate {
             return
         }
         let shellController = NativeShellRootController(presentation: presentation)
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 1280, height: 840),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
-            backing: .buffered,
-            defer: false
-        )
-        window.title = "DeepSeek Harness"
-        window.titleVisibility = .hidden
-        window.titlebarAppearsTransparent = true
-        window.contentMinSize = NSSize(width: 880, height: 600)
+        let window = NativeWindowPolicy.makeWindow()
         window.contentViewController = shellController
         window.delegate = self
-        window.center()
+        _ = NativeWindowPolicy.restoreOrCenter(window)
         self.window = window
         self.presentation = presentation
         shellController.refreshForCurrentViewport()
         showAndFocus()
     }
 
+    /// Reopens hidden or minimized windows from the menu bar, Dock or a future
+    /// system restoration callback without creating a second shell/controller.
     func showAndFocus() {
         guard let window else { return }
+        if window.isMiniaturized { window.deminiaturize(nil) }
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
@@ -52,8 +91,9 @@ final class WindowCoordinator: NSObject, NSWindowDelegate {
     }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        // Retain the historical menu-bar-residency intent: closing the main
-        // window hides it, while the status menu remains able to restore it.
+        // Preserve resident Host/menu-bar reachability while persisting a native
+        // frame for the next open; the window is not destroyed on a red-close.
+        NativeWindowPolicy.saveFrame(sender)
         sender.orderOut(nil)
         return false
     }

@@ -212,6 +212,11 @@ jobs:
           cd glass
           swift test --filter HarnessHostTransportSmokeTests
 
+      - name: Run native window lifecycle tests
+        run: |
+          cd glass
+          swift test --filter WindowCoordinatorTests
+
       - name: Run official RPC DTO fixture tests
         run: |
           cd glass

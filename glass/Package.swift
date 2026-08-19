@@ -53,5 +53,10 @@ let package = Package(
             dependencies: ["GlassCore", "GlassSpec"],
             path: "Tests/Core"
         ),
+        .testTarget(
+            name: "GlassAppTests",
+            dependencies: ["DeepSeekHarnessGlassApp", "GlassCore", "GlassSpec", "GlassUI"],
+            path: "Tests/App"
+        ),
     ]
 )

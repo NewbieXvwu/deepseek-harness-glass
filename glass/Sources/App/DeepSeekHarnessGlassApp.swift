@@ -51,6 +51,11 @@ final class DeepSeekHarnessGlassApp: NSObject, NSApplicationDelegate {
         false
     }
 
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        windowCoordinator.showAndFocus()
+        return true
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         hostCoordinator?.stop()
         hostCoordinator = nil
