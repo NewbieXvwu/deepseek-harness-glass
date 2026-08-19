@@ -92,7 +92,7 @@ final class SessionHistoryPagerTests: XCTestCase {
 
     func testLiveAcceptanceIsSequenceGuardedAfterTailLoad() async {
         let pager = SessionHistoryPager()
-        pager.bind(sessionID: "session") { _, _, _ in response([event(20, "assistant/message")], hasMore: false) }
+        pager.bind(sessionID: "session") { _, _, _ in response([entry(20, "assistant/message")], hasMore: false) }
         let loadedTail = await pager.loadTail()
         XCTAssertTrue(loadedTail)
 
