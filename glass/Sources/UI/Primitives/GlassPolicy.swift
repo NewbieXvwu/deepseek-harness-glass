@@ -1,5 +1,10 @@
 import SwiftUI
 
+#if DEEPSEEK_HARNESS_PACKAGE
+@testable import GlassCore
+@testable import GlassSpec
+#endif
+
 /// Auditable policy for every material-bearing native surface. The locked WebUI
 /// remains the source of product hierarchy; this policy only decides whether
 /// macOS may supply system chrome for an already-official affordance.
