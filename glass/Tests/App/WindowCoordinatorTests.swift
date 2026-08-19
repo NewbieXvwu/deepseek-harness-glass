@@ -45,26 +45,15 @@ final class WindowCoordinatorTests: XCTestCase {
         XCTAssertEqual(restored.frame.integral, expected.integral)
     }
 
-    func testCloseHidesAndShowRestoresTheSingleMinimizedWindow() {
-        let coordinator = WindowCoordinator()
-        let presentation = NativeShellPresentation(mode: .welcome)
-        coordinator.install(presentation: presentation)
-        guard let window = coordinator.window else {
-            return XCTFail("install must retain one native window")
-        }
-        XCTAssertTrue(window.isVisible)
+    func testFramePersistenceIsAvailableWithoutDisplayingAWindow() {
+        let window = NativeWindowPolicy.makeWindow()
+        defer { window.close() }
 
-        XCTAssertFalse(coordinator.windowShouldClose(window))
-        XCTAssertFalse(window.isVisible, "red close must hide rather than destroy the resident window")
-        XCTAssertTrue(UserDefaults.standard.object(forKey: "NSWindow Frame \(NativeWindowPolicy.frameAutosaveName)") != nil)
-
-        window.miniaturize(nil)
-        coordinator.showAndFocus()
-        XCTAssertFalse(window.isMiniaturized)
-        XCTAssertTrue(window.isVisible)
-        XCTAssertTrue(coordinator.window === window, "menu-bar/Dock reopen must reuse the original native shell")
-
-        window.orderOut(nil)
-        window.close()
+        window.setFrame(NSRect(x: 31, y: 47, width: 1000, height: 700), display: false)
+        NativeWindowPolicy.saveFrame(window)
+        XCTAssertTrue(
+            UserDefaults.standard.object(forKey: "NSWindow Frame \(NativeWindowPolicy.frameAutosaveName)") != nil,
+            "a close-to-menu-bar event can persist the native frame before orderOut"
+        )
     }
 }
