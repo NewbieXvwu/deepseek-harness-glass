@@ -107,6 +107,10 @@ enum SnapshotExporter {
         window.appearance = NSAppearance(named: appearanceName)
         window.isReleasedWhenClosed = false
         window.contentViewController = shellController
+        // `cacheDisplay` may run before WindowServer has propagated the window
+        // appearance to child controllers. Pin the off-screen root explicitly;
+        // the running application never uses this snapshot-only override.
+        shellController.view.appearance = NSAppearance(named: appearanceName)
         window.contentView?.appearance = NSAppearance(named: appearanceName)
         window.contentView?.frame = NSRect(origin: .zero, size: size)
         window.orderFrontRegardless()
