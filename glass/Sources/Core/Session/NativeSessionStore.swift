@@ -715,6 +715,12 @@ final class NativeSessionStore: ObservableObject {
 
         switch event.type {
         case "user/message":
+            // Source: `SessionQueueMirror.acceptDurable`. A transient steering
+            // row belongs to the queue snapshot only until its matching durable
+            // user message has entered the contiguous Host log.
+            if let messageID = event.data.objectValue?["id"]?.stringValue {
+                queuedMessages.removeAll { $0.placement == .steering && $0.messageID == messageID }
+            }
             guard let text = textContent(in: event.data) else { return }
             upsert(TranscriptItem(
                 id: "event-\(event.seq)",

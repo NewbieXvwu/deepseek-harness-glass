@@ -84,6 +84,43 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.backgroundJobs.first?.status, .stopping)
     }
 
+    func testDurableUserMessageRetiresOnlyMatchingTransientSteeringRow() {
+        let store = NativeSessionStore()
+        store.loadSnapshotToolingFixture()
+        store.applyMuxFrame(queueFrame(sessionID: "snapshot-tooling", items: [
+            queuedItem(id: "queued", messageID: "ordinary", placement: "queued", content: [.object(["type": .string("text"), "text": .string("keep me")])]),
+            queuedItem(id: "steering", messageID: "steer-me", placement: "steering", content: [.object(["type": .string("text"), "text": .string("retire me")])]),
+        ]), sessionID: "snapshot-tooling")
+
+        store.applyMuxFrame(eventFrame(sessionID: "snapshot-tooling", seq: 500, messageID: "steer-me", text: "admitted steering"), sessionID: "snapshot-tooling")
+
+        XCTAssertEqual(store.queuedMessages.map(\.id), ["queued"])
+        XCTAssertEqual(store.queuedMessages.first?.messageID, "ordinary")
+        XCTAssertEqual(store.items.last?.text, "admitted steering")
+    }
+
+    private func eventFrame(sessionID: String, seq: Int, messageID: String, text: String) -> RPCServerRequest {
+        RPCServerRequest(
+            type: "server-request",
+            rpcId: "event-\(UUID().uuidString)",
+            method: "session/event",
+            payload: .object([
+                "type": .string("session/event"),
+                "sessionId": .string(sessionID),
+                "event": .object([
+                    "type": .string("user/message"),
+                    "seq": .number(Double(seq)),
+                    "time": .number(Double(seq)),
+                    "surfaceOp": .string("append"),
+                    "data": .object([
+                        "id": .string(messageID),
+                        "content": .array([.object(["type": .string("text"), "text": .string(text)])]),
+                        "source": .object(["kind": .string("user")]),
+                    ]),
+                ]),
+            ]))
+    }
+
     private func queueFrame(sessionID: String, items: [JSONValue]) -> RPCServerRequest {
         RPCServerRequest(
             type: "server-request",
