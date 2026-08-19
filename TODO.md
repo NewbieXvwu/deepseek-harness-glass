@@ -261,9 +261,9 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 
 官方 Web client 将 session history、实时 `session/event` 和 `session/projection` 组合为 incremental conversation snapshots，并用 `ConversationNodeDefinition` 为不同业务节点分派 renderer。原生端必须复现该“事件→节点→视图”结构，而非只做消息数组。[7] [8]
 
-- [ ] **T6.1：实现 `NativeSessionStore`。** 用 Session ID 作为隔离边界，维护 current session、历史分页窗口、加载状态、running 状态、pending interaction、queue、jobs 和 selection。
+- [x] **T6.1：实现 `NativeSessionStore`。** `NativeSessionStore` 以active Session ID过滤mux frame，并为每个已访问session保留resident窗口（history、tool、draft、pending interaction、queue/jobs、selection与sequence gate）；切换回resident session同步恢复可见窗口、后台重拉Host history authority，cold session才进入loading。queue与jobs分别由官方`session/queue`与`session/jobs`完整快照last-wins镜像；`session/subscribed.lastSeq`先截断超前projection并清空旧Host generation的非持久queue/jobs。approval/question、running、tool invocation和tool selection仍由同一Core reducer维护，Feature/UI不接触wire JSON。
   - 依赖：T4.5。
-  - 验收：切换 workspace/session 不丢失已加载历史；cold session 与 live session 均能被表示。
+  - 验收证据：`NativeSessionStoreTests` 使用锁定wire形状的`session/queue`、`session/jobs`、`session/subscribed` ServerRequest，验证完整快照替换、foreign session拒绝、空jobs清理、generation transient reset、projection durable-watermark截断以及resident window恢复tool selection/queue/jobs；该XCTest单列进入workflow。macOS-26 [run 32236473372](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32236473372)（commit `b9da559`）成功完成完整静态/module/transport gates、SwiftPM编译、Core/App tests、原生装配、全快照与官方欢迎页比较。人工欢迎页和tooling-inspector复核记录于 `visual-review/official-99f6f02/t6-1-b9da559-ci-review.md`；本项Core状态改动未新增可见布局/层级回归，既有welcome `report-only`例外未被扩展或误记为视觉完成。
 
 - [ ] **T6.2：实现 `SessionHistoryPager`。** 支持 tail history、向前分页、连续 raw event range、loading/error/retry 和 session export。
   - 依赖：T6.1。
