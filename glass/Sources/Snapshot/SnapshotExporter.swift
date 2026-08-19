@@ -158,9 +158,12 @@ enum SnapshotExporter {
         if let compositorBitmap {
             bitmap = compositorBitmap
             FileHandle.standardError.write(Data("snapshot capture: current-process ScreenCaptureKit compositor frame accepted\n".utf8))
+        } else if let systemBitmap = systemWindowBitmap(windowID: CGWindowID(window.windowNumber), size: size) {
+            bitmap = systemBitmap
+            FileHandle.standardError.write(Data("snapshot capture: system screencapture window compositor frame accepted\n".utf8))
         } else {
             bitmap = try fallbackBitmap(from: window, size: size)
-            FileHandle.standardError.write(Data("snapshot capture: ScreenCaptureKit compositor frame unavailable or black; using deterministic AppKit fallback\n".utf8))
+            FileHandle.standardError.write(Data("snapshot capture: ScreenCaptureKit and system compositor frames unavailable or black; using deterministic AppKit fallback\n".utf8))
         }
         guard let png = bitmap.representation(using: .png, properties: [:]) else {
             throw SnapshotError.cannotEncodePNG
@@ -171,6 +174,35 @@ enum SnapshotExporter {
         try png.write(to: outputURL, options: .atomic)
         window.orderOut(nil)
         return true
+    }
+
+    /// Uses macOS's own window screenshot service only for the CI review
+    /// exporter. The running UI neither invokes a subprocess nor depends on
+    /// this path; it exists so a headless runner can still inspect actual
+    /// WindowServer material after ScreenCaptureKit returns a black frame.
+    @MainActor
+    private static func systemWindowBitmap(windowID: CGWindowID, size: NSSize) -> NSBitmapImageRep? {
+        let temporaryURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("deepseek-harness-glass-window-\(windowID)-\(UUID().uuidString).png")
+        defer { try? FileManager.default.removeItem(at: temporaryURL) }
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+        process.arguments = ["-x", "-o", "-l\(windowID)", temporaryURL.path]
+        do {
+            try process.run()
+            process.waitUntilExit()
+        } catch {
+            return nil
+        }
+        guard process.terminationStatus == 0,
+              let image = NSImage(contentsOf: temporaryURL),
+              let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil)
+        else { return nil }
+
+        let bitmap = NSBitmapImageRep(cgImage: cgImage)
+        bitmap.size = size
+        return hasVisibleSDRContent(bitmap) ? bitmap : nil
     }
 
     @MainActor
