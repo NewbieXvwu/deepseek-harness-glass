@@ -19,12 +19,49 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--out-dir", type=Path, required=True)
     parser.add_argument("--scene", required=True)
     parser.add_argument("--policy", type=Path)
+    parser.add_argument(
+        "--column-fixtures",
+        type=Path,
+        help="Official column layout fixtures used to derive system-material regions.",
+    )
     return parser.parse_args()
+
+
+def material_regions(fixtures_path: Path | None, width: int, height: int) -> list[dict[str, Any]]:
+    """Derive the sidebar and inspector bands from the official layout fixtures.
+
+    AppKit draws those two columns with WindowServer-owned system materials
+    whose exact pixels the WebUI cannot reproduce, so they are excluded from
+    the content-layer comparison instead of being hardcoded here. The bands
+    are taken from the fixture whose viewport matches the captured width, so
+    the exclusion always tracks the spec rather than drifting from it.
+    """
+    if fixtures_path is None:
+        return []
+    with fixtures_path.open(encoding="utf-8") as handle:
+        document = json.load(handle)
+    match = next(
+        (f for f in document.get("fixtures", []) if int(f.get("viewport", -1)) == width),
+        None,
+    )
+    if match is None:
+        raise SystemExit(
+            f"no official column fixture with viewport {width}; cannot derive material regions"
+        )
+    expected = match["expected"]
+    sidebar = int(expected["sidebar"])
+    details = int(expected["details"])
+    regions: list[dict[str, Any]] = []
+    if sidebar > 0:
+        regions.append({"name": "sidebar", "x0": 0, "x1": sidebar, "y0": 0, "y1": height})
+    if details > 0:
+        regions.append({"name": "details", "x0": width - details, "x1": width, "y0": 0, "y1": height})
+    return regions
 
 
 def load_policy(path: Path | None, scene: str) -> tuple[dict[str, Any], dict[str, Any]]:
     if path is None:
-        return {"mode": "report-only"}, {"source": None}
+        return {"mode": "report-only"}, {"source": None, "materialDifferenceChannelThreshold": 12}
     with path.open(encoding="utf-8") as handle:
         document = json.load(handle)
     scene_policy = document.get("scenes", {}).get(scene, document.get("defaultPolicy", {}))
@@ -48,11 +85,19 @@ def threshold_results(metrics: dict[str, float], policy: dict[str, Any]) -> list
         "maxMateriallyChangedRatio": "materiallyChangedRatio",
         "maxMeanAbsoluteChannelDifference": "meanAbsoluteChannelDifference",
         "maxExactChangedRatio": "exactChangedRatio",
+        "maxContentMateriallyChangedRatio": "contentMateriallyChangedRatio",
+        "maxContentExactChangedRatio": "contentExactChangedRatio",
+        "maxContentMeanAbsoluteChannelDifference": "contentMeanAbsoluteChannelDifference",
     }
     results: list[dict[str, Any]] = []
     for policy_key, metric_key in accepted.items():
         if policy_key not in strict:
             continue
+        if metric_key not in metrics:
+            raise SystemExit(
+                f"policy sets {policy_key} but {metric_key} was not computed; "
+                "pass --column-fixtures so material regions can be excluded"
+            )
         maximum = float(strict[policy_key])
         actual = float(metrics[metric_key])
         results.append({
@@ -83,12 +128,27 @@ def main() -> None:
     material_channel_threshold = int(policy_metadata["materialDifferenceChannelThreshold"])
     changed = per_pixel > 0
     materially_changed = per_pixel > material_channel_threshold
+
+    # Content-layer mask: everything except the system-material columns.
+    regions = material_regions(args.column_fixtures, official.width, official.height)
+    content_mask = np.ones(per_pixel.shape, dtype=bool)
+    for region in regions:
+        content_mask[region["y0"]:region["y1"], region["x0"]:region["x1"]] = False
+
     metrics = {
         "exactChangedRatio": round(float(changed.mean()), 8),
         "materiallyChangedRatio": round(float(materially_changed.mean()), 8),
         "meanAbsoluteChannelDifference": round(float(absolute.mean()), 6),
         "maxAbsoluteChannelDifference": int(absolute.max()),
     }
+    if regions and content_mask.any():
+        content_absolute = absolute[content_mask]
+        metrics.update({
+            "contentExactChangedRatio": round(float(changed[content_mask].mean()), 8),
+            "contentMateriallyChangedRatio": round(float(materially_changed[content_mask].mean()), 8),
+            "contentMeanAbsoluteChannelDifference": round(float(content_absolute.mean()), 6),
+            "contentMaxAbsoluteChannelDifference": int(content_absolute.max()),
+        })
 
     raw_diff = ImageChops.difference(official.convert("RGB"), native.convert("RGB"))
     amplified = raw_diff.point(lambda value: min(255, value * 6))
@@ -118,6 +178,7 @@ def main() -> None:
         "exactChangedPixels": int(changed.sum()),
         "materiallyChangedPixels": int(materially_changed.sum()),
         "materialDifferenceChannelThreshold": material_channel_threshold,
+        "materialRegionsExcluded": regions,
         **metrics,
         "policy": {
             **policy_metadata,

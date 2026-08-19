@@ -96,10 +96,9 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
 
     private func assertAccessibleLabels<V: View>(in view: V, expected: [String]) throws {
         guard AXIsProcessTrusted() else {
-            throw XCTSkip("The test process is not a trusted accessibility client; static core-path gate remains mandatory and this runtime tree assertion executes in trusted GUI test environments.")
+            throw XCTSkip("Accessibility trust is required to read the window's accessibility tree.")
         }
 
-        _ = NSApplication.shared
         let host = NSHostingView(rootView: view)
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 900, height: 840),
