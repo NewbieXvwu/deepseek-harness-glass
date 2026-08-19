@@ -130,6 +130,41 @@ final class ConversationCoreNodesTests: XCTestCase {
         XCTAssertEqual(node.sourcePlugin, "agent-instructions")
     }
 
+    func testDurableNextStepInboxSpliceClassifiesOnlyClaimedUserMessageAsSteering() {
+        let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
+        let entries = [
+            event(seq: 1, type: "agent/inbox/spliced", data: [
+                "target": .string("next-step"),
+                "start": .number(0),
+                "removedCount": .number(0),
+                "inserted": .array([.object(["id": .string("steer-me")])]),
+            ]),
+            event(seq: 2, type: "agent/inbox/spliced", data: [
+                "target": .string("next-step"),
+                "start": .number(0),
+                "removedCount": .number(1),
+                "inserted": .array([]),
+            ]),
+            event(seq: 3, type: "user/message", surface: .string("append"), data: [
+                "id": .string("steer-me"),
+                "content": .array([text("steer now")]),
+                "source": .object(["kind": .string("user")]),
+            ]),
+            event(seq: 4, type: "user/message", surface: .string("append"), data: [
+                "id": .string("ordinary"),
+                "content": .array([text("ordinary turn")]),
+                "source": .object(["kind": .string("user")]),
+            ]),
+        ]
+
+        XCTAssertEqual(reducer.replaceWindow(entries.map { ConversationEventInput(event: $0) }, hasMore: false), .immediate)
+        let chat = reducer.snapshot(target: "chat")
+        XCTAssertEqual(chat.map(\.kind), ["steering", "user"])
+        XCTAssertEqual((tryUnwrap(chat.first?.data as? CoreUserMessageNode)).kind, .steering)
+        XCTAssertEqual((tryUnwrap(chat.last?.data as? CoreUserMessageNode)).kind, .user)
+        XCTAssertEqual(reducer.snapshot(target: "timeline").count, 0)
+    }
+
     func testCoreNodeReplaySnapshotsRemainStableAfterEveryOfficialAppend() {
         let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
         let entries = [

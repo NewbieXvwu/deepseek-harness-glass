@@ -26,7 +26,7 @@ struct ConversationContentBlock {
 }
 
 struct CoreUserMessageNode {
-    enum Kind: String, Equatable { case user, context }
+    enum Kind: String, Equatable { case user, steering, context }
     let kind: Kind
     let seq: Int
     let time: Double
@@ -119,6 +119,8 @@ enum ConversationCoreNodeRegistry {
     static func initialDefinitions() -> [AnyConversationNodeDefinition] {
         [
             .init(BoundaryDefinition()),
+            .init(InboxDefinition(target: .nextTurn)),
+            .init(InboxDefinition(target: .nextStep)),
             .init(InputMessageDefinition()),
             .init(AssistantStepDefinition()),
             .init(ToolDefinition()),
@@ -129,7 +131,59 @@ enum ConversationCoreNodeRegistry {
     }
 }
 
-// MARK: - User/context input
+// MARK: - Durable inbox state and user/context input
+
+/// Source: `conversation-nodes/inbox.ts`. Durable `agent/inbox/spliced` events
+/// own steering classification. The state-only contexts retain pending IDs and
+/// which next-step IDs were claimed; renderers never infer steering from UI time.
+private struct InboxDefinition: ConversationNodeDefinition {
+    enum Target: String {
+        case nextTurn = "next-turn"
+        case nextStep = "next-step"
+    }
+
+    struct State {
+        let pending: [String]
+        let claimed: Set<String>
+    }
+
+    let inboxTarget: Target
+    var kind: String { "inbox-\(inboxTarget.rawValue)" }
+    let target: String? = nil
+
+    func match(_ event: SessionEventDTO) -> ConversationMatchResult? {
+        guard event.type == "agent/inbox/spliced",
+              event.data.string(named: "target") == inboxTarget.rawValue
+        else { return nil }
+        return .init(id: event.seq.description, role: .start)
+    }
+
+    func start(
+        context _: ConversationNodeContext<State>,
+        match: ConversationMatch,
+        reader: any ConversationContextReader
+    ) -> State {
+        let previous = reader.previous(kind: kind, as: State.self)?.state
+        var pending = previous?.pending ?? []
+        var claimed = previous?.claimed ?? []
+        let start = min(max(0, match.event.data.coreInteger(named: "start") ?? pending.count), pending.count)
+        let removedCount = max(0, match.event.data.coreInteger(named: "removedCount") ?? 0)
+        let end = min(pending.count, start + removedCount)
+        let removed = Array(pending[start..<end])
+        let inserted = match.event.data.value(named: "inserted")?.arrayValue?.compactMap { $0.objectValue?["id"]?.stringValue } ?? []
+        pending.replaceSubrange(start..<end, with: inserted)
+        for id in inserted { claimed.remove(id) }
+        if inboxTarget == .nextStep, match.event.data.string(named: "outcome") != "canceled" {
+            claimed.formUnion(removed)
+        }
+        return .init(pending: pending, claimed: claimed)
+    }
+
+    func update(context: ConversationNodeContext<State>, match _: ConversationMatch) -> State {
+        guard let state = context.state else { preconditionFailure("inbox update requires state") }
+        return state
+    }
+}
 
 private struct InputMessageDefinition: ConversationNodeDefinition {
     typealias State = CoreUserMessageNode
@@ -142,15 +196,23 @@ private struct InputMessageDefinition: ConversationNodeDefinition {
         return .init(id: id, role: .start)
     }
 
-    func start(context _: ConversationNodeContext<CoreUserMessageNode>, match: ConversationMatch, reader _: any ConversationContextReader) -> CoreUserMessageNode {
+    func start(context _: ConversationNodeContext<CoreUserMessageNode>, match: ConversationMatch, reader: any ConversationContextReader) -> CoreUserMessageNode {
         let data = match.event.data
         let source = data.object(named: "source")
         let sourceKind = source?.string(named: "kind") ?? "unknown"
+        let messageID = data.string(named: "id") ?? match.event.seq.description
+        let claimedForNextStep = reader.previous(kind: "inbox-next-step", as: InboxDefinition.State.self)?.state.claimed.contains(messageID) == true
+        let nodeKind: CoreUserMessageNode.Kind
+        if sourceKind == "user" {
+            nodeKind = claimedForNextStep ? .steering : .user
+        } else {
+            nodeKind = .context
+        }
         return .init(
-            kind: sourceKind == "user" ? .user : .context,
+            kind: nodeKind,
             seq: match.event.seq,
             time: match.event.time,
-            messageID: data.string(named: "id") ?? match.event.seq.description,
+            messageID: messageID,
             content: data.content(named: "content"),
             sourceKind: sourceKind,
             sourcePlugin: source?.string(named: "plugin")
@@ -164,7 +226,13 @@ private struct InputMessageDefinition: ConversationNodeDefinition {
 
     func buildViewNode(context: ConversationNodeContext<CoreUserMessageNode>) -> ConversationViewNode? {
         guard let state = context.state else { return nil }
-        return chatNode(context: context, kind: state.kind == .user ? "user" : "context", anchorSeq: state.seq, data: state)
+        let viewKind: String
+        switch state.kind {
+        case .user: viewKind = "user"
+        case .steering: viewKind = "steering"
+        case .context: viewKind = "context"
+        }
+        return chatNode(context: context, kind: viewKind, anchorSeq: state.seq, data: state)
     }
 }
 
