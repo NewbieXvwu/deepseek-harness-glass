@@ -269,9 +269,9 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
   - 依赖：T6.1。
   - 验收：重复分页不会产生重复或乱序 event；compaction summary 等位于边界的 event 与官方夹具一致。
 
-- [ ] **T6.3：实现 `ProjectionStore`。** 以 `(sessionId, key)` 维护 projection value 和 seq，高序号覆盖低序号；支持 history tail baseline 和 live `session/projection` 更新。
+- [x] **T6.3：实现 `ProjectionStore`。** `SessionProjectionStore` 以 `(sessionID, key)` 隔离 Host projection row，`seq` 只接受严格更高的值；history tail 的 projection baseline 以其 `asOfSeq` seed，清理同一cut内不再存在的旧键且绝不覆盖已收到的较新live value。NativeSessionStore 在history landing后seed并在`session/projection` mux frame到达时应用；disconnect清理所有Host会话投影，reconnect可按durable watermark截断超前值。
   - 依赖：T4.4、T6.1。
-  - 验收：乱序帧、重复帧和 reconnect baseline 不会回滚新值。
+  - 验收证据：`SessionProjectionStoreTests` 覆盖同key乱序与重复frame的higher-seq-wins、跨session隔离、baseline在cut内清除缺失键且不回滚较新live value，以及reconnect截断；workflow独立执行该XCTest。macOS-26 [run 32235326314](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32235326314)（commit `0853a1f`）成功通过完整静态/module/transport gates、SwiftPM编译、所有Core/App测试、原生装配、全部快照和官方欢迎页比较。人工复核记录于 `visual-review/official-99f6f02/t6-3-0853a1f-ci-review.md`；本项是Core-only改动，已逐项审阅既有welcome `report-only`差异，未将其误记为视觉场景完成或扩展系统材质例外。
 
 - [ ] **T6.4：定义 `ConversationNode` 协议。** 建立 `match`、`start`、`update`、`publication`、`buildViewNode` 的 Swift 等价物，并包含 turn/step location、visibility、stable key 和 target。
   - 依赖：T6.1、T6.2。
