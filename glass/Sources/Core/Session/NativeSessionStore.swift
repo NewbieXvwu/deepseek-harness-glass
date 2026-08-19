@@ -123,6 +123,10 @@ final class NativeSessionStore: ObservableObject {
     @Published private(set) var isSubmittingQuestion = false
     @Published private(set) var lastError: DSHTransportError?
 
+    /// Per-session Host-computed projections. UI reads completed values only;
+    /// reducer-owned event folding never substitutes for this store.
+    let projections = SessionProjectionStore()
+
     private var historyTask: Task<Void, Never>?
     private var promptTask: Task<Void, Never>?
     private var cancelTask: Task<Void, Never>?
@@ -185,6 +189,7 @@ final class NativeSessionStore: ObservableObject {
                 let response = try await api.history(sessionID: sessionID)
                 guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
                 self?.applyHistory(response.events)
+                if let projections = response.projections { self?.projections.seed(sessionID: sessionID, baseline: projections) }
                 self?.hasMoreHistory = response.hasMore
                 self?.phase = .ready(sessionID: sessionID)
                 self?.observeMux(sessionID: sessionID, endpoint: endpoint)
@@ -225,6 +230,7 @@ final class NativeSessionStore: ObservableObject {
         draft = ""
         pendingImages = []
         lastError = nil
+        projections.removeAll()
     }
 
     func addPendingImage(_ url: URL) {
@@ -300,6 +306,7 @@ final class NativeSessionStore: ObservableObject {
                 let response = try await api.history(sessionID: sessionID, beforeSeq: beforeSeq)
                 guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
                 self?.applyHistory(response.events)
+                if let projections = response.projections { self?.projections.seed(sessionID: sessionID, baseline: projections) }
                 self?.hasMoreHistory = response.hasMore
             } catch {
                 // Retain the existing official transcript if a backward page
@@ -347,6 +354,8 @@ final class NativeSessionStore: ObservableObject {
                   let event = decode(SessionEventDTO.self, from: eventValue)
             else { return }
             apply(event: event, view: object["view"]?.objectValue?["view"])
+        case "session/projection":
+            applyProjection(object, sessionID: sessionID)
         case "approval/requested":
             applyApprovalRequest(object, rpcID: frame.rpcId, sessionID: sessionID)
         case "approval/resolved":
@@ -358,6 +367,17 @@ final class NativeSessionStore: ObservableObject {
         default:
             break
         }
+    }
+
+    /// Source: `events.ts:session/projection`; one finished whole value per key,
+    /// never a client-side partial fold. The projection store rejects replayed
+    /// and lower/equal sequence frames.
+    private func applyProjection(_ object: [String: JSONValue], sessionID: String) {
+        guard let key = object["key"]?.stringValue,
+              let value = object["value"],
+              let seq = object["seq"]?.numberValue
+        else { return }
+        projections.apply(sessionID: sessionID, key: key, value: value, seq: Int(seq))
     }
 
     private func applyApprovalRequest(_ object: [String: JSONValue], rpcID: String, sessionID: String) {
