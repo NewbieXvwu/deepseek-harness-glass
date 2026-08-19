@@ -130,6 +130,81 @@ final class ConversationCoreNodesTests: XCTestCase {
         XCTAssertEqual(node.sourcePlugin, "agent-instructions")
     }
 
+    func testCoreNodeReplaySnapshotsRemainStableAfterEveryOfficialAppend() {
+        let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
+        let entries = [
+            event(seq: 1, type: "turn/start", data: ["turn": .number(9)]),
+            event(seq: 2, type: "step/start", data: ["turn": .number(9), "step": .number(1)]),
+            event(seq: 3, type: "user/message", surface: .string("append"), data: [
+                "id": .string("u-replay"),
+                "content": .array([text("question")]),
+                "source": .object(["kind": .string("user")]),
+            ]),
+            event(seq: 4, type: "assistant/chunk", data: [
+                "turn": .number(9), "step": .number(1),
+                "chunk": .object(["type": .string("text-delta"), "index": .number(0), "text": .string("hel")]),
+            ]),
+            event(seq: 5, type: "assistant/chunk", data: [
+                "turn": .number(9), "step": .number(1),
+                "chunk": .object(["type": .string("text-delta"), "index": .number(0), "text": .string("lo")]),
+            ]),
+            event(seq: 6, type: "tool/call", data: [
+                "callId": .string("call-replay"), "name": .string("read"), "arguments": .string("{\"path\":\"README.md\"}"),
+                "turn": .number(9), "step": .number(1),
+            ]),
+            event(seq: 7, type: "tool/result", surface: .string("append"), data: [
+                "message": .object([
+                    "source": .object(["callId": .string("call-replay")]),
+                    "content": .array([text("contents")]),
+                ]),
+            ]),
+            event(seq: 8, type: "assistant/message", surface: .string("append"), data: [
+                "turn": .number(9), "step": .number(1),
+                "message": .object(["id": .string("a-replay"), "content": .array([text("final")])]),
+            ]),
+            event(seq: 9, type: "step/end", data: ["turn": .number(9), "step": .number(1)]),
+        ]
+
+        var publications: [ConversationPublication] = []
+        var chatKindsAfterAppend: [[String]] = []
+        for entry in entries {
+            publications.append(reducer.append(.init(event: entry)))
+            chatKindsAfterAppend.append(reducer.snapshot(target: "chat").map(\.kind))
+        }
+        XCTAssertEqual(publications, [.none, .none, .immediate, .animationFrame, .animationFrame, .immediate, .immediate, .immediate, .none])
+        XCTAssertEqual(chatKindsAfterAppend, [
+            [],
+            [],
+            ["user"],
+            ["user", "assistant-step"],
+            ["user", "assistant-step"],
+            ["user", "assistant-step", "tool-call"],
+            ["user", "assistant-step", "tool-call"],
+            ["user", "tool-call", "assistant-step"],
+            ["user", "tool-call", "assistant-step"],
+        ])
+
+        let chat = reducer.snapshot(target: "chat")
+        XCTAssertEqual(chat.map(\.kind), ["user", "tool-call", "assistant-step"])
+        XCTAssertEqual(chat.filter { $0.kind == "assistant-step" }.count, 1)
+        XCTAssertEqual(chat.filter { $0.kind == "tool-call" }.count, 1)
+
+        let user = tryUnwrap(chat.first(where: { $0.kind == "user" })?.data as? CoreUserMessageNode)
+        XCTAssertEqual(user.messageID, "u-replay")
+        XCTAssertEqual(user.content.first?.text, "question")
+
+        let tool = tryUnwrap(chat.first(where: { $0.kind == "tool-call" })?.data as? CoreToolCallNode)
+        XCTAssertEqual(tool.status, .settled)
+        XCTAssertEqual(tool.callID, "call-replay")
+        XCTAssertEqual(tool.resultContent.first?.text, "contents")
+
+        let assistant = tryUnwrap(chat.first(where: { $0.kind == "assistant-step" })?.data as? CoreAssistantNode)
+        XCTAssertEqual(assistant.status, .settled)
+        XCTAssertEqual(assistant.messageID, "a-replay")
+        XCTAssertEqual(assistant.blocks.first?.text, "final")
+        XCTAssertEqual(reducer.rawWindow().map(\.event.seq), Array(1...9))
+    }
+
     private func text(_ value: String) -> JSONValue {
         .object(["type": .string("text"), "text": .string(value)])
     }
