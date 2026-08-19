@@ -50,16 +50,36 @@ enum GlassPolicyBudget {
     }
 }
 
+/// Keeps approved custom controls readable when macOS requests a less
+/// translucent or higher-contrast appearance, and avoids fluid morphing when
+/// motion is reduced. System navigation material remains outside this policy.
+enum NativeGlassControlAccessibilityPolicy {
+    static func permitsCustomGlass(
+        reduceTransparency: Bool,
+        contrast: ColorSchemeContrast
+    ) -> Bool {
+        !reduceTransparency && contrast == .standard
+    }
+
+    static func permitsMorphing(reduceMotion: Bool) -> Bool {
+        !reduceMotion
+    }
+}
+
 extension View {
     /// The only permitted custom Liquid Glass entry point in GlassUI. Callsites
     /// must name their policy, while the implementation refuses to apply custom
     /// effects to WebUI content or system navigation material.
     @ViewBuilder
-    func approvedGlassEffect<S: Shape>(_ policy: GlassPolicy, in shape: S) -> some View {
+    func approvedGlassEffect<S: Shape>(
+        _ policy: GlassPolicy,
+        in shape: S,
+        isEnabled: Bool = true
+    ) -> some View {
         switch policy {
-        case .regularGlassCustomControl:
-            glassEffect(.regular, in: shape)
-        case .content, .systemNavigation, .clearGlassMediaOverlay:
+        case .regularGlassCustomControl where isEnabled:
+            glassEffect(.regular.interactive(), in: shape)
+        case .regularGlassCustomControl, .content, .systemNavigation, .clearGlassMediaOverlay:
             self
         }
     }

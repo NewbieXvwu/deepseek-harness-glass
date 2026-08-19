@@ -88,14 +88,27 @@ struct OfficialComposerIconButtonStyle: ButtonStyle {
 /// Liquid Glass is reserved for the window-navigation affordance. It never
 /// covers an official WebUI content surface, list row, or composer body.
 struct NativeGlassNavigationButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorSchemeContrast) private var contrast
+
     func makeBody(configuration: Configuration) -> some View {
+        let permitsCustomGlass = NativeGlassControlAccessibilityPolicy.permitsCustomGlass(
+            reduceTransparency: reduceTransparency,
+            contrast: contrast
+        )
         configuration.label
             .foregroundStyle(OfficialUISpec.Token.primary)
             .background(.thinMaterial, in: Circle())
             .overlay {
                 Circle().strokeBorder(OfficialUISpec.Token.primaryForeground.opacity(0.72), lineWidth: 0.8)
             }
-            .approvedGlassEffect(.regularGlassCustomControl, in: Circle())
+            .approvedGlassEffect(
+                .regularGlassCustomControl,
+                in: Circle(),
+                isEnabled: permitsCustomGlass
+            )
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.16), value: configuration.isPressed)
             .opacity(configuration.isPressed ? 0.82 : 1)
     }
 }

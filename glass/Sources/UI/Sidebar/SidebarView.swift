@@ -13,6 +13,9 @@ struct NativeSidebarView: View {
     let onNewSession: () -> Void
     let onOpenSettings: () -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Namespace private var navigationGlassNamespace
+
     var body: some View {
         VStack(spacing: OfficialUISpec.Spacing.p0) {
             if collapsed {
@@ -36,45 +39,51 @@ struct NativeSidebarView: View {
         .padding(.horizontal, collapsed ? 10 : OfficialUISpec.Layout.sidebarInlinePadding)
         .padding(.top, collapsed ? 18 : 6)
         .background(Color.clear)
-        .animation(.easeInOut(duration: 0.3), value: collapsed)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: collapsed)
     }
 
     private var compactHeader: some View {
-        VStack(spacing: OfficialUISpec.Spacing.p12) {
-            Button(action: { setCollapsed(false) }) {
-                OfficialAssetImage(name: "fish-logo")
-                    .frame(width: OfficialUISpec.Geometry.px24, height: OfficialUISpec.Geometry.px18)
-                    .frame(width: OfficialUISpec.Geometry.px36, height: OfficialUISpec.Geometry.px36)
-            }
-            .buttonStyle(NativeGlassNavigationButtonStyle())
-            .accessibilityLabel(OfficialUISpec.Text.openSidebarAccessibility)
+        GlassEffectContainer(spacing: OfficialUISpec.Spacing.p12) {
+            VStack(spacing: OfficialUISpec.Spacing.p12) {
+                Button(action: { setCollapsed(false) }) {
+                    OfficialAssetImage(name: "fish-logo")
+                        .frame(width: OfficialUISpec.Geometry.px24, height: OfficialUISpec.Geometry.px18)
+                        .frame(width: OfficialUISpec.Geometry.px36, height: OfficialUISpec.Geometry.px36)
+                }
+                .buttonStyle(NativeGlassNavigationButtonStyle())
+                .glassEffectID("sidebar-navigation-toggle", in: navigationGlassNamespace)
+                .accessibilityLabel(OfficialUISpec.Text.openSidebarAccessibility)
 
-            Button(action: onNewSession) {
-                OfficialAssetImage(name: "icon-new-chat", template: true)
-                    .frame(width: OfficialUISpec.Geometry.px18, height: OfficialUISpec.Geometry.px18)
-                    .frame(width: OfficialUISpec.Geometry.px36, height: OfficialUISpec.Geometry.px36)
+                Button(action: onNewSession) {
+                    OfficialAssetImage(name: "icon-new-chat", template: true)
+                        .frame(width: OfficialUISpec.Geometry.px18, height: OfficialUISpec.Geometry.px18)
+                        .frame(width: OfficialUISpec.Geometry.px36, height: OfficialUISpec.Geometry.px36)
+                }
+                .buttonStyle(OfficialCircleIconButtonStyle(pressedForeground: OfficialUISpec.Token.primary))
+                .accessibilityLabel(OfficialUISpec.Text.newSessionAccessibility)
             }
-            .buttonStyle(OfficialCircleIconButtonStyle(pressedForeground: OfficialUISpec.Token.primary))
-            .accessibilityLabel(OfficialUISpec.Text.newSessionAccessibility)
         }
     }
 
     private var wideHeader: some View {
-        HStack(spacing: OfficialUISpec.Spacing.p8) {
-            OfficialAssetImage(name: "brand-wordmark")
-                .frame(
-                    width: OfficialUISpec.Layout.sidebarWordmarkWidth,
-                    height: OfficialUISpec.Layout.sidebarWordmarkHeight,
-                    alignment: .leading
-                )
-            Spacer(minLength: 0)
-            Button(action: { setCollapsed(true) }) {
-                OfficialAssetImage(name: "icon-panel-left", template: true)
-                    .frame(width: OfficialUISpec.Geometry.px16, height: OfficialUISpec.Geometry.px16)
-                    .frame(width: OfficialUISpec.Geometry.px28, height: OfficialUISpec.Geometry.px28)
+        GlassEffectContainer(spacing: OfficialUISpec.Spacing.p12) {
+            HStack(spacing: OfficialUISpec.Spacing.p8) {
+                OfficialAssetImage(name: "brand-wordmark")
+                    .frame(
+                        width: OfficialUISpec.Layout.sidebarWordmarkWidth,
+                        height: OfficialUISpec.Layout.sidebarWordmarkHeight,
+                        alignment: .leading
+                    )
+                Spacer(minLength: 0)
+                Button(action: { setCollapsed(true) }) {
+                    OfficialAssetImage(name: "icon-panel-left", template: true)
+                        .frame(width: OfficialUISpec.Geometry.px16, height: OfficialUISpec.Geometry.px16)
+                        .frame(width: OfficialUISpec.Geometry.px28, height: OfficialUISpec.Geometry.px28)
+                }
+                .buttonStyle(NativeGlassNavigationButtonStyle())
+                .glassEffectID("sidebar-navigation-toggle", in: navigationGlassNamespace)
+                .accessibilityLabel(OfficialUISpec.Text.collapseSidebarAccessibility)
             }
-            .buttonStyle(NativeGlassNavigationButtonStyle())
-            .accessibilityLabel(OfficialUISpec.Text.collapseSidebarAccessibility)
         }
         .frame(height: OfficialUISpec.Geometry.px60)
         .padding(.leading, OfficialUISpec.Spacing.p4)

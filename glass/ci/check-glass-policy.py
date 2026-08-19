@@ -9,6 +9,8 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 UI_ROOT = ROOT / "Sources" / "UI"
 POLICY = UI_ROOT / "Primitives" / "GlassPolicy.swift"
+PRIMITIVES = UI_ROOT / "Primitives" / "OfficialUIPrimitives.swift"
+SIDEBAR = UI_ROOT / "Sidebar" / "SidebarView.swift"
 
 failures: list[str] = []
 policy = POLICY.read_text()
@@ -22,6 +24,29 @@ for required in (
 ):
     if required not in policy:
         failures.append(f"GlassPolicy.swift must contain {required!r}")
+
+primitives = PRIMITIVES.read_text()
+for required in (
+    "@Environment(\\.accessibilityReduceTransparency)",
+    "@Environment(\\.accessibilityReduceMotion)",
+    "@Environment(\\.colorSchemeContrast)",
+    "NativeGlassControlAccessibilityPolicy.permitsCustomGlass",
+    "isEnabled: permitsCustomGlass",
+):
+    if required not in primitives:
+        failures.append(f"OfficialUIPrimitives.swift must contain {required!r}")
+
+sidebar = SIDEBAR.read_text()
+for required in (
+    "GlassEffectContainer(spacing: OfficialUISpec.Spacing.p12)",
+    ".glassEffectID(\"sidebar-navigation-toggle\", in: navigationGlassNamespace)",
+    "@Environment(\\.accessibilityReduceMotion)",
+    ".animation(reduceMotion ? nil",
+):
+    if required not in sidebar:
+        failures.append(f"SidebarView.swift must contain {required!r}")
+if sidebar.count('.glassEffectID("sidebar-navigation-toggle", in: navigationGlassNamespace)') != 2:
+    failures.append("SidebarView.swift must pair exactly two mutually exclusive navigation glass IDs")
 
 for path in UI_ROOT.rglob("*.swift"):
     source = path.read_text()
