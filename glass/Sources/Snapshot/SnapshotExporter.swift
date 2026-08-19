@@ -84,12 +84,19 @@ enum SnapshotExporter {
         )
         let shellController = NativeShellRootController(presentation: presentation)
         let size = snapshotSize(environment: ProcessInfo.processInfo.environment)
+        // Snapshot the same native titlebar/material composition used by the
+        // running App. A borderless off-screen window does not host AppKit's
+        // sidebar/inspector materials and rendered transparent structure as
+        // black, which is not a valid production appearance.
         let window = NSWindow(
             contentRect: NSRect(origin: .zero, size: size),
-            styleMask: [.borderless],
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.appearance = NSAppearance(named: .aqua)
         window.isReleasedWhenClosed = false
         window.contentViewController = shellController
         window.contentView?.frame = NSRect(origin: .zero, size: size)
