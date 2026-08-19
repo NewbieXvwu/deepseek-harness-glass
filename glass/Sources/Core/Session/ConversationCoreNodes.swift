@@ -531,7 +531,15 @@ private struct CompactionDefinition: ConversationNodeDefinition {
 // MARK: - Core-only JSON and node helpers
 
 private func chatNode<State>(context: ConversationNodeContext<State>, kind: String, anchorSeq: Int, data: Any) -> ConversationViewNode {
-    .init(key: context.key, kind: kind, id: context.id, target: "chat", data: data)
+    .init(
+        key: context.key,
+        kind: kind,
+        id: context.id,
+        target: "chat",
+        data: data,
+        anchorSeq: anchorSeq,
+        visibility: .visible
+    )
 }
 
 private extension SessionEventDTO {

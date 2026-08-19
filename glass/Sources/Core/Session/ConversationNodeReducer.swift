@@ -192,6 +192,15 @@ final class ConversationNodeReducer {
             context.current[target] = node
             next[target, default: []].append(node)
         }
+        for target in next.keys {
+            guard target == "chat" else { continue }
+            next[target]?.sort { left, right in
+                let leftAnchor = left.anchorSeq ?? Int.max
+                let rightAnchor = right.anchorSeq ?? Int.max
+                if leftAnchor == rightAnchor { return left.key < right.key }
+                return leftAnchor < rightAnchor
+            }
+        }
         nodesByTarget = next
     }
 
