@@ -182,6 +182,9 @@ jobs:
       - name: Enforce explicit Liquid Glass policy
         run: python3 glass/ci/check-glass-policy.py
 
+      - name: Validate native accessibility baseline
+        run: python3 glass/ci/check-accessibility-baseline.py
+
       - name: Validate official RPC DTO source manifest
         run: |
           python3 glass/ci/check-official-rpc-dto-manifest.py \

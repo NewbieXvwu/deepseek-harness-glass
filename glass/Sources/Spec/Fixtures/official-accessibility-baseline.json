@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "officialSourceCommit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca",
+  "principles": {
+    "iconOnlyControls": "Every icon-only official control has an explicit accessibilityLabel sourced from OfficialUISpec.Text.",
+    "keyboard": "Each keyboardOnly official scene retains a visible focusable control and hidden/closed controls cannot receive focus.",
+    "systemPreferences": "Reduce Motion, Reduce Transparency, Increase Contrast, light and dark color schemes preserve readable controls without forced motion."
+  },
+  "corePaths": [
+    {
+      "scene": "welcome-no-workspace-light",
+      "source": "Sources/UI/Sidebar/SidebarView.swift",
+      "requiredLabels": ["newSessionAccessibility", "collapseSidebarAccessibility", "openSidebarAccessibility", "settings"],
+      "focusContract": "New Session and settings are Buttons; collapsed controls are conditionally absent from the wide hierarchy."
+    },
+    {
+      "scene": "empty-session-workspace",
+      "source": "Sources/UI/Conversation/NativeConversationViews.swift",
+      "requiredLabels": ["composerDefaultPlaceholder", "sendMessageAccessibility", "commandsAccessibility"],
+      "focusContract": "Composer TextEditor uses an explicit FocusState binding."
+    },
+    {
+      "scene": "tool-call-details",
+      "source": "Sources/UI/Conversation/NativeConversationViews.swift",
+      "requiredLabels": ["closeDetailsAccessibility"],
+      "focusContract": "Inspector close control is a Button with an explicit accessible name."
+    },
+    {
+      "scene": "approval-composer-light",
+      "source": "Sources/UI/Conversation/NativeApprovalQuestionViews.swift",
+      "requiredLabels": ["approvalDetailsAccessibility"],
+      "focusContract": "Approval action buttons remain semantic Buttons in the takeover hierarchy."
+    },
+    {
+      "scene": "question-composer-light",
+      "source": "Sources/UI/Conversation/NativeApprovalQuestionViews.swift",
+      "requiredLabels": ["questionCancelAccessibility", "questionPreviousAccessibility", "questionNextAccessibility"],
+      "focusContract": "Question navigation and cancellation remain semantic Buttons while options remain selectable."
+    },
+    {
+      "scene": "sidebar-rail-narrow-light",
+      "source": "Sources/UI/Sidebar/SidebarView.swift",
+      "requiredLabels": ["openSidebarAccessibility", "newSessionAccessibility"],
+      "focusContract": "The 56px rail exposes only its visible Buttons; custom glass motion is disabled by accessibilityReduceMotion."
+    }
+  ],
+  "requiredEnvironmentMarkers": [
+    "accessibilityReduceMotion",
+    "accessibilityReduceTransparency",
+    "colorSchemeContrast",
+    "colorScheme"
+  ]
+}

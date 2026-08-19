@@ -123,6 +123,7 @@ struct NativeSidebarView: View {
             .frame(height: OfficialUISpec.Geometry.px36)
         }
         .buttonStyle(OfficialSidebarRowButtonStyle())
+        .accessibilityLabel(OfficialUISpec.Text.settings)
         .padding(.bottom, OfficialUISpec.Spacing.p4)
     }
 }
