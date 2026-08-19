@@ -201,9 +201,11 @@ enum SnapshotExporter {
         let horizontalStep = max(1, bitmap.pixelsWide / 24)
         let verticalStep = max(1, bitmap.pixelsHigh / 24)
         let bytesPerPixel = bitmap.bitsPerPixel / 8
+        let colorOffset = bitmap.bitmapFormat.contains(.alphaFirst) ? 1 : 0
+        guard bytesPerPixel >= colorOffset + 3 else { return false }
         for y in stride(from: 0, to: bitmap.pixelsHigh, by: verticalStep) {
             for x in stride(from: 0, to: bitmap.pixelsWide, by: horizontalStep) {
-                let offset = y * bitmap.bytesPerRow + x * bytesPerPixel
+                let offset = y * bitmap.bytesPerRow + x * bytesPerPixel + colorOffset
                 if data[offset] > 8 || data[offset + 1] > 8 || data[offset + 2] > 8 {
                     return true
                 }

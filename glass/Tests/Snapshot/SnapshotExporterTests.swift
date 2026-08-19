@@ -10,6 +10,17 @@ final class SnapshotExporterTests: XCTestCase {
         XCTAssertFalse(SnapshotExporter.hasVisibleSDRContent(bitmap))
     }
 
+    func testRejectsOpaqueAlphaFirstBlackCompositorFrame() throws {
+        let bitmap = try makeBitmap(bitmapFormat: [.alphaFirst])
+        guard let data = bitmap.bitmapData else {
+            XCTFail("Expected bitmap storage")
+            return
+        }
+        data[0] = .max
+
+        XCTAssertFalse(SnapshotExporter.hasVisibleSDRContent(bitmap))
+    }
+
     func testAcceptsCompositorFrameWithVisibleSDRContent() throws {
         let bitmap = try makeBitmap()
         guard let data = bitmap.bitmapData else {
@@ -21,7 +32,21 @@ final class SnapshotExporterTests: XCTestCase {
         XCTAssertTrue(SnapshotExporter.hasVisibleSDRContent(bitmap))
     }
 
-    private func makeBitmap() throws -> NSBitmapImageRep {
+    func testAcceptsAlphaFirstCompositorFrameWithVisibleSDRContent() throws {
+        let bitmap = try makeBitmap(bitmapFormat: [.alphaFirst])
+        guard let data = bitmap.bitmapData else {
+            XCTFail("Expected bitmap storage")
+            return
+        }
+        data[0] = .max
+        data[1] = 32
+
+        XCTAssertTrue(SnapshotExporter.hasVisibleSDRContent(bitmap))
+    }
+
+    private func makeBitmap(
+        bitmapFormat: NSBitmapImageRep.Format = []
+    ) throws -> NSBitmapImageRep {
         guard let bitmap = NSBitmapImageRep(
             bitmapDataPlanes: nil,
             pixelsWide: 48,
@@ -31,6 +56,7 @@ final class SnapshotExporterTests: XCTestCase {
             hasAlpha: true,
             isPlanar: false,
             colorSpaceName: .deviceRGB,
+            bitmapFormat: bitmapFormat,
             bytesPerRow: 0,
             bitsPerPixel: 0
         ) else {
