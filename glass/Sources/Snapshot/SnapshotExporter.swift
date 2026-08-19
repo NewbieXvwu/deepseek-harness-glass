@@ -1,4 +1,5 @@
 import AppKit
+import CoreGraphics
 import SwiftUI
 
 #if DEEPSEEK_HARNESS_PACKAGE
@@ -120,24 +121,38 @@ enum SnapshotExporter {
         window.contentViewController?.view.layoutSubtreeIfNeeded()
         window.displayIfNeeded()
 
-        guard let hostedView = window.contentView,
-              let bitmap = NSBitmapImageRep(
-            bitmapDataPlanes: nil,
-            pixelsWide: Int(size.width),
-            pixelsHigh: Int(size.height),
-            bitsPerSample: 8,
-            samplesPerPixel: 4,
-            hasAlpha: true,
-            isPlanar: false,
-            colorSpaceName: .deviceRGB,
-            bytesPerRow: 0,
-            bitsPerPixel: 0
-        ) else {
+        let bitmap: NSBitmapImageRep
+        if let composited = CGWindowListCreateImage(
+            .null,
+            .optionIncludingWindow,
+            CGWindowID(window.windowNumber),
+            [.boundsIgnoreFraming, .bestResolution]
+        ) {
+            // The WindowServer path includes system-owned sidebar and inspector
+            // material. `cacheDisplay` below is only a deterministic fallback
+            // for environments where a window image is unavailable.
+            bitmap = NSBitmapImageRep(cgImage: composited)
+        } else if let hostedView = window.contentView,
+                  let fallback = NSBitmapImageRep(
+                    bitmapDataPlanes: nil,
+                    pixelsWide: Int(size.width),
+                    pixelsHigh: Int(size.height),
+                    bitsPerSample: 8,
+                    samplesPerPixel: 4,
+                    hasAlpha: true,
+                    isPlanar: false,
+                    colorSpaceName: .deviceRGB,
+                    bytesPerRow: 0,
+                    bitsPerPixel: 0
+                  ) {
+            fallback.size = size
+            hostedView.cacheDisplay(in: hostedView.bounds, to: fallback)
+            bitmap = fallback
+        } else {
             throw SnapshotError.cannotCreateBitmap
         }
 
         bitmap.size = size
-        hostedView.cacheDisplay(in: hostedView.bounds, to: bitmap)
         guard let png = bitmap.representation(using: .png, properties: [:]) else {
             throw SnapshotError.cannotEncodePNG
         }
