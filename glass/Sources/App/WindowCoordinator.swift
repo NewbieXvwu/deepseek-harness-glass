@@ -16,19 +16,22 @@ enum NativeWindowPolicy {
     static let minimumContentSize = NSSize(width: 880, height: 600)
     static let frameAutosaveName = "DeepSeekHarnessGlass.MainWindow"
     static let restorationIdentifier = NSUserInterfaceItemIdentifier("DeepSeekHarnessGlass.MainWindow")
+    static let styleMask: NSWindow.StyleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
+    static let toolbarStyle: NSWindow.ToolbarStyle = .unifiedCompact
+    static let titlebarSeparatorStyle: NSWindow.TitlebarSeparatorStyle = .none
 
     static func makeWindow() -> NSWindow {
         let window = NSWindow(
             contentRect: NSRect(origin: .zero, size: initialContentSize),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+            styleMask: styleMask,
             backing: .buffered,
             defer: false
         )
         window.title = "DeepSeek Harness"
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
-        window.toolbarStyle = .unifiedCompact
-        window.titlebarSeparatorStyle = .none
+        window.toolbarStyle = toolbarStyle
+        window.titlebarSeparatorStyle = titlebarSeparatorStyle
         window.contentMinSize = minimumContentSize
         window.minSize = minimumContentSize
         window.isRestorable = true
@@ -51,9 +54,22 @@ enum NativeWindowPolicy {
     }
 }
 
+/// Pure policy state that makes close-to-menu-bar and reopening behavior
+/// independently testable even in an XCTest process without a WindowServer.
+enum NativeWindowLifecycle: Equatable {
+    case visible
+    case hidden
+    case minimized
+
+    mutating func hideForClose() { self = .hidden }
+    mutating func minimize() { self = .minimized }
+    mutating func reveal() { self = .visible }
+}
+
 @MainActor
 final class WindowCoordinator: NSObject, NSWindowDelegate {
     private(set) var window: NSWindow?
+    private(set) var lifecycle: NativeWindowLifecycle = .visible
     private var presentation: NativeShellPresentation?
 
     func install(presentation: NativeShellPresentation) {
@@ -76,6 +92,7 @@ final class WindowCoordinator: NSObject, NSWindowDelegate {
     /// Reopens hidden or minimized windows from the menu bar, Dock or a future
     /// system restoration callback without creating a second shell/controller.
     func showAndFocus() {
+        lifecycle.reveal()
         guard let window else { return }
         if window.isMiniaturized { window.deminiaturize(nil) }
         window.makeKeyAndOrderFront(nil)
@@ -90,10 +107,19 @@ final class WindowCoordinator: NSObject, NSWindowDelegate {
         presentation?.disconnectHost()
     }
 
+    func windowDidMiniaturize(_ notification: Notification) {
+        lifecycle.minimize()
+    }
+
+    func windowDidDeminiaturize(_ notification: Notification) {
+        lifecycle.reveal()
+    }
+
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         // Preserve resident Host/menu-bar reachability while persisting a native
         // frame for the next open; the window is not destroyed on a red-close.
         NativeWindowPolicy.saveFrame(sender)
+        lifecycle.hideForClose()
         sender.orderOut(nil)
         return false
     }
