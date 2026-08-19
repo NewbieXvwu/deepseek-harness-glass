@@ -268,6 +268,8 @@ enum OfficialUISpec {
         static let modalMask = Theme.aliasBgMask1.adaptiveColor
         static let modalMask2 = Theme.aliasBgMask2.adaptiveColor
         static let modalMask3 = Theme.aliasBgMask3.adaptiveColor
+        /// Official `StateDot(done)` foreground: `--dsw-alias-state-success-primary`.
+        static let success = Theme.aliasStateSuccessPrimary.adaptiveColor
         static let errorPrimary = Theme.aliasStateErrorPrimary.adaptiveColor
     }
 
