@@ -45,6 +45,10 @@ on:
 permissions:
   contents: read
 
+env:
+  OFFICIAL_COMMIT: 99f6f02fecdb7dff40c3fbc9470f5907c29f74ca
+  DSH_NODE_VERSION: 24.19.0
+
 jobs:
   build-and-snapshot:
     name: build and snapshot native shell
@@ -54,7 +58,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Record macOS and Xcode toolchain
         run: |
@@ -63,24 +67,63 @@ jobs:
           xcodebuild -version | tee xcodebuild-version.txt
           xcrun --sdk macosx --show-sdk-version | tee macos-sdk-version.txt
           test "$(xcodebuild -version | awk '/Xcode/{print $2}' | cut -d. -f1)" = "26"
+          # Runner image version goes into cache keys: an image roll can change
+          # font rasterization, which must invalidate rendered baselines.
+          echo "IMAGE_VERSION=${ImageVersion:-unknown}" >> "$GITHUB_ENV"
 
       - name: Checkout locked official DeepSeek Harness source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: deepseek-ai/deepseek-harness
-          ref: 99f6f02fecdb7dff40c3fbc9470f5907c29f74ca
+          ref: ${{ env.OFFICIAL_COMMIT }}
           path: .reference/deepseek-harness
 
+      - name: Restore bundled Node runtime
+        id: node-runtime-cache
+        uses: actions/cache@v5
+        with:
+          path: glass/build/node
+          key: node-runtime-v${{ env.DSH_NODE_VERSION }}-darwin-arm64
+
       - name: Download bundled Node runtime
+        if: steps.node-runtime-cache.outputs.cache-hit != 'true'
         run: |
-          curl -fsSL https://nodejs.org/dist/v24.19.0/node-v24.19.0-darwin-arm64.tar.gz -o /tmp/node.tgz
+          curl -fsSL "https://nodejs.org/dist/v${{ env.DSH_NODE_VERSION }}/node-v${{ env.DSH_NODE_VERSION }}-darwin-arm64.tar.gz" -o /tmp/node.tgz
           tar -xzf /tmp/node.tgz -C /tmp
           mkdir -p glass/build/node
-          cp /tmp/node-v24.19.0-darwin-arm64/bin/node glass/build/node/node
+          cp "/tmp/node-v${{ env.DSH_NODE_VERSION }}-darwin-arm64/bin/node" glass/build/node/node
+
+      - name: Activate bundled Node runtime
+        run: |
           chmod +x glass/build/node/node
-          echo "NODE24_BIN=/tmp/node-v24.19.0-darwin-arm64/bin" >> "$GITHUB_ENV"
+          test "$(glass/build/node/node --version)" = "v${{ env.DSH_NODE_VERSION }}"
+          echo "NODE24_BIN=$GITHUB_WORKSPACE/glass/build/node" >> "$GITHUB_ENV"
+
+      # The official source is pinned to OFFICIAL_COMMIT, so its rendered
+      # baseline is a pure function of that commit, the capture script, and
+      # the runner image. On a cache hit the whole pnpm install + build:lib +
+      # Vite build + Chromium download + capture is skipped.
+      - name: Restore official WebUI baseline
+        id: official-baseline-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: artifacts/official-webui
+          key: official-webui-baseline-${{ env.OFFICIAL_COMMIT }}-${{ runner.os }}-${{ env.IMAGE_VERSION }}-${{ hashFiles('tools/reference-capture/capture-official-welcome.e2e.ts') }}
+
+      # Cold-path dependency caches: they only matter when the baseline itself
+      # missed (commit bump, script change, image roll) and the official tree
+      # has to be rebuilt.
+      - name: Restore official build dependency caches
+        if: steps.official-baseline-cache.outputs.cache-hit != 'true'
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/Library/pnpm/store
+            ~/Library/Caches/ms-playwright
+          key: official-webui-deps-${{ env.OFFICIAL_COMMIT }}-${{ hashFiles('.reference/deepseek-harness/pnpm-lock.yaml', '.reference/deepseek-harness/apps/web/package.json') }}
 
       - name: Build and capture locked official WebUI baseline
+        if: steps.official-baseline-cache.outputs.cache-hit != 'true'
         run: |
           export PATH="$NODE24_BIN:$PATH"
           cd .reference/deepseek-harness
@@ -93,17 +136,30 @@ jobs:
           corepack pnpm --filter @deepseek-ai/dsh-web-frontend exec playwright install chromium
           DSH_REFERENCE_SCREENSHOT_DIR="$GITHUB_WORKSPACE/artifacts/official-webui" \
             corepack pnpm exec vitest run --config vitest.web.config.ts apps/web/tests/capture-official-welcome.e2e.ts
-          test -s "$GITHUB_WORKSPACE/artifacts/official-webui/welcome-no-workspace-light.png"
-          test -s "$GITHUB_WORKSPACE/artifacts/official-webui/welcome-no-workspace-light.json"
+
+      # Save immediately after capture: the baseline is the most expensive
+      # artifact in this job, and a plain cache action would only save it if
+      # every later step also succeeded.
+      - name: Save official WebUI baseline
+        if: steps.official-baseline-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: artifacts/official-webui
+          key: ${{ steps.official-baseline-cache.outputs.cache-primary-key }}
+
+      - name: Verify official baseline artifacts
+        run: |
+          test -s "artifacts/official-webui/welcome-no-workspace-light.png"
+          test -s "artifacts/official-webui/welcome-no-workspace-light.json"
 
       - name: Restore pinned DeepSeek Harness Host payload cache
         id: dsh-host-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             ~/.npm
             glass/build/backend/node_modules
-          key: dsh-host-payload-v1-macos-26-arm64-node-24.19.0-${{ hashFiles('glass/ci/dsh-backend-payload/package-lock.json') }}
+          key: dsh-host-payload-v1-macos-26-arm64-node-${{ env.DSH_NODE_VERSION }}-${{ hashFiles('glass/ci/dsh-backend-payload/package-lock.json') }}
 
       - name: Install pinned DeepSeek Harness Host payload
         run: |
@@ -121,158 +177,98 @@ jobs:
 
       - name: Save pinned DeepSeek Harness Host payload cache
         if: steps.dsh-host-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: |
             ~/.npm
             glass/build/backend/node_modules
-          key: dsh-host-payload-v1-macos-26-arm64-node-24.19.0-${{ hashFiles('glass/ci/dsh-backend-payload/package-lock.json') }}
+          key: dsh-host-payload-v1-macos-26-arm64-node-${{ env.DSH_NODE_VERSION }}-${{ hashFiles('glass/ci/dsh-backend-payload/package-lock.json') }}
 
-      - name: Verify fixed Host support boundary
+      - name: Run official specification gates
         run: |
+          set -euo pipefail
+          echo "::group::Supported Host build boundary"
           python3 glass/ci/check-supported-host-build.py \
             --payload-dir glass/build/backend \
             --node glass/build/node/node
-
-      - name: Validate generated Official UI spec build
-        run: |
+          echo "::endgroup::"
+          echo "::group::Official UI spec build"
           python3 glass/ci/check-official-ui-spec-build.py \
             --official-root .reference/deepseek-harness
           python3 glass/ci/test-official-ui-spec-build.py \
             --official-root .reference/deepseek-harness
-
-      - name: Validate generated official locales and UI copy lint
-        run: |
+          echo "::endgroup::"
+          echo "::group::Official locales and UI copy lint"
           python3 glass/ci/check-official-locales.py \
             --official-root .reference/deepseek-harness
           python3 glass/ci/check-official-locale-literals.py
           python3 glass/ci/test-official-locale-literals.py
-
-      - name: Validate generated official theme tokens
-        run: |
+          echo "::endgroup::"
+          echo "::group::Official theme tokens"
           python3 glass/ci/check-official-theme-tokens.py \
             --official-root .reference/deepseek-harness
-
-      - name: Validate official three-column layout fixtures
-        run: |
+          echo "::endgroup::"
+          echo "::group::Official three-column layout fixtures"
           python3 glass/ci/check-official-column-layout-fixtures.py \
             --official-root .reference/deepseek-harness \
             --node "$NODE24_BIN/node"
-
-      - name: Validate official interaction scene directory
-        run: |
+          echo "::endgroup::"
+          echo "::group::Official interaction scene directory"
           python3 glass/ci/check-official-interaction-scenes.py \
             --official-root .reference/deepseek-harness
-
-      - name: Enforce native-only core UI
-        run: ./glass/ci/check-no-webview.sh
-
-      - name: Validate runtime asset migration inventory
-        run: python3 glass/ci/check-runtime-asset-inventory.py
-
-      - name: Validate module boundaries
-        run: python3 glass/ci/check-module-boundaries.py
-
-      - name: Enforce feature facade boundary
-        run: python3 glass/ci/check-no-feature-transport.py
-
-      - name: Enforce system structural material policy
-        run: python3 glass/ci/check-native-structural-material.py
-
-      - name: Enforce explicit Liquid Glass policy
-        run: python3 glass/ci/check-glass-policy.py
-
-      - name: Validate native accessibility baseline
-        run: python3 glass/ci/check-accessibility-baseline.py
-
-      - name: Validate official RPC DTO source manifest
-        run: |
+          echo "::endgroup::"
+          echo "::group::Official RPC DTO manifest"
           python3 glass/ci/check-official-rpc-dto-manifest.py \
             --official-root .reference/deepseek-harness
-
-      - name: Validate official transport contract baseline
-        run: |
+          echo "::endgroup::"
+          echo "::group::Official transport contract baseline"
           python3 glass/ci/check-official-transport-contract.py \
             --official-root .reference/deepseek-harness
+          echo "::endgroup::"
+          echo "::group::Official UI specification provenance"
+          ./glass/ci/check-official-spec.py
+          echo "::endgroup::"
+
+      - name: Run native architecture gates
+        run: |
+          set -euo pipefail
+          echo "::group::No WebView in core UI"
+          ./glass/ci/check-no-webview.sh
+          echo "::endgroup::"
+          echo "::group::Runtime asset migration inventory"
+          python3 glass/ci/check-runtime-asset-inventory.py
+          echo "::endgroup::"
+          echo "::group::Module boundaries"
+          python3 glass/ci/check-module-boundaries.py
+          echo "::endgroup::"
+          echo "::group::Feature facade boundary"
+          python3 glass/ci/check-no-feature-transport.py
+          echo "::endgroup::"
+          echo "::group::System structural material policy"
+          python3 glass/ci/check-native-structural-material.py
+          echo "::endgroup::"
+          echo "::group::Liquid Glass policy"
+          python3 glass/ci/check-glass-policy.py
+          echo "::endgroup::"
+          echo "::group::Accessibility baseline"
+          python3 glass/ci/check-accessibility-baseline.py
+          echo "::endgroup::"
 
       - name: Independently compile declared SwiftPM targets
         run: |
           cd glass
           swift build --configuration release
 
-      - name: Run generated Official UI spec tests
-        run: |
-          cd glass
-          swift test --filter OfficialUISpecBuildTests
-
-      - name: Run core Host lifecycle command-line tests
+      # One invocation shares a single SwiftPM test build and reports every
+      # failing suite at once; the previous 13 per-suite filter steps paid
+      # process startup each time without adding any isolation.
+      - name: Run all XCTest suites
         env:
           DSH_GLASS_HOST_NODE: ${{ github.workspace }}/glass/build/node/node
           DSH_GLASS_HOST_ENTRY: ${{ github.workspace }}/glass/build/backend/node_modules/@deepseek-ai/dsh/lib/bin.js
         run: |
           cd glass
-          swift test --filter HarnessHostControllerTests
-
-      - name: Run verified Host + transport smoke gate
-        env:
-          DSH_GLASS_HOST_NODE: ${{ github.workspace }}/glass/build/node/node
-          DSH_GLASS_HOST_ENTRY: ${{ github.workspace }}/glass/build/backend/node_modules/@deepseek-ai/dsh/lib/bin.js
-        run: |
-          cd glass
-          swift test --filter HarnessHostTransportSmokeTests
-
-      - name: Run native window lifecycle tests
-        run: |
-          cd glass
-          swift test --filter GlassAppTests
-
-      - name: Run native snapshot compositor fallback tests
-        run: |
-          cd glass
-          swift test --filter SnapshotExporterTests
-
-      - name: Run official RPC DTO fixture tests
-        run: |
-          cd glass
-          swift test --filter RPCDTOFixtureTests
-
-      - name: Run concurrent core transport tests
-        run: |
-          cd glass
-          swift test --filter DSHClientTransportTests
-
-      - name: Run reconnecting SSE transport tests
-        run: |
-          cd glass
-          swift test --filter SSEClientTests
-
-      - name: Run transport contract regression fixtures
-        run: |
-          cd glass
-          swift test --filter TransportContractRegressionTests
-
-      - name: Run native session log export tests
-        run: |
-          cd glass
-          swift test --filter SessionLogExporterTests
-
-      - name: Run session projection store tests
-        run: |
-          cd glass
-          swift test --filter SessionProjectionStoreTests
-
-      - name: Run native session state tests
-        run: |
-          cd glass
-          swift test --filter NativeSessionStoreTests
-
-      - name: Run session history pager tests
-        run: |
-          cd glass
-          swift test --filter SessionHistoryPagerTests
-
-      - name: Validate official UI specification provenance
-        run: ./glass/ci/check-official-spec.py
+          swift test
 
       - name: Assemble native macOS app
         run: |
@@ -281,6 +277,19 @@ jobs:
           ./assemble.sh
           codesign -v "$APP_PATH"
           test -x "$APP_PATH/Contents/MacOS/DeepSeek Harness"
+
+      - name: Restore displayplacer
+        id: displayplacer-cache
+        uses: actions/cache@v5
+        with:
+          path: |
+            /opt/homebrew/bin/displayplacer
+            /opt/homebrew/Cellar/displayplacer
+          key: displayplacer-macos-26-arm64-1
+
+      - name: Install displayplacer
+        if: steps.displayplacer-cache.outputs.cache-hit != 'true'
+        run: brew install displayplacer
 
       - name: Set display mode for snapshot viewport
         run: |
@@ -291,7 +300,6 @@ jobs:
           # display so the snapshot viewport is the one the baseline expects.
           # 1600x1200 is used rather than 1920x1080 because the tallest scene
           # requests a 1280x1100 content size, which does not fit under 1080.
-          brew list displayplacer >/dev/null 2>&1 || brew install displayplacer
           DISPLAY_ID="$(displayplacer list | awk '/Persistent screen id:/{print $4; exit}')"
           displayplacer "id:${DISPLAY_ID} res:1600x1200 hz:60 color_depth:7 enabled:true scaling:off origin:(0,0) degree:0"
           displayplacer list | grep -m1 'current mode'
@@ -315,11 +323,20 @@ jobs:
           test -s "$snapshot_dir/question-composer-official-viewport.png"
           find "$snapshot_dir" -maxdepth 1 -type f -name '*.png' -print
 
+      - name: Restore visual comparison Python environment
+        id: visual-venv-cache
+        uses: actions/cache@v5
+        with:
+          path: /tmp/dsh-visual-venv
+          key: visual-venv-${{ runner.os }}-${{ env.IMAGE_VERSION }}-pillow-numpy-1
+
       - name: Compare official and native welcome screenshots
         run: |
-          python3 -m venv /tmp/dsh-visual-venv
+          if [ ! -x /tmp/dsh-visual-venv/bin/python ]; then
+            python3 -m venv /tmp/dsh-visual-venv
+            /tmp/dsh-visual-venv/bin/python -m pip install --disable-pip-version-check --no-input Pillow numpy
+          fi
           source /tmp/dsh-visual-venv/bin/activate
-          python -m pip install --disable-pip-version-check --no-input Pillow numpy
           python glass/ci/test_visual_policy.py
           python glass/ci/compare_visual_pair.py \
             --official artifacts/official-webui/welcome-no-workspace-light.png \
@@ -333,7 +350,7 @@ jobs:
 
       - name: Upload native UI review bundle
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: native-ui-${{ github.sha }}
           path: |
