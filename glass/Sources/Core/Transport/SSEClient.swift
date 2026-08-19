@@ -79,10 +79,13 @@ actor SSEClient {
         self.testStreamOpener = testStreamOpener
     }
 
-    /// One physical SSE connection. Most clients should use `reconnectingStream`.
+    /// One physical downstream connection. The fixed rc.7 Host registers its
+    /// live `events.mux` and `events.host` routes as WebSocket upgrades; its
+    /// pure fetch handler exposes SSE only for in-process use. Most clients
+    /// should use `reconnectingStream` rather than this physical stream.
     func stream(_ endpoint: DSHSSEEndpoint) -> SSEFrameStream {
         if let testStreamOpener { return testStreamOpener(endpoint) }
-        return physicalStream(endpoint)
+        return webSocketStream(endpoint)
     }
 
     /// Opens a downstream stream repeatedly after terminal connection errors or
@@ -151,11 +154,24 @@ actor SSEClient {
         reconnectTraces
     }
 
-    private func physicalStream(_ endpoint: DSHSSEEndpoint) -> SSEFrameStream {
+    private func webSocketStream(_ endpoint: DSHSSEEndpoint) -> SSEFrameStream {
         SSEFrameStream { continuation in
-            let task = Task {
+            let socket: URLSessionWebSocketTask
+            do {
+                socket = try makeWebSocketTask(endpoint: endpoint)
+            } catch {
+                continuation.finish(throwing: error)
+                return
+            }
+            let reader = Task {
                 do {
-                    try await read(endpoint: endpoint, continuation: continuation)
+                    socket.resume()
+                    while !Task.isCancelled {
+                        let message = try await socket.receive()
+                        try Task.checkCancellation()
+                        guard let frame = Self.decodeWebSocketFrame(message, decoder: decoder) else { continue }
+                        continuation.yield(frame)
+                    }
                     continuation.finish()
                 } catch is CancellationError {
                     continuation.finish(throwing: DSHTransportError.cancelled)
@@ -163,41 +179,46 @@ actor SSEClient {
                     continuation.finish(throwing: Self.normalize(error))
                 }
             }
-            continuation.onTermination = { _ in task.cancel() }
+            continuation.onTermination = { _ in
+                reader.cancel()
+                socket.cancel(with: .goingAway, reason: nil)
+            }
         }
     }
 
-    private func read(
-        endpoint: DSHSSEEndpoint,
-        continuation: SSEFrameStream.Continuation
-    ) async throws {
-        guard let url = URL(string: endpoint.rawValue, relativeTo: baseURL) else {
+    private func makeWebSocketTask(endpoint: DSHSSEEndpoint) throws -> URLSessionWebSocketTask {
+        guard var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: true) else {
             throw DSHTransportError.invalidEndpoint
         }
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
-        request.timeoutInterval = 0
+        switch components.scheme?.lowercased() {
+        case "http": components.scheme = "ws"
+        case "https": components.scheme = "wss"
+        case "ws", "wss": break
+        default: throw DSHTransportError.invalidEndpoint
+        }
+        let basePath = components.path.hasSuffix("/") ? String(components.path.dropLast()) : components.path
+        components.path = basePath + "/" + endpoint.rawValue
+        components.query = nil
+        components.fragment = nil
+        guard let url = components.url else { throw DSHTransportError.invalidEndpoint }
+        return session.webSocketTask(with: url)
+    }
 
-        let (bytes, response) = try await session.bytes(for: request)
-        guard let http = response as? HTTPURLResponse else { throw DSHTransportError.invalidEndpoint }
-        guard (200 ... 299).contains(http.statusCode) else {
-            throw DSHTransportError.invalidHTTPStatus(http.statusCode, body: "SSE connection refused")
+    private static func decodeWebSocketFrame(
+        _ message: URLSessionWebSocketTask.Message,
+        decoder: JSONDecoder
+    ) -> RPCServerRequest? {
+        let data: Data
+        switch message {
+        case let .string(value): data = Data(value.utf8)
+        case let .data(value): data = value
+        @unknown default: return nil
         }
-        guard http.value(forHTTPHeaderField: "Content-Type")?.lowercased().contains("text/event-stream") == true else {
-            throw DSHTransportError.invalidContentType(http.value(forHTTPHeaderField: "Content-Type"))
+        guard let frame = try? decoder.decode(RPCServerRequest.self, from: data),
+              frame.type == "server-request" else {
+            return nil
         }
-
-        var parser = SSEFrameParser(decoder: decoder)
-        for try await line in bytes.lines {
-            try Task.checkCancellation()
-            if let frame = parser.consume(line: line) {
-                continuation.yield(frame)
-            }
-        }
-        if let frame = parser.finish() {
-            continuation.yield(frame)
-        }
+        return frame
     }
 
     private static func shouldExhaust(policy: SSEReconnectPolicy, retryAttempt: Int) -> Bool {
@@ -259,9 +280,9 @@ actor SSEClient {
     }
 }
 
-/// Mirrors official `readSse`: incomplete/unknown data is ignored, not treated
-/// as a transport-fatal error. The physical connection remains consumable after
-/// one malformed ServerRequest frame.
+/// Parser retained for locked pure-fetch fixture compatibility: incomplete or
+/// unknown SSE data is ignored rather than being treated as transport-fatal.
+/// The installed rc.7 `dsh web` downlink uses WebSocket frames (above).
 struct SSEFrameParser {
     private let decoder: JSONDecoder
     private var dataLines: [String] = []

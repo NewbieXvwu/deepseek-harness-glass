@@ -204,6 +204,14 @@ jobs:
           cd glass
           swift test --filter HarnessHostControllerTests
 
+      - name: Run verified Host + transport smoke gate
+        env:
+          DSH_GLASS_HOST_NODE: ${{ github.workspace }}/glass/build/node/node
+          DSH_GLASS_HOST_ENTRY: ${{ github.workspace }}/glass/build/backend/node_modules/@deepseek-ai/dsh/lib/bin.js
+        run: |
+          cd glass
+          swift test --filter HarnessHostTransportSmokeTests
+
       - name: Run official RPC DTO fixture tests
         run: |
           cd glass
