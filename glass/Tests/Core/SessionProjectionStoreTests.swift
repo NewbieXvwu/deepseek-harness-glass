@@ -70,6 +70,36 @@ final class SessionProjectionStoreTests: XCTestCase {
         XCTAssertNil(SessionGoalProjectionReader.value(from: store, sessionID: "session"))
     }
 
+    func testTodoProjectionReaderUsesWholeHostListAndRejectsMalformedRows() {
+        let store = SessionProjectionStore()
+        store.apply(sessionID: "session", key: "todos", value: .array([
+            todo("Inspect source", "completed"),
+            todo("Implement native view", "in_progress"),
+            todo("Run regression", "pending"),
+        ]), seq: 12)
+        store.apply(sessionID: "session", key: "todos", value: .array([todo("stale", "pending")]), seq: 11)
+
+        let initial = tryUnwrap(SessionTodoProjectionReader.value(from: store, sessionID: "session"))
+        XCTAssertEqual(initial, [
+            .init(content: "Inspect source", status: .completed),
+            .init(content: "Implement native view", status: .inProgress),
+            .init(content: "Run regression", status: .pending),
+        ])
+
+        store.apply(sessionID: "session", key: "todos", value: .array([]), seq: 13)
+        XCTAssertEqual(tryUnwrap(SessionTodoProjectionReader.value(from: store, sessionID: "session")), [])
+
+        store.apply(sessionID: "session", key: "todos", value: .array([todo("same", "pending"), todo("same", "completed")]), seq: 14)
+        XCTAssertNil(SessionTodoProjectionReader.value(from: store, sessionID: "session"))
+
+        store.apply(sessionID: "session", key: "todos", value: .null, seq: 15)
+        XCTAssertNil(SessionTodoProjectionReader.value(from: store, sessionID: "session"))
+    }
+
+    private func todo(_ content: String, _ status: String) -> JSONValue {
+        .object(["content": .string(content), "status": .string(status)])
+    }
+
     private func goal(phase: String, reason: [String: JSONValue]? = nil) -> JSONValue {
         var goal: [String: JSONValue] = [
             "id": .string("goal-1"),
