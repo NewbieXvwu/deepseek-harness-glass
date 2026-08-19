@@ -116,7 +116,6 @@ jobs:
       # missed (commit bump, script change, image roll) and the official tree
       # has to be rebuilt.
       - name: Restore official build dependency caches
-        if: steps.official-baseline-cache.outputs.cache-hit != 'true'
         uses: actions/cache@v5
         with:
           path: |
@@ -124,12 +123,22 @@ jobs:
             ~/Library/Caches/ms-playwright
           key: official-webui-deps-${{ env.OFFICIAL_COMMIT }}-${{ hashFiles('.reference/deepseek-harness/pnpm-lock.yaml', '.reference/deepseek-harness/apps/web/package.json') }}
 
+      # Specification gates run after the baseline cache branch, and several
+      # gates invoke the locked TypeScript runtime (`tsx`). The baseline cache
+      # contains rendered PNGs only, never node_modules, so install the exact
+      # official workspace toolchain on every run before either branch proceeds.
+      - name: Install locked official source toolchain
+        run: |
+          export PATH="$NODE24_BIN:$PATH"
+          cd .reference/deepseek-harness
+          corepack pnpm install --frozen-lockfile
+          test -f node_modules/tsx/dist/cli.mjs
+
       - name: Build and capture locked official WebUI baseline
         if: steps.official-baseline-cache.outputs.cache-hit != 'true'
         run: |
           export PATH="$NODE24_BIN:$PATH"
           cd .reference/deepseek-harness
-          corepack pnpm install --frozen-lockfile
           # The official Vite app consumes generated workspace package exports; build
           # those locked-source Host/Client libraries before building apps/web.
           NODE_OPTIONS="--max-old-space-size=8192" corepack pnpm run build:lib
