@@ -176,6 +176,9 @@ jobs:
       - name: Enforce feature facade boundary
         run: python3 glass/ci/check-no-feature-transport.py
 
+      - name: Enforce system structural material policy
+        run: python3 glass/ci/check-native-structural-material.py
+
       - name: Validate official RPC DTO source manifest
         run: |
           python3 glass/ci/check-official-rpc-dto-manifest.py \

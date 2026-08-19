@@ -586,6 +586,6 @@ struct NativeDetailsView: View {
             NativeToolDetailsBody(invocation: selectedInvocation)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .background(OfficialUISpec.Token.base)
+        .background(Color.clear)
     }
 }

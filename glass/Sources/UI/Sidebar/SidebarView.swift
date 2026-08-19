@@ -35,7 +35,7 @@ struct NativeSidebarView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .padding(.horizontal, collapsed ? 10 : OfficialUISpec.Layout.sidebarInlinePadding)
         .padding(.top, collapsed ? 18 : 6)
-        .background(OfficialUISpec.Token.sidebar)
+        .background(Color.clear)
         .animation(.easeInOut(duration: 0.3), value: collapsed)
     }
 
