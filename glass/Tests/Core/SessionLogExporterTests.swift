@@ -29,6 +29,22 @@ final class SessionLogExporterTests: XCTestCase {
         XCTAssertEqual(ExportURLProtocol.state.observedRequests().first?.httpMethod, "GET")
     }
 
+    func testTaskCancellationMapsToCancelledTransportError() async throws {
+        ExportURLProtocol.state.configure(status: 200, headers: [:], body: Data(), stalls: true)
+        let destination = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: destination) }
+        let exporter = SessionLogExporter(session: makeSession(), destinationDirectory: destination)
+        let task = Task { try await exporter.export(url: URL(string: "http://127.0.0.1:9281/hanging")!, fallbackFilename: "cancel.zip") }
+        try await waitForRequestCount(1)
+        task.cancel()
+        do {
+            _ = try await task.value
+            XCTFail("cancelled native export must not complete successfully")
+        } catch let error as DSHTransportError {
+            XCTAssertEqual(error, .cancelled)
+        }
+    }
+
     func testUnverifiedHostCannotCreateNativeDownloadURL() async throws {
         let transport = DSHClientTransport(
             baseURL: URL(string: "http://127.0.0.1:9281/")!,
@@ -69,6 +85,14 @@ final class SessionLogExporterTests: XCTestCase {
         return URLSession(configuration: configuration)
     }
 
+    private func waitForRequestCount(_ expected: Int) async throws {
+        for _ in 0 ..< 100 {
+            if ExportURLProtocol.state.observedRequests().count >= expected { return }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        XCTFail("download request did not reach URLProtocol")
+    }
+
     private func temporaryDirectory() throws -> URL {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("dsh-glass-export-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -81,21 +105,23 @@ private final class ExportProtocolState: @unchecked Sendable {
     private var status = 200
     private var headers: [String: String] = [:]
     private var body = Data()
+    private var stalls = false
     private var requests: [URLRequest] = []
 
-    func configure(status: Int, headers: [String: String], body: Data) {
+    func configure(status: Int, headers: [String: String], body: Data, stalls: Bool = false) {
         lock.lock()
         self.status = status
         self.headers = headers
         self.body = body
+        self.stalls = stalls
         requests = []
         lock.unlock()
     }
 
-    func response(for request: URLRequest) -> (Int, [String: String], Data) {
+    func response(for request: URLRequest) -> (Int, [String: String], Data, Bool) {
         lock.lock()
         requests.append(request)
-        let result = (status, headers, body)
+        let result = (status, headers, body, stalls)
         lock.unlock()
         return result
     }
@@ -107,7 +133,7 @@ private final class ExportProtocolState: @unchecked Sendable {
     }
 
     func reset() {
-        configure(status: 200, headers: [:], body: Data())
+        configure(status: 200, headers: [:], body: Data(), stalls: false)
     }
 }
 
@@ -125,10 +151,13 @@ private final class ExportURLProtocol: URLProtocol, @unchecked Sendable {
             client?.urlProtocol(self, didFailWithError: URLError(.badURL))
             return
         }
+        if result.3 { return }
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: result.2)
         client?.urlProtocolDidFinishLoading(self)
     }
 
-    override func stopLoading() {}
+    override func stopLoading() {
+        client?.urlProtocol(self, didFailWithError: URLError(.cancelled))
+    }
 }
