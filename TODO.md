@@ -245,9 +245,9 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
   - 依赖：T5.2。
   - 验收证据：`check-native-structural-material.py` 在每轮 CI 强制 sidebar/inspector AppKit item、透明宿主以及无 `NSVisualEffectView`/固定 structural background/self-drawn canvas；`SnapshotExporterTests` 覆盖 macOS 26 ScreenCaptureKit alpha-first pure-black frame rejection，避免无头 WindowServer 黑帧被伪装为截图。macOS-26 [run 32224425678](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32224425678)（commit `a5f1efb`）通过全部静态/module/transport/material gates、SwiftPM、真实 rc.7 Host smoke、`GlassAppTests`、`SnapshotExporterTests`、应用装配、原生快照和官方配对；人工对照、官方 PNG、原生 PNG、amplified diff 与报告JSON已记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`。该无头 runner 对受支持ScreenCaptureKit current-process window与系统 `screencapture -l` 均无法合成系统拥有的sidebar/inspector材质，导致仅这些区域显示黑色；已依据T0.3/T2.6逐路径验证、明确限定为系统渲染例外，绝不放宽内容、控件、文字、几何、字体或无障碍差异。
 
-- [ ] **T5.4：建立 `GlassPolicy`。** 对每类 UI 明确 `content`、`systemNavigation`、`regularGlassCustomControl`、`clearGlassMediaOverlay` 等策略，并限制同屏 custom glass 的数量。
+- [x] **T5.4：建立 `GlassPolicy`。** `GlassPolicy` 明确区分 `content`、`systemNavigation`、`regularGlassCustomControl`、`clearGlassMediaOverlay`；`GlassPolicyBudget` 将每场景 custom glass 限为一个，系统导航材质仍只由AppKit拥有。唯一既有自定义导航操作控件通过具名 `.regularGlassCustomControl` 进入 `approvedGlassEffect`，正文、sidebar/inspector、composer、list row和dialog不获得附带玻璃。
   - 依赖：T5.2。
-  - 验收：代码审查规则要求每个 `glassEffect` 指定 policy；没有理由的 custom glass 不可合并。
+  - 验收证据：`check-glass-policy.py` 在CI拒绝GlassUI任何未通过 `approvedGlassEffect(policy:in:)` 声明的原始 `.glassEffect`，并拒绝未经实现审查的custom policy；`GlassPolicyTests` 覆盖内容/系统导航禁止custom glass、仅批准类别可用、system navigation material ownership和单控件预算。macOS-26 [run 32225877836](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32225877836)（commit `7ebaefd`）通过新增policy gate、全部既有静态/module/transport/material gates、SwiftPM、真实rc.7 Host smoke、`GlassAppTests`、`SnapshotExporterTests`、应用组装、原生快照和官方配对；人工审阅及报告已记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`，未发现T5.4引入的可观察内容层或布局回归。欢迎页既有无头系统材质`report-only`例外仍严格受T5.3记录约束，绝不扩展为其他视觉差异豁免。
 
 - [ ] **T5.5：实现有限的自定义 glass controls。** 仅用于官方已有的悬浮操作、模型选择或关键确认控制；使用 `GlassEffectContainer` 管理相邻形变元素，并应用官方间距和形状。
   - 依赖：T2.3、T5.4。
