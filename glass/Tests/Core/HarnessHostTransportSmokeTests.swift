@@ -75,6 +75,11 @@ final class HarnessHostTransportSmokeTests: XCTestCase {
             return
         }
         XCTAssertEqual(kill(initialPID, SIGTERM), 0, "the smoke test must induce a real owned-Host termination")
+        try await waitForTransition(
+            controller,
+            summary: "ready -> recovering",
+            timeout: 8
+        )
 
         try await waitForReconnectTrace(from: firstSubscriber, timeout: 8)
         let networkError = await captureTransportError {
@@ -201,6 +206,20 @@ final class HarnessHostTransportSmokeTests: XCTestCase {
             try await Task.sleep(for: .milliseconds(50))
         }
         XCTFail("SSE/WebSocket stream did not expose a reconnecting trace after Host termination")
+        throw SmokeError.timeout
+    }
+
+    private func waitForTransition(
+        _ controller: HarnessHostController,
+        summary: String,
+        timeout: TimeInterval
+    ) async throws {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if controller.stateTransitions.map(\.summary).contains(summary) { return }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        XCTFail("Host did not record expected lifecycle transition: \(summary)")
         throw SmokeError.timeout
     }
 
