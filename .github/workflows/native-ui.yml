@@ -133,6 +133,10 @@ jobs:
           cd .reference/deepseek-harness
           corepack pnpm install --frozen-lockfile
           test -f node_modules/tsx/dist/cli.mjs
+          # The generated scene directory verifies this tracked capture fixture
+          # even when its PNG baseline was restored from cache.
+          cp "$GITHUB_WORKSPACE/tools/reference-capture/capture-official-welcome.e2e.ts" apps/web/tests/
+          test -f apps/web/tests/capture-official-welcome.e2e.ts
 
       - name: Build and capture locked official WebUI baseline
         if: steps.official-baseline-cache.outputs.cache-hit != 'true'
@@ -143,7 +147,6 @@ jobs:
           # those locked-source Host/Client libraries before building apps/web.
           NODE_OPTIONS="--max-old-space-size=8192" corepack pnpm run build:lib
           corepack pnpm --filter @deepseek-ai/dsh-web-frontend run build
-          cp "$GITHUB_WORKSPACE/tools/reference-capture/capture-official-welcome.e2e.ts" apps/web/tests/
           corepack pnpm --filter @deepseek-ai/dsh-web-frontend exec playwright install chromium
           DSH_REFERENCE_SCREENSHOT_DIR="$GITHUB_WORKSPACE/artifacts/official-webui" \
             corepack pnpm exec vitest run --config vitest.web.config.ts apps/web/tests/capture-official-welcome.e2e.ts
