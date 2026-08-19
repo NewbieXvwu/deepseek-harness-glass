@@ -88,15 +88,15 @@ jobs:
       - name: Download bundled Node runtime
         if: steps.node-runtime-cache.outputs.cache-hit != 'true'
         run: |
-          curl -fsSL "https://nodejs.org/dist/v${{ env.DSH_NODE_VERSION }}/node-v${{ env.DSH_NODE_VERSION }}-darwin-arm64.tar.gz" -o /tmp/node.tgz
+          curl -fsSL "https://nodejs.org/dist/v${DSH_NODE_VERSION}/node-v${DSH_NODE_VERSION}-darwin-arm64.tar.gz" -o /tmp/node.tgz
           tar -xzf /tmp/node.tgz -C /tmp
           mkdir -p glass/build/node
-          cp "/tmp/node-v${{ env.DSH_NODE_VERSION }}-darwin-arm64/bin/node" glass/build/node/node
+          cp "/tmp/node-v${DSH_NODE_VERSION}-darwin-arm64/bin/node" glass/build/node/node
 
       - name: Activate bundled Node runtime
         run: |
           chmod +x glass/build/node/node
-          test "$(glass/build/node/node --version)" = "v${{ env.DSH_NODE_VERSION }}"
+          test "$(glass/build/node/node --version)" = "v${DSH_NODE_VERSION}"
           echo "NODE24_BIN=$GITHUB_WORKSPACE/glass/build/node" >> "$GITHUB_ENV"
 
       # The official source is pinned to OFFICIAL_COMMIT, so its rendered
