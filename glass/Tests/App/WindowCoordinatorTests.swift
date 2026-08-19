@@ -3,24 +3,28 @@ import XCTest
 
 @testable import DeepSeekHarnessGlassApp
 
+@MainActor
 final class WindowCoordinatorTests: XCTestCase {
     func testWindowPolicyRetainsMigratedNativeGeometryAndTitlebarStrategy() {
-        XCTAssertEqual(NativeWindowPolicy.initialContentSize, NSSize(width: 1280, height: 840))
-        XCTAssertEqual(NativeWindowPolicy.minimumContentSize, NSSize(width: 880, height: 600))
-        XCTAssertTrue(NativeWindowPolicy.styleMask.contains(.titled))
-        XCTAssertTrue(NativeWindowPolicy.styleMask.contains(.closable))
-        XCTAssertTrue(NativeWindowPolicy.styleMask.contains(.miniaturizable))
-        XCTAssertTrue(NativeWindowPolicy.styleMask.contains(.resizable))
-        XCTAssertTrue(NativeWindowPolicy.styleMask.contains(.fullSizeContentView))
-        XCTAssertEqual(NativeWindowPolicy.toolbarStyle, .unifiedCompact)
+        let initialContentSize = NativeWindowPolicy.initialContentSize
+        let minimumContentSize = NativeWindowPolicy.minimumContentSize
+        let styleMask = NativeWindowPolicy.styleMask
+        let toolbarStyle = NativeWindowPolicy.toolbarStyle
+        XCTAssertEqual(initialContentSize, NSSize(width: 1280, height: 840))
+        XCTAssertEqual(minimumContentSize, NSSize(width: 880, height: 600))
+        XCTAssertTrue(styleMask.contains(.titled))
+        XCTAssertTrue(styleMask.contains(.closable))
+        XCTAssertTrue(styleMask.contains(.miniaturizable))
+        XCTAssertTrue(styleMask.contains(.resizable))
+        XCTAssertTrue(styleMask.contains(.fullSizeContentView))
+        XCTAssertEqual(toolbarStyle, .unifiedCompact)
     }
 
     func testRestorationNamesAreStableAndNativeScoped() {
-        XCTAssertEqual(NativeWindowPolicy.frameAutosaveName, "DeepSeekHarnessGlass.MainWindow")
-        XCTAssertEqual(
-            NativeWindowPolicy.restorationIdentifier,
-            NSUserInterfaceItemIdentifier("DeepSeekHarnessGlass.MainWindow")
-        )
+        let autosaveName = NativeWindowPolicy.frameAutosaveName
+        let restorationIdentifier = NativeWindowPolicy.restorationIdentifier
+        XCTAssertEqual(autosaveName, "DeepSeekHarnessGlass.MainWindow")
+        XCTAssertEqual(restorationIdentifier, NSUserInterfaceItemIdentifier("DeepSeekHarnessGlass.MainWindow"))
     }
 
     func testCloseToMenuBarAndReopenLifecycleTransitions() {
