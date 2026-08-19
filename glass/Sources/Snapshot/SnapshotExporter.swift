@@ -135,11 +135,19 @@ enum SnapshotExporter {
         configuration.showsCursor = false
         configuration.ignoreShadows = true
         configuration.displayIntent = .local
+        // A window filter captures the actual WindowServer composition of this
+        // process, including AppKit-owned sidebar/inspector material, without
+        // sampling unrelated or inaccessible headless display pixels.
+        let currentProcessContent = try? await SCShareableContent.currentProcess
+        let shareableWindow = currentProcessContent?.windows.first {
+            $0.windowID == CGWindowID(window.windowNumber)
+        }
         let compositorBitmap: NSBitmapImageRep?
-        if let screenshot = try? await SCScreenshotManager.captureScreenshot(
-            rect: window.frame,
+        if let shareableWindow,
+           let screenshot = try? await SCScreenshotManager.captureScreenshot(
+            contentFilter: SCContentFilter(desktopIndependentWindow: shareableWindow),
             configuration: configuration
-        ), let composited = screenshot.sdrImage {
+           ), let composited = screenshot.sdrImage {
             let candidate = NSBitmapImageRep(cgImage: composited)
             candidate.size = size
             compositorBitmap = hasVisibleSDRContent(candidate) ? candidate : nil
@@ -149,7 +157,7 @@ enum SnapshotExporter {
         let bitmap: NSBitmapImageRep
         if let compositorBitmap {
             bitmap = compositorBitmap
-            FileHandle.standardError.write(Data("snapshot capture: ScreenCaptureKit compositor frame accepted\n".utf8))
+            FileHandle.standardError.write(Data("snapshot capture: current-process ScreenCaptureKit compositor frame accepted\n".utf8))
         } else {
             bitmap = try fallbackBitmap(from: window, size: size)
             FileHandle.standardError.write(Data("snapshot capture: ScreenCaptureKit compositor frame unavailable or black; using deterministic AppKit fallback\n".utf8))
