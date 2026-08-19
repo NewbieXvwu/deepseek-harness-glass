@@ -224,8 +224,31 @@ struct SessionEventDTO: Decodable, Sendable, Identifiable {
     let seq: Int
     let time: Double
     let data: JSONValue
+    /// Present only on the official surface-producing user/message,
+    /// assistant/message and tool/result variants. `"append"` is transcript
+    /// material; a replacement object is model-only and may be a compaction
+    /// checkpoint rather than a duplicate visible message.
+    let surfaceOp: JSONValue?
     let sourceEventSeqs: [Int]?
     let ignorable: Bool?
+
+    init(
+        type: String,
+        seq: Int,
+        time: Double,
+        data: JSONValue,
+        surfaceOp: JSONValue? = nil,
+        sourceEventSeqs: [Int]? = nil,
+        ignorable: Bool? = nil
+    ) {
+        self.type = type
+        self.seq = seq
+        self.time = time
+        self.data = data
+        self.surfaceOp = surfaceOp
+        self.sourceEventSeqs = sourceEventSeqs
+        self.ignorable = ignorable
+    }
 
     var id: Int { seq }
 }

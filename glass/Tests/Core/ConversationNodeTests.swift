@@ -69,6 +69,24 @@ final class ConversationNodeTests: XCTestCase {
         XCTAssertEqual((node?.data as? FixtureDefinition.State)?.revisions, 1)
     }
 
+    func testReducerIsTheOnlyLifecycleOwnerAndMaterializesStableTargetNodes() {
+        let reducer = ConversationNodeReducer(definitions: [.init(FixtureDefinition())])
+        let start = ConversationEventInput(event: event(seq: 30, type: "fixture/start", data: ["turn": .number(4), "step": .number(1)]))
+        let update = ConversationEventInput(event: event(seq: 31, type: "fixture/update", data: ["turn": .number(4), "step": .number(1)]))
+
+        XCTAssertEqual(reducer.replaceWindow([start], hasMore: false), .immediate)
+        var chat = reducer.snapshot(target: "chat")
+        XCTAssertEqual(chat.count, 1)
+        XCTAssertEqual((chat[0].data as? FixtureDefinition.State)?.revisions, 0)
+        XCTAssertEqual(chat[0].key, conversationContextKey(kind: "fixture", id: "work"))
+
+        XCTAssertEqual(reducer.append(update), .immediate)
+        chat = reducer.snapshot(target: "chat")
+        XCTAssertEqual(chat.count, 1, "a streaming/update lifecycle upserts its stable context node rather than duplicating a row")
+        XCTAssertEqual((chat[0].data as? FixtureDefinition.State)?.revisions, 1)
+        XCTAssertEqual(reducer.rawWindow().map(\.event.seq), [30, 31])
+    }
+
     func testLocationVisibilityAndLocationDataRemainExplicitReducerValues() {
         let event = event(seq: 20, type: "turn/start")
         let stepStore = ConversationLocationDataStore(values: ["progress": 0.5])
@@ -111,12 +129,12 @@ final class ConversationNodeTests: XCTestCase {
         XCTAssertEqual(resolvedStep.step, 2)
     }
 
-    private func event(seq: Int, type: String) -> SessionEventDTO {
+    private func event(seq: Int, type: String, data: [String: JSONValue] = [:]) -> SessionEventDTO {
         SessionEventDTO(
             type: type,
             seq: seq,
             time: Double(seq),
-            data: .object(["fixture": .string(type)]),
+            data: .object(["fixture": .string(type)].merging(data) { _, right in right }),
             sourceEventSeqs: nil,
             ignorable: nil
         )
