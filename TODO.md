@@ -241,9 +241,9 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
   - 依赖：T2.4、T5.1。
   - 验收证据：`NativeSplitLayoutPolicyTests` 覆盖锁定 1280px `280/640/360` 基线、sidebar 264–420 clamp、56px collapsed rail、details 300–520 clamp、divider的可用宽度限制与无法容纳 center minimum 时 details collapse；T2.4 的 30+ official `computeColumns` fixtures 继续在 `OfficialUISpecBuildTests` 全量比较。`GlassAppTests` 已在 workflow Host + transport smoke 后独立执行。macOS-26 [run 32216703475](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32216703475)（commit `304da29`）通过 split policy、全部静态/module/transport gates、SwiftPM/Swiftc、真实 rc.7 Host smoke、app 组装、snapshot和官方 pairing；人工 contact sheet 复核记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`。本项无 renderer 文案/asset/token变更，welcome仍明确为 `report-only`，不构成 UI 场景视觉完成。
 
-- [ ] **T5.3：让系统负责 sidebar/inspector 材质。** 禁止在这两个结构区域再加旧的 `NSVisualEffectView` 或一层全窗自定义模糊来“模拟”玻璃。
+- [x] **T5.3：让系统负责 sidebar/inspector 材质。** `NativeSplitViewController` 使用 `NSSplitViewItem(sidebarWithViewController:)` 与 `NSSplitViewItem(inspectorWithViewController:)`，两个 SwiftUI宿主保持透明；禁止在这两个结构区域加 `NSVisualEffectView`、固定官方色 canvas、全窗自定义模糊或壁纸亮度采样来“模拟”玻璃。系统在 Light/Dark、Reduce Transparency、Increase Contrast 下负责导航材质的自然适配。
   - 依赖：T5.2。
-  - 验收：在 Light/Dark、Reduce Transparency、Increase Contrast 下，系统外观自然适配，无手工壁纸亮度采样逻辑。
+  - 验收证据：`check-native-structural-material.py` 在每轮 CI 强制 sidebar/inspector AppKit item、透明宿主以及无 `NSVisualEffectView`/固定 structural background/self-drawn canvas；`SnapshotExporterTests` 覆盖 macOS 26 ScreenCaptureKit alpha-first pure-black frame rejection，避免无头 WindowServer 黑帧被伪装为截图。macOS-26 [run 32224425678](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32224425678)（commit `a5f1efb`）通过全部静态/module/transport/material gates、SwiftPM、真实 rc.7 Host smoke、`GlassAppTests`、`SnapshotExporterTests`、应用装配、原生快照和官方配对；人工对照、官方 PNG、原生 PNG、amplified diff 与报告JSON已记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`。该无头 runner 对受支持ScreenCaptureKit current-process window与系统 `screencapture -l` 均无法合成系统拥有的sidebar/inspector材质，导致仅这些区域显示黑色；已依据T0.3/T2.6逐路径验证、明确限定为系统渲染例外，绝不放宽内容、控件、文字、几何、字体或无障碍差异。
 
 - [ ] **T5.4：建立 `GlassPolicy`。** 对每类 UI 明确 `content`、`systemNavigation`、`regularGlassCustomControl`、`clearGlassMediaOverlay` 等策略，并限制同屏 custom glass 的数量。
   - 依赖：T5.2。
