@@ -1,0 +1,126 @@
+name: diagnose-capture
+
+# Evidence-gathering only. This workflow does not gate anything and does not
+# modify the product. It records the actual capture capability of the macOS 26
+# hosted runner so the T5.3 "system rendering exception" claim can be replaced
+# with a falsifiable fact (project charter section 6: record facts, do not guess).
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    name: diagnose runner capture environment
+    runs-on: macos-26
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: A. Runner and OS identity
+        continue-on-error: true
+        run: |
+          sw_vers
+          uname -m
+          xcrun --sdk macosx --show-sdk-version
+          echo "whoami=$(whoami) uid=$(id -u)"
+
+      - name: B. SIP status
+        continue-on-error: true
+        run: csrutil status
+
+      - name: C. GUI session / bootstrap namespace
+        continue-on-error: true
+        run: |
+          echo "--- launchctl managername ---"
+          launchctl managername || echo "managername FAILED"
+          echo "--- loginwindow ---"
+          pgrep -x loginwindow && echo "loginwindow PRESENT" || echo "loginwindow ABSENT"
+          echo "--- WindowServer ---"
+          pgrep -x WindowServer && echo "WindowServer PRESENT" || echo "WindowServer ABSENT"
+          echo "--- Dock (Aqua session indicator) ---"
+          pgrep -x Dock && echo "Dock PRESENT" || echo "Dock ABSENT"
+          echo "--- security session ---"
+          launchctl print gui/$(id -u) 2>/dev/null | head -20 || echo "no gui domain for uid"
+
+      - name: D. Displays
+        continue-on-error: true
+        run: system_profiler SPDisplaysDataType | head -60
+
+      - name: E. Existing TCC screen-capture grants
+        continue-on-error: true
+        run: |
+          for db in "/Library/Application Support/com.apple.TCC/TCC.db" \
+                    "$HOME/Library/Application Support/com.apple.TCC/TCC.db"; do
+            echo "=== $db ==="
+            echo "--- schema ---"
+            sudo sqlite3 "$db" "PRAGMA table_info(access);" 2>&1 | head -30 || true
+            echo "--- kTCCServiceScreenCapture rows ---"
+            sudo sqlite3 "$db" \
+              "SELECT service,client,client_type,auth_value FROM access WHERE service='kTCCServiceScreenCapture';" 2>&1 || true
+          done
+
+      - name: F. Baseline screencapture (no app involved)
+        continue-on-error: true
+        run: |
+          mkdir -p artifacts/diagnose
+          echo "--- plain full-screen capture ---"
+          /usr/sbin/screencapture -x artifacts/diagnose/plain-fullscreen.png \
+            && echo "rc=0" || echo "FAILED rc=$?"
+          echo "--- capture inside loginwindow bootstrap ---"
+          LW=$(pgrep -x loginwindow || true)
+          if [ -n "$LW" ]; then
+            sudo launchctl bsexec "$LW" /usr/sbin/screencapture -x artifacts/diagnose/bsexec-fullscreen.png \
+              && echo "rc=0" || echo "FAILED rc=$?"
+          else
+            echo "SKIPPED: no loginwindow pid"
+          fi
+          ls -la artifacts/diagnose/ || true
+
+      - name: G. Classify baseline captures (black vs real content)
+        continue-on-error: true
+        run: |
+          python3 -m venv /tmp/diag-venv
+          source /tmp/diag-venv/bin/activate
+          python -m pip install --disable-pip-version-check --no-input --quiet Pillow numpy
+          python - <<'PY'
+          import os
+          from PIL import Image
+          import numpy as np
+          for name in ("plain-fullscreen.png", "bsexec-fullscreen.png"):
+              p = os.path.join("artifacts/diagnose", name)
+              if not os.path.exists(p):
+                  print(f"{name}: MISSING")
+                  continue
+              a = np.asarray(Image.open(p).convert("RGB"), dtype=np.int16)
+              nonblack = float((a.max(axis=2) > 8).mean())
+              print(f"{name}: size={a.shape[1]}x{a.shape[0]} "
+                    f"mean={a.mean():.2f} max={a.max()} "
+                    f"nonblack_ratio={nonblack:.6f} "
+                    f"=> {'REAL CONTENT' if nonblack > 0.01 else 'ALL BLACK'}")
+          PY
+
+      - name: H. Preflight screen-capture authorization for a test binary
+        continue-on-error: true
+        run: |
+          cat > /tmp/preflight.swift <<'SWIFT'
+          import CoreGraphics
+          import Foundation
+          let pre = CGPreflightScreenCaptureAccess()
+          FileHandle.standardError.write(Data("CGPreflightScreenCaptureAccess=\(pre)\n".utf8))
+          let req = CGRequestScreenCaptureAccess()
+          FileHandle.standardError.write(Data("CGRequestScreenCaptureAccess=\(req)\n".utf8))
+          SWIFT
+          swiftc -O /tmp/preflight.swift -o /tmp/preflight 2>&1 | tail -5 || true
+          /tmp/preflight || echo "preflight binary FAILED rc=$?"
+
+      - name: I. Upload diagnostic artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: capture-diagnosis
+          path: artifacts/diagnose/
+          if-no-files-found: warn
