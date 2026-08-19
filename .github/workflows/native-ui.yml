@@ -261,6 +261,11 @@ jobs:
           cd glass
           swift test --filter SessionProjectionStoreTests
 
+      - name: Run native session state tests
+        run: |
+          cd glass
+          swift test --filter NativeSessionStoreTests
+
       - name: Validate official UI specification provenance
         run: ./glass/ci/check-official-spec.py
 

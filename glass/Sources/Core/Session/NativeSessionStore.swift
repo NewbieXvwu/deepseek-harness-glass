@@ -107,6 +107,66 @@ final class NativeSessionStore: ObservableObject {
         var view: JSONValue?
     }
 
+    /// Host `session/queue` whole-snapshot row. It is transient and therefore
+    /// never reconstructed by folding durable history events.
+    struct QueuedMessage: Identifiable, Equatable {
+        enum Placement: String, Equatable {
+            case queued
+            case steering
+            case context
+        }
+
+        let id: String
+        let messageID: String
+        let placement: Placement
+        let role: String
+        let content: [JSONValue]
+        let source: JSONValue
+        let preview: String
+        let text: String?
+    }
+
+    /// Host `session/jobs` whole-snapshot row. A plugin-defined `kind` remains
+    /// open while status stays within the locked wire contract.
+    struct BackgroundJob: Identifiable, Equatable {
+        enum Status: String, Equatable {
+            case running
+            case stopping
+            case completed
+            case killed
+            case failed
+        }
+
+        let id: String
+        let kind: String
+        let label: String
+        let status: Status
+        let detail: String?
+        let startedAt: Int
+        let finishedAt: Int?
+
+        var isLive: Bool { status == .running || status == .stopping }
+    }
+
+    /// Resident client window for one Host session. Durable transcript data is
+    /// refreshed from history on re-selection; transient queue/jobs are retained
+    /// only until the next `session/subscribed` generation baseline clears them.
+    private struct ResidentSessionState {
+        let items: [TranscriptItem]
+        let hasMoreHistory: Bool
+        let isRunning: Bool
+        let draft: String
+        let pendingImages: [PendingImage]
+        let toolInvocations: [ToolInvocation]
+        let queuedMessages: [QueuedMessage]
+        let backgroundJobs: [BackgroundJob]
+        let selectedToolCallID: String?
+        let pendingApproval: PendingApproval?
+        let pendingQuestion: PendingQuestion?
+        let lastError: DSHTransportError?
+        let appliedSequences: Set<Int>
+    }
+
     @Published private(set) var phase: Phase = .idle
     @Published private(set) var items: [TranscriptItem] = []
     @Published private(set) var hasMoreHistory = false
@@ -116,6 +176,8 @@ final class NativeSessionStore: ObservableObject {
     @Published var draft = ""
     @Published private(set) var pendingImages: [PendingImage] = []
     @Published private(set) var toolInvocations: [ToolInvocation] = []
+    @Published private(set) var queuedMessages: [QueuedMessage] = []
+    @Published private(set) var backgroundJobs: [BackgroundJob] = []
     @Published private(set) var selectedToolCallID: String?
     @Published private(set) var pendingApproval: PendingApproval?
     @Published private(set) var pendingQuestion: PendingQuestion?
@@ -135,6 +197,7 @@ final class NativeSessionStore: ObservableObject {
     private var endpoint: URL?
     private var api: SessionsAPI?
     private var activeSessionID: String?
+    private var residentStates: [String: ResidentSessionState] = [:]
     private var appliedSequences: Set<Int> = []
 
     /// The shell uses this only to replay an existing selection against a new
@@ -149,10 +212,57 @@ final class NativeSessionStore: ObservableObject {
         streamTask?.cancel()
     }
 
-    /// Opens one selected Host session. The existing view remains mounted while
-    /// a new history baseline loads, mirroring the official resident scrollport.
+    /// Core-internal reducer seam used by regression tests; Feature/UI enters
+    /// through `open`, never by mutating session state directly.
+    func preserveActiveState() {
+        guard let sessionID = activeSessionID else { return }
+        residentStates[sessionID] = ResidentSessionState(
+            items: items,
+            hasMoreHistory: hasMoreHistory,
+            isRunning: isRunning,
+            draft: draft,
+            pendingImages: pendingImages,
+            toolInvocations: toolInvocations,
+            queuedMessages: queuedMessages,
+            backgroundJobs: backgroundJobs,
+            selectedToolCallID: selectedToolCallID,
+            pendingApproval: pendingApproval,
+            pendingQuestion: pendingQuestion,
+            lastError: lastError,
+            appliedSequences: appliedSequences
+        )
+    }
+
+    /// Core-internal resident-window restore seam used by regression tests.
+    @discardableResult
+    func restoreResidentState(for sessionID: String) -> Bool {
+        guard let state = residentStates[sessionID] else { return false }
+        items = state.items
+        hasMoreHistory = state.hasMoreHistory
+        isLoadingOlderHistory = false
+        isRunning = state.isRunning
+        isSubmittingPrompt = false
+        draft = state.draft
+        pendingImages = state.pendingImages
+        toolInvocations = state.toolInvocations
+        queuedMessages = state.queuedMessages
+        backgroundJobs = state.backgroundJobs
+        selectedToolCallID = state.selectedToolCallID
+        pendingApproval = state.pendingApproval
+        pendingQuestion = state.pendingQuestion
+        isSubmittingApproval = false
+        isSubmittingQuestion = false
+        lastError = state.lastError
+        appliedSequences = state.appliedSequences
+        return true
+    }
+
+    /// Opens one selected Host session. Re-selecting a resident session restores
+    /// its visible window synchronously, then refreshes the Host authority in the
+    /// background; a cold session alone enters the blocking history phase.
     func open(sessionID: String, using api: SessionsAPI, endpoint: URL) {
         guard activeSessionID != sessionID || self.endpoint != endpoint else { return }
+        preserveActiveState()
         historyTask?.cancel()
         olderHistoryTask?.cancel()
         promptTask?.cancel()
@@ -161,22 +271,31 @@ final class NativeSessionStore: ObservableObject {
         self.api = api
         self.endpoint = endpoint
         activeSessionID = sessionID
-        items = []
-        toolInvocations = []
-        selectedToolCallID = nil
-        pendingApproval = nil
-        pendingQuestion = nil
-        isSubmittingApproval = false
-        isSubmittingQuestion = false
-        appliedSequences = []
-        hasMoreHistory = false
-        isLoadingOlderHistory = false
-        isRunning = false
-        isSubmittingPrompt = false
-        draft = ""
-        pendingImages = []
-        lastError = nil
-        phase = .loading(sessionID: sessionID)
+        let restoredResident = restoreResidentState(for: sessionID)
+        if !restoredResident {
+            items = []
+            toolInvocations = []
+            queuedMessages = []
+            backgroundJobs = []
+            selectedToolCallID = nil
+            pendingApproval = nil
+            pendingQuestion = nil
+            isSubmittingApproval = false
+            isSubmittingQuestion = false
+            appliedSequences = []
+            hasMoreHistory = false
+            isLoadingOlderHistory = false
+            isRunning = false
+            isSubmittingPrompt = false
+            draft = ""
+            pendingImages = []
+            lastError = nil
+            phase = .loading(sessionID: sessionID)
+        } else {
+            // The render tree remains on the resident window while the next
+            // history authority baseline arrives; this is not a new blank UI.
+            phase = .ready(sessionID: sessionID)
+        }
 
         historyTask = Task { [weak self] in
             do {
@@ -196,10 +315,10 @@ final class NativeSessionStore: ObservableObject {
             } catch let error as DSHTransportError {
                 guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
                 self?.lastError = error
-                self?.phase = .failed(sessionID: sessionID)
+                if !restoredResident { self?.phase = .failed(sessionID: sessionID) }
             } catch {
                 guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
-                self?.phase = .failed(sessionID: sessionID)
+                if !restoredResident { self?.phase = .failed(sessionID: sessionID) }
             }
         }
     }
@@ -217,6 +336,8 @@ final class NativeSessionStore: ObservableObject {
         phase = .idle
         items = []
         toolInvocations = []
+        queuedMessages = []
+        backgroundJobs = []
         selectedToolCallID = nil
         pendingApproval = nil
         pendingQuestion = nil
@@ -230,6 +351,7 @@ final class NativeSessionStore: ObservableObject {
         draft = ""
         pendingImages = []
         lastError = nil
+        residentStates.removeAll()
         projections.removeAll()
     }
 
@@ -343,7 +465,9 @@ final class NativeSessionStore: ObservableObject {
 
     /// Source: `events.ts:MuxFrame` uses frame.method as the event discriminant
     /// in the native SSE transport's server-request envelope.
-    private func applyMuxFrame(_ frame: RPCServerRequest, sessionID: String) {
+    /// Core-internal Host mux reducer. The transport owns envelope decoding;
+    /// Feature/UI receives the resulting published typed state only.
+    func applyMuxFrame(_ frame: RPCServerRequest, sessionID: String) {
         guard let object = frame.payload.objectValue,
               object["sessionId"]?.stringValue == sessionID
         else { return }
@@ -354,8 +478,14 @@ final class NativeSessionStore: ObservableObject {
                   let event = decode(SessionEventDTO.self, from: eventValue)
             else { return }
             apply(event: event, view: object["view"]?.objectValue?["view"])
+        case "session/subscribed":
+            applySubscription(object, sessionID: sessionID)
         case "session/projection":
             applyProjection(object, sessionID: sessionID)
+        case "session/queue":
+            applyQueue(object, sessionID: sessionID)
+        case "session/jobs":
+            applyJobs(object, sessionID: sessionID)
         case "approval/requested":
             applyApprovalRequest(object, rpcID: frame.rpcId, sessionID: sessionID)
         case "approval/resolved":
@@ -372,12 +502,77 @@ final class NativeSessionStore: ObservableObject {
     /// Source: `events.ts:session/projection`; one finished whole value per key,
     /// never a client-side partial fold. The projection store rejects replayed
     /// and lower/equal sequence frames.
+    private func applySubscription(_ object: [String: JSONValue], sessionID: String) {
+        guard let subscribed = decode(SessionSubscribedDTO.self, from: .object(object)),
+              subscribed.sessionId == sessionID
+        else { return }
+        // A new mux generation may have lost process-local queue/jobs and events
+        // past `lastSeq`; wait for its fresh whole-set frames instead of showing
+        // phantom work from the prior Host generation.
+        projections.truncate(sessionID: sessionID, after: subscribed.lastSeq)
+        queuedMessages = []
+        backgroundJobs = []
+    }
+
     private func applyProjection(_ object: [String: JSONValue], sessionID: String) {
         guard let key = object["key"]?.stringValue,
               let value = object["value"],
               let seq = object["seq"]?.numberValue
         else { return }
         projections.apply(sessionID: sessionID, key: key, value: value, seq: Int(seq))
+    }
+
+    private func applyQueue(_ object: [String: JSONValue], sessionID: String) {
+        guard let frame = decode(SessionQueueFrameDTO.self, from: .object(object)),
+              frame.sessionId == sessionID
+        else { return }
+        queuedMessages = frame.items.map { item in
+            let texts = item.message.content.map { contentText($0) }
+            let allText = texts.allSatisfy { $0.isText }
+            let flat = texts.map(\.value).joined(separator: " ")
+                .split(whereSeparator: { $0.isWhitespace })
+                .joined(separator: " ")
+            let preview = String(flat.prefix(200)) + (flat.count > 200 ? "…" : "")
+            return QueuedMessage(
+                id: item.id,
+                messageID: item.message.id,
+                placement: QueuedMessage.Placement(rawValue: item.placement.rawValue)!,
+                role: item.message.role,
+                content: item.message.content,
+                source: item.message.source,
+                preview: preview,
+                text: allText ? item.message.content.compactMap { $0.objectValue?["text"]?.stringValue }.joined() : nil
+            )
+        }
+    }
+
+    private func applyJobs(_ object: [String: JSONValue], sessionID: String) {
+        guard let frame = decode(SessionJobsFrameDTO.self, from: .object(object)),
+              frame.sessionId == sessionID
+        else { return }
+        // `session/jobs` is a complete authority snapshot: `[]` and an absent
+        // baseline both mean no jobs, never a delta to merge.
+        backgroundJobs = frame.jobs.map { job in
+            BackgroundJob(
+                id: job.id,
+                kind: job.kind,
+                label: job.label,
+                status: BackgroundJob.Status(rawValue: job.status.rawValue)!,
+                detail: job.detail,
+                startedAt: job.startedAt,
+                finishedAt: job.finishedAt
+            )
+        }
+    }
+
+    private func contentText(_ value: JSONValue) -> (isText: Bool, value: String) {
+        guard let object = value.objectValue,
+              let type = object["type"]?.stringValue
+        else { return (false, "[unknown]") }
+        if type == "text", let text = object["text"]?.stringValue {
+            return (true, text)
+        }
+        return (false, "[\(type)]")
     }
 
     private func applyApprovalRequest(_ object: [String: JSONValue], rpcID: String, sessionID: String) {
@@ -638,6 +833,8 @@ final class NativeSessionStore: ObservableObject {
         activeSessionID = sessionID
         items = []
         toolInvocations = []
+        queuedMessages = []
+        backgroundJobs = []
         pendingApproval = PendingApproval(
             rpcID: "fx-rpc-approval",
             sessionID: sessionID,
@@ -668,6 +865,8 @@ final class NativeSessionStore: ObservableObject {
         activeSessionID = sessionID
         items = []
         toolInvocations = []
+        queuedMessages = []
+        backgroundJobs = []
         pendingApproval = nil
         pendingQuestion = PendingQuestion(
             rpcID: "fx-rpc-question",

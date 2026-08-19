@@ -236,6 +236,67 @@ struct ToolEventViewDTO: Decodable, Sendable {
     let view: JSONValue
 }
 
+/// Source: `events.schema.ts:session/subscribed`. The stream's durable-history
+/// watermark is `-1` for an empty log and is used to evict state from a prior
+/// Host generation before its fresh transient baselines arrive.
+struct SessionSubscribedDTO: Decodable, Sendable {
+    let sessionId: String
+    let lastSeq: Int
+}
+
+/// Source: `events.schema.ts:session/queue` and its `messageSchema`. Queue
+/// messages are transient Host-owned inbox entries, never synthesised from the
+/// durable transcript. Content remains JSON here so typed feature adapters can
+/// render each official content-block kind without leaking wire dictionaries.
+struct QueuedSessionMessageDTO: Decodable, Sendable {
+    let id: String
+    let role: String
+    let content: [JSONValue]
+    let source: JSONValue
+}
+
+enum SessionQueuePlacementDTO: String, Decodable, Sendable {
+    case queued
+    case steering
+    case context
+}
+
+struct SessionQueueItemDTO: Decodable, Sendable {
+    let id: String
+    let placement: SessionQueuePlacementDTO
+    let message: QueuedSessionMessageDTO
+}
+
+struct SessionQueueFrameDTO: Decodable, Sendable {
+    let sessionId: String
+    let items: [SessionQueueItemDTO]
+}
+
+/// Source: `jobs.schema.ts:taskViewSchema`; `kind` deliberately remains an
+/// open string because plugins extend the registry's job vocabulary.
+enum SessionJobStatusDTO: String, Decodable, Sendable {
+    case running
+    case stopping
+    case completed
+    case killed
+    case failed
+}
+
+struct SessionJobDTO: Decodable, Sendable {
+    let id: String
+    let kind: String
+    let label: String
+    let status: SessionJobStatusDTO
+    let detail: String?
+    let startedAt: Int
+    let finishedAt: Int?
+}
+
+struct SessionJobsFrameDTO: Decodable, Sendable {
+    let sessionId: String
+    let jobs: [SessionJobDTO]
+}
+
 /// Source: `sessions.schema.ts:sessionModelsRequestSchema`.
 struct SessionModelsRequest: Codable, Sendable { let sessionId: String }
 
