@@ -157,6 +157,16 @@ jobs:
           swiftc -O -parse-as-library glass/ci/probe-window-capture.swift -o /tmp/probe 2>&1 | tail -20
           /tmp/probe || echo "probe FAILED rc=$?"
 
+      - name: K. Can the runner display be enlarged past 1280
+        continue-on-error: true
+        run: |
+          echo "--- current modes ---"
+          /usr/libexec/PlistBuddy -c print /dev/stdin <<< "$(system_profiler -xml SPDisplaysDataType 2>/dev/null)" 2>/dev/null | grep -i -m5 resolution || true
+          system_profiler SPDisplaysDataType 2>&1 | sed -n '1,40p'
+          echo "--- install displayplacer ---"
+          brew install displayplacer >/dev/null 2>&1 || echo "brew install failed"
+          displayplacer list 2>&1 | sed -n '1,60p' || echo "displayplacer unavailable"
+
       - name: I. Upload diagnostic artifacts
         if: always()
         uses: actions/upload-artifact@v4
