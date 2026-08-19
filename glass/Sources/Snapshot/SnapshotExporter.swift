@@ -8,8 +8,9 @@ import SwiftUI
 @testable import GlassSpec
 @testable import GlassUI
 #endif
-/// 在 CI 中使用确定性的离屏 AppKit 位图生成原生 UI 快照。
-/// 它验证 SwiftUI 布局和官方 token 映射；系统真实折射效果仍由运行中的 macOS 窗口验收。
+/// Captures on-screen native UI snapshots in CI through ScreenCaptureKit.
+/// The capture samples the real WindowServer composition, including AppKit
+/// sidebar/inspector materials; a degraded or black frame fails the export.
 /// A window that keeps the exact size the snapshot asks for.
 ///
 /// `NSWindow` constrains any titled window to the screen's visible frame, so
@@ -137,9 +138,9 @@ enum SnapshotExporter {
         window.appearance = NSAppearance(named: appearanceName)
         window.isReleasedWhenClosed = false
         window.contentViewController = shellController
-        // `cacheDisplay` may run before WindowServer has propagated the window
-        // appearance to child controllers. Pin the off-screen root explicitly;
-        // the running application never uses this snapshot-only override.
+        // WindowServer may not have propagated the window appearance to child
+        // controllers yet. Pin the snapshot root explicitly; the running
+        // application never uses this snapshot-only override.
         shellController.view.appearance = NSAppearance(named: appearanceName)
         window.contentView?.appearance = NSAppearance(named: appearanceName)
         // Assigning contentViewController makes AppKit resize the window to the

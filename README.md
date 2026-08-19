@@ -1,79 +1,75 @@
 # DeepSeek Harness Glass
 
-A **native macOS client** for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). This repository preserves the DeepSeek Harness Host and replaces the official Browser Client with a Swift 6 implementation built from **SwiftUI and AppKit**.
+A native macOS client for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) — the dsh you know, in a real glass window.
 
-> **Project direction.** This is not a CSS restyle and not a webpage wrapper. The locked official WebUI is the product specification for text, ordering, layout, state transitions, errors, and interaction semantics. Liquid Glass is restricted to the macOS navigation and control layer; it must not invent product content or conceal a mismatch with the official client.
+This repository is a fork of [qniequn-boop/deepseek-harness-glass](https://github.com/qniequn-boop/deepseek-harness-glass). The upstream project wrapped the official web UI in a glass window; this fork replaces the browser client entirely, reimplementing it in Swift 6 with SwiftUI and AppKit while keeping the official Host as the backend. WebKit is banned from the core UI, enforced in CI by `glass/ci/check-no-webview.sh`.
 
 - **中文文档：** [README.zh.md](README.zh.md)
-- **贡献规则与验收协议：** [CONTRIBUTING.md](CONTRIBUTING.md)
-- **Authoritative implementation checklist:** [TODO.md](TODO.md)
 
-## Supported baseline
+## Status
 
-| Item | Fixed support value |
+Work in progress. Done so far: the app shell (window, menu bar, and a split layout matching the official column algorithm), Host lifecycle with build verification and diagnostics, typed RPC/SSE transport with fixtures recorded from the locked official build, session state (history pager, projection store, queue/jobs), workspace management dialogs, the welcome screen, and an accessibility baseline. Still ahead: the full conversation surface, tooling details, settings pages, and plugin support.
+
+Progress is tracked task by task in [TODO.md](TODO.md); the working rules are in [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Baseline
+
+| Item | Value |
 |---|---|
-| Official source | [`deepseek-ai/deepseek-harness@99f6f02fecdb7dff40c3fbc9470f5907c29f74ca`](https://github.com/deepseek-ai/deepseek-harness/tree/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca) |
-| Supported DSH package | `@deepseek-ai/dsh` and `@deepseek-ai/dsh-web-frontend` `0.1.0-rc.7` |
-| Runtime | Node `24.19.0` bundled with the application |
-| Client platform | macOS 26+, Xcode 26+, Apple Silicon, Swift 6 |
-| Support record | `glass/Sources/Spec/SupportedHostBuilds.json` |
+| Official source | [`deepseek-ai/deepseek-harness@99f6f02`](https://github.com/deepseek-ai/deepseek-harness/tree/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca) |
+| DSH packages | `@deepseek-ai/dsh` / `@deepseek-ai/dsh-web-frontend` `0.1.0-rc.7` |
+| Runtime | Node `24.19.0`, bundled with the app |
+| Platform | macOS 26+, Apple Silicon; Xcode 26+ and Swift 6 to build |
 
-The supported Host build is verified at launch. A Host not present in the support record is **unverified** and must not be treated as a compatible write target. A Host update follows the upgrade gate in `TODO.md`; it is never accepted solely because it starts on a loopback port.
+The app verifies the Host build against `glass/Sources/Spec/SupportedHostBuilds.json` at launch. An unknown build is shown as unverified and stays read-only until it is verified.
 
-## D0–D5: non-negotiable completion rules
+## How it works
 
-| Rule | Requirement | Verifiable fact |
-|---|---|---|
-| **D0 — native core UI** | Conversation, sidebar, workspace, official settings, models, credentials, tools, approvals, questions, commands, and plugin configuration are native. | Core targets contain no `WebKit`, `WKWebView`, web JavaScript, CSS injection, or DOM inspection. CI runs `glass/ci/check-no-webview.sh`. |
-| **D1 — official UI reproduction** | Official locale text, structure, spacing, state and interaction scenarios are the specification. | Every SwiftUI surface maps to `OfficialUISpec`, a locked source location, and a same-state official/native visual record. |
-| **D2 — Host is the source of truth** | Durable sessions, workspaces, settings, credentials, models, commands, and plugin configuration belong to the Host. | Native state uses typed loopback RPC/SSE DTOs and does not create a conflicting business database. |
-| **D3 — system-respecting Liquid Glass** | Glass belongs to navigation, split structure, toolbars, sheets, popovers, inspectors, and necessary official controls. | Content layers are not covered with custom glass; accessibility and system appearance preferences are exercised in CI. |
-| **D4 — explicit plugin compatibility** | Every plugin has a declared native-manifest, Swift-adapter, web-fallback, host-only, or unsupported status. | The diagnostics/compatibility matrix records support level, Host range, and any fallback reason. |
-| **D5 — verified Host writes only** | An unverified Host must not masquerade as compatible. | Unsupported builds are visibly unverified and have writes blocked unless an explicit developer policy permits them. |
+The app bundles the pinned Node runtime and the locked DSH payload, starts `dsh web --port 0` on loopback, and talks to it over typed HTTP RPC and SSE. All durable state — sessions, workspaces, settings, credentials, models — lives in the Host; the native side renders it and sends user intent back.
 
-`WebKit` may exist only in the future, separately built `Plugins/PluginWebHost` exception for a specifically audited, technically non-nativeable third-party plugin. The main application target and every core renderer may never import or link it.
-
-## Architecture
+Visible text, colors, spacing, and column geometry come from `OfficialUISpec`, which is generated from the locked official source (locales, theme tokens, `columns.ts` fixtures, interaction scenes, RPC contracts) and regenerated in CI to catch drift. Liquid Glass stays on the navigation and control layer; content surfaces use system materials.
 
 ```text
-DeepSeek Harness.app
-├── App/                   application lifecycle, window and menu-bar coordination
-├── Core/
-│   ├── Host/              bundled Node/DSH lifecycle and build verification
-│   ├── Transport/         typed HTTP RPC, SSE, DTOs, cancellation and tracing
-│   ├── Session/           history, projections, reducers and reconnect authority
-│   └── Settings/          Host-backed drafts, revisions and credentials boundary
-├── Spec/                  official locale, token, layout, asset and fixture provenance
-├── UI/                    native shell, sidebar, workspace, conversation, tooling and settings
-├── Plugins/               native manifest/adapters; isolated fallback only when approved
-└── Tests/                 contract, reducer, snapshot, accessibility and performance evidence
+glass/
+├── Sources/
+│   ├── App/        lifecycle, window, menu bar
+│   ├── Core/       Host process, transport, session state, settings
+│   ├── Spec/       generated official spec and fixtures
+│   ├── UI/         native shell, sidebar, workspace, conversation
+│   └── Snapshot/   CI snapshot exporter
+└── Tests/          contract, reducer, snapshot, accessibility tests
 ```
 
-The client layers flow one way: **Host → typed transport → domain facade/store/reducer → native UI**. A View never starts Node, constructs a URL, parses untyped JSON, or interprets raw SSE business events.
+## Visual verification
 
-## Visual and interaction fidelity protocol
+Every migrated UI state is compared against the official WebUI captured from the locked source under the same fixture, viewport, DPR, locale, and color mode. CI on `macos-26` builds the app, captures native snapshots, runs `glass/ci/compare_visual_pair.py` against the official captures, and uploads both images plus a metrics report as artifacts. The system-material bands (sidebar/inspector) are excluded from pixel diffing via `--column-fixtures` and verified structurally instead; scenes graduate from `report-only` to `enforce` in `visual-validation-policy.json` after a human review of the measured numbers.
 
-For every UI state, contributors first inspect the locked official source and capture the official WebUI under the same fixture, viewport, device-pixel ratio, locale, color mode, and accessibility options. The native view is then rendered under the same conditions. Both screenshots, layout/tree measurements, token differences, enlarged critical regions, and the resolution of every observable difference are retained as CI artifacts.
+## Building
 
-This project does not hide differences behind a full-window blur, a different viewport, a different state, or an anti-aliasing explanation. The application uses macOS system material for its dynamic optical behavior; that system effect is reviewed by hierarchy, position, contrast, and accessibility rather than by pretending to reproduce browser CSS refraction pixel-for-pixel.
+Prerequisites: Xcode 26+ command line tools, npm, and network access for the two downloads below.
 
-## Current verified status
+```sh
+# 1. Bundled Node runtime (pinned)
+mkdir -p glass/build/node
+curl -fsSL https://nodejs.org/dist/v24.19.0/node-v24.19.0-darwin-arm64.tar.gz -o /tmp/node.tgz
+tar -xzf /tmp/node.tgz -C /tmp
+cp /tmp/node-v24.19.0-darwin-arm64/bin/node glass/build/node/node
 
-The authoritative state is maintained in the **“current progress”** section of [TODO.md](TODO.md). At the time of this document revision, only items whose source mapping, implementation, tests, visual evidence, and applicable macOS GitHub Actions evidence are complete may be checked. A compiled screen, a static fixture, or a partial DTO is not sufficient.
+# 2. Backend payload + assemble
+cd glass
+./repair-backend.sh        # installs the pinned dsh payload and smoke-tests it
+./assemble.sh              # builds, ad-hoc signs, installs the .app
+```
 
-## Development and verification
+`assemble.sh` writes to `/Applications/DeepSeek Harness.app` by default; set `APP_PATH` to build elsewhere. The authoritative recipe is the CI workflow [`.github/workflows/native-ui.yml`](.github/workflows/native-ui.yml), which also runs the full gate suite: spec/locale/token/layout/contract checks, `swift build`, the XCTest suites, app assembly, snapshot capture, and the official/native visual comparison.
 
-The macOS application is assembled from `glass/assemble.sh`. The CI workflow runs on `macos-26`, downloads the pinned Node runtime and DSH payload, verifies the D0 rule and official specification provenance, builds the application, captures native GUI snapshots, and uploads review artifacts. Full development requirements, source mapping conventions, test gates, screenshot pairings, and the only permitted TODO update process are documented in [CONTRIBUTING.md](CONTRIBUTING.md).
-
-Before changing any official-facing behavior, run the applicable local checks:
+Useful local checks before changing official-facing behavior:
 
 ```bash
 python3 glass/ci/check-official-spec.py
 bash glass/ci/check-no-webview.sh
 ```
 
-The required acceptance evidence remains the GitHub Actions run for the **current commit**, including the native screenshot bundle and its official comparison record.
-
 ## License and attribution
 
-This is an independent client for the open-source [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) project. It is not affiliated with or endorsed by DeepSeek. The project is licensed under [MIT](LICENSE); bundled components are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+MIT — see [LICENSE](LICENSE). Bundled components are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). This is an independent client for the open-source DeepSeek Harness project and is not affiliated with or endorsed by DeepSeek.

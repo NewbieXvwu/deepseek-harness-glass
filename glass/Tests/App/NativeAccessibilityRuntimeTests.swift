@@ -96,7 +96,7 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
 
     private func assertAccessibleLabels<V: View>(in view: V, expected: [String]) throws {
         guard AXIsProcessTrusted() else {
-            throw XCTSkip("The test process is not a trusted accessibility client; static core-path gate remains mandatory and this runtime tree assertion executes in trusted GUI test environments.")
+            throw XCTSkip("Accessibility trust is required to read the window's accessibility tree.")
         }
 
         let app = NSApplication.shared
@@ -121,9 +121,11 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
 
         let labels = accessibilityLabels(in: host)
         window.orderOut(nil)
-        guard !labels.isEmpty else {
-            throw XCTSkip("The headless macOS runner exposes no SwiftUI accessibility elements despite AX trust; run this tree assertion in a GUI accessibility-test host. The static locked core-path gate remains mandatory in CI.")
-        }
+        // The window is on screen under the regular activation policy, so an
+        // empty tree means the views export no accessibility elements. That
+        // must fail: the previous skip let these tests report green in CI
+        // while asserting nothing.
+        XCTAssertFalse(labels.isEmpty, "no accessibility elements exported; expected \(expected)")
         for label in expected {
             XCTAssertTrue(labels.contains(label), "expected \(label), exported labels: \(labels)")
         }
