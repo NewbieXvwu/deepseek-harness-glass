@@ -56,21 +56,24 @@ actor SessionLogExporter {
         request.timeoutInterval = 60
         request.setValue("application/zip, application/octet-stream;q=0.9", forHTTPHeaderField: "Accept")
 
-        let (temporaryURL, response) = try await download(request)
+        try fileManager.createDirectory(at: destinationDirectory, withIntermediateDirectories: true)
+        let stagingURL = destinationDirectory.appendingPathComponent(".session-export-\(UUID().uuidString).partial", isDirectory: false)
+        let (stagedURL, response) = try await download(request, stagingURL: stagingURL)
+        defer { try? fileManager.removeItem(at: stagedURL) }
         guard let http = response as? HTTPURLResponse else {
             throw DSHTransportError.invalidEndpoint
         }
         guard (200 ... 299).contains(http.statusCode) else {
             throw DSHTransportError.invalidHTTPStatus(http.statusCode, body: "")
         }
-        guard fileManager.fileExists(atPath: temporaryURL.path) else {
-            throw DSHTransportError.network("URLSessionDownloadTask did not produce a local file")
+        guard fileManager.fileExists(atPath: stagedURL.path) else {
+            throw DSHTransportError.network("URLSessionDownloadTask did not produce a staging file")
         }
 
         let filename = suggestedFilename(from: http.value(forHTTPHeaderField: "Content-Disposition")) ?? fallbackFilename
         let destination = try reserveDestination(named: filename)
         do {
-            try fileManager.moveItem(at: temporaryURL, to: destination)
+            try fileManager.moveItem(at: stagedURL, to: destination)
         } catch {
             throw DSHTransportError.network("Could not move exported session log into the native download directory: \(error.localizedDescription)")
         }
@@ -123,7 +126,7 @@ actor SessionLogExporter {
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private func download(_ request: URLRequest) async throws -> (URL, URLResponse) {
+    private func download(_ request: URLRequest, stagingURL: URL) async throws -> (URL, URLResponse) {
         let box = DownloadTaskBox()
         return try await withTaskCancellationHandler(operation: {
             try await withCheckedThrowingContinuation { continuation in
@@ -140,7 +143,12 @@ actor SessionLogExporter {
                         continuation.resume(throwing: DSHTransportError.network("Download completed without a URLSession response"))
                         return
                     }
-                    continuation.resume(returning: (location, response))
+                    do {
+                        try FileManager.default.moveItem(at: location, to: stagingURL)
+                        continuation.resume(returning: (stagingURL, response))
+                    } catch {
+                        continuation.resume(throwing: DSHTransportError.network("Could not retain URLSession download before its temporary file expired: \(error.localizedDescription)"))
+                    }
                 }
                 box.install(task)
                 task.resume()
