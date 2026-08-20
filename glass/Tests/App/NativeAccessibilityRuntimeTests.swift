@@ -98,6 +98,21 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         )
     }
 
+    func testCompactionRendererUsesOfficialLocaleForSummaryStates() {
+        let officialValues = Set(OfficialUISpec.LocaleCatalog.values.values)
+        let rendered = [
+            OfficialUISpec.Text.compactionTitle,
+            OfficialUISpec.Text.compactionRunning,
+            OfficialUISpec.Text.compactionExpand,
+            OfficialUISpec.Text.compactionUnavailable,
+        ]
+        XCTAssertTrue(rendered.allSatisfy(officialValues.contains))
+        XCTAssertEqual(
+            OfficialUISpec.Text.compactionCompleted(items: 4, tokens: 1_024),
+            "Compacted 4 history items (~1024 tokens)"
+        )
+    }
+
     func testTodoDockExportsCollapsedHeaderWithoutHiddenRowLabels() throws {
         try assertAccessibleLabels(
             in: NativeTodoDock(todos: [

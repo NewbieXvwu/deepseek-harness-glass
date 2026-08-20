@@ -378,6 +378,8 @@ private struct NativeConversationNodeRow: View {
                 NativeModelRetryRow(retry: retry)
             } else if let error = node.data as? CoreTurnErrorNode {
                 NativeTurnErrorNotice(error: error)
+            } else if let compaction = node.data as? CoreCompactionNode {
+                NativeCompactionRow(compaction: compaction)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

@@ -240,6 +240,17 @@ enum OfficialUISpec {
         static let chat = "Chat"
         // Source: packages/client/ui-trajectory/src/client/locales.ts:50 (en)
         static let trajectory = "Trajectory"
+        // Source: packages/client/ui-conversation/src/client/locales.ts:291-295 (en)
+        static let compactionTitle = "Context compacted"
+        static let compactionRunning = "Compacting context…"
+        static let compactionCompletedTemplate = "Compacted {items} history items (~{tokens} tokens)"
+        static let compactionExpand = "View compaction summary"
+        static let compactionUnavailable = "Compaction summary unavailable"
+        static func compactionCompleted(items: Int, tokens: Int) -> String {
+            compactionCompletedTemplate
+                .replacingOccurrences(of: "{items}", with: String(items))
+                .replacingOccurrences(of: "{tokens}", with: String(tokens))
+        }
         // Source: packages/client/ui-deliverables/src/client/locales.ts:17-21 (en)
         static let producedFiles = "Produced"
         // Source: packages/client/ui-workflow-run/src/client/locales.ts:29-47 (en)
