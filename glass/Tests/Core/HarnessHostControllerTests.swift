@@ -249,7 +249,7 @@ extension HarnessHostControllerTests {
 
 
 extension HarnessHostControllerTests {
-    func testPlannedBuildFailsClosedBeforeReadingPayloadMetadata() throws {
+    func testPlannedBuildFailsClosedAfterPayloadMetadataMatches() throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("dsh-glass-planned-build-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -260,6 +260,12 @@ extension HarnessHostControllerTests {
         let entry = root.appendingPathComponent("payload/node_modules/@deepseek-ai/dsh/lib/cli.js")
         try FileManager.default.createDirectory(at: entry.deletingLastPathComponent(), withIntermediateDirectories: true)
         FileManager.default.createFile(atPath: entry.path, contents: Data())
+        try Data("{\"version\":\"0.1.0-rc.8\"}".utf8).write(
+            to: entry.deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("package.json")
+        )
+        let webManifest = root.appendingPathComponent("payload/node_modules/@deepseek-ai/dsh-web-frontend/package.json")
+        try FileManager.default.createDirectory(at: webManifest.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("{\"version\":\"0.1.0-rc.8\"}".utf8).write(to: webManifest)
 
         let build = SupportedHostBuildCatalog.Build(
             id: "planned-rc8",
