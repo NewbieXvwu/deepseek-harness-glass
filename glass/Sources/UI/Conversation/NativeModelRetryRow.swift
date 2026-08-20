@@ -31,7 +31,6 @@ struct NativeModelRetryRow: View {
                 ))
                 .font(OfficialUISpec.Typography.xs13)
                 .foregroundStyle(OfficialUISpec.Token.secondary)
-                .accessibilityRole(.status)
             }
             .padding(OfficialUISpec.Spacing.p12)
             .background(OfficialUISpec.Token.elevated, in: RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r8, style: .continuous))
