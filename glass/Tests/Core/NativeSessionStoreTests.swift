@@ -243,6 +243,16 @@ final class NativeSessionStoreTests: XCTestCase {
         ])
     }
 
+    func testToolingFixtureMaterializesTrajectoryTargetSeparatelyFromChat() {
+        let store = NativeSessionStore()
+        store.loadSnapshotToolingFixture()
+
+        XCTAssertEqual(store.chatNodes.map(\.target), ["chat", "chat"])
+        XCTAssertEqual(store.trajectoryNodes.map(\.target), ["trajectory"])
+        XCTAssertEqual(store.trajectoryNodes.map(\.kind), ["trajectory-input-message"])
+        XCTAssertEqual((store.trajectoryNodes.first?.data as? CoreUserMessageNode)?.content.compactMap(\.text).joined(), "Read the project instructions.")
+    }
+
     func testSnapshotGoalFixtureUsesCurrentHostGoalProjection() {
         let store = NativeSessionStore()
         store.loadSnapshotGoalFixture()

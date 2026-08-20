@@ -343,6 +343,9 @@ final class NativeSessionStore: ObservableObject {
     /// The stable keyed RC8 Chat target snapshot. It is materialized solely by
     /// `conversationReducer` from Host history/mux evidence.
     @Published private(set) var chatNodes: [ConversationViewNode] = []
+    /// RC8 `conversation.view` trajectory target, materialized from the same
+    /// authoritative reducer window as Chat but with target-owned node keys.
+    @Published private(set) var trajectoryNodes: [ConversationViewNode] = []
     @Published private(set) var hasMoreHistory = false
     @Published private(set) var isLoadingOlderHistory = false
     @Published private(set) var isRunning = false
@@ -987,6 +990,7 @@ final class NativeSessionStore: ObservableObject {
             definitions: ConversationCoreNodeRegistry.initialDefinitions()
         )
         chatNodes = []
+        trajectoryNodes = []
     }
 
     private func replaceConversationWindow(_ entries: [ConversationEventInput], hasMore: Bool) {
@@ -995,16 +999,19 @@ final class NativeSessionStore: ObservableObject {
         )
         _ = conversationReducer.replaceWindow(entries, hasMore: hasMore)
         chatNodes = conversationReducer.snapshot(target: "chat")
+        trajectoryNodes = conversationReducer.snapshot(target: "trajectory")
     }
 
     private func prependConversationWindow(_ entries: [ConversationEventInput], hasMore: Bool) {
         _ = conversationReducer.prepend(entries, hasMore: hasMore)
         chatNodes = conversationReducer.snapshot(target: "chat")
+        trajectoryNodes = conversationReducer.snapshot(target: "trajectory")
     }
 
     private func appendConversationEvent(_ input: ConversationEventInput) {
         _ = conversationReducer.append(input)
         chatNodes = conversationReducer.snapshot(target: "chat")
+        trajectoryNodes = conversationReducer.snapshot(target: "trajectory")
     }
 
     private func applyHistory(_ entries: [SessionHistoryEntryDTO]) {
