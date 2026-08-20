@@ -40,3 +40,11 @@ RC8 的正式基线为 `deepseek-ai/deepseek-harness@141eb6fef83422698aef7a98102
 `32330510895` 已成功完成官方浅色/深色 capture、受控 Host、规格/架构门禁、SwiftPM、XCTest、app 装配和原生快照，但在比较步骤失败：`jobs-expanded-light` native PNG 为 **1369×840**，无法与官方 1280×840 同状态图比较；同一 run 的 `jobs-expanded-dark`、两个 welcome 图均为 1280×840。该差异是导出路径中的窗口尺寸漂移，不是系统材质例外，也不得通过缩放、裁切或跳过 light pair 绕过。
 
 后续修复在 `SnapshotExporter` 的 SwiftUI/AppKit refresh 后重新施加 1280×840 content viewport，并在实际 WindowServer capture 前再次验证；新增 XCTest 明确拒绝 1369×840 的 post-layout drift。该提交仍必须取得其自身的 macOS-26 run，且 four-pair compare（welcome light/dark、Jobs light/dark）均完成，才可恢复 PR 合并审查。
+
+### 视口修复与四组 RC8 screenshot pair 验收
+
+视口锁定提交 `969dfe8` 的 macOS-26 [run 32331125059](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32331125059) 成功。该 run 以当前 head 完成官方浅色/深色 capture、受控 RC8 Host、官方规格与架构门禁、独立 SwiftPM 编译、全量 XCTest、native app 装配、WindowServer snapshot 和四组 visual pair。`welcome-light`、`welcome-dark`、`jobs-expanded-light` 与 `jobs-expanded-dark` 均为 1280×840；1369px 浅色 Jobs 宽度漂移已关闭，且没有缩放、裁剪或跳过同状态 pair。
+
+四个差异报告均维持 `report-only`。Jobs light 指标为 `materiallyChangedRatio=0.18749256`、`meanAbsoluteChannelDifference=34.531076`、`exactChangedRatio=0.43295573`；Jobs dark 为 `0.40052641`、`12.604936`、`0.66140811`。两者尚不能进入 `enforce`：官方 replay 的完整 durable transcript/details-closed 与 native 简化 fixture 不同，session header/tab/composer 与 Jobs popover 的空间锚点未收敛，深色表面和控件 token亦需逐项对齐。系统材质排除带不能掩盖这些 content-layer 差异。
+
+该成功证明截图矩阵、主题固定、Host fixture 隔离、真实视口重锁和其 XCTest 回归均有效；它**不**使任何 UI TODO 自动完成。PR 的代码层 RC8 迁移现可进入最终合并适格性复核，但 UI 任务仍保持重新认证中，且 Jobs 需继续按 light/dark pair 收敛至 `enforce`。
