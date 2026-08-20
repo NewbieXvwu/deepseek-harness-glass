@@ -57,7 +57,8 @@ gh run list --repo NewbieXvwu/deepseek-harness-glass --limit 10
 | 插件 | 兼容性矩阵、manifest/adapter/fallback 原因、隔离和导航安全测试 |
 | 安全敏感内容 | fixture 去敏、日志脱敏、secret 生命周期、URL/path/download/attachment/manifest 审计 |
 
-提交前运行适用的本地检查；推送后等待并审阅当前 SHA 的 `native-ui` GitHub Actions 结果。
+提交前运行适用的本地检查；推送后等待并审阅当前 SHA 的 GitHub Actions 结果。
+UI 微调建议先运行 `./glass/scripts/local-visual-test.sh` 获得秒级本地视觉反馈，再推送到 CI 作为最终门禁。
 
 测试必须真实断言。因环境缺失而静默通过的 skip、只检查输出里有没有“没问题”字样的断言，都不算证据——这类测试宁可删除，也不要留着制造绿色假象。
 
@@ -67,8 +68,8 @@ TODO 条目是原子完成单元：
 
 1. 确认依赖的条目已完成。
 2. 完成来源映射、实现、测试和官方/原生视觉证据。
-3. 当前提交的 macOS GitHub Actions 全部适用门禁成功后，才把条目从 `- [ ]` 改为 `- [x]`。
-4. 同次更新 TODO.md 的“当前进度”：提交 SHA、CI run、视觉证据、已关闭差异、剩余工作和下一步。
+3. 关联代码 SHA 的 macOS 权威 GitHub Actions 成功后，才把条目从 `- [ ]` 改为 `- [x]`。
+4. 登记证据（如更新 `TODO.md` 或 `notes`）的提交本身**不会触发 macOS 原生 CI**。登记时必须明确引用已成功的**代码提交 SHA 和对应的 Run URL**。
 5. 验收条件缺失时，把阻塞事实写进 TODO，保持未勾选。
 
 提交信息包含任务编号和可观察结果，例如 `feat(T10.1): render native Settings Root from official spec`。

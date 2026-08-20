@@ -1,8 +1,5 @@
 import Foundation
 
-#if DEEPSEEK_HARNESS_PACKAGE
-@testable import GlassSpec
-#endif
 
 /// Source: `packages/client/runtime/src/client/workspaces/path.ts:abbreviateHomePath` at
 /// `deepseek-ai/deepseek-harness@141eb6fef83422698aef7a981029e843e8161534`.
@@ -10,8 +7,8 @@ import Foundation
 /// This is display-only: callers retain and copy the full Host-provided path.
 /// POSIX home and its descendants use `~`; Windows drive and UNC paths remain
 /// verbatim, matching the locked official UI rule.
-enum HostPathDisplay {
-    static func abbreviateHomePath(_ path: String, home: String?) -> String {
+public enum HostPathDisplay {
+    public static func abbreviateHomePath(_ path: String, home: String?) -> String {
         guard let home, !home.isEmpty else { return path }
         guard !isWindowsStylePath(path), !isWindowsStylePath(home) else { return path }
 

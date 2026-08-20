@@ -1,0 +1,145 @@
+name: portable-checks
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "README.md"
+      - "README.zh.md"
+      - "CONTRIBUTING.md"
+      - "TODO.md"
+      - "CONTINUOUS_EXECUTION_PLAN.md"
+      - "notes/**"
+      - "visual-review/**"
+      - ".github/workflows/documentation-integrity.yml"
+      - "tools/check-markdown-links.py"
+  pull_request:
+    paths-ignore:
+      - "README.md"
+      - "README.zh.md"
+      - "CONTRIBUTING.md"
+      - "TODO.md"
+      - "CONTINUOUS_EXECUTION_PLAN.md"
+      - "notes/**"
+      - "visual-review/**"
+      - ".github/workflows/documentation-integrity.yml"
+      - "tools/check-markdown-links.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  OFFICIAL_COMMIT: 141eb6fef83422698aef7a981029e843e8161534
+  DSH_NODE_VERSION: 24.19.0
+
+jobs:
+  python-spec-gates:
+    name: fast python specification gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Checkout locked official DeepSeek Harness source
+        uses: actions/checkout@v5
+        with:
+          repository: deepseek-ai/deepseek-harness
+          ref: ${{ env.OFFICIAL_COMMIT }}
+          path: .reference/deepseek-harness
+
+      # The locale gate parses upstream TypeScript through its locked `typescript`
+      # dependency; runner-global Node is neither sufficient nor reproducible.
+      - name: Set up locked Node runtime
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.DSH_NODE_VERSION }}
+
+      - name: Install locked pnpm and resolve cache directory
+        run: |
+          # Install the exact package-manager release declared by the locked
+          # official source. Avoid runner or Corepack keyring drift.
+          npm install --global pnpm@11.7.0
+          test "$(pnpm --version)" = "11.7.0"
+          echo "PNPM_STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_ENV"
+
+      - name: Restore official pnpm store
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.PNPM_STORE_PATH }}
+          key: portable-spec-pnpm-${{ runner.os }}-${{ env.DSH_NODE_VERSION }}-${{ env.OFFICIAL_COMMIT }}-${{ hashFiles('.reference/deepseek-harness/pnpm-lock.yaml') }}
+          restore-keys: |
+            portable-spec-pnpm-${{ runner.os }}-${{ env.DSH_NODE_VERSION }}-${{ env.OFFICIAL_COMMIT }}-
+
+      - name: Install locked official TypeScript dependencies
+        run: |
+          cd .reference/deepseek-harness
+          pnpm install --frozen-lockfile
+          test -d node_modules/typescript
+
+      - name: Run Python specification and architecture gates
+        run: |
+          set -euo pipefail
+          echo "::group::Official UI spec build"
+          python3 glass/ci/check-official-ui-spec-build.py \
+            --official-root .reference/deepseek-harness
+          python3 glass/ci/test-official-ui-spec-build.py \
+            --official-root .reference/deepseek-harness
+          echo "::endgroup::"
+          echo "::group::Official locales and UI copy lint"
+          python3 glass/ci/check-official-locales.py \
+            --official-root .reference/deepseek-harness
+          echo "::endgroup::"
+          echo "::group::Official theme tokens"
+          python3 glass/ci/check-official-theme-tokens.py \
+            --official-root .reference/deepseek-harness
+          echo "::endgroup::"
+          echo "::group::Official interaction scene directory"
+          python3 glass/ci/check-official-interaction-scenes.py \
+            --official-root .reference/deepseek-harness
+          echo "::endgroup::"
+          echo "::group::Official RPC DTO manifest"
+          python3 glass/ci/check-official-rpc-dto-manifest.py \
+            --official-root .reference/deepseek-harness
+          echo "::endgroup::"
+          echo "::group::Official transport contract baseline"
+          python3 glass/ci/check-official-transport-contract.py \
+            --official-root .reference/deepseek-harness
+          echo "::endgroup::"
+          echo "::group::Official UI specification provenance"
+          ./glass/ci/check-official-spec.py \
+            --official-root .reference/deepseek-harness
+          echo "::endgroup::"
+          echo "::group::Runtime asset migration inventory"
+          python3 glass/ci/check-runtime-asset-inventory.py
+          echo "::endgroup::"
+      - name: Verify CI feedback topology
+        run: python3 glass/ci/test-ci-workflow-layout.py
+
+
+  portable-swift:
+    name: fast portable Swift tests
+    runs-on: ubuntu-latest
+    container: swift:6.2.4-noble
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Build and test portable Swift targets
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends python3
+          python3 glass/ci/test-package-target-graph.py
+          python3 glass/ci/check-package-target-graph.py
+          # Compile only the portable production source plus a CLI regression
+          # harness. This avoids resolving the macOS-only XCTest target graph.
+          swiftc glass/Sources/PortableCore/HostPathDisplay.swift \
+            glass/ci/portable-core-check.swift \
+            -o /tmp/portable-core-check
+          /tmp/portable-core-check

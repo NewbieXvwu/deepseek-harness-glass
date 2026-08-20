@@ -6,6 +6,7 @@ let package = Package(
     platforms: [.macOS(.v26)],
     products: [
         .library(name: "GlassSpec", targets: ["GlassSpec"]),
+        .library(name: "GlassPortableCore", targets: ["GlassPortableCore"]),
         .library(name: "GlassCore", targets: ["GlassCore"]),
         .library(name: "GlassUI", targets: ["GlassUI"]),
         .library(name: "GlassSnapshot", targets: ["GlassSnapshot"]),
@@ -19,6 +20,11 @@ let package = Package(
             swiftSettings: [.define("DEEPSEEK_HARNESS_PACKAGE"), .unsafeFlags(["-enable-testing"])]
         ),
         .target(
+            name: "GlassPortableCore",
+            path: "Sources/PortableCore",
+            swiftSettings: [.define("DEEPSEEK_HARNESS_PACKAGE"), .unsafeFlags(["-enable-testing"])]
+        ),
+        .target(
             name: "GlassCore",
             dependencies: ["GlassSpec"],
             path: "Sources/Core",
@@ -27,7 +33,7 @@ let package = Package(
         ),
         .target(
             name: "GlassUI",
-            dependencies: ["GlassCore", "GlassSpec"],
+            dependencies: ["GlassCore", "GlassSpec", "GlassPortableCore"],
             path: "Sources/UI",
             swiftSettings: [.define("DEEPSEEK_HARNESS_PACKAGE"), .unsafeFlags(["-enable-testing"])]
         ),
@@ -49,8 +55,13 @@ let package = Package(
             path: "Tests/Spec"
         ),
         .testTarget(
+            name: "GlassPortableCoreTests",
+            dependencies: ["GlassPortableCore"],
+            path: "Tests/PortableCore"
+        ),
+        .testTarget(
             name: "GlassCoreTests",
-            dependencies: ["GlassCore", "GlassSpec"],
+            dependencies: ["GlassCore", "GlassSpec", "GlassPortableCore"],
             path: "Tests/Core"
         ),
         .testTarget(

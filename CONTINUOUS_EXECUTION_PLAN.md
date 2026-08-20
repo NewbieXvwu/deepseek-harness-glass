@@ -39,9 +39,9 @@
 | 1. 锁定规格 | 官方路径、commit、行为与几何记录；必要时生成/更新 fixture。 | 不开始原生 UI 编码。 |
 | 2. 建立失败测试 | DTO、reducer、交互、无障碍或视觉测试先描述所需行为。 | 测试不足时保持任务未勾选。 |
 | 3. 最小原生实现 | 在 `GlassSpec → GlassCore → GlassUI → App` 的既有单向模块边界内实现。 | 发现跨层依赖时先修边界，不以快捷方式绕过。 |
-| 4. 回归与安全检查 | 运行相关静态、单元、契约、Host、快照和安全门禁。 | 失败关闭，修复后重新跑完整受影响集合。 |
-| 5. 视觉与人工复核 | 生成同状态官方/原生工件；将每一个残余差异分类为缺陷或有依据的系统例外。 | 场景保持 `report-only`，相应 UI TODO 不得勾选。 |
-| 6. 证据写回 | 更新 `TODO.md`、`visual-review/`、来源说明、兼容矩阵及 CI run 链接。 | 缺少任一证据即不合并、不勾选。 |
+| 4. 回归与安全检查 | 运行 Linux 可移植检查（逻辑/契约/规格）与 macOS 原生门禁。 | 失败关闭，修复后重新跑完整受影响集合。 |
+| 5. 视觉与人工复核 | 生成同状态官方/原生工件；优先使用本地 `local-visual-test.sh`，再以 CI 为准。 | 场景保持 `report-only`，相应 UI TODO 不得勾选。 |
+| 6. 证据写回 | 纯文档提交不再触发 macOS CI；更新 `TODO.md` 时必须引用步骤 4 的成功 SHA。 | 缺少任一证据即不合并、不勾选。 |
 
 ## 四、阶段 0：同步、基线复核与证据债关闭
 
@@ -157,6 +157,7 @@
 |---|---|
 | UI | OfficialUISpec 来源、locale/token/layout 变更、同状态 golden scene、原生/官方配对和人工 diff 分类。 |
 | RPC/SSE | DTO/contract diff、真实或脱敏 fixture、cancel/error/reconnect 测试与 Host smoke。 |
+| 文档登记 | 不修改任何源文件。必须提供关联代码 SHA 和成功的 CI Run URL，通过 `documentation-integrity` 检查。 |
 | Reducer | 逐 append replay、未知 event 安全处理、状态快照和源映射。 |
 | Glass/无障碍 | policy 理由、效果预算、系统偏好降级、焦点和 accessibility label 测试。 |
 | 插件 | compatibility matrix、manifest 完整性、adapter/fallback 原因、navigation/isolation tests。 |

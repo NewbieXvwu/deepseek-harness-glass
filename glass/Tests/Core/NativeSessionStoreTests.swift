@@ -1,5 +1,6 @@
 import XCTest
-
+import GlassSpec
+@testable import GlassPortableCore
 @testable import GlassCore
 
 @MainActor
@@ -967,5 +968,13 @@ final class NativeSessionStoreTests: XCTestCase {
             "status": .string(status),
             "startedAt": .number(Double(startedAt)),
         ])
+    }
+
+    private func tryUnwrap<T>(_ value: T?, file: StaticString = #file, line: UInt = #line) -> T {
+        guard let unwrapped = value else {
+            XCTFail("Unexpected nil", file: file, line: line)
+            fatalError("Unexpected nil")
+        }
+        return unwrapped
     }
 }

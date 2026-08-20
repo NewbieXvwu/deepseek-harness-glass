@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import GlassPortableCore
 
 #if DEEPSEEK_HARNESS_PACKAGE
 @testable import GlassCore

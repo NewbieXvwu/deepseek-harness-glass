@@ -1,7 +1,6 @@
 import XCTest
 
 @testable import GlassCore
-
 final class RPCModelsTests: XCTestCase {
     func testBusinessAndTransportErrorsHaveActionableDisposition() {
         let business: [(String, RPCErrorDisposition)] = [

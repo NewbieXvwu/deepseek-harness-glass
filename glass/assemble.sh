@@ -2,7 +2,7 @@
 # 组装原生玻璃壳 .app：编译 Swift + 内置 Node + 复用 dsh 后端 payload + 图标 + 签名
 # 构建进暂存目录后原子替换，避免运行中的实例读到半成品文件。
 # 输出位置：/Applications（唯一安装位置，避免 Spotlight 出现多个副本）。
-set -e
+set -euo pipefail
 cd "$(dirname "$0")"
 
 # 输出位置：默认 /Applications（本机安装）；CI 可用 APP_PATH 覆盖
@@ -12,10 +12,25 @@ rm -rf "$STAGE"
 mkdir -p "$STAGE/Contents/MacOS" "$STAGE/Contents/Resources"
 
 echo "== 1/4 编译 Swift 壳 =="
-SWIFT_SOURCES="$(find Sources -type f -name '*.swift' -print | sort)"
-swiftc -O -parse-as-library -target arm64-apple-macosx26.0 \
-  $SWIFT_SOURCES \
-  -o "$STAGE/Contents/MacOS/DeepSeek Harness"
+swift build -c release --product DeepSeekHarnessGlassApp
+cp .build/release/DeepSeekHarnessGlassApp "$STAGE/Contents/MacOS/DeepSeek Harness"
+
+# SwiftPM resources live in target-specific bundles beside the executable. The
+# executable alone is insufficient in a .app: `Bundle.module` must retain every
+# produced bundle so generated locales and accessibility contracts load at runtime.
+swiftpm_resource_bundle_count=0
+while IFS= read -r bundle; do
+  cp -R "$bundle" "$STAGE/Contents/Resources/"
+  swiftpm_resource_bundle_count=$((swiftpm_resource_bundle_count + 1))
+done < <(find .build/release -maxdepth 1 -type d -name '*.bundle' -print | sort)
+if [[ "$swiftpm_resource_bundle_count" -eq 0 ]]; then
+  echo "error: SwiftPM produced no resource bundles for the native app" >&2
+  exit 1
+fi
+if ! find "$STAGE/Contents/Resources" -type f -name 'official-accessibility-baseline.json' -print -quit | grep -q .; then
+  echo "error: packaged app is missing official-accessibility-baseline.json" >&2
+  exit 1
+fi
 
 echo "== 2/4 内置 Node 运行时 =="
 mkdir -p "$STAGE/Contents/Resources/node"
