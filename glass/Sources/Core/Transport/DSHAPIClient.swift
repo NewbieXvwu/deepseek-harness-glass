@@ -400,7 +400,7 @@ enum SessionPromptMode: String, Codable, Sendable {
 }
 
 /// Source: `sessions.schema.ts:promptContentPartSchema`.
-enum SessionPromptContent: Codable, Sendable {
+enum SessionPromptContent: Codable, Sendable, Equatable {
     case text(text: String)
     case image(mediaType: String, data: String, name: String?)
 
