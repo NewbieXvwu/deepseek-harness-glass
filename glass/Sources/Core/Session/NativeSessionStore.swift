@@ -253,6 +253,7 @@ final class NativeSessionStore: ObservableObject {
         let toolInvocations: [ToolInvocation]
         let queuedMessages: [QueuedMessage]
         let backgroundJobs: [BackgroundJob]
+        let modelDirectory: CoreSessionModelDirectory?
         let selectedToolCallID: String?
         let pendingApproval: PendingApproval?
         let pendingQuestion: PendingQuestion?
@@ -281,6 +282,10 @@ final class NativeSessionStore: ObservableObject {
     @Published private(set) var toolInvocations: [ToolInvocation] = []
     @Published private(set) var queuedMessages: [QueuedMessage] = []
     @Published private(set) var backgroundJobs: [BackgroundJob] = []
+    /// The per-session Host `session.models` authority. A nil value means it has
+    /// not been loaded or the current session cannot be restored yet; it is not
+    /// an invitation to invent a default provider/model pair.
+    @Published private(set) var modelDirectory: CoreSessionModelDirectory?
     @Published private(set) var selectedToolCallID: String?
     @Published private(set) var pendingApproval: PendingApproval?
     @Published private(set) var pendingQuestion: PendingQuestion?
@@ -360,6 +365,7 @@ final class NativeSessionStore: ObservableObject {
             toolInvocations: toolInvocations,
             queuedMessages: queuedMessages,
             backgroundJobs: backgroundJobs,
+            modelDirectory: modelDirectory,
             selectedToolCallID: selectedToolCallID,
             pendingApproval: pendingApproval,
             pendingQuestion: pendingQuestion,
@@ -385,6 +391,7 @@ final class NativeSessionStore: ObservableObject {
         toolInvocations = state.toolInvocations
         queuedMessages = state.queuedMessages
         backgroundJobs = state.backgroundJobs
+        modelDirectory = state.modelDirectory
         selectedToolCallID = state.selectedToolCallID
         pendingApproval = state.pendingApproval
         pendingQuestion = state.pendingQuestion
@@ -425,6 +432,7 @@ final class NativeSessionStore: ObservableObject {
             toolInvocations = []
             queuedMessages = []
             backgroundJobs = []
+            modelDirectory = nil
             selectedToolCallID = nil
             pendingApproval = nil
             pendingQuestion = nil
@@ -452,8 +460,9 @@ final class NativeSessionStore: ObservableObject {
                 // read-only cold-resume path. After a Host restart, models()
                 // reattaches a persisted selected session before mux opens;
                 // history() alone intentionally serves detached logs.
-                _ = try await api.models(sessionID: sessionID)
+                let models = try await api.models(sessionID: sessionID)
                 guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
+                self?.modelDirectory = .init(response: models)
                 let response = try await api.history(sessionID: sessionID, beforeSeq: nil, maxMessages: nil)
                 guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
                 self?.replaceConversationWindow(response.events.map(ConversationEventInput.init(entry:)), hasMore: response.hasMore)
@@ -491,6 +500,7 @@ final class NativeSessionStore: ObservableObject {
         toolInvocations = []
         queuedMessages = []
         backgroundJobs = []
+        modelDirectory = nil
         selectedToolCallID = nil
         pendingApproval = nil
         pendingQuestion = nil
@@ -1148,6 +1158,7 @@ final class NativeSessionStore: ObservableObject {
         ]
         pendingApproval = nil
         pendingQuestion = nil
+        modelDirectory = nil
         selectedToolCallID = nil
         isSubmittingApproval = false
         isSubmittingQuestion = false
@@ -1172,6 +1183,7 @@ final class NativeSessionStore: ObservableObject {
         toolInvocations = []
         queuedMessages = []
         backgroundJobs = []
+        modelDirectory = nil
         pendingApproval = PendingApproval(
             rpcID: "fx-rpc-approval",
             sessionID: sessionID,
@@ -1205,6 +1217,7 @@ final class NativeSessionStore: ObservableObject {
         toolInvocations = []
         queuedMessages = []
         backgroundJobs = []
+        modelDirectory = nil
         pendingApproval = nil
         pendingQuestion = PendingQuestion(
             rpcID: "fx-rpc-question",
@@ -1331,6 +1344,11 @@ final class NativeSessionStore: ObservableObject {
                 view: nil
             )
         ]
+        queuedMessages = []
+        backgroundJobs = []
+        modelDirectory = nil
+        pendingApproval = nil
+        pendingQuestion = nil
         selectedToolCallID = "snapshot-read"
         isRunning = true
         hasMoreHistory = false

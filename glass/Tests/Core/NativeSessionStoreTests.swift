@@ -62,6 +62,29 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(api.promptSessionIDs, [sessionID])
     }
 
+    func testSessionModelsAuthorityPublishesTypedDirectoryAndClearsForColdSession() async {
+        let modelsLoaded = expectation(description: "session.models reaches typed facade")
+        let api = ModelDirectorySessionAPI(modelsLoaded: modelsLoaded)
+        let store = NativeSessionStore()
+        store.open(sessionID: "models-session", using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+        await fulfillment(of: [modelsLoaded], timeout: 1)
+        await eventually(timeout: 1) { store.modelDirectory != nil }
+
+        let directory = tryUnwrap(store.modelDirectory)
+        XCTAssertTrue(directory.routable)
+        XCTAssertEqual(directory.current, .init(provider: "provider-a", model: "model-a", reasoningEffort: "balanced"))
+        XCTAssertTrue(directory.contains(provider: "provider-a", model: "model-a"))
+        XCTAssertFalse(directory.contains(provider: "failed-provider", model: "invented"))
+        XCTAssertEqual(directory.failures.map(\.id), ["failed-provider"])
+
+        store.open(
+            sessionID: "cold-session",
+            using: RejectingSessionAPI(promptReachedFacade: nil),
+            endpoint: URL(string: "http://127.0.0.1:1")!
+        )
+        XCTAssertNil(store.modelDirectory)
+    }
+
     func testKnownProjectPathUsesHostFacadeAfterSessionCWDResolutionAndRejectsURLs() async {
         let opened = expectation(description: "recognized project token reaches typed Host facade")
         let hostPathAPI = RecordingHostPathAPI(opened: opened)
@@ -496,6 +519,40 @@ final class NativeSessionStoreTests: XCTestCase {
             promptReachedFacade.fulfill()
             return SessionPromptResponse(accepted: true)
         }
+        func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
+        func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+        func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+        func cancelQuestion(rpcID _: String) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+    }
+
+    @MainActor
+    private final class ModelDirectorySessionAPI: NativeSessionAPI {
+        let modelsLoaded: XCTestExpectation
+
+        init(modelsLoaded: XCTestExpectation) {
+            self.modelsLoaded = modelsLoaded
+        }
+
+        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
+            throw DSHTransportError.invalidEndpoint
+        }
+
+        func models(sessionID _: String) async throws -> SessionModelsResponse {
+            modelsLoaded.fulfill()
+            return .init(
+                current: .init(provider: "provider-a", model: "model-a", reasoningEffort: "balanced"),
+                routable: true,
+                groups: [.init(id: "provider-a", name: "Provider A", models: [
+                    .init(id: "model-a", name: "Model A", description: "safe", reasoning: .init(
+                        efforts: [.init(id: "balanced", name: "Balanced", description: nil)],
+                        defaultEffort: "balanced"
+                    ))
+                ])],
+                failures: [.init(id: "failed-provider", name: "Failed provider", message: "catalog unavailable")]
+            )
+        }
+
+        func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
         func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
         func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
         func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
