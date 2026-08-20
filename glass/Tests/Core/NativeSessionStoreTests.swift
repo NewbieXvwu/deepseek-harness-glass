@@ -126,6 +126,8 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(state.backgroundJobs.map(\.id), ["job-1"])
         XCTAssertEqual(state.pendingApproval?.rpcID, "approval-rpc")
         XCTAssertEqual(state.pendingQuestion?.rpcID, "question-rpc")
+        XCTAssertEqual(state.subagentIdentity, .absent)
+        XCTAssertNil(state.subagentTiming)
 
         // A later malformed whole todo projection cannot leak a partly decoded
         // local plan into any extension renderer.
@@ -149,6 +151,8 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertTrue(freshState.backgroundJobs.isEmpty)
         XCTAssertNil(freshState.pendingApproval)
         XCTAssertNil(freshState.pendingQuestion)
+        XCTAssertEqual(freshState.subagentIdentity, .absent)
+        XCTAssertNil(freshState.subagentTiming)
     }
 
     func testSubagentProjectionReaderPreservesNullSentinelAndRejectsMalformedIdentityOrTiming() {
