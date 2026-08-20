@@ -62,6 +62,32 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(api.promptSessionIDs, [sessionID])
     }
 
+    func testKnownProjectPathUsesHostFacadeAfterSessionCWDResolutionAndRejectsURLs() async {
+        let opened = expectation(description: "recognized project token reaches typed Host facade")
+        let hostPathAPI = RecordingHostPathAPI(opened: opened)
+        let store = NativeSessionStore()
+        store.open(
+            sessionID: "path-session",
+            using: RejectingSessionAPI(promptReachedFacade: nil),
+            endpoint: URL(string: "http://127.0.0.1:1")!,
+            hostPathAPI: hostPathAPI,
+            sessionCWD: "/workspace/project"
+        )
+
+        store.openKnownProjectPath("src/main.swift")
+        await fulfillment(of: [opened], timeout: 1)
+        XCTAssertEqual(hostPathAPI.paths, ["/workspace/project/src/main.swift"])
+
+        store.openKnownProjectPath("file:///etc/passwd")
+        store.openKnownProjectPath("https://example.invalid/a.swift")
+        store.openKnownProjectPath(" ")
+        try? await Task.sleep(for: .milliseconds(30))
+        XCTAssertEqual(hostPathAPI.paths, ["/workspace/project/src/main.swift"])
+
+        XCTAssertEqual(NativeProjectPathResolver.resolve(cwd: "/workspace/project/", path: "/tmp/absolute.txt"), "/tmp/absolute.txt")
+        XCTAssertEqual(NativeProjectPathResolver.resolve(cwd: "/workspace/project", path: "C:\\code\\main.swift"), "C:\\code\\main.swift")
+    }
+
     func testQueueAndJobsUseCompleteHostSnapshotsAndRejectOtherSessionFrames() {
         let store = NativeSessionStore()
         store.loadSnapshotToolingFixture()
@@ -357,6 +383,22 @@ final class NativeSessionStoreTests: XCTestCase {
 
         func cancelQuestion(rpcID _: String) async throws -> RPCReceipt {
             throw DSHTransportError.invalidEndpoint
+        }
+    }
+
+    @MainActor
+    private final class RecordingHostPathAPI: NativeHostPathAPI {
+        let opened: XCTestExpectation
+        private(set) var paths: [String] = []
+
+        init(opened: XCTestExpectation) {
+            self.opened = opened
+        }
+
+        func openPath(_ path: String) async throws -> HostOpenPathResponse {
+            paths.append(path)
+            opened.fulfill()
+            return HostOpenPathResponse(opened: true)
         }
     }
 

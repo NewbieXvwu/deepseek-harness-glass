@@ -103,7 +103,13 @@ final class NativeShellPresentation: ObservableObject {
         workspaceStore.refresh(using: apis)
         workspaceStore.observeHostEvents(at: connection.endpoint, using: apis, diagnostics: connection.diagnostics)
         if let selectedSessionID {
-            sessionStore.open(sessionID: selectedSessionID, using: apis.sessions, endpoint: connection.endpoint)
+            sessionStore.open(
+                sessionID: selectedSessionID,
+                using: apis.sessions,
+                endpoint: connection.endpoint,
+                hostPathAPI: apis.host,
+                sessionCWD: sessionCWD(for: selectedSessionID)
+            )
         }
     }
 
@@ -120,10 +126,20 @@ final class NativeShellPresentation: ObservableObject {
     func selectSession(_ sessionID: String, workspaceID: String?) {
         workspaceStore.select(sessionID: sessionID, workspaceID: workspaceID)
         if let apis, let observedEndpoint {
-            sessionStore.open(sessionID: sessionID, using: apis.sessions, endpoint: observedEndpoint)
+            sessionStore.open(
+                sessionID: sessionID,
+                using: apis.sessions,
+                endpoint: observedEndpoint,
+                hostPathAPI: apis.host,
+                sessionCWD: sessionCWD(for: sessionID)
+            )
         }
         mode = .conversation
         detailsVisible = sessionStore.selectedToolCallID != nil
+    }
+
+    private func sessionCWD(for sessionID: String) -> String? {
+        workspaceStore.snapshot.sessions.first(where: { $0.sessionId == sessionID })?.cwd
     }
 
     /// Source: `sessions.schema.ts:sessionCreateRequestSchema`.
