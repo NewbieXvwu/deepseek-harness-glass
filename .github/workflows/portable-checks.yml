@@ -82,6 +82,11 @@ jobs:
           pnpm install --frozen-lockfile
           test -d node_modules/typescript
 
+      - name: Install project specification-generation parser
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund --prefix tools/spec-generation
+          test -f tools/spec-generation/node_modules/typescript/lib/typescript.js
+
       - name: Run Python specification and architecture gates
         run: |
           set -euo pipefail

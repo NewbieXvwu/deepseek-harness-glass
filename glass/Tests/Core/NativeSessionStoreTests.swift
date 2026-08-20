@@ -970,11 +970,4 @@ final class NativeSessionStoreTests: XCTestCase {
         ])
     }
 
-    private func tryUnwrap<T>(_ value: T?, file: StaticString = #file, line: UInt = #line) -> T {
-        guard let unwrapped = value else {
-            XCTFail("Unexpected nil", file: file, line: line)
-            fatalError("Unexpected nil")
-        }
-        return unwrapped
-    }
 }
