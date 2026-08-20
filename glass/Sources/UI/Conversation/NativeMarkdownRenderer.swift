@@ -19,21 +19,29 @@ enum NativeMarkdownSecurityPolicy {
         return url
     }
 
+    /// Compiled once per process. The sanitizer runs on every streamed chunk,
+    /// so recompiling these per call would dominate markdown rendering cost.
+    private static let scriptPatterns: [NSRegularExpression] = [
+        #"(?is)<(script|style|iframe|object|embed)[^>]*>.*?</\1>"#,
+        #"(?is)<!--.*?-->"#,
+        #"(?is)<[^>]+>"#,
+    ].compactMap { try? NSRegularExpression(pattern: $0) }
+
+    private static let linkPattern = try! NSRegularExpression(pattern: #"\[([^\]]*)\]\(([^\s\)]+)(?:\s+[^\)]*)?\)"#)
+
     /// Removes executable HTML elements and turns unsafe Markdown links into
     /// inert prose before `AttributedString` receives the document. This is a
     /// defensive parser boundary, not an HTML renderer or sanitizer bypass.
     static func sanitizedInlineMarkdown(_ source: String) -> String {
         var result = source
-        result = result.replacingOccurrences(
-            of: #"(?is)<(script|style|iframe|object|embed)[^>]*>.*?</\1>"#,
-            with: "",
-            options: .regularExpression
-        )
-        result = result.replacingOccurrences(of: #"(?is)<[^>]+>"#, with: "", options: .regularExpression)
-
-        let pattern = #"\[([^\]]*)\]\(([^\s\)]+)(?:\s+[^\)]*)?\)"#
-        guard let expression = try? NSRegularExpression(pattern: pattern) else { return result }
-        let matches = expression.matches(in: result, range: NSRange(result.startIndex..., in: result)).reversed()
+        for expression in scriptPatterns {
+            result = expression.stringByReplacingMatches(
+                in: result,
+                range: NSRange(result.startIndex..., in: result),
+                withTemplate: ""
+            )
+        }
+        let matches = linkPattern.matches(in: result, range: NSRange(result.startIndex..., in: result)).reversed()
         for match in matches {
             guard let labelRange = Range(match.range(at: 1), in: result),
                   let destinationRange = Range(match.range(at: 2), in: result),

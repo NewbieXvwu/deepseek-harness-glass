@@ -972,7 +972,7 @@ final class NativeSessionStore: ObservableObject {
               let arguments = data["arguments"]?.stringValue
         else { return }
         guard !toolInvocations.contains(where: { $0.id == callID }) else { return }
-        toolInvocations.append(ToolInvocation(
+        let invocation = ToolInvocation(
             id: callID,
             name: name,
             arguments: arguments,
@@ -980,8 +980,20 @@ final class NativeSessionStore: ObservableObject {
             state: .running,
             sequence: event.seq,
             view: view
-        ))
-        toolInvocations.sort { $0.sequence < $1.sequence }
+        )
+        // Sorted-insert by sequence; keeps the timeline merge linear and avoids
+        // re-sorting the whole array on every tool call.
+        var lower = toolInvocations.startIndex
+        var upper = toolInvocations.endIndex
+        while lower < upper {
+            let mid = (lower + upper) / 2
+            if toolInvocations[mid].sequence < invocation.sequence {
+                lower = mid + 1
+            } else {
+                upper = mid
+            }
+        }
+        toolInvocations.insert(invocation, at: lower)
     }
 
     private func applyToolResult(_ event: SessionEventDTO, view: JSONValue?) {

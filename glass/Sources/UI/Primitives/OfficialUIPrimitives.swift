@@ -11,10 +11,16 @@ struct OfficialAssetImage: View {
     let name: String
     var template = false
 
+    /// Decoded SVG snapshots are expensive to produce; each SwiftUI body pass
+    /// otherwise re-reads the file from the bundle and re-decodes it. Cache by
+    /// asset name for the process lifetime. NSCache is thread-safe and the
+    /// `configured` copy keeps template mutation off the shared instance.
+    private static let imageCache = NSCache<NSString, NSImage>()
+
     var body: some View {
         Group {
             if let url = Bundle.main.url(forResource: name, withExtension: "svg"),
-               let image = NSImage(contentsOf: url) {
+               let image = Self.cachedImage(named: name, url: url) {
                 Image(nsImage: configured(image))
                     .resizable()
                     .renderingMode(template ? .template : .original)
@@ -25,9 +31,19 @@ struct OfficialAssetImage: View {
         .accessibilityHidden(true)
     }
 
-    private func configured(_ image: NSImage) -> NSImage {
-        image.isTemplate = template
+    private static func cachedImage(named name: String, url: URL) -> NSImage? {
+        let key = name as NSString
+        if let cached = imageCache.object(forKey: key) { return cached }
+        guard let image = NSImage(contentsOf: url) else { return nil }
+        imageCache.setObject(image, forKey: key)
         return image
+    }
+
+    private func configured(_ image: NSImage) -> NSImage {
+        guard template else { return image }
+        let copy = image.copy() as? NSImage ?? image
+        copy.isTemplate = true
+        return copy
     }
 }
 

@@ -155,11 +155,38 @@ private struct NativeTranscriptScrollView: View {
             else { return nil }
             return .chat(node)
         }
-        return (visibleMessages + toolInvocations.map(TimelineItem.tool))
-            .sorted {
-                if $0.anchor == $1.anchor { return $0.id < $1.id }
-                return $0.anchor < $1.anchor
+        let tools = toolInvocations.map(TimelineItem.tool)
+        guard !visibleMessages.isEmpty else { return tools }
+        guard !tools.isEmpty else { return visibleMessages }
+        // Both inputs are already anchor-ascending (reducer-sorted chat and
+        // sorted-insert tool rows); merging keeps every body pass O(n) instead
+        // of re-sorting. The tie rule mirrors the previous stable sort.
+        var merged: [TimelineItem] = []
+        merged.reserveCapacity(visibleMessages.count + tools.count)
+        var messageIndex = 0
+        var toolIndex = 0
+        while messageIndex < visibleMessages.count && toolIndex < tools.count {
+            let message = visibleMessages[messageIndex]
+            let tool = tools[toolIndex]
+            if message.anchor == tool.anchor {
+                if message.id < tool.id {
+                    merged.append(message)
+                    messageIndex += 1
+                } else {
+                    merged.append(tool)
+                    toolIndex += 1
+                }
+            } else if message.anchor < tool.anchor {
+                merged.append(message)
+                messageIndex += 1
+            } else {
+                merged.append(tool)
+                toolIndex += 1
             }
+        }
+        merged.append(contentsOf: visibleMessages[messageIndex...])
+        merged.append(contentsOf: tools[toolIndex...])
+        return merged
     }
 
     /// Mirrors RC8's follow signature: a streaming delta changes only the tail

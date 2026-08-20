@@ -32,6 +32,10 @@ final class NativeMarkdownRendererTests: XCTestCase {
         XCTAssertFalse(sanitized.contains("[local](file:"))
         XCTAssertTrue(sanitized.contains("local (file:///tmp/secret)"))
         XCTAssertTrue(sanitized.contains("[safe](https://example.com)"))
+
+        let comment = "before <!-- [smuggled](file:///tmp/secret) --> after"
+        let withoutComment = NativeMarkdownSecurityPolicy.sanitizedInlineMarkdown(comment)
+        XCTAssertEqual(withoutComment, "before  after")
     }
 
     func testRenderedAttributedMarkdownRetainsOnlyHTTPLinkAttributes() {
