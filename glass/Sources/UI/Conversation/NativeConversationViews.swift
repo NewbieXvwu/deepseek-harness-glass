@@ -245,7 +245,7 @@ private struct NativeTranscriptScrollView: View {
     private var timeline: [TimelineItem] {
         let visibleMessages = chatNodes.compactMap { node -> TimelineItem? in
             guard node.visibility != .hidden,
-                  node.data is CoreUserMessageNode || node.data is CoreAssistantNode || node.data is CoreWorkflowRunNode || node.data is CoreTurnMaxTokensNode || node.data is CoreRetryNode
+                  node.data is CoreUserMessageNode || node.data is CoreAssistantNode || node.data is CoreWorkflowRunNode || node.data is CoreTurnMaxTokensNode || node.data is CoreRetryNode || node.data is CoreTurnErrorNode
             else { return nil }
             return .chat(node)
         }
@@ -365,6 +365,8 @@ private struct NativeConversationNodeRow: View {
                 NativeTurnMaxTokensNotice()
             } else if let retry = node.data as? CoreRetryNode {
                 NativeModelRetryRow(retry: retry)
+            } else if let error = node.data as? CoreTurnErrorNode {
+                NativeTurnErrorNotice(error: error)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

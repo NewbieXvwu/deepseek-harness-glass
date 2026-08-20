@@ -254,6 +254,8 @@ enum OfficialUISpec {
         static let workflowInterrupted = "Interrupted"
         // Source: packages/client/ui-conversation/src/client/locales.ts:309-310 (en)
         static let maxTokensTitle = "Output token limit reached"
+        // Source: packages/client/ui-conversation/src/client/locales.ts:308 (en)
+        static let turnErrorTitle = "This turn failed"
         static let maxTokensHint = "The reply was cut off; earlier output is preserved in the conversation. Send \"continue\" to let the model resume."
         // Source: packages/client/ui-conversation/src/client/locales.ts:301-307 (en)
         static let retryActive = "Retrying model request"
