@@ -47,6 +47,21 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertTrue(store.isRunning, "carrier receipt cannot optimistically settle a Host-owned running turn")
     }
 
+    func testAcceptedPromptClearsDraftOnlyAfterTypedHostFacadeAcceptance() async {
+        let promptReachedFacade = expectation(description: "typed prompt facade returns Host acceptance")
+        let api = AcceptingSessionAPI(promptReachedFacade: promptReachedFacade)
+        let store = NativeSessionStore()
+        let sessionID = "accepted-prompt-session"
+        store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+        store.draft = "preserve until the Host accepts"
+
+        store.submitDraft()
+        XCTAssertEqual(store.draft, "preserve until the Host accepts")
+        await fulfillment(of: [promptReachedFacade], timeout: 1)
+        await eventually(timeout: 1) { store.draft.isEmpty }
+        XCTAssertEqual(api.promptSessionIDs, [sessionID])
+    }
+
     func testQueueAndJobsUseCompleteHostSnapshotsAndRejectOtherSessionFrames() {
         let store = NativeSessionStore()
         store.loadSnapshotToolingFixture()
@@ -262,6 +277,37 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(SessionJobsPresentation.ordered(jobs).map(\.id), ["stopping-early", "running-late", "failed-new", "done-old"])
         XCTAssertEqual(SessionJobsPresentation.elapsedMilliseconds(for: jobs[1], now: 100), 60)
         XCTAssertEqual(SessionJobsPresentation.elapsedMilliseconds(for: jobs[0], now: 100), 10)
+    }
+
+    private func eventually(timeout: TimeInterval, condition: @escaping @MainActor () -> Bool) async {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if condition() { return }
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        XCTFail("condition was not met before timeout")
+    }
+
+    @MainActor
+    private final class AcceptingSessionAPI: NativeSessionAPI {
+        let promptReachedFacade: XCTestExpectation
+        private(set) var promptSessionIDs: [String] = []
+
+        init(promptReachedFacade: XCTestExpectation) {
+            self.promptReachedFacade = promptReachedFacade
+        }
+
+        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse { throw DSHTransportError.invalidEndpoint }
+        func models(sessionID _: String) async throws -> SessionModelsResponse { throw DSHTransportError.invalidEndpoint }
+        func prompt(sessionID: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse {
+            promptSessionIDs.append(sessionID)
+            promptReachedFacade.fulfill()
+            return SessionPromptResponse(accepted: true)
+        }
+        func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
+        func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+        func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+        func cancelQuestion(rpcID _: String) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
     }
 
     @MainActor
