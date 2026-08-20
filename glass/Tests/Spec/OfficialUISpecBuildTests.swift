@@ -46,6 +46,25 @@ final class OfficialUISpecBuildTests: XCTestCase {
 
 
 extension OfficialUISpecBuildTests {
+    func testPackagedLocaleCatalogMatchesCompiledRuntimeValuesAndBilingualContract() {
+        let catalog = OfficialLocaleRuntimeCatalog.catalog
+        XCTAssertEqual(catalog.schemaVersion, 1)
+        XCTAssertEqual(catalog.sourceCommit, OfficialUISpec.LocaleCatalog.sourceCommit)
+        XCTAssertEqual(catalog.localeRevision, OfficialUISpec.LocaleCatalog.revision)
+        XCTAssertEqual(catalog.sourceInputRevision, OfficialUISpec.LocaleCatalog.sourceInputRevision)
+        XCTAssertEqual(Set(catalog.languages), OfficialUISpec.LocaleCatalog.supportedLanguages)
+        XCTAssertEqual(catalog.valueMap, OfficialUISpec.LocaleCatalog.values)
+
+        let byID = Dictionary(grouping: catalog.entries, by: \.id)
+        XCTAssertFalse(byID.isEmpty)
+        for entries in byID.values {
+            XCTAssertEqual(Set(entries.map(\.language)), Set(["en", "zh"]))
+            XCTAssertEqual(Set(entries.map(\.interpolationParameters)).count, 1)
+            XCTAssertEqual(Set(entries.map(\.pluralCategory)).count, 1)
+        }
+        XCTAssertNil(OfficialUISpec.LocaleCatalog.value(namespace: "not-an-official-namespace", key: "missing", language: "en"))
+    }
+
     func testPackagedAccessibilityBaselineDecodesAndResolvesOfficialRuntimeLabels() {
         let baseline = OfficialAccessibilityBaselineCatalog.baseline
         XCTAssertEqual(baseline.schemaVersion, 1)
