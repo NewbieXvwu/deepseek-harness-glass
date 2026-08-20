@@ -459,6 +459,50 @@ struct SessionCancelResponse: Decodable, Sendable {
     let accepted: Bool
 }
 
+/// Source: `sessions.schema.ts:sessionUpdateQueueRequestSchema`.
+enum SessionQueueAction: Codable, Sendable, Equatable {
+    case edit(content: [SessionPromptContent])
+    case remove
+    case steer
+
+    private enum CodingKeys: String, CodingKey { case kind, content }
+    private enum Kind: String, Codable { case edit, remove, steer }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        switch try container.decode(Kind.self, forKey: .kind) {
+        case .edit: self = .edit(content: try container.decode([SessionPromptContent].self, forKey: .content))
+        case .remove: self = .remove
+        case .steer: self = .steer
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case let .edit(content):
+            try container.encode(Kind.edit, forKey: .kind)
+            try container.encode(content, forKey: .content)
+        case .remove:
+            try container.encode(Kind.remove, forKey: .kind)
+        case .steer:
+            try container.encode(Kind.steer, forKey: .kind)
+        }
+    }
+}
+
+/// Source: `sessions.schema.ts:sessionUpdateQueueRequestSchema`.
+struct SessionUpdateQueueRequest: Codable, Sendable, Equatable {
+    let sessionId: String
+    let itemId: String
+    let action: SessionQueueAction
+}
+
+/// Source: `sessions.schema.ts:sessionUpdateQueueValueSchema`.
+struct SessionUpdateQueueResponse: Decodable, Sendable, Equatable {
+    let accepted: Bool
+}
+
 /// Source: `sessions.schema.ts:sessionCreateRequestSchema`.
 struct SessionCreateRequest: Codable, Sendable {
     let workspaceId: String?

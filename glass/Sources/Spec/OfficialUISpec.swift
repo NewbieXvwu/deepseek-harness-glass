@@ -269,6 +269,21 @@ enum OfficialUISpec {
                 .replacingOccurrences(of: "{message}", with: message)
                 .replacingOccurrences(of: "{code}", with: code)
         }
+        // Source: packages/client/ui-conversation/src/client/locales.ts (en), QueueDock.
+        static let queueCountTemplate = "{n} queued messages"
+        static func queueCount(_ value: Int) -> String {
+            queueCountTemplate.replacingOccurrences(of: "{n}", with: String(value))
+        }
+        static let queueEditAccessibility = "Edit queued message"
+        static let queueEditUnsupported = "Contains non-text content; editing is not supported yet"
+        static let queueEditFailure = "Edit failed: this message may have already started sending."
+        static let queueRemoveAccessibility = "Remove queued message"
+        static let queueRemoveFailure = "Removal failed: this message may have already started sending."
+        static let queueSaveAccessibility = "Save queued message"
+        static let queueCancelEditAccessibility = "Cancel editing"
+        static let queueSteerAccessibility = "Steer queued message"
+        static let queueSteerUnavailable = "Steering is available only while the agent is running"
+        static let queueSteerFailure = "Steering failed. Try again."
         // Source: packages/client/locale/src/locales/en.ts
         static let copy = "Copy"
         static let copied = "Copied"

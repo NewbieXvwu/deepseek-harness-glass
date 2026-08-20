@@ -133,6 +133,18 @@ private struct NativeActiveConversationSurface: View {
                         clear: sessionStore.clearGoal
                     )
                 }
+                if let extensionState = sessionStore.extensionState,
+                   !NativeQueueDockPresentation.queuedRows(extensionState.queuedMessages).isEmpty {
+                    NativeQueueDock(
+                        rows: extensionState.queuedMessages,
+                        isRunning: sessionStore.isRunning,
+                        isMutable: NativeQueueDockPresentation.isMutable(extensionState.subagentIdentity),
+                        busyItemID: sessionStore.updatingQueueItemID,
+                        failure: sessionStore.queueActionFailure,
+                        completion: sessionStore.queueActionCompletion,
+                        update: sessionStore.updateQueuedMessage
+                    )
+                }
                 composerTakeover
             }
         } else {

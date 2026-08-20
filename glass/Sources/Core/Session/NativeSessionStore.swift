@@ -13,6 +13,7 @@ protocol NativeSessionAPI: Sendable {
     func history(sessionID: String, beforeSeq: Int?, maxMessages: Int?) async throws -> SessionHistoryResponse
     func prompt(sessionID: String, content: [SessionPromptContent], mode: SessionPromptMode) async throws -> SessionPromptResponse
     func cancel(sessionID: String) async throws -> SessionCancelResponse
+    func updateQueue(_ request: SessionUpdateQueueRequest) async throws -> SessionUpdateQueueResponse
     func models(sessionID: String) async throws -> SessionModelsResponse
     func answerApproval(rpcID: String, sessionID: String, approvalID: String, outcome: ApprovalOutcome) async throws -> RPCReceipt
     func answerQuestion(rpcID: String, sessionID: String, answers: [QuestionAnswerResponse]) async throws -> RPCReceipt
@@ -20,6 +21,14 @@ protocol NativeSessionAPI: Sendable {
 }
 
 extension SessionsAPI: NativeSessionAPI {}
+
+extension NativeSessionAPI {
+    /// Test fakes must opt in explicitly to queue mutation. Treat omitted seams
+    /// as an unavailable Host rather than manufacturing an accepted response.
+    func updateQueue(_: SessionUpdateQueueRequest) async throws -> SessionUpdateQueueResponse {
+        throw DSHTransportError.invalidEndpoint
+    }
+}
 
 /// Typed Host action seam for RC8 GoalBar. A successful RPC returns only a
 /// compare-and-set reference (or clear receipt); visible state must still wait
@@ -110,6 +119,25 @@ final class NativeSessionStore: ObservableObject {
     struct GoalActionFailure: Equatable {
         let message: String
         let code: String
+    }
+
+    /// QueueDock catches an operation failure and delegates its visible text to
+    /// the locale seat. The Core stores no invented network error string.
+    struct QueueActionFailure: Equatable {
+        enum Kind: Equatable {
+            case edit
+            case remove
+            case steer
+        }
+        let itemID: String
+        let kind: Kind
+    }
+
+    /// A successful queue RPC permits the view-local editor to close. It does
+    /// not grant authority to remove or edit a Host snapshot row.
+    struct QueueActionCompletion: Equatable {
+        let itemID: String
+        let action: SessionQueueAction
     }
 
     enum Role: Equatable {
@@ -373,12 +401,16 @@ final class NativeSessionStore: ObservableObject {
     private var api: (any NativeSessionAPI)?
     private var goalAPI: (any NativeGoalAPI)?
     private var goalTask: Task<Void, Never>?
+    private var queueUpdateTask: Task<Void, Never>?
     @Published private(set) var isSubmittingGoal = false
     @Published private(set) var goalActionFailure: GoalActionFailure?
     /// RC8 GoalBar hides a successfully cleared goal before the next whole
     /// projection arrives. This is a view marker only; `extensionState.goal`
     /// remains Host-owned and unchanged.
     @Published private(set) var locallyClearedGoalID: String?
+    @Published private(set) var updatingQueueItemID: String?
+    @Published private(set) var queueActionFailure: QueueActionFailure?
+    @Published private(set) var queueActionCompletion: QueueActionCompletion?
     private var hostPathAPI: (any NativeHostPathAPI)?
     private var activeSessionCWD: String?
     private var activeSessionID: String?
@@ -392,6 +424,17 @@ final class NativeSessionStore: ObservableObject {
     /// verified endpoint after Host recovery; the Host remains session truth.
     var selectedSessionID: String? { activeSessionID }
 
+    /// Core-internal test seam for queue mutation fencing. Production receives
+    /// the same API from `NativeShellPresentation.connectVerifiedHost` via `open`.
+    func setSessionAPIForTesting(_ api: (any NativeSessionAPI)?) {
+        queueUpdateTask?.cancel()
+        queueUpdateTask = nil
+        updatingQueueItemID = nil
+        queueActionFailure = nil
+        queueActionCompletion = nil
+        self.api = api
+    }
+
     /// Core-internal test seam for goal mutation fencing. Production receives the
     /// same API from `NativeShellPresentation.connectVerifiedHost` via `open`.
     func setGoalAPIForTesting(_ api: (any NativeGoalAPI)?) {
@@ -400,6 +443,11 @@ final class NativeSessionStore: ObservableObject {
         isSubmittingGoal = false
         goalActionFailure = nil
         locallyClearedGoalID = nil
+        queueUpdateTask?.cancel()
+        queueUpdateTask = nil
+        updatingQueueItemID = nil
+        queueActionFailure = nil
+        queueActionCompletion = nil
         goalAPI = api
     }
 
@@ -498,6 +546,11 @@ final class NativeSessionStore: ObservableObject {
         isSubmittingGoal = false
         goalActionFailure = nil
         locallyClearedGoalID = nil
+        queueUpdateTask?.cancel()
+        queueUpdateTask = nil
+        updatingQueueItemID = nil
+        queueActionFailure = nil
+        queueActionCompletion = nil
         recoveryGeneration &+= 1
         let authorityGeneration = recoveryGeneration
         self.api = api
@@ -605,6 +658,11 @@ final class NativeSessionStore: ObservableObject {
         isSubmittingGoal = false
         goalActionFailure = nil
         locallyClearedGoalID = nil
+        queueUpdateTask?.cancel()
+        queueUpdateTask = nil
+        updatingQueueItemID = nil
+        queueActionFailure = nil
+        queueActionCompletion = nil
         hostPathAPI = nil
         activeSessionCWD = nil
         activeSessionID = nil
@@ -649,6 +707,11 @@ final class NativeSessionStore: ObservableObject {
         isSubmittingGoal = false
         goalActionFailure = nil
         locallyClearedGoalID = nil
+        queueUpdateTask?.cancel()
+        queueUpdateTask = nil
+        updatingQueueItemID = nil
+        queueActionFailure = nil
+        queueActionCompletion = nil
         hostPathAPI = nil
         activeSessionCWD = nil
         activeSessionID = nil
@@ -757,6 +820,40 @@ final class NativeSessionStore: ObservableObject {
         }
     }
 
+    // MARK: - Queue action face
+
+    /// Source: RC8 `conversation.updateQueue`. Queue items are addressed by the
+    /// Host message id and remain visible until the next `session/queue` whole
+    /// snapshot retires or replaces them.
+    func updateQueuedMessage(itemID: String, action: SessionQueueAction) {
+        guard updatingQueueItemID == nil,
+              let api,
+              let sessionID = activeSessionID,
+              queuedMessages.contains(where: { $0.id == itemID && $0.placement == .queued })
+        else { return }
+        updatingQueueItemID = itemID
+        queueActionFailure = nil
+        queueActionCompletion = nil
+        queueUpdateTask?.cancel()
+        queueUpdateTask = Task { [weak self] in
+            defer {
+                if !Task.isCancelled,
+                   self?.activeSessionID == sessionID,
+                   self?.updatingQueueItemID == itemID {
+                    self?.updatingQueueItemID = nil
+                }
+            }
+            do {
+                let response = try await api.updateQueue(.init(sessionId: sessionID, itemId: itemID, action: action))
+                guard response.accepted, !Task.isCancelled, self?.activeSessionID == sessionID else { return }
+                self?.queueActionCompletion = .init(itemID: itemID, action: action)
+            } catch {
+                guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
+                self?.queueActionFailure = .init(itemID: itemID, kind: action.failureKind)
+            }
+        }
+    }
+
     // MARK: - Goal action face
 
     /// Source: RC8 `GoalBar.onEdit`. The Host compares the active projection ref;
@@ -810,8 +907,9 @@ final class NativeSessionStore: ObservableObject {
         goalTask?.cancel()
         goalTask = Task { [weak self] in
             defer {
-                guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
-                self?.isSubmittingGoal = false
+                if !Task.isCancelled, self?.activeSessionID == sessionID {
+                    self?.isSubmittingGoal = false
+                }
             }
             do {
                 try await operation(goalAPI, sessionID, goal)
@@ -1763,5 +1861,15 @@ final class NativeSessionStore: ObservableObject {
     private func decode<Value: Decodable>(_ type: Value.Type, from value: JSONValue) -> Value? {
         guard let data = try? Self.jsonEncoder.encode(value) else { return nil }
         return try? Self.jsonDecoder.decode(Value.self, from: data)
+    }
+}
+
+private extension SessionQueueAction {
+    var failureKind: NativeSessionStore.QueueActionFailure.Kind {
+        switch self {
+        case .edit: .edit
+        case .remove: .remove
+        case .steer: .steer
+        }
     }
 }

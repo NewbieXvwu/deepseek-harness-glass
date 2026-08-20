@@ -454,6 +454,45 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertTrue(store.backgroundJobs.isEmpty)
     }
 
+    func testQueueActionUsesActiveHostItemAndWaitsForWholeSnapshot() async {
+        let store = NativeSessionStore()
+        store.loadSnapshotToolingFixture()
+        let sessionID = tryUnwrap(store.selectedSessionID)
+        store.applyMuxFrame(queueFrame(sessionID: sessionID, items: [
+            queuedItem(id: "q-edit", messageID: "m-edit", placement: "queued", content: [.object(["type": .string("text"), "text": .string("original")])]),
+        ]), sessionID: sessionID)
+        let invoked = expectation(description: "queue edit reaches typed session facade")
+        let api = RecordingQueueSessionAPI(invoked: invoked)
+        store.setSessionAPIForTesting(api)
+
+        store.updateQueuedMessage(itemID: "q-edit", action: .edit(content: [.text(text: "edited")]))
+        await fulfillment(of: [invoked], timeout: 1)
+        await eventually(timeout: 1) { store.updatingQueueItemID == nil }
+
+        XCTAssertEqual(api.requests, [.init(sessionId: sessionID, itemId: "q-edit", action: .edit(content: [.text(text: "edited")]))])
+        XCTAssertNil(store.queueActionFailure)
+        XCTAssertEqual(store.queuedMessages.map(\.preview), ["original"], "queue content remains Host-owned until session/queue sends a replacement snapshot")
+    }
+
+    func testQueueActionFailureIsScopedToTheActionAndDoesNotRetireRow() async {
+        let store = NativeSessionStore()
+        store.loadSnapshotToolingFixture()
+        let sessionID = tryUnwrap(store.selectedSessionID)
+        store.applyMuxFrame(queueFrame(sessionID: sessionID, items: [
+            queuedItem(id: "q-remove", messageID: "m-remove", placement: "queued", content: [.object(["type": .string("text"), "text": .string("retain until host frame")])]),
+        ]), sessionID: sessionID)
+        let invoked = expectation(description: "queue remove reaches typed session facade")
+        let api = RecordingQueueSessionAPI(invoked: invoked, error: DSHTransportError.invalidEndpoint)
+        store.setSessionAPIForTesting(api)
+
+        store.updateQueuedMessage(itemID: "q-remove", action: .remove)
+        await fulfillment(of: [invoked], timeout: 1)
+        await eventually(timeout: 1) { store.updatingQueueItemID == nil }
+
+        XCTAssertEqual(store.queueActionFailure, .init(itemID: "q-remove", kind: .remove))
+        XCTAssertEqual(store.queuedMessages.map(\.id), ["q-remove"])
+    }
+
     func testSubscriptionClearsPriorGenerationTransientStateAndTruncatesProjection() {
         let store = NativeSessionStore()
         store.loadSnapshotToolingFixture()
@@ -762,6 +801,33 @@ final class NativeSessionStoreTests: XCTestCase {
             try? await Task.sleep(for: .milliseconds(10))
         }
         XCTFail("condition was not met before timeout")
+    }
+
+    @MainActor
+    private final class RecordingQueueSessionAPI: NativeSessionAPI {
+        let invoked: XCTestExpectation
+        let error: Error?
+        private(set) var requests: [SessionUpdateQueueRequest] = []
+
+        init(invoked: XCTestExpectation, error: Error? = nil) {
+            self.invoked = invoked
+            self.error = error
+        }
+
+        func updateQueue(_ request: SessionUpdateQueueRequest) async throws -> SessionUpdateQueueResponse {
+            requests.append(request)
+            invoked.fulfill()
+            if let error { throw error }
+            return .init(accepted: true)
+        }
+
+        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse { throw DSHTransportError.invalidEndpoint }
+        func models(sessionID _: String) async throws -> SessionModelsResponse { throw DSHTransportError.invalidEndpoint }
+        func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
+        func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
+        func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+        func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+        func cancelQuestion(rpcID _: String) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
     }
 
     @MainActor

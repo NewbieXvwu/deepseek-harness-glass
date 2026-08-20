@@ -245,7 +245,18 @@
     "goalPauseAccessibility": { "value": "Pause goal", "source": "packages/client/ui-goal/src/client/locales.ts:action.pause" },
     "goalResumeAccessibility": { "value": "Resume goal", "source": "packages/client/ui-goal/src/client/locales.ts:action.resume" },
     "goalClearAccessibility": { "value": "Clear goal", "source": "packages/client/ui-goal/src/client/locales.ts:action.clear" },
-    "goalActionFailureTemplate": { "value": "{message} ({code})", "source": "packages/client/ui-goal/src/client/GoalBar.tsx:runAction" }
+    "goalActionFailureTemplate": { "value": "{message} ({code})", "source": "packages/client/ui-goal/src/client/GoalBar.tsx:runAction" },
+    "queueCountTemplate": { "value": "{n} queued messages", "source": "packages/client/ui-conversation/src/client/locales.ts:queue.count" },
+    "queueEditAccessibility": { "value": "Edit queued message", "source": "packages/client/ui-conversation/src/client/locales.ts:queue.edit" },
+    "queueEditUnsupported": { "value": "Contains non-text content; editing is not supported yet", "source": "packages/client/ui-conversation/src/client/locales.ts:queue.edit.unsupported" },
+    "queueEditFailure": { "value": "Edit failed: this message may have already started sending.", "source": "packages/client/ui-conversation/src/client/locales.ts:queue.editFailed" },
+    "queueRemoveAccessibility": { "value": "Remove queued message", "source": "packages/client/ui-conversation/src/client/locales.ts:queue.remove" },
+    "queueRemoveFailure": { "value": "Removal failed: this message may have already started sending.", "source": "packages/client/ui-conversation/src/client/locales.ts:queue.removeFailed" },
+    "queueSaveAccessibility": { "value": "Save queued message", "source": "packages/client/ui-conversation/src/client/locales.ts:queue.save" },
+    "queueCancelEditAccessibility": { "value": "Cancel editing", "source": "packages/client/ui-conversation/src/client/locales.ts:queue.cancelEdit" },
+    "queueSteerAccessibility": { "value": "Steer queued message", "source": "packages/client/ui-conversation/src/client/locales.ts:queue.steer" },
+    "queueSteerUnavailable": { "value": "Steering is available only while the agent is running", "source": "packages/client/ui-conversation/src/client/locales.ts:queue.steer.unavailable" },
+    "queueSteerFailure": { "value": "Steering failed. Try again.", "source": "packages/client/ui-conversation/src/client/locales.ts:queue.steerFailed" }
   },
   "assets": {
     "brand-wordmark": { "source": "packages/client/ui-primitives/src/BrandWordmark.tsx" },
@@ -280,6 +291,7 @@
     "icon-pause": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconPauseOutline16" },
     "icon-play": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconPlayOutline16" },
     "icon-trash": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconTrashOutline16" },
+    "icon-queue": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconQueueOutline14" },
     "icon-chevron-left": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconChevronLeftOutline14" },
     "icon-chevron-right": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconChevronRightOutline14" }
   }
