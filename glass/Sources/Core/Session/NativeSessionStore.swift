@@ -531,6 +531,10 @@ final class NativeSessionStore: ObservableObject {
     /// resident snapshots for a later open and does not tear down the verified
     /// Host connection owned by the shell.
     func clearActiveSelection() {
+        // Preserve the currently staged Host projection before clearing only
+        // the selection. RC8 `sessions.clear()` does not evict that resident
+        // view; a later open may restore it while fresh authority arrives.
+        preserveActiveState()
         historyTask?.cancel()
         historyTask = nil
         olderHistoryTask?.cancel()

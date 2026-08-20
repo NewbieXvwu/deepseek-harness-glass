@@ -488,6 +488,12 @@ final class NativeShellController: NativeSplitViewController {
                 },
                 commitSessionRename: { sessionID, title in
                     try await presentation.renameSession(sessionID, title: title)
+                },
+                moveWorkspace: { workspaceID, beforeWorkspaceID in
+                    try await presentation.moveWorkspace(workspaceID, beforeWorkspaceID: beforeWorkspaceID)
+                },
+                moveSession: { sessionID, workspaceID, beforeSessionID in
+                    try await presentation.moveSession(sessionID, in: workspaceID, beforeSessionID: beforeSessionID)
                 }
             ),
             workspaceSnapshotDialog: presentation.workspaceSnapshotDialog,

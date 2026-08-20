@@ -8,17 +8,17 @@ final class NativeWorkspaceStoreTests: XCTestCase {
     func testRecentWorkspaceProjectionMatchesRC8ActivityCreationAndHostOrder() {
         let sessions = [
             SessionSummaryDTO(
-                sessionId: "session-latest", updatedAt: 42, running: false, blank: false,
+                sessionId: "session-latest", updatedAt: 1_800_000_000_000, running: false, blank: false,
                 pendingInteraction: nil, parentSessionId: nil, origin: nil, cwd: "/latest",
                 agentPreset: nil, projections: nil
             ),
             SessionSummaryDTO(
-                sessionId: "session-earlier", updatedAt: 10, running: false, blank: false,
+                sessionId: "session-earlier", updatedAt: 1_700_000_000_000, running: false, blank: false,
                 pendingInteraction: nil, parentSessionId: nil, origin: nil, cwd: "/earlier",
                 agentPreset: nil, projections: nil
             ),
             SessionSummaryDTO(
-                sessionId: "session-tied", updatedAt: 42, running: false, blank: false,
+                sessionId: "session-tied", updatedAt: 1_800_000_000_000, running: false, blank: false,
                 pendingInteraction: nil, parentSessionId: nil, origin: nil, cwd: "/tied",
                 agentPreset: nil, projections: nil
             ),
