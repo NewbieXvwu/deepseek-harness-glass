@@ -23,6 +23,15 @@ final class NativeMarkdownRendererTests: XCTestCase {
         XCTAssertTrue(sanitized.contains("[safe](https://example.com)"))
     }
 
+    func testRenderedAttributedMarkdownRetainsOnlyHTTPLinkAttributes() {
+        let attributed = NativeMarkdownSecurityPolicy.attributedInlineMarkdown(
+            "[safe](https://example.com) [file](file:///tmp/private) <javascript:alert(1)>"
+        )
+        let links = attributed.runs.compactMap { $0.link?.absoluteString }
+
+        XCTAssertEqual(links, ["https://example.com"])
+    }
+
     func testFencedCodeHasStableCodeBlockAndIncompleteFenceStaysLiteralProse() {
         let settled = NativeMarkdownDocument.parse("before\n```swift\nlet x = 1\n```\nafter")
         XCTAssertEqual(settled, [

@@ -46,6 +46,18 @@ enum NativeMarkdownSecurityPolicy {
         }
         return result
     }
+
+    static func attributedInlineMarkdown(_ source: String) -> AttributedString {
+        let safe = sanitizedInlineMarkdown(source)
+        var options = AttributedString.MarkdownParsingOptions()
+        options.interpretedSyntax = .inlineOnlyPreservingWhitespace
+        var attributed = (try? AttributedString(markdown: safe, options: options)) ?? AttributedString(safe)
+        for run in attributed.runs {
+            guard let url = run.link, externalURL(from: url.absoluteString) == nil else { continue }
+            attributed[run.range].link = nil
+        }
+        return attributed
+    }
 }
 
 /// A deliberately bounded native document model. Fence boundaries are resolved
@@ -148,11 +160,7 @@ private struct NativeMarkdownProse: View {
     }
 
     private var attributed: AttributedString {
-        let safe = NativeMarkdownSecurityPolicy.sanitizedInlineMarkdown(text)
-        var options = AttributedString.MarkdownParsingOptions()
-        options.interpretedSyntax = .inlineOnlyPreservingWhitespace
-        options.failurePolicy = .returnPartiallyParsedIfPossible
-        return (try? AttributedString(markdown: safe, options: options)) ?? AttributedString(safe)
+        NativeMarkdownSecurityPolicy.attributedInlineMarkdown(text)
     }
 }
 
