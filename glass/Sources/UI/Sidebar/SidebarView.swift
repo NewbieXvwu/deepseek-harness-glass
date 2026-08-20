@@ -170,6 +170,7 @@ struct NativeSidebarView: View {
         }
         .buttonStyle(OfficialSidebarRowButtonStyle())
         .accessibilityLabel(OfficialUISpec.Text.settings)
+        .padding(.leading, collapsed ? OfficialUISpec.Spacing.p0 : OfficialUISpec.Layout.sidebarNativeExpandedFooterLeadingAdjustment)
         .padding(.bottom, OfficialUISpec.Spacing.p4)
     }
 }

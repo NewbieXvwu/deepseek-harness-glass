@@ -19,6 +19,7 @@ final class OfficialUISpecBuildTests: XCTestCase {
         XCTAssertEqual(OfficialUISpec.Layout.sidebarBuildBadgeHeight, 16)
         XCTAssertEqual(OfficialUISpec.Layout.sidebarNewSessionHeight, 38)
         XCTAssertEqual(OfficialUISpec.Layout.sidebarNativeExpandedLeadingInset, 5)
+        XCTAssertEqual(OfficialUISpec.Layout.sidebarNativeExpandedFooterLeadingAdjustment, 5)
         XCTAssertFalse(OfficialUISpec.Build.uiSpecRevision.isEmpty)
     }
 

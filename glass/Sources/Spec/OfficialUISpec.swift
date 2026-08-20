@@ -46,6 +46,10 @@ enum OfficialUISpec {
         static let sidebarNewSessionHeight: CGFloat = 38
         /// RC8 WindowServer paired measurement for NSSplitViewItem.sidebar.
         static let sidebarNativeExpandedLeadingInset: CGFloat = 5
+        /// RC8 paired footer measurement: the injected Settings slot needs the
+        /// same effective 12px official leading axis after its AppKit label
+        /// composition, five points beyond the shell's upper-content inset.
+        static let sidebarNativeExpandedFooterLeadingAdjustment: CGFloat = 5
 
         // Source: packages/client/ui-workspace/src/client/WorkspaceBrowser.module.css
         static let workspaceSectionHeaderHeight: CGFloat = 36

@@ -120,7 +120,8 @@
     "sidebarBrandMarkSize": { "value": 24, "source": "packages/client/ui-sidebar/src/client/SidebarRoot.module.css:.brandIdentity/.brandMark" },
     "sidebarBuildBadgeHeight": { "value": 16, "source": "packages/client/ui-sidebar/src/client/SidebarRoot.module.css:.buildRevision height" },
     "sidebarNewSessionHeight": { "value": 38, "source": "packages/client/ui-sidebar/src/client/SidebarRoot.module.css:.newSession height" },
-    "sidebarNativeExpandedLeadingInset": { "value": 5, "source": "RC8 WindowServer paired measurement: SidebarRoot CSS 12px root inset minus macOS NSSplitViewItem.sidebar 7px leading composition inset" }
+    "sidebarNativeExpandedLeadingInset": { "value": 5, "source": "RC8 WindowServer paired measurement: SidebarRoot CSS 12px root inset minus macOS NSSplitViewItem.sidebar 7px leading composition inset" },
+    "sidebarNativeExpandedFooterLeadingAdjustment": { "value": 5, "source": "RC8 WindowServer paired measurement: SidebarRoot.tsx footArea/settingsArea injected Settings foreground was x=14 native versus x=19 official after root leading composition; 5px footer label adjustment restores the official axis" }
   },
   "text": {
     "newSession": { "value": "New Session", "source": "packages/client/ui-sidebar/src/client/locales.ts" },
