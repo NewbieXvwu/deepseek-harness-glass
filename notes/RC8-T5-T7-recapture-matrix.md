@@ -13,6 +13,7 @@
 | Workspace/session management dialogs light/dark | `workspace-rename-*`、`session-rename-*`、`workspace-delete-*` | 对应 native viewport 场景 | report-only；T7.3 要求 dialog/focus/状态复核。 |
 | Approval takeover | `approval-composer-light` | `approval-panel-official-viewport.png` | 新增官方真实 replay capture；报告待人工分类。 |
 | Question takeover | `question-composer-light` | `question-composer-official-viewport.png` | 新增官方真实 replay capture；报告待人工分类。 |
+| Tool details inspector | `tooling-inspector-light` | `tooling-inspector-light.png` | 使用 RC8 `navigation-panes.e2e.ts` 的 seeded history：Search → seeded session → Trajectory → tool row → Event details Result；报告待人工分类。 |
 
 ## 自动化纪律
 
@@ -22,4 +23,4 @@
 
 ## 当前边界
 
-新增 approval/question 的官方采集复用 RC8 官方 e2e 的真实 replay fixture、访问模式切换和 stable takeover selector；不注入测试专用 UI 状态。由于本地 Linux 不具备 macOS 原生截图链，当前只完成 TypeScript 语法、策略 JSON、矩阵接线和视觉比较器自测。macOS-26 产出的当前 SHA 工件仍须复核、分类并在必要时从 `report-only` 升级到 `enforce`，T5.1–T5.6 与 T7.3 才可关闭。
+新增 approval/question 的官方采集复用 RC8 官方 e2e 的真实 replay fixture、访问模式切换和 stable takeover selector；不注入测试专用 UI 状态。两者均在写入稳定 waiting-state PNG/ARIA 元数据后执行官方同样的 Allow once 或 question 回答动作，消费 replay 的闭合响应并验证恢复 regular composer；这避免 fixture 未消费完而不改变采样表面。Tool details 场景同样复用 RC8 官方 `apps/web/tests/navigation-panes.e2e.ts` 的持久化 `seed.jsonl`：以真实 Search 结果打开会话、切换 Trajectory、选择首个 tool row、打开 Event details 并切到 Result；不伪造 inspector DOM。由于本地 Linux 不具备 macOS 原生截图链，当前只完成 TypeScript 语法、策略 JSON、矩阵接线和视觉比较器自测。macOS-26 产出的当前 SHA 工件仍须复核、分类并在必要时从 `report-only` 升级到 `enforce`，T5.1–T5.6 与 T7.3 才可关闭。

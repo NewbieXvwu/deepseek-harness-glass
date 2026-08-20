@@ -333,6 +333,12 @@ describe('reference capture: official welcome and session Jobs action', () => {
       await panel.getByText(/tok/).first().waitFor({ timeout: 30_000 })
       await page.screenshot({ path: join(outputDirectory, `${name}.png`) })
       await writeCaptureMetadata(page, name, 'light', { width: 1280, height: 1100 }, consoleTripwire.warnings, consoleTripwire.pageErrors)
+      // The fixture has a second response after the user decision. Complete the
+      // sanctioned action after the stable waiting capture so scaffold.close()
+      // can verify replay consumption without changing the captured surface.
+      await panel.getByRole('button', { name: 'Allow once' }).click()
+      await page.getByText('DONE', { exact: true }).waitFor({ timeout: 30_000 })
+      await page.locator('textarea').first().waitFor({ state: 'visible', timeout: 30_000 })
       expect(consoleTripwire.warnings).toEqual([])
       expect(consoleTripwire.pageErrors).toEqual([])
     } finally {
@@ -362,6 +368,14 @@ describe('reference capture: official welcome and session Jobs action', () => {
       await page.getByText('Waiting for answer', { exact: true }).waitFor({ timeout: 30_000 })
       await page.screenshot({ path: join(outputDirectory, `${name}.png`) })
       await writeCaptureMetadata(page, name, 'light', { width: 1280, height: 1100 }, consoleTripwire.warnings, consoleTripwire.pageErrors)
+      // Answer after the waiting-state screenshot to consume the fixture's
+      // closing response and prove the takeover returns to the regular composer.
+      await composer.getByRole('checkbox', { name: 'Blue' }).click()
+      const customAnswer = composer.getByRole('textbox')
+      await customAnswer.fill('Include accessibility notes')
+      await customAnswer.press('Enter')
+      await page.getByText('DONE', { exact: true }).waitFor({ timeout: 30_000 })
+      await page.locator('textarea').first().waitFor({ state: 'visible', timeout: 30_000 })
       expect(consoleTripwire.warnings).toEqual([])
       expect(consoleTripwire.pageErrors).toEqual([])
     } finally {
