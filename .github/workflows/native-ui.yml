@@ -265,7 +265,7 @@ jobs:
       - name: Independently compile declared SwiftPM targets
         run: |
           cd glass
-          swift build --configuration release
+          swift build --configuration release --product DeepSeekHarnessGlassApp
 
       - name: Run all XCTest suites
         env:
