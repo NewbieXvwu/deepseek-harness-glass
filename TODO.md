@@ -598,8 +598,8 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 | `approval-composer-light` | 阶段2配对验收；ApprovalPanel 140px裁切已固定 | 补充更广泛approval状态与RPC测试 |
 | `question-composer-light` | 阶段2配对验收；QuestionComposer 310px卡片已固定 | 补充选择/提交/重连测试 |
 | `sidebar-rail-narrow-light` | 场景契约与CI存在性已建立 | 完成1023px阈值、焦点和官方motion配对 |
-| `jobs-expanded-light` | RC8 同状态场景为 `report-only`；现有几何收敛仍需以 RC8 新工件复核。 | 分类现有 light diff、补齐官方同等 transcript/details 闭合与 popover 几何，达到阈值后进入 `enforce`。 |
-| `jobs-expanded-dark` | RC8 新增深色同状态场景已接入真实 ThemeRuntime、Host whole snapshot、原生 `.darkAqua` 和 pair diff，当前为 `report-only`。 | 首次工件须与 light 共享业务 fixture，并独立分类 dark surface、state dot、trigger/popover、文本与系统材质差异；不得由 light 结果代替。 |
+| `jobs-expanded-light` | `fd0b033` 的 macOS-26 [run 32332870557](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32332870557) 成功；原生图为 1280×840，Jobs trigger/status/duration 已固定 en-US。仍为 `report-only`（material `0.16355748`、mean `28.509988`、exact `0.41469308`）。 | 补齐官方同等 transcript/header/composer 层（T7/T8/T9）并继续收敛 Jobs trigger/popover 几何；在完整内容层归责后达到阈值才可进入 `enforce`。 |
+| `jobs-expanded-dark` | `fd0b033` 的同一 run 成功生成 1280×840 dark pair；真实 ThemeRuntime、Host whole snapshot、原生 `.darkAqua` 均已接入，当前为 `report-only`（material `0.37511254`、mean `11.910796`、exact `0.64757999`）。 | 与 light 共享业务 fixture但独立收敛 dark surface、state dot、trigger/popover 和内容层差异；不得由 light 结果代替。 |
 
 ### E. 最近修复与可复用经验
 
