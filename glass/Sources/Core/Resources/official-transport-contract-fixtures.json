@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "officialSourceCommit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca",
-  "contractRevision": "official-99f6f02-transport-contract-r1",
-  "fixtureRevision": "official-99f6f02-transport-fixtures-r1",
+  "officialSourceCommit": "141eb6fef83422698aef7a981029e843e8161534",
+  "contractRevision": "official-141eb6f-transport-contract-r1",
+  "fixtureRevision": "official-141eb6f-transport-fixtures-r1",
   "fixtureClass": "schema-valid deterministic transport replay",
   "secretPolicy": "All credential-like values are literal non-secret fixture strings; no user configuration or Host credentials are captured.",
   "records": [

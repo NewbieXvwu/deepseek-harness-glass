@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "officialSourceCommit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca",
+  "officialSourceCommit": "141eb6fef83422698aef7a981029e843e8161534",
   "captureContract": {
     "logicalViewport": { "width": 1280, "height": 840 },
     "deviceScaleFactor": 1,
     "locale": "en-US",
-    "colorScheme": "light",
+    "colorScheme": "per-scene",
     "reduceTransparency": false,
     "increaseContrast": false,
     "reduceMotion": false,
@@ -25,8 +25,29 @@
       "id": "jobs-expanded-light",
       "surface": "conversation.session-header-background-jobs",
       "state": "selected-session-two-host-jobs-expanded",
+      "colorScheme": "light",
       "officialComponents": ["AppFrame", "ConversationRoot", "JobListAction", "StateDot"],
       "nativeEntry": "SnapshotExporter.DSH_GLASS_SNAPSHOT_MODE=jobs",
+      "requiredEvidence": ["source-map", "official-screenshot", "native-screenshot", "paired-viewport", "difference-ledger", "post-fix-recapture", "layout-rectangles", "accessibility", "rpc-fixture"],
+      "allowedDifferenceClasses": ["font-rendering", "system-glass"]
+    },
+    {
+      "id": "welcome-no-workspace-dark",
+      "surface": "conversation.empty-hero",
+      "state": "no-workspace",
+      "colorScheme": "dark",
+      "officialComponents": ["SidebarRoot", "EmptyHero", "InputBar", "ThemeRuntime"],
+      "nativeEntry": "NativeAppShell.PresentationMode.welcome + DSH_GLASS_SNAPSHOT_COLOR_SCHEME=dark",
+      "requiredEvidence": ["source-map", "official-screenshot", "native-screenshot", "paired-viewport", "difference-ledger", "post-fix-recapture", "layout-rectangles", "accessibility"],
+      "allowedDifferenceClasses": ["font-rendering", "system-glass"]
+    },
+    {
+      "id": "jobs-expanded-dark",
+      "surface": "conversation.session-header-background-jobs",
+      "state": "selected-session-two-host-jobs-expanded",
+      "colorScheme": "dark",
+      "officialComponents": ["AppFrame", "ConversationRoot", "JobListAction", "StateDot", "ThemeRuntime"],
+      "nativeEntry": "SnapshotExporter.DSH_GLASS_SNAPSHOT_MODE=jobs + DSH_GLASS_SNAPSHOT_COLOR_SCHEME=dark",
       "requiredEvidence": ["source-map", "official-screenshot", "native-screenshot", "paired-viewport", "difference-ledger", "post-fix-recapture", "layout-rectangles", "accessibility", "rpc-fixture"],
       "allowedDifferenceClasses": ["font-rendering", "system-glass"]
     },

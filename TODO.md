@@ -6,7 +6,7 @@
 
 **目标系统：** macOS 26+、Xcode 26+、Apple Silicon。
 
-**官方基线：** `deepseek-ai/deepseek-harness@99f6f02fecdb7dff40c3fbc9470f5907c29f74ca`。任何升级均须通过本文件定义的协议、视觉与无障碍门禁后，才可加入支持矩阵。[1] [2]
+**官方基线：** `deepseek-ai/deepseek-harness@141eb6fef83422698aef7a981029e843e8161534`。任何升级均须通过本文件定义的协议、视觉与无障碍门禁后，才可加入支持矩阵。[1] [2]
 
 > **首要原则：** 本项目不是替换 CSS 或包装网页，而是保留 DeepSeek Harness Host、替换 Browser Client。官方布局常量、文本、字段顺序、状态机与交互语义是规格来源；Liquid Glass 只增强 macOS 的窗口、导航和必要操作控件，不能借机添加任何非官方的产品文案、页面、信息层级或装饰。
 
@@ -233,27 +233,27 @@
 
 Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 macOS 上，`NSSplitViewController` 的 sidebar 和 inspector 行为能提供相应的系统材质。Liquid Glass 属于导航/控制层，不应用于整个内容层。[9] [10] [11]
 
-- [x] **T5.1：实现 `WindowCoordinator`。** `NativeWindowPolicy` 将迁移窗口职责收敛为 1280×840 初始 content size、880×600 content/min size、`.fullSizeContentView`、标准 `.unifiedCompact` AppKit titlebar、stable `NSWindow` autosave/restoration identifier；不再将透明网页窗口作为玻璃实现。首次安装恢复同名 native frame 或居中，red-close 先保存 frame 再 `orderOut`，`showAndFocus` 会 deminiaturize、聚焦且不创建第二个 shell；`DeepSeekHarnessGlassApp.applicationShouldHandleReopen` 将 Dock reopen 直送同一 coordinator。`windowDidMiniaturize`、`windowDidDeminiaturize`、`windowShouldClose` 映射到可审计 lifecycle，实际窗口管理仍完全由标准 NSWindow/AppKit 负责。
+- [ ] **T5.1：实现 `WindowCoordinator`。** `NativeWindowPolicy` 将迁移窗口职责收敛为 1280×840 初始 content size、880×600 content/min size、`.fullSizeContentView`、标准 `.unifiedCompact` AppKit titlebar、stable `NSWindow` autosave/restoration identifier；不再将透明网页窗口作为玻璃实现。首次安装恢复同名 native frame 或居中，red-close 先保存 frame 再 `orderOut`，`showAndFocus` 会 deminiaturize、聚焦且不创建第二个 shell；`DeepSeekHarnessGlassApp.applicationShouldHandleReopen` 将 Dock reopen 直送同一 coordinator。`windowDidMiniaturize`、`windowDidDeminiaturize`、`windowShouldClose` 映射到可审计 lifecycle，实际窗口管理仍完全由标准 NSWindow/AppKit 负责。
   - 依赖：T1.2。
   - 验收证据：独立 `GlassAppTests/WindowCoordinatorTests` 在无 WindowServer 的 XCTest host 验证迁移几何、native style mask、toolbar policy、stable autosave/restoration key，以及 `visible → hidden/minimized → visible` close-to-menu-bar/reopen policy；避免以不可靠的 headless AppKit 显示替代真实应用组装。workflow 在 Host + transport smoke 后独立运行该 test target。macOS-26 [run 32215096026](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32215096026)（commit `126cd24`）通过该新窗口门、所有静态/module/transport gates、SwiftPM/Swiftc、真实 rc.7 Host smoke、app 组装、snapshot与官方 pairing；人工 contact sheet 复核已记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`。本项无 SwiftUI renderer 修改，welcome 仍明确为 `report-only`，不构成 UI 场景视觉完成。
 
-- [x] **T5.2：实现 AppKit 三栏容器。** `NativeShellRootController` 将 `NativeShellController: NSSplitViewController` 与 modal overlay 作为 AppKit siblings；sidebar、conversation、details 三个 `NSSplitViewItem` 仅承载各自 SwiftUI 内容，divider 与 containment 不经 SwiftUI 模拟。`NativeSplitViewController` 以锁定 `OfficialColumnLayout` 应用官方 sidebar/center/details 解析，details 为 `.useConstraints` 可折叠列；实际 divider constraint 经 `NativeSplitLayoutPolicy` 统一，拖动后的受限 sidebar/details 宽度会写回 `NativeShellPresentation` preferences，故 Host/SwiftUI状态刷新和窗口重布局保留用户选择。自动窄窗口或手工收起时 sidebar 恒为官方 56px rail；details 若会侵蚀官方 640px center minimum 即折叠。
+- [ ] **T5.2：实现 AppKit 三栏容器。** `NativeShellRootController` 将 `NativeShellController: NSSplitViewController` 与 modal overlay 作为 AppKit siblings；sidebar、conversation、details 三个 `NSSplitViewItem` 仅承载各自 SwiftUI 内容，divider 与 containment 不经 SwiftUI 模拟。`NativeSplitViewController` 以锁定 `OfficialColumnLayout` 应用官方 sidebar/center/details 解析，details 为 `.useConstraints` 可折叠列；实际 divider constraint 经 `NativeSplitLayoutPolicy` 统一，拖动后的受限 sidebar/details 宽度会写回 `NativeShellPresentation` preferences，故 Host/SwiftUI状态刷新和窗口重布局保留用户选择。自动窄窗口或手工收起时 sidebar 恒为官方 56px rail；details 若会侵蚀官方 640px center minimum 即折叠。
   - 依赖：T2.4、T5.1。
   - 验收证据：`NativeSplitLayoutPolicyTests` 覆盖锁定 1280px `280/640/360` 基线、sidebar 264–420 clamp、56px collapsed rail、details 300–520 clamp、divider的可用宽度限制与无法容纳 center minimum 时 details collapse；T2.4 的 30+ official `computeColumns` fixtures 继续在 `OfficialUISpecBuildTests` 全量比较。`GlassAppTests` 已在 workflow Host + transport smoke 后独立执行。macOS-26 [run 32216703475](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32216703475)（commit `304da29`）通过 split policy、全部静态/module/transport gates、SwiftPM/Swiftc、真实 rc.7 Host smoke、app 组装、snapshot和官方 pairing；人工 contact sheet 复核记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`。本项无 renderer 文案/asset/token变更，welcome仍明确为 `report-only`，不构成 UI 场景视觉完成。
 
-- [x] **T5.3：让系统负责 sidebar/inspector 材质。** `NativeSplitViewController` 使用 `NSSplitViewItem(sidebarWithViewController:)` 与 `NSSplitViewItem(inspectorWithViewController:)`，两个 SwiftUI宿主保持透明；禁止在这两个结构区域加 `NSVisualEffectView`、固定官方色 canvas、全窗自定义模糊或壁纸亮度采样来“模拟”玻璃。系统在 Light/Dark、Reduce Transparency、Increase Contrast 下负责导航材质的自然适配。
+- [ ] **T5.3：让系统负责 sidebar/inspector 材质。** `NativeSplitViewController` 使用 `NSSplitViewItem(sidebarWithViewController:)` 与 `NSSplitViewItem(inspectorWithViewController:)`，两个 SwiftUI宿主保持透明；禁止在这两个结构区域加 `NSVisualEffectView`、固定官方色 canvas、全窗自定义模糊或壁纸亮度采样来“模拟”玻璃。系统在 Light/Dark、Reduce Transparency、Increase Contrast 下负责导航材质的自然适配。
   - 依赖：T5.2。
   - 验收证据：`check-native-structural-material.py` 在每轮 CI 强制 sidebar/inspector AppKit item、透明宿主以及无 `NSVisualEffectView`/固定 structural background/self-drawn canvas；`SnapshotExporterTests` 覆盖 macOS 26 ScreenCaptureKit alpha-first pure-black frame rejection，避免无头 WindowServer 黑帧被伪装为截图。macOS-26 [run 32224425678](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32224425678)（commit `a5f1efb`）通过全部静态/module/transport/material gates、SwiftPM、真实 rc.7 Host smoke、`GlassAppTests`、`SnapshotExporterTests`、应用装配、原生快照和官方配对；人工对照、官方 PNG、原生 PNG、amplified diff 与报告JSON已记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`。该无头 runner 对受支持ScreenCaptureKit current-process window与系统 `screencapture -l` 均无法合成系统拥有的sidebar/inspector材质，导致仅这些区域显示黑色；已依据T0.3/T2.6逐路径验证、明确限定为系统渲染例外，绝不放宽内容、控件、文字、几何、字体或无障碍差异。
 
-- [x] **T5.4：建立 `GlassPolicy`。** `GlassPolicy` 明确区分 `content`、`systemNavigation`、`regularGlassCustomControl`、`clearGlassMediaOverlay`；`GlassPolicyBudget` 将每场景 custom glass 限为一个，系统导航材质仍只由AppKit拥有。唯一既有自定义导航操作控件通过具名 `.regularGlassCustomControl` 进入 `approvedGlassEffect`，正文、sidebar/inspector、composer、list row和dialog不获得附带玻璃。
+- [ ] **T5.4：建立 `GlassPolicy`。** `GlassPolicy` 明确区分 `content`、`systemNavigation`、`regularGlassCustomControl`、`clearGlassMediaOverlay`；`GlassPolicyBudget` 将每场景 custom glass 限为一个，系统导航材质仍只由AppKit拥有。唯一既有自定义导航操作控件通过具名 `.regularGlassCustomControl` 进入 `approvedGlassEffect`，正文、sidebar/inspector、composer、list row和dialog不获得附带玻璃。
   - 依赖：T5.2。
   - 验收证据：`check-glass-policy.py` 在CI拒绝GlassUI任何未通过 `approvedGlassEffect(policy:in:)` 声明的原始 `.glassEffect`，并拒绝未经实现审查的custom policy；`GlassPolicyTests` 覆盖内容/系统导航禁止custom glass、仅批准类别可用、system navigation material ownership和单控件预算。macOS-26 [run 32225877836](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32225877836)（commit `7ebaefd`）通过新增policy gate、全部既有静态/module/transport/material gates、SwiftPM、真实rc.7 Host smoke、`GlassAppTests`、`SnapshotExporterTests`、应用组装、原生快照和官方配对；人工审阅及报告已记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`，未发现T5.4引入的可观察内容层或布局回归。欢迎页既有无头系统材质`report-only`例外仍严格受T5.3记录约束，绝不扩展为其他视觉差异豁免。
 
-- [x] **T5.5：实现有限的自定义 glass controls。** 仅将既有、互斥的官方sidebar打开/收起导航操作置入 `GlassEffectContainer`，共用稳定 `glassEffectID` 管理形变；保持官方图标、尺寸、间距和accessible label，绝不向正文、composer、list row、modal或系统sidebar/inspector添加glass。`NativeGlassNavigationButtonStyle` 仅在批准的 `.regularGlassCustomControl` 下使用交互式效果，单场景预算仍为一个。
+- [ ] **T5.5：实现有限的自定义 glass controls。** 仅将既有、互斥的官方sidebar打开/收起导航操作置入 `GlassEffectContainer`，共用稳定 `glassEffectID` 管理形变；保持官方图标、尺寸、间距和accessible label，绝不向正文、composer、list row、modal或系统sidebar/inspector添加glass。`NativeGlassNavigationButtonStyle` 仅在批准的 `.regularGlassCustomControl` 下使用交互式效果，单场景预算仍为一个。
   - 依赖：T2.3、T5.4。
   - 验收证据：`check-glass-policy.py` 现强制两个互斥sidebar navigation ID、`GlassEffectContainer`、明确Reduce Motion环境与无策略raw glass禁止；`GlassPolicyTests` 覆盖Reduce Transparency/Increase Contrast关闭custom glass、Reduce Motion关闭morphing以及原有policy/budget。macOS-26 [run 32226837259](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32226837259)（commit `002f474`）通过所有静态/module/transport/material/GlassPolicy gates、SwiftPM、真实rc.7 Host smoke、`GlassAppTests`、应用装配、原生快照与官方配对；人工工件复核已记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`，未发现T5.5引入的内容层或布局回归。既有无头系统材质report-only例外继续严格限定在T5.3记录范围。
 
-- [x] **T5.6：建立无障碍验收基线。** 版本化 `official-accessibility-baseline.json` 覆盖welcome/sidebar rail、空session composer、details、approval与question六条锁定官方核心路径，分别约束VoiceOver label、键盘焦点契约、Reduce Motion、Reduce Transparency、Increase Contrast及light/dark颜色模式；收缩sidebar中的settings icon补齐显式 `OfficialUISpec.Text.settings` 名称。`NativeAccessibilityRuntimeTests` 以真实原生视图、`NSHostingView` 和 `NSWindow` 在受信任且可导出AX树的GUI测试host中递归验证核心路径；CI无头runner即使AX trusted仍不导出SwiftUI树，测试会明确受限跳过，版本化静态baseline gate始终强制执行。
+- [ ] **T5.6：建立无障碍验收基线。** 版本化 `official-accessibility-baseline.json` 覆盖welcome/sidebar rail、空session composer、details、approval与question六条锁定官方核心路径，分别约束VoiceOver label、键盘焦点契约、Reduce Motion、Reduce Transparency、Increase Contrast及light/dark颜色模式；收缩sidebar中的settings icon补齐显式 `OfficialUISpec.Text.settings` 名称。`NativeAccessibilityRuntimeTests` 以真实原生视图、`NSHostingView` 和 `NSWindow` 在受信任且可导出AX树的GUI测试host中递归验证核心路径；CI无头runner即使AX trusted仍不导出SwiftUI树，测试会明确受限跳过，版本化静态baseline gate始终强制执行。
   - 依赖：T5.3–T5.5。
   - 验收证据：`check-accessibility-baseline.py` 校验锁定commit、六条core path的来源/locale label/focus contract、macOS Dynamic Type平台限制以及系统偏好环境覆盖；`GlassPolicyTests` 覆盖Reduce Motion、Reduce Transparency和Increase Contrast下custom glass安全降级。Apple明确macOS用户不能修改`dynamicTypeSize`，且该值不影响文本大小，故不伪造用户Dynamic Type支持；系统Zoom由macOS负责，测试注入仍可用于布局回归。macOS-26 [run 32233840528](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32233840528)（commit `bee3839`）通过新增无障碍gate、核心路径测试编译、全部既有静态/module/transport/material gates、SwiftPM、真实rc.7 Host smoke、应用装配、原生快照与官方配对；人工复核与平台限制记录位于 `visual-review/official-99f6f02/welcome-no-workspace-light.md` 和 `notes/T5.5-apple-glass-accessibility-sources.md`。该项未扩大T5.3无头系统材质的严格report-only例外。
 
@@ -301,7 +301,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
   - 依赖：T4.5、T6.1、T7.1。
   - 验收：Host workspace/session change 帧到达后列表更新正确，不依赖页面刷新。
 
-- [x] **T7.3：实现 sidebar 搜索与行操作。** 行为、可见性、快捷键、空状态、结果排序和文案必须以锁定官方 UI 为准。
+- [ ] **T7.3：实现 sidebar 搜索与行操作。** 行为、可见性、快捷键、空状态、结果排序和文案必须以锁定官方 UI 为准。
   - 依赖：T7.2、T2.5。
   - 验收：每个官方测试场景可复现，搜索不创建未记录的原生私有索引。
 
@@ -507,24 +507,26 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 
 ## References
 
-[1]: https://github.com/deepseek-ai/deepseek-harness/blob/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca/README.zh.md "DeepSeek Harness 官方 README"
-[2]: https://github.com/deepseek-ai/deepseek-harness/blob/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca/docs/architecture.md "DeepSeek Harness Architecture"
-[3]: https://github.com/deepseek-ai/deepseek-harness/blob/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca/packages/bundle/web-app/cordis.patch.yml "官方 Web profile 组合清单"
-[4]: https://github.com/deepseek-ai/deepseek-harness/blob/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca/packages/client/ui-layout/src/client/AppFrame.tsx "官方 AppFrame"
-[5]: https://github.com/deepseek-ai/deepseek-harness/blob/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca/packages/client/ui-layout/src/client/columns.ts "官方三栏布局算法"
-[6]: https://github.com/deepseek-ai/deepseek-harness/blob/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca/packages/client/ui-theme/README.md "官方主题与 token 机制"
-[7]: https://github.com/deepseek-ai/deepseek-harness/blob/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca/packages/host/apiproxy/README.md "官方 Host API Proxy 与客户端 wire contract"
-[8]: https://github.com/deepseek-ai/deepseek-harness/blob/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca/packages/client/runtime/src/client/contract/conversation.ts "官方 Conversation Node Contract"
+[1]: https://github.com/deepseek-ai/deepseek-harness/blob/141eb6fef83422698aef7a981029e843e8161534/README.zh.md "DeepSeek Harness 官方 README"
+[2]: https://github.com/deepseek-ai/deepseek-harness/blob/141eb6fef83422698aef7a981029e843e8161534/docs/architecture.md "DeepSeek Harness Architecture"
+[3]: https://github.com/deepseek-ai/deepseek-harness/blob/141eb6fef83422698aef7a981029e843e8161534/packages/bundle/web-app/cordis.patch.yml "官方 Web profile 组合清单"
+[4]: https://github.com/deepseek-ai/deepseek-harness/blob/141eb6fef83422698aef7a981029e843e8161534/packages/client/ui-layout/src/client/AppFrame.tsx "官方 AppFrame"
+[5]: https://github.com/deepseek-ai/deepseek-harness/blob/141eb6fef83422698aef7a981029e843e8161534/packages/client/ui-layout/src/client/columns.ts "官方三栏布局算法"
+[6]: https://github.com/deepseek-ai/deepseek-harness/blob/141eb6fef83422698aef7a981029e843e8161534/packages/client/ui-theme/README.md "官方主题与 token 机制"
+[7]: https://github.com/deepseek-ai/deepseek-harness/blob/141eb6fef83422698aef7a981029e843e8161534/packages/host/apiproxy/README.md "官方 Host API Proxy 与客户端 wire contract"
+[8]: https://github.com/deepseek-ai/deepseek-harness/blob/141eb6fef83422698aef7a981029e843e8161534/packages/client/runtime/src/client/contract/conversation.ts "官方 Conversation Node Contract"
 [9]: https://developer.apple.com/documentation/technologyoverviews/adopting-liquid-glass "Apple: Adopting Liquid Glass"
 [10]: https://developer.apple.com/documentation/swiftui/applying-liquid-glass-to-custom-views "Apple: Applying Liquid Glass to custom views"
 [11]: https://developer.apple.com/videos/play/wwdc2025/310/ "Apple WWDC25: Build an AppKit app with the new design"
-[12]: https://github.com/deepseek-ai/deepseek-harness/blob/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca/packages/client/ui-sidebar/README.md "官方 Sidebar 模块说明"
-[13]: https://github.com/deepseek-ai/deepseek-harness/blob/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca/packages/client/ui-conversation/README.md "官方 Conversation UI 模块说明"
-[14]: https://github.com/deepseek-ai/deepseek-harness/blob/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca/packages/client/ui-settings-plugins/README.md "官方插件设置机制"
+[12]: https://github.com/deepseek-ai/deepseek-harness/blob/141eb6fef83422698aef7a981029e843e8161534/packages/client/ui-sidebar/README.md "官方 Sidebar 模块说明"
+[13]: https://github.com/deepseek-ai/deepseek-harness/blob/141eb6fef83422698aef7a981029e843e8161534/packages/client/ui-conversation/README.md "官方 Conversation UI 模块说明"
+[14]: https://github.com/deepseek-ai/deepseek-harness/blob/141eb6fef83422698aef7a981029e843e8161534/packages/client/ui-settings-plugins/README.md "官方插件设置机制"
 
-## 当前进度：完整可审计状态与唯一续跑入口（2026-08-19）
+## 当前进度：完整可审计状态与唯一续跑入口（2026-08-20）
 
 本节是仓库内**唯一有效的跨会话状态记录**。新会话必须以本节和前文“项目宪章”为起点，不得依赖外部 `CONTINUE_NEXT_SESSION.md`、聊天摘要或未提交的本地笔记。所有状态均以代码、官方来源、视觉证据、门禁和GitHub Actions为准；“部分实现”“能编译”“单一fixture通过”均不等于完成。
+
+> **RC8 重新认证：** 项目唯一官方基线现为 `141eb6f`（`dsh-v0.1.0-rc.8`）。所有 `99f6f02`/RC7 视觉工件和人工复核均为历史记录，不能作为 RC8 UI TODO 的完成依据。故 T5.1–T5.6 与 T7.3 已回退为未完成，直到使用 RC8 官方/原生同状态截图、ARIA/geometry、人工差异分类和更新后 head 自身的 macOS-26 CI 重新闭环。Core-only 已勾选项保留其历史实现证据，但后续 RC8 CI 必须持续验证其受控 DTO、规格和回归测试。
 
 ### A. 当前快照
 
@@ -532,29 +534,29 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 |---|---|
 | 远端仓库 | `NewbieXvwu/deepseek-harness-glass` |
 | 分支 | `main` |
-| 最新已验证功能提交 | `c0ea840` — `fix(T6.5): respect immediate boundary publication`；其 macOS-26 run `32268150962` 成功。 |
-| 最近功能链 | `598a77a` T6.4/T6.5 reducer与初始nodes；`424c7e1` JSONValue封装；`430b92a` Swift 6 State收窄；`c26a051` chat anchor排序；`5c08744` interrupted assistant/tool synthetic anchor |
-| 锁定官方来源 | `deepseek-ai/deepseek-harness@99f6f02fecdb7dff40c3fbc9470f5907c29f74ca` |
+| 当前 RC8 迁移 head | `fb5aab8` — 将当前 `main` 合入 PR #2 的 RC8 迁移分支；需取得该 head 自身 macOS-26 CI 后才可合并。 |
+| 最近功能链 | `d62ef24` RC8 基线、受控 payload、规格与 Host contract 迁移；`f6c6447` T6.6 Jobs 第二轮几何收敛；`fb5aab8` 保留二者的无冲突三方合并。 |
+| 锁定官方来源 | `deepseek-ai/deepseek-harness@141eb6fef83422698aef7a981029e843e8161534` |
 | 目标平台 | macOS 26+、Xcode 26+、Apple Silicon、Swift 6 |
-| D1规格门禁 | 通过：91 text、77 layout、29 assets、10 visual scenes |
-| D0原生门禁 | 通过：核心UI无WebView、DOM脚本和CSS注入 |
-| 最新完整 macOS CI | [run 32268150962](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32268150962)，功能提交 `c0ea840`，success；通过官方规格与架构门禁、SwiftPM独立编译、全量XCTest、原生app组装、display设置、原生快照和官方视觉比较。 |
-| 上一个成功功能CI | [run 32252208679](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32252208679)，HEAD `c26a051`，success；覆盖T6.4/T6.5初始nodes、chat anchor排序及完整截图链。 |
-| 当前主阶段 | 阶段6：Conversation node/replay基础层；T6.1–T6.5均已按来源、Core-only边界和各自提交CI闭环并勾选；下一项为T6.6扩展节点与T6.7 reconnect/replay。 |
-| 已勾选TODO条目 | 共36项：T0.1–T0.3、T1.1–T1.3、T2.1–T2.2、T2.6、T3.1–T3.6、T4.1–T4.6、T5.1–T5.6、T6.1–T6.5、T7.3；其余条目保持未勾选。 |
+| D1规格门禁 | RC8 本地复验通过：91 text、77 layout、29 assets、11 visual scenes；完整 macOS-26 复验待当前 head。 |
+| D0原生门禁 | RC8 本地复验通过：核心UI无WebView、DOM脚本和CSS注入；完整 macOS-26 复验待当前 head。 |
+| 最近 RC8 macOS CI | [run 32328246659](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32328246659)，原始 PR head `d62ef24`，success；通过 RC8 payload、规格与架构门禁、SwiftPM、XCTest、装配、快照和比较，但不能代替 `fb5aab8` 的合并后证据。 |
+| 当前合并门禁 | `fb5aab8` 已通过本地 RC8 规格、架构、DTO、transport、interaction-scene、accessibility、inventory 与 visual-policy 门禁；其独立 macOS-26 CI 尚未触发。 |
+| 当前主阶段 | 先完成 RC8 基线迁移与截图矩阵扩展，再以 RC8 同状态证据重新认证 T5.1–T5.6、T7.3；T6.6 和 T6.7 在此之后继续。 |
+| 已勾选TODO条目 | 共29项：T0.1–T0.3、T1.1–T1.3、T2.1–T2.2、T2.6、T3.1–T3.6、T4.1–T4.6、T6.1–T6.5；T5.1–T5.6、T7.3及其余条目均保持未勾选，直至 RC8 证据闭环。 |
 
 ### B. 阶段状态矩阵
 
 | 阶段 | 状态 | 已完成事实 | 尚未完成或不可勾选的内容 |
 |---|---|---|---|
-| 0. 原则与边界 | 阶段性完成 | 项目宪章、D0/D1规则、README/README.zh/贡献指南的 D0–D5 边界、核心 WebKit 静态门禁、唯一 rc.7/Node 24.19.0/官方 commit 支持矩阵、官方/原生截图证据链、可失败阈值自检、复刻层级和人工审阅准则已建立；T0.1–T0.3 已闭环 | 完整 D2–D5 产品行为、各 UI 场景从 report-only 收敛到 enforce 和全部人工视觉验收仍未完成；它们属于下游任务的完成条件，不可因此勾选。 |
+| 0. 原则与边界 | 阶段性完成 | 项目宪章、D0/D1规则、README/README.zh/贡献指南的 D0–D5 边界、核心 WebKit 静态门禁、唯一 RC8/Node 24.19.0/官方 commit 支持矩阵、官方/原生截图证据链、可失败阈值自检、复刻层级和人工审阅准则已建立；T0.1–T0.3 已闭环 | 完整 D2–D5 产品行为、各 UI 场景从 report-only 收敛到 enforce、RC8 的浅色/深色同状态截图矩阵和全部人工视觉验收仍未完成；它们属于下游任务的完成条件，不可因此勾选。 |
 | 1. 仓库与模块化基础 | 阶段性完成 | 13 项运行时资产已有机器可读分类；App/Window/MenuBar/Host lifecycle 已从 legacy `main.swift` 拆出；SwiftPM 的 Spec/Core/UI/Snapshot/App target 图、依赖方向门禁与 macOS 独立 release 编译已建立；T1.1–T1.3已勾选 | Plugins target 与 Tests target 的专用隔离将在下游插件/测试任务完成；旧路径全量行为审计和每个 UI/状态资产的完整迁移仍未完成 |
 | 2. 官方规格 | 部分完成 | `OfficialUISpec.swift`、official-ui-catalog、visual-scenes、D1校验和来源映射已存在；生成的 OfficialUISpec build 已绑定固定 Host、commit、完整 locale/token/layout/fixture 输入 hash 并通过 mismatch 自检与 Swift XCTest；1,268 条 634-key en/zh locale catalog、来源行号/commit、解析 revision、Swift 查询索引和可失败 UI literal lint 已建立；T2.1、T2.2、T2.6已勾选 | token全量语义映射、布局solver完整夹具、全覆盖场景规格与辅助功能矩阵仍未完成 |
 | 3. Host生命周期 | 部分完成 | `HarnessHostController`、`HostBuildVerifier`、payload缓存和运行时启动路径已实现 | 未验证Host策略、完整诊断页、生命周期混沌测试、下载导出与全面恢复仍未完成 |
 | 4. RPC/SSE | 部分完成 | RPC envelope、URLSession transport、SSE reducer、多个session/workspace/settings DTO已实现；最新新增settings.describe/mutate类型 | 全域facade、round-trip/真实Host契约测试、revision冲突和完整重连测试尚未闭环 |
-| 5. 窗口、三栏与Liquid Glass | 部分完成 | AppKit三栏根容器、根包装overlay、sidebar控制和部分Liquid Glass导航控件已实现 | WindowCoordinator恢复、完整列宽算法测试、材质策略、Reduce Transparency/Contrast与无障碍验证未完成 |
+| 5. 窗口、三栏与Liquid Glass | RC8 重新认证中 | AppKit三栏根容器、根包装overlay、sidebar控制、系统材质、Glass policy、有限导航 glass controls 与无障碍基线仍保留代码和历史回归 | T5.1–T5.6 的 RC7 配对工件不能作为 RC8 证据；须为 window、三栏、材质、glass controls 与辅助功能条件建立 RC8 官方/原生浅色/深色同状态场景并达到 enforce。 |
 | 6. 会话状态机 | 部分完成 | T6.1 NativeSessionStore、T6.2 SessionHistoryPager、T6.3 ProjectionStore、T6.4 ConversationNode协议、T6.5初始nodes已按各自来源、CI与Core-only/视觉边界证据勾选 | T6.6扩展nodes、T6.7 reconnect/replay、完整raw-event replay与cold/live一致性仍未完成 |
-| 7. 侧栏、工作区与会话浏览 | 阶段性完成 | Sidebar、workspace/session列表、搜索、行操作、rename/delete/fork/archive和Host RPC已实现；T7.3已勾选 | reorder、完整archive/ungrouped语义、所有窄窗口/键盘焦点和全场景回归尚未完成 |
+| 7. 侧栏、工作区与会话浏览 | RC8 重新认证中 | Sidebar、workspace/session列表、搜索、行操作、rename/delete/fork/archive和Host RPC代码仍存在 | T7.3 的 RC7 pairing 已失效；须以 RC8 搜索、行操作和管理 dialog 的浅色/深色同状态场景重新闭环，同时完成 reorder、完整archive/ungrouped语义、窄窗口/键盘焦点与全场景回归。 |
 | 8. Conversation主界面与Composer | 部分完成 | welcome、composer、model/permission控制行和部分prompt/cancel路径已实现；approval/question composer已配对验收 | 完整ChatView、Markdown安全策略、queue/steer、附件、model discovery、stats/todo/goal dock尚未完成 |
 | 9. 工具与复杂节点 | 部分完成 | ApprovalPanel、QuestionComposer和部分tooling inspector fixture存在 | generic tool及bash/read/search/diff/web/workflow/subagent/trajectory/deliverables全套renderer未完成 |
 | 10. 官方设置 | 进行中 | `DSHAPIClient.settingsDescribe/settingsMutate`、`SettingsNamespaceDTO`、secret slot DTO和`NativeSettingsStore`基础已提交 | Settings Root、schema form、draft/dirty/discard、openDocument、General、Models、Credentials、Plugin、Agent Presets和设置视觉回归均未完成 |
@@ -564,12 +566,12 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 
 ### C. TODO勾选的完整证据边界
 
-当前只允许以下36项保持勾选。T6.2、T6.4、T6.5已分别在 `bcf0257`、`8e68158`、`c0ea840` 的成功CI和Core-only审阅后闭环；其余未完成任务不得以已有代码或父提交CI提前勾选：
+当前只允许以下29项保持勾选。T6.2、T6.4、T6.5已分别在 `bcf0257`、`8e68158`、`c0ea840` 的成功CI和Core-only审阅后闭环；T5.1–T5.6与T7.3已因 RC8 基线迁移回退，等待新的来源、同状态视觉和当前 head CI 证据。其余未完成任务不得以已有代码或父提交CI提前勾选：
 
 | 条目 | 状态 | 证据与边界 |
 |---|---|---|
 | T0.1 | `[x]` 完成 | `f0e3549` 写入双语 README 与 `CONTRIBUTING.md` 的 D0–D5、官方来源/截图协议、逐项 TODO 勾选纪律和 `PluginWebHost` 唯一例外边界；`.github/workflows/native-ui.yml` 已在这些文件变更时运行静态门禁。当前提交的 macOS-26 [run 32152858091](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32152858091) 成功，D0/D1、构建与原生截图工件均已复核。此勾选不代表 T0.2/T0.3 的支持矩阵或完整视觉策略已完成。 |
-| T0.2 | `[x]` 完成 | `SupportedHostBuilds.json` 明确锁定 `deepseek-ai/deepseek-harness@99f6f02fecdb7dff40c3fbc9470f5907c29f74ca`、`@deepseek-ai/dsh`/`dsh-web-frontend` `0.1.0-rc.7`、Node `24.19.0`、最小 App `0.4.0`、protocol/UI revision 与验证日期 `2026-08-18`；`check-supported-host-build.py` 将 catalog、Info.plist、精确 lockfile、实际 payload package.json 和 Node 版本绑定验证。`d90b091` 的 macOS-26 [run 32156374393](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32156374393) 成功，验证并打包该基线。原生 Host 仅从 app bundle 受控启动，未提供任意外部 `dsh web` 作为写入目标的连接路径。此勾选不代表完整 Host 生命周期、RPC 协议或 T0.3 视觉判定策略已完成。 |
+| T0.2 | `[x]` 完成 | `SupportedHostBuilds.json` 明确锁定 `deepseek-ai/deepseek-harness@141eb6fef83422698aef7a981029e843e8161534`、`@deepseek-ai/dsh`/`dsh-web-frontend` `0.1.0-rc.8`、Node `24.19.0`、最小 App `0.4.0`、protocol/UI revision 与验证日期 `2026-08-20`；`check-supported-host-build.py` 将 catalog、Info.plist、精确 lockfile、实际 payload package.json 和 Node 版本绑定验证。原始 RC8 提交 `d62ef24` 的 macOS-26 [run 32328246659](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32328246659) 成功验证并打包该基线；包含当前 main 的刷新 head 仍须有其自身 CI 后才可合并。原生 Host 仅从 app bundle 受控启动，未提供任意外部 `dsh web` 作为写入目标的连接路径。此勾选不代表完整 Host 生命周期、RPC 协议或 T0.3 视觉判定策略已完成。 |
 | T0.3 | `[x]` 完成 | [`VISUAL_REPLICATION_TEST_PLAN.md`](docs/VISUAL_REPLICATION_TEST_PLAN.md) 将文本、布局、状态、交互的严格复刻与系统材质的 API/可读性/辅助功能验证分开；`visual-validation-policy.json` 明确每场景的 report-only/enforce 状态、阈值、系统例外和人工准则；`test_visual_policy.py` 证明超阈值场景在 enforce 下被拒绝。`c4ec69f` 的 macOS-26 [run 32157797085](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32157797085) 成功执行该自检及官方/原生配对。此勾选不代表任何仍为 report-only 或有未分类差异的页面视觉通过。 |
 | T1.1 | `[x]` 完成 | `RuntimeAssetInventory.json` 逐项分类 legacy entry、窗口、历史菜单栏、受控 Host、外部 3080 挂接、snapshot、DSH_HOME/log、Node/payload、repair、metadata/signing、CI/release 和 WebView 壳；`check-runtime-asset-inventory.py` 强制 13 项分类、唯一模块化 `@main`、legacy 文件删除和禁止外部 3080 路径。`fc8b499` 的 macOS-26 [run 32159109869](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32159109869) 成功验证清单、原生编译、官方/原生截图和质量门。此勾选不代表 T1.2 的独立 target/package、后续生命周期深度测试或任何下游 UI 行为完成。 |
 | T1.2 | `[x]` 完成 | `glass/Package.swift` 声明 `GlassSpec`、`GlassCore`、`GlassUI`、`GlassSnapshot` 与 `DeepSeekHarnessGlassApp` 五个 target；`check-module-boundaries.py` 强制依赖方向、唯一 `@main`、Core 无 AppKit/SwiftUI、UI 无 `Process`/应用生命周期、Session 无 `NSApplication`。`NativeImagePicker` 将 `NSOpenPanel` 由 Core 移至 UI；CI 执行 `swift build --configuration release`。`9563049` 的 macOS-26 [run 32161795843](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32161795843) 成功编译 target、生成官方/原生截图并通过人工对照复核。此勾选不代表 Plugins/Tests target、插件隔离或任何下游产品功能完成。 |
@@ -577,24 +579,27 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 | T2.1 | `[x]` 完成 | `official-ui-spec-build.json` 记录 `sourceCommit`、Host build ID、`uiSpecRevision`、locale/token/layout/fixture SHA-256 revision、确定性 `generatedAt`、生成器版本和 37 项上游输入 hash/行数；`OfficialUISpecBuild.swift` 暴露同一 build ID，Host 启动会拒绝其 ID/commit/UI revision 不匹配的 payload。`check-official-ui-spec-build.py` 从锁定源码重生成并比对，`test-official-ui-spec-build.py` 证明篡改 catalog 必失败，`OfficialUISpecBuildTests` 读取 build ID。`e9fc169` 的 macOS-26 [run 32166053042](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32166053042) 复验通过。此勾选不代表 T2.3 token 的完整生成已完成。 |
 | T2.2 | `[x]` 完成 | `official-locales.json` 从 28 个锁定 official locale 文件生成 1,268 条、634 个成对的 en/zh key；每条记录 namespace/key/value、插值参数、复数类别、来源路径/行号/commit，且解析 catalog revision 与 `OfficialUISpec.Build.localeRevision` 所代表的原始输入 hash 分离。`OfficialLocaleCatalog.swift` 提供双语查询；`check-official-locales.py` 重生成并验证来源、双语/插值/复数一致性及 source-input 绑定；`check-official-locale-literals.py` 与自检拒绝未登记的 SwiftUI 可见文案。`e9fc169` 的 macOS-26 [run 32166053042](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32166053042) 成功完成 Swift XCTest、独立编译和官方/原生 GUI 对照；人工复核未发现本次 locale 迁移新增视觉回归。此勾选不代表 T2.3 token 或下游页面文案的完整逐场景视觉通过。 |
 | T2.6 | `[x]` 完成 | 已建立官方/原生同状态同视口配对、放大局部检查、差异记录、立即修复和CI截图存在性规则。此勾选不代表所有视觉场景都已人工验收。 |
-| T7.3 | `[x]` 完成 | workspace-search、workspace rename、session rename、workspace delete已接入官方场景契约和Host行操作；管理Dialog按钮端帽/描边/禁用色/输入全选已在run 32142821176配对核验。此勾选不代表全部sidebar功能完成。 |
+| T7.3 | `[ ]` RC8 重新认证中 | workspace-search、workspace rename、session rename、workspace delete的代码、官方场景契约和 Host 行操作仍存在；但 run 32142821176 与其管理 dialog 配对工件属于 RC7 历史记录，不能作为 RC8 完成依据。必须以 RC8 官方/原生的 search、rename、delete 浅色/深色同状态图、ARIA/geometry、差异报告、人工分类及当前 head 的 macOS-26 CI 重新闭环。 |
 
 ### D. 视觉场景矩阵
 
-场景目录来源为 `glass/Sources/Spec/Fixtures/visual-scenes.json`，固定官方commit为 `99f6f02...`。所有场景要求light、DPR 1、同状态、同视口；管理Dialog和workspace search使用1280×1100视口。
+场景目录来源为 `glass/Sources/Spec/Fixtures/visual-scenes.json`，固定官方 commit 为 `141eb6f...`（`dsh-v0.1.0-rc.8`）。每个场景均要求固定的 light 或 dark 主题、DPR 1、同状态、同视口；可见表面按矩阵要求逐步同时覆盖浅色与深色。管理 Dialog 和 workspace search 使用 1280×1100 视口。RC7 的截图和人工复核仅作历史记录，不得作为 RC8 TODO 勾选证据。
 
 | 场景 | 当前证据状态 | 下一步 |
 |---|---|---|
-| `welcome-no-workspace-light` | run 32166053042 已从锁定官方源码捕获 1280×840 官方截图、原生截图和量化热图/对照图；T2.2 三栏人工复核未发现 locale/spec 变动引入的新结构或文本回归，但现有差异仍被记录 | 按 T0.3 的阈值与人工审阅准则分类、修复并关闭差异，不得把工件存在性或无新增回归当作视觉通过 |
+| `welcome-no-workspace-light` | 已有工件均属于 RC7 历史记录，不能用于 RC8 视觉验收；RC8 场景暂处于 `report-only`，不得从旧 run 推导“无新增回归”。 | 在 macOS-26 CI 以 RC8 WebUI 和同一原生 fixture 重建官方/原生 PNG、ARIA/几何 JSON、量化差异与人工分类；仅在完整证据闭环后评估是否进入 `enforce`。 |
+| `welcome-no-workspace-dark` | RC8 新增深色同状态场景已接入真实 ThemeRuntime `data-ds-dark-theme` 官方捕获、原生 `.darkAqua` 快照和 pair diff，当前为 `report-only`。 | 首次 macOS-26 工件须核对主题级联、文字/几何、ARIA及系统材质差异；分类和修复后才可进入 `enforce`。 |
 | `conversation-details-light` | CI场景契约存在 | 补全RPC fixture、完整node和配对核验 |
 | `tooling-inspector-light` | CI场景契约存在 | 补全tool renderer与详情栏核验 |
-| `workspace-search-light` | 官方/原生配对已验收，WS-01–WS-07已关闭 | 继续纳入全场景回归 |
-| `workspace-rename-light` | 官方/原生配对已验收；run 32142821176确认输入全选和按钮端帽 | 继续纳入全场景回归 |
-| `session-rename-light` | 官方/原生配对已验收；复用官方382×208 Dialog规格 | 继续纳入全场景回归 |
-| `workspace-delete-light` | 官方/原生配对已验收；230px卡片、描述换行、危险按钮已核对 | 继续纳入全场景回归 |
+| `workspace-search-light` | RC7 工件仅作历史记录，不能用于 RC8 验收 | 用 RC8 官方/原生同状态 search、空/结果/错误状态重建浅色/深色配对、ARIA/geometry和差异分类。 |
+| `workspace-rename-light` | RC7 dialog 工件仅作历史记录 | 用 RC8 官方/原生同状态 rename dialog 重建浅色/深色配对、输入全选和按钮端帽证据。 |
+| `session-rename-light` | RC7 dialog 工件仅作历史记录 | 用 RC8 官方/原生同状态 session rename dialog 重建浅色/深色配对和焦点证据。 |
+| `workspace-delete-light` | RC7 dialog 工件仅作历史记录 | 用 RC8 官方/原生同状态 delete dialog 重建浅色/深色配对、危险状态和文案换行证据。 |
 | `approval-composer-light` | 阶段2配对验收；ApprovalPanel 140px裁切已固定 | 补充更广泛approval状态与RPC测试 |
 | `question-composer-light` | 阶段2配对验收；QuestionComposer 310px卡片已固定 | 补充选择/提交/重连测试 |
 | `sidebar-rail-narrow-light` | 场景契约与CI存在性已建立 | 完成1023px阈值、焦点和官方motion配对 |
+| `jobs-expanded-light` | RC8 同状态场景为 `report-only`；现有几何收敛仍需以 RC8 新工件复核。 | 分类现有 light diff、补齐官方同等 transcript/details 闭合与 popover 几何，达到阈值后进入 `enforce`。 |
+| `jobs-expanded-dark` | RC8 新增深色同状态场景已接入真实 ThemeRuntime、Host whole snapshot、原生 `.darkAqua` 和 pair diff，当前为 `report-only`。 | 首次工件须与 light 共享业务 fixture，并独立分类 dark surface、state dot、trigger/popover、文本与系统材质差异；不得由 light 结果代替。 |
 
 ### E. 最近修复与可复用经验
 
@@ -604,9 +609,9 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 
 新会话必须按以下顺序开始，不得跳到更下游页面：
 
-1. 阅读本TODO的项目宪章和本“当前进度”章节；当前正式勾选共36项，T6.1–T6.5已闭环，下一步从T6.6开始。
-2. 执行 `git status --short`、`git log -10 --oneline`、`gh run list --repo NewbieXvwu/deepseek-harness-glass --workflow native-ui.yml --branch main --limit 10`，确认HEAD与CI一致；再运行 `python3 glass/ci/check-runtime-asset-inventory.py`、`python3 glass/ci/check-module-boundaries.py`、`python3 glass/ci/check-official-ui-spec-build.py --official-root /home/ubuntu/reference/deepseek-harness`、`python3 glass/ci/check-official-locales.py --official-root /home/ubuntu/reference/deepseek-harness`、`python3 glass/ci/check-official-locale-literals.py`、`python3 glass/ci/check-official-spec.py`、`bash glass/ci/check-no-webview.sh`、`python3 glass/ci/test_visual_policy.py` 和 `python3 glass/ci/check-supported-host-build.py --payload-dir glass/build/backend --node glass/build/node/node`（或等价 Node 24 路径）。
-3. 首先处理T6.6扩展节点和T6.7 reconnect/replay；T6.2、T6.4、T6.5已分别由其来源记录与macOS-26 run 32264787616、32266243458、32268150962闭环。后续任务证据不足时保持未勾选。
+1. 阅读本TODO的项目宪章和本“当前进度”章节；当前正式勾选共29项。先完成 RC8 基线迁移、截图矩阵与 T5.1–T5.6/T7.3 的重新认证，再继续 T6.6。
+2. 执行 `git status --short`、`git log -10 --oneline`、`gh run list --repo NewbieXvwu/deepseek-harness-glass --workflow native-ui.yml --limit 10`，确认待合并 head 与其自身 CI 一致；再运行 `python3 glass/ci/check-runtime-asset-inventory.py`、`python3 glass/ci/check-module-boundaries.py`、`python3 glass/ci/check-official-ui-spec-build.py --official-root /home/ubuntu/reference/deepseek-harness-rc8-analysis`、`python3 glass/ci/check-official-locales.py --official-root /home/ubuntu/reference/deepseek-harness-rc8-analysis`、`python3 glass/ci/check-official-locale-literals.py`、`python3 glass/ci/check-official-spec.py`、`bash glass/ci/check-no-webview.sh`、`python3 glass/ci/test_visual_policy.py` 和 `python3 glass/ci/check-supported-host-build.py --payload-dir glass/build/backend --node glass/build/node/node`（或等价 Node 24 路径）。
+3. 先扩展 RC8 浅色/深色截图场景和场景政策；T5.1–T5.6/T7.3 的视觉重认证完成后，再处理 T6.6 扩展节点和 T6.7 reconnect/replay。后续任务证据不足时保持未勾选。
 4. 按T6.6 → T6.7 → T7.1 → T7.2 → T7.4 → T8 → T9 → T10 → T11 → T12 → T13推进；不得跳到设置、插件或发布页以掩盖会话/节点基础层未闭环。
 
 ### G. 当前验证命令与远端证据
@@ -620,7 +625,7 @@ git log -10 --oneline
 gh run list --repo NewbieXvwu/deepseek-harness-glass --limit 10
 ```
 
-最新完整macOS-26回归为功能提交 `c0ea840` 的 [run 32268150962](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32268150962)，已成功；它通过 77 项 XCTest（5 项明确平台受限跳过、0 failures）、原生装配、快照和官方视觉比较，并使T6.5正式闭环。T6.4已由 `8e68158` 的run 32266243458闭环，T6.2已由 `bcf0257` 的run 32264787616闭环。后续新提交必须重新查询自己的run，不得沿用父提交成功状态。
+RC8 原始迁移提交 `d62ef24` 的 [run 32328246659](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32328246659) 成功完成受控 payload、官方/架构门禁、独立 SwiftPM 编译、全量 XCTest、原生装配、WindowServer 快照和视觉比较。它不覆盖包含当前 main 的刷新提交 `fb5aab8`，后者必须以自身 macOS-26 run 重新验证。`c0ea840`、`8e68158`、`bcf0257` 的 RC7 Core-only CI 仍保留其实现演化记录，但不得作为 RC8 可见 UI 的验收替代。后续新提交必须重新查询自己的 run，不得沿用父提交成功状态。
 
 ### H. 明确的未完成范围
 

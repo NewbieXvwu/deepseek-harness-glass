@@ -9,7 +9,7 @@ final class RPCDTOFixtureTests: XCTestCase {
         let fixture = try OfficialRPCFixtureCatalog.load()
         XCTAssertEqual(fixture.schemaVersion, 1)
         XCTAssertEqual(fixture.officialSourceCommit, OfficialUISpec.Build.sourceCommit)
-        XCTAssertEqual(fixture.fixtureRevision, "official-99f6f02-web-ui-r1")
+        XCTAssertEqual(fixture.fixtureRevision, "official-141eb6f-web-ui-r1")
         XCTAssertEqual(fixture.endpointClass, "isolated local pinned dsh web")
         XCTAssertEqual(fixture.records.count, 16)
         XCTAssertEqual(Set(fixture.records.map(\.method)).count, fixture.records.count)
@@ -72,6 +72,7 @@ final class RPCDTOFixtureTests: XCTestCase {
         }
 
         let hostDescribe = try decode(HostDescribeResponse.self, method: "host.describe")
+        XCTAssertEqual(hostDescribe.home, "/home/ubuntu")
         XCTAssertEqual(hostDescribe.canOpenPath, true)
         let workspaceList = try decode(WorkspaceListResponse.self, method: "workspace.list")
         XCTAssertEqual(workspaceList.items.count, 0)

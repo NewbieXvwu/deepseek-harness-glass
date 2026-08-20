@@ -10,7 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SCENES = ROOT / "Sources/Spec/Fixtures/official-interaction-scenes.json"
-EXPECTED_COMMIT = "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+EXPECTED_COMMIT = "141eb6fef83422698aef7a981029e843e8161534"
 REQUIRED_SCENES = {
     "startup-empty-hero",
     "welcome-no-workspace-light",

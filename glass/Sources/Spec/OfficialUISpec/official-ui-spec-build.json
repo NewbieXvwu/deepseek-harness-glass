@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca",
-  "hostBuildId": "dsh-0.1.0-rc.7-official-99f6f02",
-  "uiSpecRevision": "official-99f6f02-ui-spec-r1",
-  "localeRevision": "sha256:569848eb9b6dc76ddf4cf19a05c9a81b26cd1971bca3ece15aef1250710ae7b7",
+  "sourceCommit": "141eb6fef83422698aef7a981029e843e8161534",
+  "hostBuildId": "dsh-0.1.0-rc.8-official-141eb6f",
+  "uiSpecRevision": "official-141eb6f-ui-spec-r1",
+  "localeRevision": "sha256:deb97ab6844c03ce2e95c460c3a6637058a66650160ee2e87120ea3af7ef50ab",
   "tokenRevision": "sha256:2d1743337b8fbba4bd052e8f1ecd24e490c2b5707faf8c185bfeae78fa702989",
-  "layoutRevision": "sha256:d3a1b81af41e6bac496454ce1cb4a97dbf2ed6d8a8c615822a1c99aa48608718",
-  "fixtureRevision": "sha256:39fbdd0e22a71c681ede0287481c4176a878b4d9b6cdc6f2ccf2a7f45c8ddc9c",
-  "generatedAt": "2026-08-17T19:03:17+08:00",
+  "layoutRevision": "sha256:7e66486abe51de55d32c7b719455c2cbbe9e44ca993d920324a6281872d26ad2",
+  "fixtureRevision": "sha256:872c1643d024121234a07c1e04c8b473907b75ba183a43874062fd809b818688",
+  "generatedAt": "2026-08-19T23:11:50+08:00",
   "generator": {
     "name": "generate_official_ui_spec_build.py",
     "version": "1.0.0"
@@ -21,14 +21,14 @@
     },
     {
       "path": "apps/web/tests/support.ts",
-      "sha256": "f4eaaf394e50a4bd0771e3af7bcc0f358e35090044b81865a4c06a0eff8c9d4e",
-      "lines": 136,
+      "sha256": "1948e6833bb2f3c05ff3a72281dcc539b8db8ef673d9440edd5b46d9ea4f962b",
+      "lines": 137,
       "kind": "fixture"
     },
     {
       "path": "packages/client/connection/src/client/fixture.ts",
-      "sha256": "83b49ea4769dcb6ad746875b52aee9de429b80730fd17a49f3f0ffc8fda7dca2",
-      "lines": 3189,
+      "sha256": "325dd969f16c70fddb358dd7c0f0279bfe18e660ae9e16225cbb4c0dab968a2f",
+      "lines": 3287,
       "kind": "fixture"
     },
     {
@@ -39,8 +39,8 @@
     },
     {
       "path": "packages/client/ui-conversation/src/client/skeleton/InputBar.module.css",
-      "sha256": "c06ae1f782b500631cffb776b770c36437729b93c9dbf438117db1eafd0d6535",
-      "lines": 477,
+      "sha256": "5aa87ea48556405bd81c342410aff2b2bc6bc9d1f5e5a3b739e8c321d5b09c51",
+      "lines": 474,
       "kind": "layout"
     },
     {
@@ -87,14 +87,14 @@
     },
     {
       "path": "packages/client/ui-commands/src/client/locales.ts",
-      "sha256": "b113f8b8c0609badab11789c317ceeeadf1a1f3983fe6051d12ccbe4a7ba09e5",
-      "lines": 27,
+      "sha256": "f54ddd06107fa446520b53bb5df7f69f5b1046d9841a257d33a94ad607375f29",
+      "lines": 29,
       "kind": "locale"
     },
     {
       "path": "packages/client/ui-conversation/src/client/locales.ts",
-      "sha256": "170d1c262c8d7edef1f8e57d0b26653a3623e459099f81280f7c1f7f3ba7ee9e",
-      "lines": 345,
+      "sha256": "513cdd457f22c5e44dbf253bb244e43c74c888c10ca25a8c3bf14e189aca661d",
+      "lines": 361,
       "kind": "locale"
     },
     {
@@ -123,8 +123,8 @@
     },
     {
       "path": "packages/client/ui-message-feedback/src/client/locales.ts",
-      "sha256": "ebe5879314cffcb482c82359ba9aee541b42559d3bdce22795dbfcbb45ff4bbe",
-      "lines": 44,
+      "sha256": "d08a1f102f1c8f62fb80098f65ddd9e94dc03e9caeea36cba786347e76c6730f",
+      "lines": 46,
       "kind": "locale"
     },
     {
@@ -146,6 +146,12 @@
       "kind": "locale"
     },
     {
+      "path": "packages/client/ui-reference/src/client/locales.ts",
+      "sha256": "af49d90f09513ba8ec8fc6482d1c5586d7e6bd2a0213ab205391e5623963cf6b",
+      "lines": 37,
+      "kind": "locale"
+    },
+    {
       "path": "packages/client/ui-settings-general/src/client/locales.ts",
       "sha256": "36364af8ca7c8bcb7ebfccf79684392d6496641785931c2e45ebbf080d362e61",
       "lines": 25,
@@ -153,8 +159,8 @@
     },
     {
       "path": "packages/client/ui-settings-models/src/client/locales.ts",
-      "sha256": "98712065625b70a4cf1e3fb8afaa43dde49ac9c6205bf8ba8e18f5fffd91384a",
-      "lines": 201,
+      "sha256": "0d9cb7a868308c658bf8c218ce57af9cb036c1b87a17d47bb14701c13b2eed24",
+      "lines": 205,
       "kind": "locale"
     },
     {

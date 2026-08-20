@@ -6,12 +6,34 @@ import SwiftUI
 #endif
 struct NativeSidebarView: View {
     let workspaceStore: NativeWorkspaceStore
+    /// Source: RC8 `host.describe.home`; absent until the verified Host answers.
+    let hostHome: String?
     let collapsed: Bool
     let setCollapsed: (Bool) -> Void
     let workspaceActions: WorkspaceBrowserView.Actions
     let workspaceSnapshotDialog: WorkspaceBrowserView.SnapshotDialog
     let onNewSession: () -> Void
     let onOpenSettings: () -> Void
+
+    init(
+        workspaceStore: NativeWorkspaceStore,
+        hostHome: String? = nil,
+        collapsed: Bool,
+        setCollapsed: @escaping (Bool) -> Void,
+        workspaceActions: WorkspaceBrowserView.Actions,
+        workspaceSnapshotDialog: WorkspaceBrowserView.SnapshotDialog,
+        onNewSession: @escaping () -> Void,
+        onOpenSettings: @escaping () -> Void
+    ) {
+        self.workspaceStore = workspaceStore
+        self.hostHome = hostHome
+        self.collapsed = collapsed
+        self.setCollapsed = setCollapsed
+        self.workspaceActions = workspaceActions
+        self.workspaceSnapshotDialog = workspaceSnapshotDialog
+        self.onNewSession = onNewSession
+        self.onOpenSettings = onOpenSettings
+    }
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Namespace private var navigationGlassNamespace
@@ -27,6 +49,7 @@ struct NativeSidebarView: View {
 
             WorkspaceBrowserView(
                 store: workspaceStore,
+                hostHome: hostHome,
                 collapsed: collapsed,
                 requestSidebarExpansion: { setCollapsed(false) },
                 actions: workspaceActions,

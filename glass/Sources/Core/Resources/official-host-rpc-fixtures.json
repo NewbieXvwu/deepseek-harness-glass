@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "officialSourceCommit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca",
-  "fixtureRevision": "official-99f6f02-web-ui-r1",
+  "officialSourceCommit": "141eb6fef83422698aef7a981029e843e8161534",
+  "fixtureRevision": "official-141eb6f-web-ui-r1",
   "endpointClass": "isolated local pinned dsh web",
   "records": [
     {
@@ -24,6 +24,7 @@
             "provider": "deepseek-official",
             "model": "deepseek-v4-flash",
             "attachedSessions": 0,
+            "home": "/home/ubuntu",
             "canOpenPath": true
           }
         }

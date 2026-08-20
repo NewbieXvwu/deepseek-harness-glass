@@ -10,8 +10,8 @@ final class TransportContractRegressionTests: XCTestCase {
     func testFixtureMetadataAndRequiredContractSetArePinned() throws {
         let fixture = try OfficialTransportContractFixtureCatalog.load()
         XCTAssertEqual(fixture.officialSourceCommit, OfficialUISpec.Build.sourceCommit)
-        XCTAssertEqual(fixture.contractRevision, "official-99f6f02-transport-contract-r1")
-        XCTAssertEqual(fixture.fixtureRevision, "official-99f6f02-transport-fixtures-r1")
+        XCTAssertEqual(fixture.contractRevision, "official-141eb6f-transport-contract-r1")
+        XCTAssertEqual(fixture.fixtureRevision, "official-141eb6f-transport-fixtures-r1")
         XCTAssertFalse(fixture.secretPolicy.contains("real"))
         XCTAssertEqual(
             Set(fixture.records.map(\.contract)),

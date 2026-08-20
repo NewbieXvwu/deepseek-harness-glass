@@ -14,7 +14,7 @@ failures: list[str] = []
 
 if baseline.get("schemaVersion") != 1:
     failures.append("accessibility baseline schemaVersion must be 1")
-if baseline.get("officialSourceCommit") != "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca":
+if baseline.get("officialSourceCommit") != "141eb6fef83422698aef7a981029e843e8161534":
     failures.append("accessibility baseline must pin the locked official source commit")
 if "macOSDynamicType" not in baseline.get("principles", {}):
     failures.append("accessibility baseline must document the macOS dynamicTypeSize platform limitation")

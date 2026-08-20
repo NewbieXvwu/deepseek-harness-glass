@@ -7,7 +7,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
-const EXPECTED_COMMIT = "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca";
+const EXPECTED_COMMIT = "141eb6fef83422698aef7a981029e843e8161534";
 const SOURCE_PATH = "packages/client/ui-layout/src/client/columns.ts";
 
 interface Columns { sidebar: number; center: number; details: number }

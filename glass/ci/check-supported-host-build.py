@@ -11,7 +11,7 @@ import subprocess
 from pathlib import Path
 
 
-LOCKED_SOURCE = "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+LOCKED_SOURCE = "141eb6fef83422698aef7a981029e843e8161534"
 REQUIRED_BUILD_FIELDS = (
     "id",
     "officialSourceCommit",

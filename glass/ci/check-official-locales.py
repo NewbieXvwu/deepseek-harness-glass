@@ -18,7 +18,7 @@ CATALOG = ROOT / "Sources/Spec/Locales/official-locales.json"
 SWIFT = ROOT / "Sources/Spec/OfficialLocaleCatalog.swift"
 SPEC_BUILD = ROOT / "Sources/Spec/OfficialUISpec/official-ui-spec-build.json"
 GENERATOR = REPOSITORY_ROOT / "tools/spec-generation/generate_official_locales.py"
-EXPECTED_COMMIT = "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+EXPECTED_COMMIT = "141eb6fef83422698aef7a981029e843e8161534"
 
 
 def arguments() -> argparse.Namespace:

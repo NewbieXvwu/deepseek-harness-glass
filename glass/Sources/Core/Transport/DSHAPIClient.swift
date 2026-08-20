@@ -546,8 +546,17 @@ struct WorkspaceArchiveSessionResponse: Decodable, Sendable {
 /// These intentionally retain only stable top-level fields needed by the first
 /// native readiness/browser phases. Per-domain DTOs expand only with official
 /// schema fixtures; unknown fields remain decodable through Codable defaults.
+/// Source: `packages/host/apiproxy/src/api/host.schema.ts:hostDescribeValueSchema`.
+/// RC8 makes the account home directory part of every Host description so native
+/// displays can apply the same POSIX-only `~` abbreviation as the official UI.
 struct HostDescribeResponse: Decodable, Sendable {
-    let canOpenPath: Bool?
+    let version: String
+    let cwd: String
+    let provider: String?
+    let model: String?
+    let attachedSessions: Int
+    let home: String
+    let canOpenPath: Bool
     let directoryPicker: String?
 }
 
@@ -577,10 +586,22 @@ struct SessionSummaryDTO: Decodable, Sendable, Identifiable {
 }
 
 /// Source: `sessions.ts:SessionProjectionsBlock`. The projection registry is
-/// merge-extensible; the native shell reads only the locked `title` value.
+/// merge-extensible; native features decode only locked named values.
 struct SessionProjectionsDTO: Decodable, Sendable {
     let asOfSeq: Int
     let values: [String: JSONValue]
+}
+
+/// Source: `packages/host/apiproxy/src/api/sessions.schema.ts:imageLimitsProjectionSchema`.
+/// This Host-owned value is optional as a projection because attachment services
+/// may be absent; every individual field is required whenever the key exists.
+struct ImageAttachmentLimits: Decodable, Equatable, Sendable {
+    let maxImageBytes: Int
+    let maxImagesPerMessage: Int
+    let maxMessageImageBytes: Int
+    let maxImagePixels: Int
+    let maxImageDimension: Int
+    let mediaTypes: [String]
 }
 
 /// Source: `workspace.schema.ts:workspaceListValueSchema`.

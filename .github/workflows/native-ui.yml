@@ -46,7 +46,7 @@ permissions:
   contents: read
 
 env:
-  OFFICIAL_COMMIT: 99f6f02fecdb7dff40c3fbc9470f5907c29f74ca
+  OFFICIAL_COMMIT: 141eb6fef83422698aef7a981029e843e8161534
   DSH_NODE_VERSION: 24.19.0
 
 jobs:
@@ -185,8 +185,12 @@ jobs:
         run: |
           test -s "artifacts/official-webui/welcome-no-workspace-light.png"
           test -s "artifacts/official-webui/welcome-no-workspace-light.json"
+          test -s "artifacts/official-webui/welcome-no-workspace-dark.png"
+          test -s "artifacts/official-webui/welcome-no-workspace-dark.json"
           test -s "artifacts/official-webui/jobs-expanded-light.png"
           test -s "artifacts/official-webui/jobs-expanded-light.json"
+          test -s "artifacts/official-webui/jobs-expanded-dark.png"
+          test -s "artifacts/official-webui/jobs-expanded-dark.json"
 
       # This fixture is intentionally copied only after the optional upstream
       # build (its cross-plane e2e imports are not part of that aggregate), but
@@ -356,8 +360,10 @@ jobs:
             ./glass/scripts/verify-native-shell.sh "$PWD/glass/dist/DeepSeek Harness.app" \
             | tee native-shell-snapshot.log
           test -s "$snapshot_dir/welcome-light.png"
+          test -s "$snapshot_dir/welcome-dark.png"
           test -s "$snapshot_dir/conversation-dark.png"
           test -s "$snapshot_dir/jobs-expanded-light.png"
+          test -s "$snapshot_dir/jobs-expanded-dark.png"
           test -s "$snapshot_dir/tooling-inspector-dark.png"
           test -s "$snapshot_dir/approval-panel-light.png"
           test -s "$snapshot_dir/question-composer-light.png"
@@ -394,6 +400,15 @@ jobs:
           test -s artifacts/visual-diff/welcome-no-workspace-light-comparison.png
           test -s artifacts/visual-diff/welcome-no-workspace-light-report.json
           python glass/ci/compare_visual_pair.py \
+            --official artifacts/official-webui/welcome-no-workspace-dark.png \
+            --native artifacts/native-shell/welcome-dark.png \
+            --out-dir artifacts/visual-diff \
+            --scene welcome-no-workspace-dark \
+            --policy glass/Sources/Spec/Fixtures/visual-validation-policy.json \
+            --column-fixtures glass/Sources/Spec/Fixtures/official-column-layout-fixtures.json
+          test -s artifacts/visual-diff/welcome-no-workspace-dark-comparison.png
+          test -s artifacts/visual-diff/welcome-no-workspace-dark-report.json
+          python glass/ci/compare_visual_pair.py \
             --official artifacts/official-webui/jobs-expanded-light.png \
             --native artifacts/native-shell/jobs-expanded-light.png \
             --out-dir artifacts/visual-diff \
@@ -402,6 +417,15 @@ jobs:
             --column-fixtures glass/Sources/Spec/Fixtures/official-column-layout-fixtures.json
           test -s artifacts/visual-diff/jobs-expanded-light-comparison.png
           test -s artifacts/visual-diff/jobs-expanded-light-report.json
+          python glass/ci/compare_visual_pair.py \
+            --official artifacts/official-webui/jobs-expanded-dark.png \
+            --native artifacts/native-shell/jobs-expanded-dark.png \
+            --out-dir artifacts/visual-diff \
+            --scene jobs-expanded-dark \
+            --policy glass/Sources/Spec/Fixtures/visual-validation-policy.json \
+            --column-fixtures glass/Sources/Spec/Fixtures/official-column-layout-fixtures.json
+          test -s artifacts/visual-diff/jobs-expanded-dark-comparison.png
+          test -s artifacts/visual-diff/jobs-expanded-dark-report.json
 
       - name: Upload native UI review bundle
         if: always()

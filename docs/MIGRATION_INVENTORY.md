@@ -1,6 +1,6 @@
 # 原生迁移清单
 
-本清单以 `dsh-0.1.0-rc.7-official-99f6f02` 为唯一支持基线。状态含义如下：**保留**表示可直接纳入新模块；**迁移**表示需分解后重新实现；**删除**表示不得留在主应用路径；**对照**表示仅可用于官方或旧行为核验，不得参与发布路径。
+本清单以 `dsh-0.1.0-rc.8-official-141eb6f` 为唯一支持基线。状态含义如下：**保留**表示可直接纳入新模块；**迁移**表示需分解后重新实现；**删除**表示不得留在主应用路径；**对照**表示仅可用于官方或旧行为核验，不得参与发布路径。
 
 | 当前资产 | 现有职责 | 决策 | 目标归属 | 迁移条件 |
 |---|---|---|---|---|
@@ -32,8 +32,8 @@
 | 历史 `127.0.0.1:3080` / `__DSH_BOOT__` 探测 | 删除 | 无 | 不得把任意外部 `dsh web` 当作读写 Host；这会绕过固定 package/commit 边界。 | 资产门禁扫描所有 Swift 源码。 |
 | 离屏 snapshot export | 保留并扩展 | `Sources/Snapshot/SnapshotExporter.swift` | 环境请求时只渲染目标场景，随后退出，不启动菜单栏/Host。 | native-ui 工件包含场景 PNG。 |
 | 用户数据与日志 | 保留 | `Sources/Core/Host/HostRuntimeConfiguration.swift` | 使用 Application Support 的 app-scoped `DSH_HOME` 和 `logs/host.log`；禁止写入任意外部实例目录。 | Host failure 带 log path；支持矩阵与运行时测试。 |
-| Node、payload、manifest、Info.plist、图标、签名 | 保留 | `assemble.sh`、payload lockfile、Spec | Node 24.19.0 与 rc.7 payload 必须精确对应锁定官方 commit；原子 staging 后 ad-hoc 签名。 | `check-supported-host-build.py`、codesign 和 artifact manifest。 |
-| `repair-backend.sh` | 保留（维护工具） | `glass/repair-backend.sh` | 只重装 exact rc.7 payload；临时 `DSH_HOME` 冒烟，不覆盖用户数据。 | 脚本静态审阅；后续维护工具测试。 |
+| Node、payload、manifest、Info.plist、图标、签名 | 保留 | `assemble.sh`、payload lockfile、Spec | Node 24.19.0 与 rc.8 payload 必须精确对应锁定官方 commit；原子 staging 后 ad-hoc 签名。 | `check-supported-host-build.py`、codesign 和 artifact manifest。 |
+| `repair-backend.sh` | 保留（维护工具） | `glass/repair-backend.sh` | 只重装 exact rc.8 payload；临时 `DSH_HOME` 冒烟，不覆盖用户数据。 | 脚本静态审阅；后续维护工具测试。 |
 | native CI 与 release workflow | 保留并扩展 | `.github/workflows/` | native CI 是 D0/D1/support/visual 工件门；release 仅使用同一精确 payload，签名/公证仍待发布治理任务。 | macOS-26 当前提交 run。 |
 | 历史 WebView/DOM/CSS 注入壳 | 删除主路径，仅官方对照可用 | App target 外部参考目录 | 任何主业务 UI、Core、UI、Features 不得链接 WebKit 或读取网页 DOM。 | D0 `check-no-webview.sh`。 |
 

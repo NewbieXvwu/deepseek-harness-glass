@@ -15,7 +15,7 @@ from pathlib import Path
 
 GENERATOR_NAME = "generate_official_locales.py"
 GENERATOR_VERSION = "1.0.0"
-EXPECTED_COMMIT = "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+EXPECTED_COMMIT = "141eb6fef83422698aef7a981029e843e8161534"
 EXPORT = re.compile(r"^\s*export\s+const\s+(en|zh)\b[^=]*=\s*\{")
 PROPERTY_START = re.compile(
     r"^\s*(?P<key>'(?:\\.|[^'])*'|\"(?:\\.|[^\"])*\"|[A-Za-z_$][\w$]*)\s*:\s*(?P<expression>.*)$",

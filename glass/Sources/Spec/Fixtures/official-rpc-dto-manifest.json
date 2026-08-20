@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "officialSourceCommit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca",
-  "fixtureRevision": "official-99f6f02-web-ui-r1",
+  "officialSourceCommit": "141eb6fef83422698aef7a981029e843e8161534",
+  "fixtureRevision": "official-141eb6f-web-ui-r1",
   "generation": "hand-maintained Swift DTO source manifest",
   "methods": [
     {
@@ -10,71 +10,71 @@
       "facade": "hostDescribe",
       "sourcePath": "packages/host/apiproxy/src/api/rpc.schema.ts",
       "sourceSHA256": "sha256:436ef87a2a951ae592adf812e3a03642adcdf1255aa2aff6830cf269754c85ea",
-      "fixtureRevision": "official-99f6f02-web-ui-r1"
+      "fixtureRevision": "official-141eb6f-web-ui-r1"
     },
     {
       "method": "session.list",
       "swiftDTO": "SessionListResponse",
       "facade": "sessionList",
       "sourcePath": "packages/host/apiproxy/src/api/sessions.schema.ts",
-      "sourceSHA256": "sha256:d2759645cd79226359e4f4da88b35ecb75956c1b7772fa4e983021e91efee372",
-      "fixtureRevision": "official-99f6f02-web-ui-r1"
+      "sourceSHA256": "sha256:546043414a63db814f45922d3263314304e05eb0bb69b42b85c1841889384107",
+      "fixtureRevision": "official-141eb6f-web-ui-r1"
     },
     {
       "method": "session.history",
       "swiftDTO": "SessionHistoryRequest/SessionHistoryResponse",
       "facade": "sessionHistory",
       "sourcePath": "packages/host/apiproxy/src/api/sessions.schema.ts",
-      "sourceSHA256": "sha256:d2759645cd79226359e4f4da88b35ecb75956c1b7772fa4e983021e91efee372",
-      "fixtureRevision": "official-99f6f02-web-ui-r1"
+      "sourceSHA256": "sha256:546043414a63db814f45922d3263314304e05eb0bb69b42b85c1841889384107",
+      "fixtureRevision": "official-141eb6f-web-ui-r1"
     },
     {
       "method": "session.prompt",
       "swiftDTO": "SessionPromptRequest/SessionPromptResponse",
       "facade": "sessionPrompt",
       "sourcePath": "packages/host/apiproxy/src/api/sessions.schema.ts",
-      "sourceSHA256": "sha256:d2759645cd79226359e4f4da88b35ecb75956c1b7772fa4e983021e91efee372",
-      "fixtureRevision": "official-99f6f02-web-ui-r1"
+      "sourceSHA256": "sha256:546043414a63db814f45922d3263314304e05eb0bb69b42b85c1841889384107",
+      "fixtureRevision": "official-141eb6f-web-ui-r1"
     },
     {
       "method": "session.cancel",
       "swiftDTO": "SessionCancelRequest/SessionCancelResponse",
       "facade": "sessionCancel",
       "sourcePath": "packages/host/apiproxy/src/api/sessions.schema.ts",
-      "sourceSHA256": "sha256:d2759645cd79226359e4f4da88b35ecb75956c1b7772fa4e983021e91efee372",
-      "fixtureRevision": "official-99f6f02-web-ui-r1"
+      "sourceSHA256": "sha256:546043414a63db814f45922d3263314304e05eb0bb69b42b85c1841889384107",
+      "fixtureRevision": "official-141eb6f-web-ui-r1"
     },
     {
       "method": "session.create",
       "swiftDTO": "SessionCreateRequest/SessionCreateResponse",
       "facade": "sessionCreate",
       "sourcePath": "packages/host/apiproxy/src/api/sessions.schema.ts",
-      "sourceSHA256": "sha256:d2759645cd79226359e4f4da88b35ecb75956c1b7772fa4e983021e91efee372",
-      "fixtureRevision": "official-99f6f02-web-ui-r1"
+      "sourceSHA256": "sha256:546043414a63db814f45922d3263314304e05eb0bb69b42b85c1841889384107",
+      "fixtureRevision": "official-141eb6f-web-ui-r1"
     },
     {
       "method": "session.search",
       "swiftDTO": "SessionSearchRequest/SessionSearchResponse",
       "facade": "sessionSearch",
       "sourcePath": "packages/host/apiproxy/src/api/sessions.schema.ts",
-      "sourceSHA256": "sha256:d2759645cd79226359e4f4da88b35ecb75956c1b7772fa4e983021e91efee372",
-      "fixtureRevision": "official-99f6f02-web-ui-r1"
+      "sourceSHA256": "sha256:546043414a63db814f45922d3263314304e05eb0bb69b42b85c1841889384107",
+      "fixtureRevision": "official-141eb6f-web-ui-r1"
     },
     {
       "method": "session.rename",
       "swiftDTO": "SessionRenameRequest/SessionRenameResponse",
       "facade": "sessionRename",
       "sourcePath": "packages/host/apiproxy/src/api/sessions.schema.ts",
-      "sourceSHA256": "sha256:d2759645cd79226359e4f4da88b35ecb75956c1b7772fa4e983021e91efee372",
-      "fixtureRevision": "official-99f6f02-web-ui-r1"
+      "sourceSHA256": "sha256:546043414a63db814f45922d3263314304e05eb0bb69b42b85c1841889384107",
+      "fixtureRevision": "official-141eb6f-web-ui-r1"
     },
     {
       "method": "session.fork",
       "swiftDTO": "SessionForkRequest/SessionForkResponse",
       "facade": "sessionFork",
       "sourcePath": "packages/host/apiproxy/src/api/sessions.schema.ts",
-      "sourceSHA256": "sha256:d2759645cd79226359e4f4da88b35ecb75956c1b7772fa4e983021e91efee372",
-      "fixtureRevision": "official-99f6f02-web-ui-r1"
+      "sourceSHA256": "sha256:546043414a63db814f45922d3263314304e05eb0bb69b42b85c1841889384107",
+      "fixtureRevision": "official-141eb6f-web-ui-r1"
     },
     {
       "method": "workspace.list",
@@ -82,7 +82,7 @@
       "facade": "workspaceList",
       "sourcePath": "packages/host/apiproxy/src/api/workspace.schema.ts",
       "sourceSHA256": "sha256:0d4ffe97c6c039462cfbb2b2d9b7047f6143b6836af2a34ac3a127f74d79bf39",
-      "fixtureRevision": "official-99f6f02-web-ui-r1"
+      "fixtureRevision": "official-141eb6f-web-ui-r1"
     },
     {
       "method": "workspace.create",
@@ -90,7 +90,7 @@
       "facade": "workspaceCreate",
       "sourcePath": "packages/host/apiproxy/src/api/workspace.schema.ts",
       "sourceSHA256": "sha256:0d4ffe97c6c039462cfbb2b2d9b7047f6143b6836af2a34ac3a127f74d79bf39",
-      "fixtureRevision": "official-99f6f02-web-ui-r1"
+      "fixtureRevision": "official-141eb6f-web-ui-r1"
     },
     {
       "method": "workspace.rename",
@@ -98,7 +98,7 @@
       "facade": "workspaceRename",
       "sourcePath": "packages/host/apiproxy/src/api/workspace.schema.ts",
       "sourceSHA256": "sha256:0d4ffe97c6c039462cfbb2b2d9b7047f6143b6836af2a34ac3a127f74d79bf39",
-      "fixtureRevision": "official-99f6f02-web-ui-r1"
+      "fixtureRevision": "official-141eb6f-web-ui-r1"
     },
     {
       "method": "workspace.delete",
@@ -106,7 +106,7 @@
       "facade": "workspaceDelete",
       "sourcePath": "packages/host/apiproxy/src/api/workspace.schema.ts",
       "sourceSHA256": "sha256:0d4ffe97c6c039462cfbb2b2d9b7047f6143b6836af2a34ac3a127f74d79bf39",
-      "fixtureRevision": "official-99f6f02-web-ui-r1"
+      "fixtureRevision": "official-141eb6f-web-ui-r1"
     },
     {
       "method": "workspace.archiveSession",
@@ -114,7 +114,7 @@
       "facade": "workspaceArchiveSession",
       "sourcePath": "packages/host/apiproxy/src/api/workspace.schema.ts",
       "sourceSHA256": "sha256:0d4ffe97c6c039462cfbb2b2d9b7047f6143b6836af2a34ac3a127f74d79bf39",
-      "fixtureRevision": "official-99f6f02-web-ui-r1"
+      "fixtureRevision": "official-141eb6f-web-ui-r1"
     },
     {
       "method": "settings.describe",
@@ -122,7 +122,7 @@
       "facade": "settingsDescribe",
       "sourcePath": "packages/host/apiproxy/src/api/settings.schema.ts",
       "sourceSHA256": "sha256:32950e0e0026c696d977b3600cd950a4614b0f1d2bbbd2478f347d7c0f29cb64",
-      "fixtureRevision": "official-99f6f02-web-ui-r1"
+      "fixtureRevision": "official-141eb6f-web-ui-r1"
     },
     {
       "method": "settings.mutate",
@@ -130,7 +130,7 @@
       "facade": "settingsMutate",
       "sourcePath": "packages/host/apiproxy/src/api/settings.schema.ts",
       "sourceSHA256": "sha256:32950e0e0026c696d977b3600cd950a4614b0f1d2bbbd2478f347d7c0f29cb64",
-      "fixtureRevision": "official-99f6f02-web-ui-r1"
+      "fixtureRevision": "official-141eb6f-web-ui-r1"
     }
   ]
 }

@@ -204,6 +204,16 @@ final class NativeSessionStore: ObservableObject {
     /// verified endpoint after Host recovery; the Host remains session truth.
     var selectedSessionID: String? { activeSessionID }
 
+    /// Source: RC8 `SessionProjectionMap.imageLimits`. Absence means the Host
+    /// has no composed attachment service, so UI callers do not invent limits
+    /// and allow the authoritative prompt admission result to decide.
+    var imageAttachmentLimits: ImageAttachmentLimits? {
+        guard let sessionID = activeSessionID,
+              let value = projections.value(sessionID: sessionID, key: "imageLimits")
+        else { return nil }
+        return decode(ImageAttachmentLimits.self, from: value)
+    }
+
     deinit {
         historyTask?.cancel()
         olderHistoryTask?.cancel()
