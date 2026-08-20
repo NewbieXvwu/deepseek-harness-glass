@@ -202,6 +202,7 @@ final class NativeShellPresentation: ObservableObject {
     }
 
     func selectSession(_ sessionID: String, workspaceID: String?) {
+        let didSwitchSession = sessionStore.selectedSessionID != sessionID
         workspaceStore.select(sessionID: sessionID, workspaceID: workspaceID)
         if let apis, let observedEndpoint {
             sessionStore.open(
@@ -213,11 +214,18 @@ final class NativeShellPresentation: ObservableObject {
             )
         }
         mode = .conversation
-        if sessionStore.selectedToolCallID == nil {
+        synchronizeDetailsAfterSessionSelection(didSwitchSession: didSwitchSession)
+    }
+
+    /// Source: RC8 `AppFrame` closes the details panel when the current session
+    /// changes, even if the newly resident session contains a tool selection.
+    /// Staying in the same session may surface its selected tool normally.
+    func synchronizeDetailsAfterSessionSelection(didSwitchSession: Bool) {
+        guard !didSwitchSession, sessionStore.selectedToolCallID != nil else {
             closeDetails()
-        } else {
-            openDetails()
+            return
         }
+        openDetails()
     }
 
     private func sessionCWD(for sessionID: String) -> String? {

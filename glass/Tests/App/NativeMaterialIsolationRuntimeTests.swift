@@ -88,6 +88,21 @@ final class NativeMaterialIsolationRuntimeTests: XCTestCase {
         )
     }
 
+    func testSessionSwitchClosesDetailsEvenWhenResidentSelectionExists() {
+        let sessionStore = NativeSessionStore()
+        let presentation = NativeShellPresentation(mode: .conversation, sessionStore: sessionStore)
+        sessionStore.selectToolCall("fixture-tool")
+        presentation.openDetails()
+
+        presentation.synchronizeDetailsAfterSessionSelection(didSwitchSession: true)
+        XCTAssertFalse(presentation.detailsVisible)
+        XCTAssertEqual(presentation.detailsPreference, 0)
+
+        presentation.synchronizeDetailsAfterSessionSelection(didSwitchSession: false)
+        XCTAssertTrue(presentation.detailsVisible)
+        XCTAssertEqual(presentation.detailsPreference, OfficialUISpec.Layout.detailsDefault)
+    }
+
     func testVisualEffectTreeInspectionRejectsInjectedStructuralMaterial() {
         let host = NSHostingView(rootView: Color.clear.frame(width: 40, height: 40))
         host.addSubview(NSVisualEffectView(frame: .zero))
