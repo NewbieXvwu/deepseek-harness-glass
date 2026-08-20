@@ -9,7 +9,7 @@
 | 原生架构 | 模块依赖、并发边界、生命周期测试、D0 扫描。 | `Core`/`UI` 引入 WebView、进程控制或未分层的 URL/字典解析。 |
 | 视觉与无障碍 | 同条件官方/原生截图、layout rectangles、键盘、VoiceOver、对比度/透明度。 | 任何未分类偏差，或仅凭肉眼声明“接近”。 |
 | Liquid Glass | `GlassPolicy`、运行态证据、Reduce Transparency 行为。 | Glass 覆盖官方正文、Hero、composer、代码或消息表面，或没有 policy。 |
-| 插件与安全 | manifest/adapter、兼容矩阵、secret/URL/file/fallback 隔离测试。 | 未知插件自动 WebView，或 fallback 未经显式批准。 |
+| 插件与安全 | 双轨分流路由、沙箱隔离、loopback same-origin 策略、自适应高度。 | 核心应用外壳/主会话流侵入 WebView，或第三方沙箱逃逸 loopback 限制。 |
 | 发布门禁 | 全部 CI 工件、支持矩阵、版本变更、签名/公证状态。 | D0–D5 任一失败、证据缺失或 Host build 未验证。 |
 
 ## 每个模块 PR 的必需证据包

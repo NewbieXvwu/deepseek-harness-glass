@@ -20,7 +20,7 @@ gh run list --repo NewbieXvwu/deepseek-harness-glass --limit 10
 
 `glass/Sources/App`、`Core`、`UI`、`Features`、`Snapshot` 与内置设置/会话 renderer 不导入 `WebKit`，不使用 `WKWebView`、`WKUserScript`、`evaluateJavaScript`、DOM API 或 CSS 注入。`glass/ci/check-no-webview.sh` 是阻断性门禁。
 
-唯一的例外通道是未来独立编译的 `Plugins/PluginWebHost` target，用于经审计确认无法原生化的第三方插件：需要显式 manifest、Host build 范围、loopback 导航策略和独立安全测试，主应用不链接它。该例外不适用于会话、侧栏、官方设置、模型、凭据或工具页面。
+第三方插件的 Web 兼容由未来独立编译的 `Plugins/PluginWebHost` target 承载，实行自适应双轨制（原生 Manifest/Adapter 优先，未适配的第三方 React 卡片自动由轻量沙箱微宿主兜底）。沙箱严格限定在单卡片或独立设置面板内，遵循 loopback same-origin 策略并由独立安全测试覆盖，严禁侵入会话、侧栏、官方设置、模型、凭据或工具页面等核心结构。
 
 ## 3. 官方来源到实现的闭环
 
