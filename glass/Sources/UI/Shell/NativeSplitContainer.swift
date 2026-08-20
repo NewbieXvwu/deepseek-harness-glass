@@ -179,6 +179,22 @@ final class NativeShellPresentation: ObservableObject {
         workspaceStore.refresh(using: apis)
     }
 
+    /// Source: `workspace.schema.ts:workspaceInsertBeforeRequestSchema`.
+    func moveWorkspace(_ workspaceID: String, beforeWorkspaceID: String?) async throws {
+        guard let apis else { throw URLError(.notConnectedToInternet) }
+        _ = try await apis.workspaces.insertBefore(workspaceID: workspaceID, beforeWorkspaceID: beforeWorkspaceID)
+        guard !Task.isCancelled else { return }
+        workspaceStore.refresh(using: apis)
+    }
+
+    /// Source: `workspace.schema.ts:workspaceInsertSessionBeforeRequestSchema`.
+    func moveSession(_ sessionID: String, in workspaceID: String, beforeSessionID: String?) async throws {
+        guard let apis else { throw URLError(.notConnectedToInternet) }
+        _ = try await apis.workspaces.insertSessionBefore(workspaceID: workspaceID, sessionID: sessionID, beforeSessionID: beforeSessionID)
+        guard !Task.isCancelled else { return }
+        workspaceStore.refresh(using: apis)
+    }
+
     /// Source: `sessions.schema.ts:sessionRenameRequestSchema`.
     func renameSession(_ sessionID: String, title: String) async throws {
         guard let apis else { throw URLError(.notConnectedToInternet) }
