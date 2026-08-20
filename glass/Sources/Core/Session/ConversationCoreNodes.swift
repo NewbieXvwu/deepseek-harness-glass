@@ -74,6 +74,16 @@ struct CoreRetryAttempt: Equatable {
     let time: Double
     let retry: Int
     let state: State
+    /// RC8 `LlmRetryEventData` display fields. Malformed/absent optional facts
+    /// fail closed to harmless zero/empty values rather than reaching SwiftUI raw.
+    let delayMilliseconds: Int = 0
+    let failureMessage: String = ""
+    let maximumRetries: Int?
+    let unlimited: Bool = false
+
+    func withState(_ state: State) -> Self {
+        .init(seq: seq, time: time, retry: retry, state: state, delayMilliseconds: delayMilliseconds, failureMessage: failureMessage, maximumRetries: maximumRetries, unlimited: unlimited)
+    }
 }
 
 struct CoreRetryNode {
@@ -544,7 +554,7 @@ private struct RetryDefinition: ConversationNodeDefinition {
 
     func start(context _: ConversationNodeContext<State>, match: ConversationMatch, reader _: any ConversationContextReader) -> State {
         let data = match.event.data
-        let attempt = CoreRetryAttempt(seq: match.event.seq, time: match.event.time, retry: data.coreInteger(named: "retry") ?? 1, state: .scheduled)
+        let attempt = retryAttempt(from: data, seq: match.event.seq, time: match.event.time)
         return .init(turn: data.coreInteger(named: "turn") ?? 0, step: data.coreInteger(named: "step") ?? 0, attempts: [attempt])
     }
 
@@ -552,9 +562,9 @@ private struct RetryDefinition: ConversationNodeDefinition {
         guard var state = context.state else { preconditionFailure("retry update requires first retry") }
         let retry = match.event.data.coreInteger(named: "retry") ?? 0
         if match.event.type == "llm/retry" {
-            state.attempts.append(.init(seq: match.event.seq, time: match.event.time, retry: retry, state: .scheduled))
+            state.attempts.append(retryAttempt(from: match.event.data, seq: match.event.seq, time: match.event.time))
         } else if match.event.type == "llm/retry-started" {
-            state.attempts = state.attempts.map { $0.retry == retry ? .init(seq: $0.seq, time: $0.time, retry: $0.retry, state: .started) : $0 }
+            state.attempts = state.attempts.map { $0.retry == retry ? $0.withState(.started) : $0 }
         }
         return state
     }
@@ -564,10 +574,24 @@ private struct RetryDefinition: ConversationNodeDefinition {
         let closed = context.start?.location.isClosedBoundary ?? false
         let attempts = state.attempts.enumerated().map { offset, value in
             offset == state.attempts.count - 1 && value.state == .scheduled && closed
-                ? .init(seq: value.seq, time: value.time, retry: value.retry, state: .cancelled)
+                ? value.withState(.cancelled)
                 : value
         }
         return chatNode(context: context, kind: "model-retry", anchorSeq: first.seq, data: CoreRetryNode(turn: state.turn, step: state.step, attempts: attempts))
+    }
+
+    private func retryAttempt(from data: JSONValue, seq: Int, time: Double) -> CoreRetryAttempt {
+        let failure = data.object(named: "failure")
+        return .init(
+            seq: seq,
+            time: time,
+            retry: data.coreInteger(named: "retry") ?? 1,
+            state: .scheduled,
+            delayMilliseconds: max(0, data.coreInteger(named: "delayMs") ?? 0),
+            failureMessage: failure?.string(named: "message") ?? "",
+            maximumRetries: data.coreInteger(named: "maxRetries"),
+            unlimited: data.string(named: "mode") == "always"
+        )
     }
 }
 

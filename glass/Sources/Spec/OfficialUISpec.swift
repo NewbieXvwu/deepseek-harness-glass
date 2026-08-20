@@ -255,6 +255,16 @@ enum OfficialUISpec {
         // Source: packages/client/ui-conversation/src/client/locales.ts:309-310 (en)
         static let maxTokensTitle = "Output token limit reached"
         static let maxTokensHint = "The reply was cut off; earlier output is preserved in the conversation. Send \"continue\" to let the model resume."
+        // Source: packages/client/ui-conversation/src/client/locales.ts:301-307 (en)
+        static let retryActive = "Retrying model request"
+        static let retryCancelled = "Model request retry cancelled"
+        static let retryStarted = "Retried model request"
+        static let retryScheduled = "Waiting to retry model request"
+        static let retryDelay = "Retry delay: "
+        static let retryFailure = "Failure reason: "
+        static func retryStatus(label: String, retry: Int, maximum: String, seconds: Int) -> String {
+            "\(label) (\(retry)/\(maximum)) · \(seconds)s"
+        }
         static let producedFilesMoreOne = "+ 1 file"
         static let producedFilesMoreTemplate = "+ {count} files"
         static let producedFilesOpenTemplate = "Open {name}"
