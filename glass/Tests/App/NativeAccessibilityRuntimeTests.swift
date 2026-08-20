@@ -24,7 +24,8 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
                 OfficialUISpec.Text.openSidebarAccessibility,
                 OfficialUISpec.Text.newSessionAccessibility,
                 OfficialUISpec.Text.settings,
-            ]
+            ],
+            forbidden: [OfficialUISpec.Text.collapseSidebarAccessibility]
         )
     }
 
@@ -45,7 +46,8 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
                 OfficialUISpec.Text.newSessionAccessibility,
                 OfficialUISpec.Text.collapseSidebarAccessibility,
                 OfficialUISpec.Text.settings,
-            ]
+            ],
+            forbidden: [OfficialUISpec.Text.openSidebarAccessibility]
         )
     }
 
@@ -146,7 +148,11 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         )
     }
 
-    private func assertAccessibleLabels<V: View>(in view: V, expected: [String]) throws {
+    private func assertAccessibleLabels<V: View>(
+        in view: V,
+        expected: [String],
+        forbidden: [String] = []
+    ) throws {
         guard AXIsProcessTrusted() else {
             throw XCTSkip("Accessibility trust is unavailable for this XCTest process; the runtime locale catalog regression remains mandatory in CI.")
         }
@@ -169,6 +175,9 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         }
         for label in expected {
             XCTAssertTrue(labels.contains(label), "expected \(label), exported labels: \(labels)")
+        }
+        for label in forbidden {
+            XCTAssertFalse(labels.contains(label), "forbidden hidden-control label \(label), exported labels: \(labels)")
         }
     }
 
