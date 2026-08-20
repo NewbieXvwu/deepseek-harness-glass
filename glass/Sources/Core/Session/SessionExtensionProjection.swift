@@ -9,6 +9,7 @@ import Foundation
 /// deliberately a read-only projection: queue/jobs and interactions remain
 /// Host ServerRequest snapshots, while todos/goals remain versioned projection
 /// values. It never manufactures a value from local composer intent.
+@MainActor
 struct CoreSessionExtensionState: Equatable {
     /// `nil` denotes an absent, tombstoned, or malformed `todos` capability;
     /// an empty array is the Host's valid empty whole projection.
