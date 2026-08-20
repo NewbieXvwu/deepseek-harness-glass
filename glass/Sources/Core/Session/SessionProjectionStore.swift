@@ -18,7 +18,7 @@ final class SessionProjectionStore: ObservableObject {
         let seq: Int
     }
 
-    private var rowsBySession: [String: [String: Row]] = [:]
+    @Published private var rowsBySession: [String: [String: Row]] = [:]
 
     func value(sessionID: String, key: String) -> JSONValue? {
         rowsBySession[sessionID]?[key]?.value
