@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
-import { chromium, type Page } from 'playwright'
+import { chromium, type Locator, type Page } from 'playwright'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { launchWebScaffold, watchConsole, type WebScaffold } from './scaffold.ts'
 import { connectFreshWorkspace, REPO_ROOT } from './support.ts'
@@ -60,6 +60,42 @@ async function writeCaptureMetadata(
 }
 
 /** Start a true registry-backed job without consuming model output. */
+async function revealAndClickRowAction(row: Locator, actionName: string): Promise<void> {
+  const action = row.getByRole('button', { name: actionName })
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    await row.hover()
+    if (await action.isVisible()) {
+      await action.click()
+      return
+    }
+    await row.page().waitForTimeout(100)
+  }
+  throw new Error(`row action did not become visible: ${actionName}`)
+}
+
+async function openWorkspaceManagementDialog(page: CapturePage, kind: 'workspace-rename' | 'session-rename' | 'workspace-delete'): Promise<string> {
+  if (kind === 'session-rename') {
+    const action = page.locator('button[aria-label^="Session actions for "]').first()
+    const actionName = await action.getAttribute('aria-label')
+    if (actionName === null) throw new Error('session fixture has no row action')
+    const row = action.locator('xpath=ancestor::*[@role="treeitem"][1]')
+    await revealAndClickRowAction(row, actionName)
+    await page.getByRole('menuitem', { name: 'Rename', exact: true }).click()
+    return 'Rename session'
+  }
+
+  const actionName = 'Workspace actions for workspace'
+  const action = page.locator(`button[aria-label="${actionName}"]`).first()
+  const row = action.locator('xpath=ancestor::*[@role="treeitem"][1]')
+  await revealAndClickRowAction(row, actionName)
+  if (kind === 'workspace-rename') {
+    await page.getByRole('menuitem', { name: 'Rename', exact: true }).click()
+    return 'Rename workspace'
+  }
+  await page.getByRole('menuitem', { name: 'Delete workspace', exact: true }).click()
+  return 'Delete workspace'
+}
+
 function registryJob(label: string) {
   let settle!: () => void
   return {
@@ -128,6 +164,34 @@ describe('reference capture: official welcome and session Jobs action', () => {
       await context.close()
     }
   }, 120_000)
+
+  it('captures official workspace management dialogs in light and dark mode through real row actions', async () => {
+    const kinds = ['workspace-rename', 'session-rename', 'workspace-delete'] as const
+    for (const kind of kinds) {
+      for (const colorScheme of captureColorSchemes) {
+        const name = `${kind}-${colorScheme}`
+        const managementScaffold = await launchWebScaffold()
+        const context = await browser.newContext({ viewport: { width: 1280, height: 1100 }, locale: 'en-US', colorScheme, deviceScaleFactor: 1 })
+        const page = await context.newPage()
+        const consoleTripwire = watchConsole(page)
+        try {
+          await page.goto(managementScaffold.baseUrl, { waitUntil: 'load' })
+          await page.locator('#root').waitFor({ state: 'attached', timeout: 30_000 })
+          await applyOfficialColorScheme(page, colorScheme)
+          await connectFreshWorkspace(page, managementScaffold.workspaceCwd)
+          const dialogName = await openWorkspaceManagementDialog(page, kind)
+          await page.getByRole('dialog', { name: dialogName }).waitFor({ timeout: 30_000 })
+          await page.screenshot({ path: join(outputDirectory, `${name}.png`) })
+          await writeCaptureMetadata(page, name, colorScheme, { width: 1280, height: 1100 }, consoleTripwire.warnings, consoleTripwire.pageErrors)
+          expect(consoleTripwire.warnings).toEqual([])
+          expect(consoleTripwire.pageErrors).toEqual([])
+        } finally {
+          await context.close()
+          await managementScaffold.close()
+        }
+      }
+    }
+  }, 240_000)
 
   it('captures official expanded Jobs actions in light and dark mode from Host-owned whole snapshots', async () => {
     for (const colorScheme of captureColorSchemes) {

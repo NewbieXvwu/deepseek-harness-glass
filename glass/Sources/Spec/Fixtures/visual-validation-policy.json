@@ -99,6 +99,66 @@
         "derivedColumns": ["sidebar", "details"]
       }
     },
+    "workspace-rename-light": {
+      "mode": "report-only",
+      "mustEnforceBeforeTodoCompletion": true,
+      "viewport": { "width": 1280, "height": 1100, "devicePixelRatio": 1 },
+      "strict": { "maxMateriallyChangedRatio": 0.008, "maxMeanAbsoluteChannelDifference": 1.15, "maxExactChangedRatio": 0.2 },
+      "systemRenderingExceptions": ["Liquid Glass and font rasterization may differ only under the recorded material and glyph-review rules."],
+      "humanReviewRequired": true,
+      "humanReviewCriteria": ["Verify selected rename text, input focus order, modal geometry and enabled button state against official ARIA/geometry.", "Classify every remaining difference as a native defect or documented system-material exception and attach paired PNG, diff and report before T7.3 completion."],
+      "materialRegionExclusion": { "source": "glass/Sources/Spec/Fixtures/official-column-layout-fixtures.json", "derivedColumns": ["sidebar", "details"] }
+    },
+    "session-rename-light": {
+      "mode": "report-only",
+      "mustEnforceBeforeTodoCompletion": true,
+      "viewport": { "width": 1280, "height": 1100, "devicePixelRatio": 1 },
+      "strict": { "maxMateriallyChangedRatio": 0.008, "maxMeanAbsoluteChannelDifference": 1.15, "maxExactChangedRatio": 0.2 },
+      "systemRenderingExceptions": ["Liquid Glass and font rasterization may differ only under the recorded material and glyph-review rules."],
+      "humanReviewRequired": true,
+      "humanReviewCriteria": ["Verify session title text, input focus order, modal geometry and enabled button state against official ARIA/geometry.", "Classify every remaining difference as a native defect or documented system-material exception and attach paired PNG, diff and report before T7.3 completion."],
+      "materialRegionExclusion": { "source": "glass/Sources/Spec/Fixtures/official-column-layout-fixtures.json", "derivedColumns": ["sidebar", "details"] }
+    },
+    "workspace-delete-light": {
+      "mode": "report-only",
+      "mustEnforceBeforeTodoCompletion": true,
+      "viewport": { "width": 1280, "height": 1100, "devicePixelRatio": 1 },
+      "strict": { "maxMateriallyChangedRatio": 0.008, "maxMeanAbsoluteChannelDifference": 1.15, "maxExactChangedRatio": 0.2 },
+      "systemRenderingExceptions": ["Liquid Glass and font rasterization may differ only under the recorded material and glyph-review rules."],
+      "humanReviewRequired": true,
+      "humanReviewCriteria": ["Verify deletion warning copy, focus order, modal geometry and destructive button state against official ARIA/geometry.", "Classify every remaining difference as a native defect or documented system-material exception and attach paired PNG, diff and report before T7.3 completion."],
+      "materialRegionExclusion": { "source": "glass/Sources/Spec/Fixtures/official-column-layout-fixtures.json", "derivedColumns": ["sidebar", "details"] }
+    },
+    "workspace-rename-dark": {
+      "mode": "report-only",
+      "mustEnforceBeforeTodoCompletion": true,
+      "viewport": { "width": 1280, "height": 1100, "devicePixelRatio": 1 },
+      "strict": { "maxMateriallyChangedRatio": 0.008, "maxMeanAbsoluteChannelDifference": 1.15, "maxExactChangedRatio": 0.2 },
+      "systemRenderingExceptions": ["Liquid Glass and font rasterization may differ only under the recorded material and glyph-review rules."],
+      "humanReviewRequired": true,
+      "humanReviewCriteria": ["Verify ThemeRuntime dark cascade, selected rename text, input focus order, modal geometry and enabled button state against official ARIA/geometry.", "Classify every remaining difference as a native defect or documented system-material exception and attach paired PNG, diff and report before T7.3 completion."],
+      "materialRegionExclusion": { "source": "glass/Sources/Spec/Fixtures/official-column-layout-fixtures.json", "derivedColumns": ["sidebar", "details"] }
+    },
+    "session-rename-dark": {
+      "mode": "report-only",
+      "mustEnforceBeforeTodoCompletion": true,
+      "viewport": { "width": 1280, "height": 1100, "devicePixelRatio": 1 },
+      "strict": { "maxMateriallyChangedRatio": 0.008, "maxMeanAbsoluteChannelDifference": 1.15, "maxExactChangedRatio": 0.2 },
+      "systemRenderingExceptions": ["Liquid Glass and font rasterization may differ only under the recorded material and glyph-review rules."],
+      "humanReviewRequired": true,
+      "humanReviewCriteria": ["Verify ThemeRuntime dark cascade, session title text, input focus order, modal geometry and enabled button state against official ARIA/geometry.", "Classify every remaining difference as a native defect or documented system-material exception and attach paired PNG, diff and report before T7.3 completion."],
+      "materialRegionExclusion": { "source": "glass/Sources/Spec/Fixtures/official-column-layout-fixtures.json", "derivedColumns": ["sidebar", "details"] }
+    },
+    "workspace-delete-dark": {
+      "mode": "report-only",
+      "mustEnforceBeforeTodoCompletion": true,
+      "viewport": { "width": 1280, "height": 1100, "devicePixelRatio": 1 },
+      "strict": { "maxMateriallyChangedRatio": 0.008, "maxMeanAbsoluteChannelDifference": 1.15, "maxExactChangedRatio": 0.2 },
+      "systemRenderingExceptions": ["Liquid Glass and font rasterization may differ only under the recorded material and glyph-review rules."],
+      "humanReviewRequired": true,
+      "humanReviewCriteria": ["Verify ThemeRuntime dark cascade, deletion warning copy, focus order, modal geometry and destructive button state against official ARIA/geometry.", "Classify every remaining difference as a native defect or documented system-material exception and attach paired PNG, diff and report before T7.3 completion."],
+      "materialRegionExclusion": { "source": "glass/Sources/Spec/Fixtures/official-column-layout-fixtures.json", "derivedColumns": ["sidebar", "details"] }
+    },
     "sidebar-rail-narrow-light": {
       "mode": "report-only",
       "mustEnforceBeforeTodoCompletion": true,

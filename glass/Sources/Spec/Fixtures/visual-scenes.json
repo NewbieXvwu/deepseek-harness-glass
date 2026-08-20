@@ -90,6 +90,17 @@
       "allowedDifferenceClasses": ["font-rendering", "system-glass"]
     },
     {
+      "id": "workspace-rename-dark",
+      "surface": "workspace.rename-dialog",
+      "state": "fixture-workspace-rename-open",
+      "colorScheme": "dark",
+      "viewport": { "width": 1280, "height": 1100 },
+      "officialComponents": ["WorkspaceBrowser", "Modal", "Button", "ThemeRuntime"],
+      "nativeEntry": "SnapshotExporter.DSH_GLASS_SNAPSHOT_MODE=workspace-rename + DSH_GLASS_SNAPSHOT_COLOR_SCHEME=dark",
+      "requiredEvidence": ["source-map", "official-screenshot", "native-screenshot", "paired-viewport", "difference-ledger", "post-fix-recapture", "layout-rectangles", "accessibility", "keyboard-focus", "rpc-fixture"],
+      "allowedDifferenceClasses": ["font-rendering", "system-glass"]
+    },
+    {
       "id": "session-rename-light",
       "surface": "workspace.session-rename-dialog",
       "state": "fixture-session-rename-open",
@@ -100,6 +111,17 @@
       "allowedDifferenceClasses": ["font-rendering", "system-glass"]
     },
     {
+      "id": "session-rename-dark",
+      "surface": "workspace.session-rename-dialog",
+      "state": "fixture-session-rename-open",
+      "colorScheme": "dark",
+      "viewport": { "width": 1280, "height": 1100 },
+      "officialComponents": ["WorkspaceBrowser", "Modal", "Button", "ThemeRuntime"],
+      "nativeEntry": "SnapshotExporter.DSH_GLASS_SNAPSHOT_MODE=session-rename + DSH_GLASS_SNAPSHOT_COLOR_SCHEME=dark",
+      "requiredEvidence": ["source-map", "official-screenshot", "native-screenshot", "paired-viewport", "difference-ledger", "post-fix-recapture", "layout-rectangles", "accessibility", "keyboard-focus", "rpc-fixture"],
+      "allowedDifferenceClasses": ["font-rendering", "system-glass"]
+    },
+    {
       "id": "workspace-delete-light",
       "surface": "workspace.delete-dialog",
       "state": "fixture-workspace-delete-open",
@@ -107,6 +129,17 @@
       "officialComponents": ["WorkspaceBrowser", "Modal", "Button"],
       "nativeEntry": "SnapshotExporter.DSH_GLASS_SNAPSHOT_MODE=workspace-delete",
       "requiredEvidence": ["source-map", "official-screenshot", "native-screenshot", "paired-viewport", "difference-ledger", "post-fix-recapture", "layout-rectangles", "accessibility", "rpc-fixture"],
+      "allowedDifferenceClasses": ["font-rendering", "system-glass"]
+    },
+    {
+      "id": "workspace-delete-dark",
+      "surface": "workspace.delete-dialog",
+      "state": "fixture-workspace-delete-open",
+      "colorScheme": "dark",
+      "viewport": { "width": 1280, "height": 1100 },
+      "officialComponents": ["WorkspaceBrowser", "Modal", "Button", "ThemeRuntime"],
+      "nativeEntry": "SnapshotExporter.DSH_GLASS_SNAPSHOT_MODE=workspace-delete + DSH_GLASS_SNAPSHOT_COLOR_SCHEME=dark",
+      "requiredEvidence": ["source-map", "official-screenshot", "native-screenshot", "paired-viewport", "difference-ledger", "post-fix-recapture", "layout-rectangles", "accessibility", "keyboard-focus", "rpc-fixture"],
       "allowedDifferenceClasses": ["font-rendering", "system-glass"]
     },
     {
