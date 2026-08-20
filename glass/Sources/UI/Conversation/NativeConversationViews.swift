@@ -16,8 +16,30 @@ struct NativeConversationColumn: View {
     let openSession: (String) -> Void
     /// Held by the resident shell in production; default construction keeps
     /// isolated preview/snapshot call sites deterministic.
-    let viewRegistry: NativeConversationViewRegistry = NativeConversationViewRegistry()
-    let headerContributions: NativeConversationHeaderContributionRegistry = NativeConversationHeaderContributionRegistry()
+    let viewRegistry: NativeConversationViewRegistry
+    let headerContributions: NativeConversationHeaderContributionRegistry
+
+    init(
+        mode: NativeAppShell.PresentationMode,
+        selectedWorkspaceTitle: String?,
+        sessionSnapshot: NativeWorkspaceStore.Snapshot,
+        sessionStore: NativeSessionStore,
+        jobsPopoverInitiallyOpen: Bool,
+        jobsLanguageCode: String?,
+        openSession: @escaping (String) -> Void,
+        viewRegistry: NativeConversationViewRegistry = NativeConversationViewRegistry(),
+        headerContributions: NativeConversationHeaderContributionRegistry = NativeConversationHeaderContributionRegistry()
+    ) {
+        self.mode = mode
+        self.selectedWorkspaceTitle = selectedWorkspaceTitle
+        self.sessionSnapshot = sessionSnapshot
+        self.sessionStore = sessionStore
+        self.jobsPopoverInitiallyOpen = jobsPopoverInitiallyOpen
+        self.jobsLanguageCode = jobsLanguageCode
+        self.openSession = openSession
+        self.viewRegistry = viewRegistry
+        self.headerContributions = headerContributions
+    }
 
     var body: some View {
         switch mode {
