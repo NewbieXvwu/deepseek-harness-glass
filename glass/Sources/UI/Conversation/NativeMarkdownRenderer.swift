@@ -260,7 +260,7 @@ enum NativeCodeHighlighter {
             case .number: color = OfficialUISpec.Token.caption
             case .comment: color = OfficialUISpec.Token.secondary
             }
-            return result + Text(fragment.text).foregroundColor(color)
+            return result + Text(verbatim: fragment.text).foregroundColor(color)
         }
     }
 }

@@ -85,7 +85,28 @@ private final class HostPathURLProtocol: URLProtocol, @unchecked Sendable {
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
-        guard let body = request.httpBody,
+        let bodyData: Data?
+        if let stream = request.httpBodyStream {
+            var data = Data()
+            stream.open()
+            defer { stream.close() }
+            let bufferSize = 1024
+            let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
+            defer { buffer.deallocate() }
+            while stream.hasBytesAvailable {
+                let read = stream.read(buffer, maxLength: bufferSize)
+                if read > 0 {
+                    data.append(buffer, count: read)
+                } else {
+                    break
+                }
+            }
+            bodyData = data
+        } else {
+            bodyData = request.httpBody
+        }
+
+        guard let body = bodyData,
               let rpc = try? JSONDecoder().decode(RPCClientRequest.self, from: body)
         else {
             client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
