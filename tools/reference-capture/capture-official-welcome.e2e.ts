@@ -338,7 +338,7 @@ describe('reference capture: official welcome and session Jobs action', () => {
       // can verify replay consumption without changing the captured surface.
       await panel.getByRole('button', { name: 'Allow once' }).click()
       await page.getByText('DONE', { exact: true }).waitFor({ timeout: 30_000 })
-      await page.locator('textarea').first().waitFor({ state: 'visible', timeout: 30_000 })
+      await expect.poll(() => page.locator('textarea').first().isEnabled(), { timeout: 30_000 }).toBe(true)
       expect(consoleTripwire.warnings).toEqual([])
       expect(consoleTripwire.pageErrors).toEqual([])
     } finally {
@@ -375,7 +375,7 @@ describe('reference capture: official welcome and session Jobs action', () => {
       await customAnswer.fill('Include accessibility notes')
       await customAnswer.press('Enter')
       await page.getByText('DONE', { exact: true }).waitFor({ timeout: 30_000 })
-      await page.locator('textarea').first().waitFor({ state: 'visible', timeout: 30_000 })
+      await expect.poll(() => page.locator('textarea').first().isEnabled(), { timeout: 30_000 }).toBe(true)
       expect(consoleTripwire.warnings).toEqual([])
       expect(consoleTripwire.pageErrors).toEqual([])
     } finally {
