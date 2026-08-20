@@ -100,7 +100,7 @@ enum SnapshotExporter {
         switch mode {
         case .conversation where requestedMode == "jobs":
             sessionStore.loadSnapshotJobsFixture()
-            workspaceStore.loadSnapshotFixtureWorkspace()
+            workspaceStore.loadSnapshotJobsFixtureWorkspace()
         case .tooling:
             sessionStore.loadSnapshotToolingFixture()
         case .approval:

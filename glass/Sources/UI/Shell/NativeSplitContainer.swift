@@ -257,9 +257,13 @@ final class NativeShellController: NativeSplitViewController {
             conversation: NativeConversationColumn(
                 mode: presentation.mode,
                 selectedWorkspaceTitle: Self.selectedWorkspaceTitle(for: presentation),
+                sessionSnapshot: presentation.workspaceStore.snapshot,
                 sessionStore: presentation.sessionStore,
                 jobsPopoverInitiallyOpen: presentation.jobsPopoverInitiallyOpen,
-                jobsLanguageCode: presentation.jobsSnapshotLanguageCode
+                jobsLanguageCode: presentation.jobsSnapshotLanguageCode,
+                openSession: { sessionID in
+                    presentation.selectSession(sessionID, workspaceID: Self.workspaceID(for: sessionID, in: presentation))
+                }
             ),
             details: Self.details(for: presentation),
             sidebarPreference: presentation.sidebarPreference,
@@ -303,6 +307,15 @@ final class NativeShellController: NativeSplitViewController {
         return presentation.workspaceStore.snapshot.workspaces.first { $0.workspaceId == workspaceID }?.title
     }
 
+    /// RC8 hierarchy navigation reopens the Host session through the ordinary
+    /// session-selection path. A subagent may be ungrouped, so the workspace id
+    /// is optional rather than inferred from its breadcrumb title.
+    private static func workspaceID(for sessionID: String, in presentation: NativeShellPresentation) -> String? {
+        presentation.workspaceStore.snapshot.workspaces.first { workspace in
+            workspace.sessionIds.contains(sessionID)
+        }?.workspaceId
+    }
+
     private func renderPresentation() {
         let automaticRail = isViewLoaded && view.bounds.width < OfficialUISpec.Layout.sidebarAutoCollapse
         let collapsed = automaticRail || presentation.manuallyCollapsed
@@ -311,9 +324,13 @@ final class NativeShellController: NativeSplitViewController {
             conversation: NativeConversationColumn(
                 mode: presentation.mode,
                 selectedWorkspaceTitle: Self.selectedWorkspaceTitle(for: presentation),
+                sessionSnapshot: presentation.workspaceStore.snapshot,
                 sessionStore: presentation.sessionStore,
                 jobsPopoverInitiallyOpen: presentation.jobsPopoverInitiallyOpen,
-                jobsLanguageCode: presentation.jobsSnapshotLanguageCode
+                jobsLanguageCode: presentation.jobsSnapshotLanguageCode,
+                openSession: { sessionID in
+                    presentation.selectSession(sessionID, workspaceID: Self.workspaceID(for: sessionID, in: presentation))
+                }
             ),
             details: Self.details(for: presentation),
             sidebarPreference: presentation.sidebarPreference,
@@ -321,6 +338,21 @@ final class NativeShellController: NativeSplitViewController {
             sidebarCollapsed: collapsed,
             detailsVisible: presentation.detailsVisible && presentation.mode != .welcome
         )
+        updateDocumentTitle()
+    }
+
+    /// Source: RC8 `ui-renderer/DocumentTitle.tsx`. The native titlebar remains
+    /// visually hidden, but standard AppKit document title state stays aligned
+    /// with the selected durable Host session for system restoration/accessibility.
+    private func updateDocumentTitle() {
+        view.window?.title = Self.documentTitle(for: presentation)
+    }
+
+    private static func documentTitle(for presentation: NativeShellPresentation) -> String {
+        guard let sessionID = presentation.workspaceStore.snapshot.selectedSessionID,
+              let title = presentation.workspaceStore.snapshot.sessions.first(where: { $0.sessionId == sessionID })?.displayTitle
+        else { return OfficialUISpec.Text.sidebarFallbackBrand }
+        return "\(title) — \(OfficialUISpec.Text.sidebarFallbackBrand)"
     }
 
     private static func sidebar(

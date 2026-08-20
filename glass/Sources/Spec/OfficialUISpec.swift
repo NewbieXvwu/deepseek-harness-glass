@@ -51,6 +51,17 @@ enum OfficialUISpec {
         /// composition, five points beyond the shell's upper-content inset.
         static let sidebarNativeExpandedFooterLeadingAdjustment: CGFloat = 5
 
+        // Source: packages/client/ui-conversation/src/client/skeleton/ConversationRoot.module.css
+        static let sessionHeaderTopPadding: CGFloat = 12
+        static let sessionHeaderLeadingPadding: CGFloat = 20
+        static let sessionHeaderTrailingPadding: CGFloat = 28
+        static let sessionHeaderTitleRowHeight: CGFloat = 32
+        static let sessionHeaderTabStripHeight: CGFloat = 35
+        static let sessionHeaderTabGap: CGFloat = 36
+        static let sessionHeaderTabLeadingPadding: CGFloat = 8
+        static let sessionHeaderTabBottomPadding: CGFloat = 11
+        static let sessionHeaderActiveBarHeight: CGFloat = 2
+
         // Source: packages/client/ui-workspace/src/client/WorkspaceBrowser.module.css
         static let workspaceSectionHeaderHeight: CGFloat = 36
         static let workspaceIconControl: CGFloat = 28
@@ -197,6 +208,10 @@ enum OfficialUISpec {
 
         // Source: packages/client/ui-conversation/src/client/locales.ts (en)
         static let chat = "Chat"
+        /// Source: RC8 locked jobs capture session summary/title projection.
+        static let fixtureJobsSessionTitle = "Reply with the single word"
+        static let sessionHierarchy = "Session hierarchy"
+        static let sessionHierarchySeparator = "/"
         static let heroHeadline = "Into the Unknown"
         static let preview = "Preview"
         static let chooseWorkspace = "Choose workspace"

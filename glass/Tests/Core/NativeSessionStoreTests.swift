@@ -68,6 +68,7 @@ final class NativeSessionStoreTests: XCTestCase {
         let store = NativeSessionStore()
         store.loadSnapshotToolingFixture()
         store.selectToolCall("snapshot-bash")
+        store.selectView("future-plugin-view")
         store.applyMuxFrame(queueFrame(sessionID: "snapshot-tooling", items: [
             queuedItem(id: "q-1", messageID: "m-1", placement: "steering", content: [.object(["type": .string("text"), "text": .string("retain me")])]),
         ]), sessionID: "snapshot-tooling")
@@ -80,6 +81,7 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.items.map(\.id), ["event-101", "event-104"])
         XCTAssertEqual(store.toolInvocations.map(\.id), ["snapshot-read", "snapshot-bash"])
         XCTAssertEqual(store.selectedToolCallID, "snapshot-bash")
+        XCTAssertEqual(store.selectedViewID, "future-plugin-view")
         XCTAssertEqual(store.queuedMessages.first?.preview, "retain me")
         XCTAssertEqual(store.backgroundJobs.first?.status, .stopping)
     }

@@ -226,7 +226,10 @@ final class NativeWorkspaceStore: ObservableObject {
 
     /// Snapshot-only projection of the locked official resident fixture. It uses
     /// the same list-RPC DTOs as production and never participates in Host I/O.
-    func loadSnapshotFixtureWorkspace() {
+    func loadSnapshotFixtureWorkspace(
+        primarySessionTitle: String = "Fixture 历史会话",
+        primarySessionAgentPreset: String? = nil
+    ) {
         let workspaceID = "fx-ws-fixture"
         let alphaID = "fx-alpha"
         let betaID = "fx-beta"
@@ -245,8 +248,8 @@ final class NativeWorkspaceStore: ObservableObject {
                 parentSessionId: nil,
                 origin: nil,
                 cwd: "/tmp/fixture",
-                agentPreset: nil,
-                projections: projection("Fixture 历史会话")
+                agentPreset: primarySessionAgentPreset,
+                projections: projection(primarySessionTitle)
             ),
             SessionSummaryDTO(
                 sessionId: betaID,
@@ -290,6 +293,17 @@ final class NativeWorkspaceStore: ObservableObject {
             selectedWorkspaceID: workspaceID
         )
         phase = .ready
+    }
+
+    /// Snapshot-only mirror of the locked RC8 jobs capture. Its selected summary
+    /// is the Host durable title/preset projection rendered in the paired
+    /// official `jobs-expanded-*` scenes; transcript/jobs remain in the separate
+    /// NativeSessionStore fixture.
+    func loadSnapshotJobsFixtureWorkspace() {
+        loadSnapshotFixtureWorkspace(
+            primarySessionTitle: OfficialUISpec.Text.fixtureJobsSessionTitle,
+            primarySessionAgentPreset: "standard"
+        )
     }
 
     /// Snapshot-only projection used by the workspace management dialogs. The

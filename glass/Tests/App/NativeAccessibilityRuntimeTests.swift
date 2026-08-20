@@ -33,9 +33,11 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
             in: NativeConversationColumn(
                 mode: .conversation,
                 selectedWorkspaceTitle: "Fixture workspace",
+                sessionSnapshot: .empty,
                 sessionStore: NativeSessionStore(),
                 jobsPopoverInitiallyOpen: false,
-                jobsLanguageCode: nil
+                jobsLanguageCode: nil,
+                openSession: { _ in }
             ),
             expected: [
                 OfficialUISpec.Text.composerDefaultPlaceholder,

@@ -20,6 +20,15 @@ final class OfficialUISpecBuildTests: XCTestCase {
         XCTAssertEqual(OfficialUISpec.Layout.sidebarNewSessionHeight, 38)
         XCTAssertEqual(OfficialUISpec.Layout.sidebarNativeExpandedLeadingInset, 5)
         XCTAssertEqual(OfficialUISpec.Layout.sidebarNativeExpandedFooterLeadingAdjustment, 5)
+        XCTAssertEqual(OfficialUISpec.Layout.sessionHeaderTopPadding, 12)
+        XCTAssertEqual(OfficialUISpec.Layout.sessionHeaderLeadingPadding, 20)
+        XCTAssertEqual(OfficialUISpec.Layout.sessionHeaderTrailingPadding, 28)
+        XCTAssertEqual(OfficialUISpec.Layout.sessionHeaderTitleRowHeight, 32)
+        XCTAssertEqual(OfficialUISpec.Layout.sessionHeaderTabStripHeight, 35)
+        XCTAssertEqual(OfficialUISpec.Layout.sessionHeaderTabGap, 36)
+        XCTAssertEqual(OfficialUISpec.Layout.sessionHeaderTabLeadingPadding, 8)
+        XCTAssertEqual(OfficialUISpec.Layout.sessionHeaderTabBottomPadding, 11)
+        XCTAssertEqual(OfficialUISpec.Layout.sessionHeaderActiveBarHeight, 2)
         XCTAssertFalse(OfficialUISpec.Build.uiSpecRevision.isEmpty)
     }
 

@@ -155,6 +155,7 @@ final class NativeSessionStore: ObservableObject {
         let items: [TranscriptItem]
         let hasMoreHistory: Bool
         let isRunning: Bool
+        let selectedViewID: String?
         let draft: String
         let pendingImages: [PendingImage]
         let toolInvocations: [ToolInvocation]
@@ -172,6 +173,9 @@ final class NativeSessionStore: ObservableObject {
     @Published private(set) var hasMoreHistory = false
     @Published private(set) var isLoadingOlderHistory = false
     @Published private(set) var isRunning = false
+    /// RC8 `ChatStoreState.view`: a retained id may be stale after a plugin
+    /// unload, so UI resolves it through the stable Chat fallback.
+    @Published private(set) var selectedViewID: String?
     @Published private(set) var isSubmittingPrompt = false
     @Published var draft = ""
     @Published private(set) var pendingImages: [PendingImage] = []
@@ -230,6 +234,7 @@ final class NativeSessionStore: ObservableObject {
             items: items,
             hasMoreHistory: hasMoreHistory,
             isRunning: isRunning,
+            selectedViewID: selectedViewID,
             draft: draft,
             pendingImages: pendingImages,
             toolInvocations: toolInvocations,
@@ -251,6 +256,7 @@ final class NativeSessionStore: ObservableObject {
         hasMoreHistory = state.hasMoreHistory
         isLoadingOlderHistory = false
         isRunning = state.isRunning
+        selectedViewID = state.selectedViewID
         isSubmittingPrompt = false
         draft = state.draft
         pendingImages = state.pendingImages
@@ -296,6 +302,7 @@ final class NativeSessionStore: ObservableObject {
             hasMoreHistory = false
             isLoadingOlderHistory = false
             isRunning = false
+            selectedViewID = nil
             isSubmittingPrompt = false
             draft = ""
             pendingImages = []
@@ -357,12 +364,20 @@ final class NativeSessionStore: ObservableObject {
         hasMoreHistory = false
         isLoadingOlderHistory = false
         isRunning = false
+        selectedViewID = nil
         isSubmittingPrompt = false
         draft = ""
         pendingImages = []
         lastError = nil
         residentStates.removeAll()
         projections.removeAll()
+    }
+
+    /// Selects a registry-owned conversation view id. The store intentionally
+    /// retains unknown ids so the UI can exercise RC8's stable Chat fallback
+    /// without erasing persisted state on a transient plugin unload.
+    func selectView(_ id: String?) {
+        selectedViewID = id
     }
 
     func addPendingImage(_ url: URL) {

@@ -9,9 +9,11 @@ import UniformTypeIdentifiers
 struct NativeConversationColumn: View {
     let mode: NativeAppShell.PresentationMode
     let selectedWorkspaceTitle: String?
+    let sessionSnapshot: NativeWorkspaceStore.Snapshot
     @ObservedObject var sessionStore: NativeSessionStore
     let jobsPopoverInitiallyOpen: Bool
     let jobsLanguageCode: String?
+    let openSession: (String) -> Void
 
     var body: some View {
         switch mode {
@@ -19,9 +21,11 @@ struct NativeConversationColumn: View {
             NativeWelcomeSurface(selectedWorkspaceTitle: selectedWorkspaceTitle)
         case .conversation, .tooling, .approval, .question:
             NativeActiveConversationSurface(
+                sessionSnapshot: sessionSnapshot,
                 sessionStore: sessionStore,
                 jobsPopoverInitiallyOpen: jobsPopoverInitiallyOpen,
-                jobsLanguageCode: jobsLanguageCode
+                jobsLanguageCode: jobsLanguageCode,
+                openSession: openSession
             )
         }
     }
@@ -31,16 +35,26 @@ struct NativeConversationColumn: View {
 /// baseline plus official mux event deltas; the root remains visually stable
 /// for snapshot fixtures whose deterministic conversation mode has no Host.
 private struct NativeActiveConversationSurface: View {
+    let sessionSnapshot: NativeWorkspaceStore.Snapshot
     @ObservedObject var sessionStore: NativeSessionStore
     let jobsPopoverInitiallyOpen: Bool
     let jobsLanguageCode: String?
+    let openSession: (String) -> Void
 
     var body: some View {
         VStack(spacing: OfficialUISpec.Spacing.p0) {
             NativeConversationHeader(
+                presentation: NativeSessionHeaderPresentation(
+                    snapshot: sessionSnapshot,
+                    sessionID: sessionStore.selectedSessionID,
+                    composerIsBlank: sessionStore.items.isEmpty && sessionStore.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                    selectedViewID: sessionStore.selectedViewID
+                ),
                 jobs: sessionStore.backgroundJobs,
                 jobsPopoverInitiallyOpen: jobsPopoverInitiallyOpen,
-                jobsLanguageCode: jobsLanguageCode
+                jobsLanguageCode: jobsLanguageCode,
+                openSession: openSession,
+                selectView: sessionStore.selectView
             )
             transcriptBody
             composerTakeover
@@ -100,30 +114,6 @@ private struct NativeActiveConversationSurface: View {
                 loadOlderHistory: sessionStore.loadOlderHistory,
                 selectToolCall: sessionStore.selectToolCall
             )
-        }
-    }
-}
-
-private struct NativeConversationHeader: View {
-    let jobs: [NativeSessionStore.BackgroundJob]
-    let jobsPopoverInitiallyOpen: Bool
-    let jobsLanguageCode: String?
-
-    var body: some View {
-        HStack {
-            Text(OfficialUISpec.Text.chat)
-                .font(OfficialUISpec.Typography.sStrong14)
-            Spacer(minLength: 0)
-            NativeJobsHeaderAction(
-                jobs: jobs,
-                initiallyOpen: jobsPopoverInitiallyOpen,
-                languageCode: jobsLanguageCode
-            )
-        }
-        .frame(height: OfficialUISpec.Geometry.px56)
-        .padding(.horizontal, OfficialUISpec.Spacing.p20)
-        .overlay(alignment: .bottom) {
-            Rectangle().fill(OfficialUISpec.Token.hairline).frame(height: OfficialUISpec.Geometry.px1)
         }
     }
 }
