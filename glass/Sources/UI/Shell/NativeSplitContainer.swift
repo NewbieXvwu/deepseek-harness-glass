@@ -103,7 +103,12 @@ final class NativeShellPresentation: ObservableObject {
             workspaceManagementDialog = .workspaceDelete(workspaceID: "fx-ws-fixture", title: "fixture")
         }
         selectedToolObservation = self.sessionStore.$selectedToolCallID.sink { [weak self] callID in
-            self?.detailsVisible = callID != nil
+            guard let self else { return }
+            if callID == nil {
+                closeDetails()
+            } else {
+                openDetails()
+            }
         }
     }
 
@@ -168,6 +173,21 @@ final class NativeShellPresentation: ObservableObject {
         sidebarLayout = updated
     }
 
+    /// Source: RC8 `createLayoutStore.closeDetails/openDetails`. Closing writes
+    /// the zero-width preference; reopening restores the contract default rather
+    /// than an old dragged width.
+    func closeDetails() {
+        detailsVisible = false
+        detailsPreference = 0
+    }
+
+    func openDetails() {
+        if detailsPreference == 0 {
+            detailsPreference = OfficialUISpec.Layout.detailsDefault
+        }
+        detailsVisible = true
+    }
+
     func disconnectHost() {
         newSessionGeneration &+= 1
         blankConnectionTasks.values.forEach { $0.cancel() }
@@ -178,7 +198,7 @@ final class NativeShellPresentation: ObservableObject {
         workspaceStore.detachHost()
         sessionStore.disconnect()
         mode = .welcome
-        detailsVisible = false
+        closeDetails()
     }
 
     func selectSession(_ sessionID: String, workspaceID: String?) {
@@ -193,7 +213,11 @@ final class NativeShellPresentation: ObservableObject {
             )
         }
         mode = .conversation
-        detailsVisible = sessionStore.selectedToolCallID != nil
+        if sessionStore.selectedToolCallID == nil {
+            closeDetails()
+        } else {
+            openDetails()
+        }
     }
 
     private func sessionCWD(for sessionID: String) -> String? {
@@ -217,7 +241,7 @@ final class NativeShellPresentation: ObservableObject {
             workspaceStore.select(sessionID: nil, workspaceID: nil)
             sessionStore.clearActiveSelection()
             mode = .welcome
-            detailsVisible = false
+            closeDetails()
             return
         }
 
@@ -548,7 +572,7 @@ final class NativeShellController: NativeSplitViewController {
     private static func details(for presentation: NativeShellPresentation) -> NativeDetailsView {
         NativeDetailsView(
             sessionStore: presentation.sessionStore,
-            close: { presentation.detailsVisible = false }
+            close: { presentation.closeDetails() }
         )
     }
 }

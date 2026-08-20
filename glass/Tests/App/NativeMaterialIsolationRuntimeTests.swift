@@ -42,6 +42,26 @@ final class NativeMaterialIsolationRuntimeTests: XCTestCase {
         )
     }
 
+    func testDetailsCloseForgetsDraggedWidthAndReopenUsesOfficialDefault() {
+        let presentation = NativeShellPresentation(mode: .conversation)
+        presentation.openDetails()
+        XCTAssertTrue(presentation.detailsVisible)
+        XCTAssertEqual(presentation.detailsPreference, OfficialUISpec.Layout.detailsDefault)
+
+        presentation.detailsPreference = OfficialUISpec.Layout.detailsMaximum
+        presentation.closeDetails()
+        XCTAssertFalse(presentation.detailsVisible)
+        XCTAssertEqual(presentation.detailsPreference, 0)
+
+        presentation.openDetails()
+        XCTAssertTrue(presentation.detailsVisible)
+        XCTAssertEqual(
+            presentation.detailsPreference,
+            OfficialUISpec.Layout.detailsDefault,
+            "RC8 close/reopen must restore the official default rather than a stale dragged width"
+        )
+    }
+
     func testVisualEffectTreeInspectionRejectsInjectedStructuralMaterial() {
         let host = NSHostingView(rootView: Color.clear.frame(width: 40, height: 40))
         host.addSubview(NSVisualEffectView(frame: .zero))
