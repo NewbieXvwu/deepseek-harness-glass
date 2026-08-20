@@ -37,8 +37,16 @@ final class NativeMaterialIsolationRuntimeTests: XCTestCase {
         XCTAssertEqual(split.splitViewItems[0].behavior, .sidebar)
         XCTAssertEqual(split.splitViewItems[2].behavior, .inspector)
         XCTAssertTrue(
+            visualEffects(in: split.splitViewItems[0].viewController.view).isEmpty,
+            "D3 violation: the sidebar SwiftUI host must not layer a custom visual effect over AppKit system material."
+        )
+        XCTAssertTrue(
             visualEffects(in: split.splitViewItems[1].viewController.view).isEmpty,
             "D3 violation: the conversation content host must not materialize an ad-hoc visual effect view."
+        )
+        XCTAssertTrue(
+            visualEffects(in: split.splitViewItems[2].viewController.view).isEmpty,
+            "D3 violation: the inspector SwiftUI host must not layer a custom visual effect over AppKit system material."
         )
     }
 
