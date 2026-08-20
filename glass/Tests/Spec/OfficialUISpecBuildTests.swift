@@ -46,6 +46,30 @@ final class OfficialUISpecBuildTests: XCTestCase {
 
 
 extension OfficialUISpecBuildTests {
+    func testPackagedAccessibilityBaselineDecodesAndResolvesOfficialRuntimeLabels() {
+        let baseline = OfficialAccessibilityBaselineCatalog.baseline
+        XCTAssertEqual(baseline.schemaVersion, 1)
+        XCTAssertEqual(baseline.officialSourceCommit, OfficialUISpec.Build.sourceCommit)
+        XCTAssertNotNil(baseline.principles["macOSDynamicType"])
+        XCTAssertEqual(Set(baseline.corePaths.map(\.scene)).count, 6)
+        XCTAssertEqual(Set(baseline.requiredEnvironmentMarkers), [
+            "accessibilityReduceMotion",
+            "accessibilityReduceTransparency",
+            "colorSchemeContrast",
+            "colorScheme",
+        ])
+
+        for corePath in baseline.corePaths {
+            guard let labels = OfficialAccessibilityBaselineCatalog.resolvedLabels(for: corePath.scene) else {
+                return XCTFail("baseline scene has an unresolved runtime label mapping: \(corePath.scene)")
+            }
+            XCTAssertFalse(labels.isEmpty)
+            XCTAssertTrue(labels.allSatisfy(OfficialAccessibilityBaselineCatalog.isRegisteredAccessibilityLabel))
+        }
+        XCTAssertNil(OfficialAccessibilityBaselineCatalog.resolvedLabels(for: "not-an-official-scene"))
+        XCTAssertFalse(OfficialAccessibilityBaselineCatalog.isRegisteredAccessibilityLabel("not-an-official-accessibility-label"))
+    }
+
     func testGeneratedOfficialThemeCatalogMatchesLockedBuildAndResolvesSchemes() {
         XCTAssertEqual(OfficialUISpec.Theme.sourceCommit, OfficialUISpec.Build.sourceCommit)
         XCTAssertEqual(OfficialUISpec.Theme.sourceInputRevision, OfficialUISpec.Build.tokenRevision)

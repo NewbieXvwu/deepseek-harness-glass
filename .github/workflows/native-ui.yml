@@ -288,9 +288,6 @@ jobs:
           python3 glass/ci/test-package-target-graph.py
           python3 glass/ci/check-package-target-graph.py
           echo "::endgroup::"
-          echo "::group::Accessibility baseline"
-          python3 glass/ci/check-accessibility-baseline.py
-          echo "::endgroup::"
 
       - name: Independently compile declared SwiftPM targets
         run: |
