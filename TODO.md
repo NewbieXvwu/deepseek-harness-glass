@@ -353,6 +353,10 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
   - 依赖：T6.3、T6.6、T8.4。
   - 验收：多个 dock 的顺序、隐藏规则、滚动与无障碍标签符合规格。
 
+- [ ] **T8.8：为 `NativeMarkdownRenderer` 建立正则一次性编译与增量清洗。** `NativeMarkdownSecurityPolicy.sanitizedInlineMarkdown`/`attributedInlineMarkdown` 在每次 SwiftUI body 重算（含每个流式 chunk 追加）时都对整段文本重新执行 `replacingOccurrences(options:.regularExpression)` 并新建 `NSRegularExpression`——HTML 剥离与链接改写模式每次都重新编译且整文重扫。将上述模式提升为 `static let` 一次性编译的 `NSRegularExpression`；对流式文本复用已清洗前缀（仅在新增尾部执行清洗），或直接基于 `AttributedString(markdown:)` 解析结果过滤 `link` run，消除每 chunk 的整文重扫。`NativeMarkdownSecurityPolicy` 安全边界保持不变：可执行 HTML 剥离、`https`/`http` 协议白名单与 `openExternal` 校验行为与现实现逐字节等价，`file:`/`data:`/`javascript:` 与相对路径依旧不得外放。
+  - 依赖：T8.2（若实现顺序落后）。
+  - 验收：既有 Markdown 安全/无障碍相关 XCTest 与快照全部通过且输出等价；流式 10k chunks 场景不再出现每 chunk 的正则重编译与整文重扫（以性能断言或注入记录验证）；与 T8.3 的 `swift-markdown` AST 迁移互不阻塞，作为其落地前的过渡加固。
+
 ## 9. 工具、审批、问题、轨迹与详情
 
 官方工具和复杂会话节点是完全复刻中的高风险区域。应按 node type 分批交付，并确保未实现的 renderer 不会静默丢失模型行为或原始数据。
@@ -650,4 +654,4 @@ RC8 原始迁移提交 `d62ef24` 的 [run 32328246659](https://github.com/Newbie
 
 ### H. 明确的未完成范围
 
-T6.6扩展nodes、T6.7 reconnect/replay、完整Settings Root/schema form/General/Models/Credentials/Plugin pages、NativeUIManifest、SwiftAdapterRegistry、PluginWebHost隔离POC、完整Chat/tool renderer、window recovery、commands、accessibility/performance/security tests、签名公证、升级支持矩阵和发布候选审计均未完成。新增工程加固项 T2.7（官方规格生成器 TS/TSX 源码解析迁移 AST）、T3.7（Host announcement 正则预编译缓存）、T3.8（`HostLogRedactor` 规则元组重构）、T12.9（低频路径正则手写扫描替代）同样保持未勾选。任何新会话必须保持这些任务未勾选，直到代码、官方来源、测试、配对截图和macOS-26回归全部闭环。
+T6.6扩展nodes、T6.7 reconnect/replay、完整Settings Root/schema form/General/Models/Credentials/Plugin pages、NativeUIManifest、SwiftAdapterRegistry、PluginWebHost隔离POC、完整Chat/tool renderer、window recovery、commands、accessibility/performance/security tests、签名公证、升级支持矩阵和发布候选审计均未完成。新增工程加固项 T2.7（官方规格生成器 TS/TSX 源码解析迁移 AST）、T3.7（Host announcement 正则预编译缓存）、T3.8（`HostLogRedactor` 规则元组重构）、T8.8（`NativeMarkdownRenderer` 正则一次性编译与增量清洗）、T12.9（低频路径正则手写扫描替代）同样保持未勾选。任何新会话必须保持这些任务未勾选，直到代码、官方来源、测试、配对截图和macOS-26回归全部闭环。
