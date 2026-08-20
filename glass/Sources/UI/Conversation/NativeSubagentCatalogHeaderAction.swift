@@ -81,7 +81,7 @@ struct NativeSubagentCatalogHeaderAction: View {
                 Text(entry.reason ?? OfficialUISpec.Text.subagentLoadError)
                     .font(OfficialUISpec.Typography.xs13)
                     .foregroundStyle(OfficialUISpec.Token.errorPrimary)
-                    .padding(.leading, OfficialUISpec.Spacing.p8 * depth)
+                    .padding(.leading, OfficialUISpec.Spacing.p8 * CGFloat(depth))
                     .padding(OfficialUISpec.Spacing.p8)
             }
         }
@@ -96,7 +96,7 @@ struct NativeSubagentCatalogHeaderAction: View {
                     .font(OfficialUISpec.Typography.xs13)
                     .foregroundStyle(OfficialUISpec.Token.caption)
             }
-            .padding(.leading, OfficialUISpec.Spacing.p8 * depth)
+            .padding(.leading, OfficialUISpec.Spacing.p8 * CGFloat(depth))
             .padding(OfficialUISpec.Spacing.p8)
             .accessibilityLabel(OfficialUISpec.Text.subagentLoadingAccessibility)
         } else if sessionStore.failedSubagentCatalogIDs.contains(parentID) {
@@ -117,7 +117,7 @@ struct NativeSubagentCatalogHeaderAction: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel(OfficialUISpec.Text.subagentRetry)
             }
-            .padding(.leading, OfficialUISpec.Spacing.p8 * depth)
+            .padding(.leading, OfficialUISpec.Spacing.p8 * CGFloat(depth))
             .padding(OfficialUISpec.Spacing.p8)
         }
     }
@@ -159,7 +159,7 @@ struct NativeSubagentCatalogHeaderAction: View {
             .buttonStyle(.plain)
             .accessibilityLabel(entry.label ?? entry.id)
         }
-        .padding(.leading, OfficialUISpec.Spacing.p8 * depth)
+        .padding(.leading, OfficialUISpec.Spacing.p8 * CGFloat(depth))
     }
 
     private func toggleBranch(_ parentID: String) {
