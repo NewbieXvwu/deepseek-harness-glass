@@ -21,6 +21,7 @@ on:
       - "README.zh.md"
       - "CONTRIBUTING.md"
       - "TODO.md"
+      - "notes/**"
   pull_request:
     paths:
       - "glass/Sources/**"
@@ -40,6 +41,7 @@ on:
       - "README.zh.md"
       - "CONTRIBUTING.md"
       - "TODO.md"
+      - "notes/**"
   workflow_dispatch:
 
 permissions:
