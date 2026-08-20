@@ -53,4 +53,19 @@ final class GlassPolicyTests: XCTestCase {
         XCTAssertTrue(NativeGlassControlAccessibilityPolicy.permitsMorphing(reduceMotion: false))
         XCTAssertFalse(NativeGlassControlAccessibilityPolicy.permitsMorphing(reduceMotion: true))
     }
+
+    func testNavigationBackgroundUsesOfficialFillWhenCustomGlassIsNotAccessible() {
+        XCTAssertEqual(
+            NativeGlassNavigationBackground.resolve(reduceTransparency: false, contrast: .standard),
+            .customMaterial
+        )
+        XCTAssertEqual(
+            NativeGlassNavigationBackground.resolve(reduceTransparency: true, contrast: .standard),
+            .officialTokenFill
+        )
+        XCTAssertEqual(
+            NativeGlassNavigationBackground.resolve(reduceTransparency: false, contrast: .increased),
+            .officialTokenFill
+        )
+    }
 }

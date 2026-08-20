@@ -74,6 +74,24 @@ enum NativeGlassControlAccessibilityPolicy {
     }
 }
 
+/// The navigation style consumes this production decision directly. Keeping the
+/// material-versus-token fallback outside the view builder makes both the
+/// accessibility contract and its negative branch independently testable.
+enum NativeGlassNavigationBackground: Equatable {
+    case customMaterial
+    case officialTokenFill
+
+    static func resolve(
+        reduceTransparency: Bool,
+        contrast: ColorSchemeContrast
+    ) -> NativeGlassNavigationBackground {
+        NativeGlassControlAccessibilityPolicy.permitsCustomGlass(
+            reduceTransparency: reduceTransparency,
+            contrast: contrast
+        ) ? .customMaterial : .officialTokenFill
+    }
+}
+
 extension View {
     /// The only permitted custom Liquid Glass entry point in GlassUI. Callsites
     /// must name their policy, while the implementation refuses to apply custom

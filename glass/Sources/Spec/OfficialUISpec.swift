@@ -307,6 +307,7 @@ enum OfficialUISpec {
         static let hairline = Theme.aliasBorderL1.adaptiveColor
         static let border = Theme.aliasBorderL2.adaptiveColor
         static let interactiveHover = Theme.aliasInteractiveBgHover.adaptiveColor
+        static let floatingButtonFill = Theme.aliasButtonFloatingFill.adaptiveColor
         static let businessBlue = Theme.aliasStateBusinessPrimary.adaptiveColor
         static let businessBlueSoft = Theme.aliasStateBusinessTertiary.adaptiveColor
         static let conversationBubble = Theme.specificBubble.adaptiveColor

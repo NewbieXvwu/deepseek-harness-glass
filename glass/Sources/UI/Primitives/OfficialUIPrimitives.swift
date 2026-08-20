@@ -109,13 +109,21 @@ struct NativeGlassNavigationButtonStyle: ButtonStyle {
     @Environment(\.colorSchemeContrast) private var contrast
 
     func makeBody(configuration: Configuration) -> some View {
-        let permitsCustomGlass = NativeGlassControlAccessibilityPolicy.permitsCustomGlass(
+        let backgroundDecision = NativeGlassNavigationBackground.resolve(
             reduceTransparency: reduceTransparency,
             contrast: contrast
         )
+        let permitsCustomGlass = backgroundDecision == .customMaterial
+        let fallbackFill = configuration.isPressed
+            ? OfficialUISpec.Token.interactiveHover
+            : OfficialUISpec.Token.floatingButtonFill
+        let backgroundFill = permitsCustomGlass
+            ? AnyShapeStyle(.thinMaterial)
+            : AnyShapeStyle(fallbackFill)
+
         configuration.label
             .foregroundStyle(OfficialUISpec.Token.primary)
-            .background(.thinMaterial, in: Circle())
+            .background(backgroundFill, in: Circle())
             .overlay {
                 Circle().strokeBorder(OfficialUISpec.Token.primaryForeground.opacity(0.72), lineWidth: 0.8)
             }
