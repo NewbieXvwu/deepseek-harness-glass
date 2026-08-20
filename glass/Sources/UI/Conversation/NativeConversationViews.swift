@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 @testable import GlassCore
 @testable import GlassSpec
 #endif
+@MainActor
 struct NativeConversationColumn: View {
     let mode: NativeAppShell.PresentationMode
     let selectedWorkspaceTitle: String?
