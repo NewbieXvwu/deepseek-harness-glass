@@ -131,7 +131,11 @@ enum SnapshotExporter {
             workspaceStore: workspaceStore,
             sessionStore: sessionStore,
             workspaceSnapshotDialog: workspaceSnapshotDialog,
-            jobsPopoverInitiallyOpen: requestedMode == "jobs"
+            jobsPopoverInitiallyOpen: requestedMode == "jobs",
+            // The official capture contract fixes Jobs to en-US. This affects
+            // only the snapshot view's controlled locale lookup, never Host
+            // state or normal application language selection.
+            jobsSnapshotLanguageCode: requestedMode == "jobs" ? "en" : nil
         )
         let shellController = NativeShellRootController(presentation: presentation)
         let size = snapshotSize(environment: ProcessInfo.processInfo.environment)

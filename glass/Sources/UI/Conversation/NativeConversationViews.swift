@@ -11,6 +11,7 @@ struct NativeConversationColumn: View {
     let selectedWorkspaceTitle: String?
     @ObservedObject var sessionStore: NativeSessionStore
     let jobsPopoverInitiallyOpen: Bool
+    let jobsLanguageCode: String? = nil
 
     var body: some View {
         switch mode {
@@ -19,7 +20,8 @@ struct NativeConversationColumn: View {
         case .conversation, .tooling, .approval, .question:
             NativeActiveConversationSurface(
                 sessionStore: sessionStore,
-                jobsPopoverInitiallyOpen: jobsPopoverInitiallyOpen
+                jobsPopoverInitiallyOpen: jobsPopoverInitiallyOpen,
+                jobsLanguageCode: jobsLanguageCode
             )
         }
     }
@@ -31,12 +33,14 @@ struct NativeConversationColumn: View {
 private struct NativeActiveConversationSurface: View {
     @ObservedObject var sessionStore: NativeSessionStore
     let jobsPopoverInitiallyOpen: Bool
+    let jobsLanguageCode: String?
 
     var body: some View {
         VStack(spacing: OfficialUISpec.Spacing.p0) {
             NativeConversationHeader(
                 jobs: sessionStore.backgroundJobs,
-                jobsPopoverInitiallyOpen: jobsPopoverInitiallyOpen
+                jobsPopoverInitiallyOpen: jobsPopoverInitiallyOpen,
+                jobsLanguageCode: jobsLanguageCode
             )
             transcriptBody
             composerTakeover
@@ -103,13 +107,18 @@ private struct NativeActiveConversationSurface: View {
 private struct NativeConversationHeader: View {
     let jobs: [NativeSessionStore.BackgroundJob]
     let jobsPopoverInitiallyOpen: Bool
+    let jobsLanguageCode: String?
 
     var body: some View {
         HStack {
             Text(OfficialUISpec.Text.chat)
                 .font(OfficialUISpec.Typography.sStrong14)
             Spacer(minLength: 0)
-            NativeJobsHeaderAction(jobs: jobs, initiallyOpen: jobsPopoverInitiallyOpen)
+            NativeJobsHeaderAction(
+                jobs: jobs,
+                initiallyOpen: jobsPopoverInitiallyOpen,
+                languageCode: jobsLanguageCode
+            )
         }
         .frame(height: OfficialUISpec.Geometry.px56)
         .padding(.horizontal, OfficialUISpec.Spacing.p20)

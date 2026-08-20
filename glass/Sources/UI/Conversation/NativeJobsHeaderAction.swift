@@ -11,13 +11,27 @@ struct NativeJobsHeaderAction: View {
     let jobs: [NativeSessionStore.BackgroundJob]
     /// Used solely by SnapshotExporter to capture the official expanded state.
     let initiallyOpen: Bool
+    /// Window-local override for a capture contract; production derives this
+    /// from the current system locale through the same official catalog.
+    let languageCode: String?
     @State private var open: Bool
     @State private var nowMilliseconds = Int(Date().timeIntervalSince1970 * 1_000)
 
-    init(jobs: [NativeSessionStore.BackgroundJob], initiallyOpen: Bool = false) {
+    init(
+        jobs: [NativeSessionStore.BackgroundJob],
+        initiallyOpen: Bool = false,
+        languageCode: String? = nil
+    ) {
         self.jobs = jobs
         self.initiallyOpen = initiallyOpen
+        self.languageCode = languageCode
         _open = State(initialValue: initiallyOpen)
+    }
+
+    static func resolvedLanguageCode(override: String?, current: String?) -> String {
+        if override == "zh" { return "zh" }
+        if override == "en" { return "en" }
+        return current == "zh" ? "zh" : "en"
     }
 
     private var orderedJobs: [NativeSessionStore.BackgroundJob] { SessionJobsPresentation.ordered(jobs) }
@@ -103,7 +117,10 @@ struct NativeJobsHeaderAction: View {
 
     private func statusLabel(_ status: NativeSessionStore.BackgroundJob.Status) -> String { template("status.\(status.rawValue)") }
     private func template(_ key: String, replacements: [String: String] = [:]) -> String {
-        let language = Locale.current.language.languageCode?.identifier == "zh" ? "zh" : "en"
+        let language = Self.resolvedLanguageCode(
+            override: languageCode,
+            current: Locale.current.language.languageCode?.identifier
+        )
         var value = OfficialUISpec.LocaleCatalog.value(namespace: "ui-jobs", key: key, language: language) ?? key
         for (token, replacement) in replacements { value = value.replacingOccurrences(of: "{\(token)}", with: replacement) }
         return value

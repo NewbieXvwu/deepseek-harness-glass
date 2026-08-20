@@ -33,6 +33,8 @@ final class NativeShellPresentation: ObservableObject {
     let workspaceSnapshotDialog: WorkspaceBrowserView.SnapshotDialog
     /// Snapshot-only presentation affordance; never part of Host session truth.
     let jobsPopoverInitiallyOpen: Bool
+    /// Optional capture-only locale for Jobs; production uses the system locale.
+    let jobsSnapshotLanguageCode: String?
     private var apis: HarnessAPIs?
     private var selectedToolObservation: AnyCancellable?
     private var observedEndpoint: URL?
@@ -42,13 +44,15 @@ final class NativeShellPresentation: ObservableObject {
         workspaceStore: NativeWorkspaceStore? = nil,
         sessionStore: NativeSessionStore? = nil,
         workspaceSnapshotDialog: WorkspaceBrowserView.SnapshotDialog = .none,
-        jobsPopoverInitiallyOpen: Bool = false
+        jobsPopoverInitiallyOpen: Bool = false,
+        jobsSnapshotLanguageCode: String? = nil
     ) {
         self.mode = mode
         self.workspaceStore = workspaceStore ?? NativeWorkspaceStore()
         self.sessionStore = sessionStore ?? NativeSessionStore()
         self.workspaceSnapshotDialog = workspaceSnapshotDialog
         self.jobsPopoverInitiallyOpen = jobsPopoverInitiallyOpen
+        self.jobsSnapshotLanguageCode = jobsSnapshotLanguageCode
         self.detailsVisible = self.sessionStore.selectedToolCallID != nil
         switch workspaceSnapshotDialog {
         case .none:
@@ -254,7 +258,8 @@ final class NativeShellController: NativeSplitViewController {
                 mode: presentation.mode,
                 selectedWorkspaceTitle: Self.selectedWorkspaceTitle(for: presentation),
                 sessionStore: presentation.sessionStore,
-                jobsPopoverInitiallyOpen: presentation.jobsPopoverInitiallyOpen
+                jobsPopoverInitiallyOpen: presentation.jobsPopoverInitiallyOpen,
+                jobsLanguageCode: presentation.jobsSnapshotLanguageCode
             ),
             details: Self.details(for: presentation),
             sidebarPreference: presentation.sidebarPreference,
@@ -307,7 +312,8 @@ final class NativeShellController: NativeSplitViewController {
                 mode: presentation.mode,
                 selectedWorkspaceTitle: Self.selectedWorkspaceTitle(for: presentation),
                 sessionStore: presentation.sessionStore,
-                jobsPopoverInitiallyOpen: presentation.jobsPopoverInitiallyOpen
+                jobsPopoverInitiallyOpen: presentation.jobsPopoverInitiallyOpen,
+                jobsLanguageCode: presentation.jobsSnapshotLanguageCode
             ),
             details: Self.details(for: presentation),
             sidebarPreference: presentation.sidebarPreference,
