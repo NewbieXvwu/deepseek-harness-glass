@@ -429,6 +429,7 @@ final class NativeSessionStore: ObservableObject {
         streamTask?.cancel()
         recoveryTask?.cancel()
         recoveryGeneration &+= 1
+        let authorityGeneration = recoveryGeneration
         self.api = api
         self.hostPathAPI = hostPathAPI
         self.activeSessionCWD = sessionCWD
@@ -470,10 +471,18 @@ final class NativeSessionStore: ObservableObject {
                 // reattaches a persisted selected session before mux opens;
                 // history() alone intentionally serves detached logs.
                 let models = try await api.models(sessionID: sessionID)
-                guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
+                guard !Task.isCancelled,
+                      self?.recoveryGeneration == authorityGeneration,
+                      self?.activeSessionID == sessionID,
+                      self?.endpoint == endpoint
+                else { return }
                 self?.modelDirectory = .init(response: models)
                 let response = try await api.history(sessionID: sessionID, beforeSeq: nil, maxMessages: nil)
-                guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
+                guard !Task.isCancelled,
+                      self?.recoveryGeneration == authorityGeneration,
+                      self?.activeSessionID == sessionID,
+                      self?.endpoint == endpoint
+                else { return }
                 self?.replaceConversationWindow(response.events.map(ConversationEventInput.init(entry:)), hasMore: response.hasMore)
                 self?.applyHistory(response.events)
                 if let projections = response.projections { self?.projections.seed(sessionID: sessionID, baseline: projections) }
@@ -481,11 +490,19 @@ final class NativeSessionStore: ObservableObject {
                 self?.phase = .ready(sessionID: sessionID)
                 self?.observeMux(sessionID: sessionID, endpoint: endpoint)
             } catch let error as DSHTransportError {
-                guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
+                guard !Task.isCancelled,
+                      self?.recoveryGeneration == authorityGeneration,
+                      self?.activeSessionID == sessionID,
+                      self?.endpoint == endpoint
+                else { return }
                 self?.lastError = error
                 if !restoredResident { self?.phase = .failed(sessionID: sessionID) }
             } catch {
-                guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
+                guard !Task.isCancelled,
+                      self?.recoveryGeneration == authorityGeneration,
+                      self?.activeSessionID == sessionID,
+                      self?.endpoint == endpoint
+                else { return }
                 if !restoredResident { self?.phase = .failed(sessionID: sessionID) }
             }
         }
