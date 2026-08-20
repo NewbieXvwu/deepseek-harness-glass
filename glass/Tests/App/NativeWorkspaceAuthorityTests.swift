@@ -137,11 +137,12 @@ private final class WorkspaceAuthorityURLProtocol: URLProtocol, @unchecked Senda
         }
         let generation = Self.state.append(rpc.method)
         let delay: TimeInterval = generation == .stale ? 0.20 : 0
-        let deliver = { [weak self] in self?.deliver(rpc, generation: generation) }
         if delay > 0 {
-            DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + delay, execute: deliver)
+            DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + delay) { [weak self] in
+                self?.deliver(rpc, generation: generation)
+            }
         } else {
-            deliver()
+            deliver(rpc, generation: generation)
         }
     }
 
