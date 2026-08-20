@@ -165,7 +165,7 @@ final class NativeSessionStore: ObservableObject {
             /// Optional official presentation intent. Unknown wire tags reject
             /// the entire question request rather than falling back to an
             /// invented generic interaction.
-            let intent: Intent? = nil
+            let intent: Intent?
         }
 
         let rpcID: String
@@ -1234,7 +1234,8 @@ final class NativeSessionStore: ObservableObject {
                         PendingQuestion.Option(label: "研究潜力型", detail: "更看重 Agent 理解、训练评测思路和长期成长空间。"),
                         PendingQuestion.Option(label: "均衡型", detail: "同时要求工程能力和 Agent 认知，但可能筛选门槛更高。")
                     ],
-                    multiSelect: false
+                    multiSelect: false,
+                    intent: nil
                 ),
                 PendingQuestion.Item(
                     id: "work-mode",
@@ -1245,7 +1246,8 @@ final class NativeSessionStore: ObservableObject {
                         PendingQuestion.Option(label: "先做小型原型 (Recommended)", detail: "用可运行结果尽快验证关键假设。"),
                         PendingQuestion.Option(label: "先写完整设计", detail: "先收敛边界、协议和风险，再开始实现。")
                     ],
-                    multiSelect: false
+                    multiSelect: false,
+                    intent: nil
                 ),
                 PendingQuestion.Item(
                     id: "signals",
@@ -1257,7 +1259,8 @@ final class NativeSessionStore: ObservableObject {
                         PendingQuestion.Option(label: "代码质量", detail: nil),
                         PendingQuestion.Option(label: "Agent 产品判断", detail: nil)
                     ],
-                    multiSelect: true
+                    multiSelect: true,
+                    intent: nil
                 )
             ]
         )
