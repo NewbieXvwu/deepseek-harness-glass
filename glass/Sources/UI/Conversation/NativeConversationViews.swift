@@ -298,12 +298,7 @@ private struct NativeConversationNodeRow: View {
     private func assistantRow(_ assistant: CoreAssistantNode) -> some View {
         VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p2) {
             if !text.isEmpty {
-                Text(text)
-                    .font(OfficialUISpec.Typography.base16)
-                    .foregroundStyle(OfficialUISpec.Token.primary)
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                NativeMarkdownText(markdown: text, streaming: assistant.status == .running)
                 NativeMessageActionRow(text: text, time: assistant.time, clockPosition: .end)
             }
         }
