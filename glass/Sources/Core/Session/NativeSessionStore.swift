@@ -32,8 +32,24 @@ final class NativeSessionStore: ObservableObject {
         var isStreaming: Bool
         /// Unix epoch milliseconds from the durable Host event. Snapshot-only
         /// fixtures may omit it; the UI then honestly hides clock chrome.
-        let time: Double? = nil
+        let time: Double?
         let sequence: Int
+
+        init(
+            id: String,
+            role: Role,
+            text: String,
+            isStreaming: Bool,
+            time: Double? = nil,
+            sequence: Int
+        ) {
+            self.id = id
+            self.role = role
+            self.text = text
+            self.isStreaming = isStreaming
+            self.time = time
+            self.sequence = sequence
+        }
     }
 
     /// Source: `sessions.schema.ts:promptContentPartSchema`. This is transient
