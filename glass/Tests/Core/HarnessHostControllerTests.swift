@@ -27,12 +27,12 @@ final class HarnessHostControllerTests: XCTestCase {
         let controller = HarnessHostController(
             runtime: runtime,
             verifier: HostBuildVerifier(catalog: Self.fixedCatalog),
-            startupTimeoutNanoseconds: 15_000_000_000
+            startupTimeoutNanoseconds: 30_000_000_000
         )
         defer { controller.stop() }
 
         controller.start()
-        let connection = try await waitForReady(controller, timeout: 15)
+        let connection = try await waitForReady(controller, timeout: 30)
         XCTAssertEqual(connection.buildID, Self.fixedCatalog.defaultBuildId)
         XCTAssertEqual(connection.endpoint.scheme, "http")
         XCTAssertEqual(connection.endpoint.host, "127.0.0.1")

@@ -64,9 +64,6 @@ struct HostBuildVerifier: Sendable {
         guard build.officialSourceCommit == Self.lockedOfficialSourceCommit else {
             return .unverified(reason: "Bundled Host catalog does not match the locked official source commit.")
         }
-        guard build.verificationState == "verified" else {
-            return .unverified(reason: "Bundled Host build is awaiting the required macOS CI verification.")
-        }
         guard !build.dshPackageVersion.isEmpty,
               !build.webFrontendPackageVersion.isEmpty,
               !build.nodeRuntimeVersion.isEmpty,
@@ -91,6 +88,9 @@ struct HostBuildVerifier: Sendable {
         }
         guard let webVersion = packageVersion(at: webManifestURL), webVersion == build.webFrontendPackageVersion else {
             return .unverified(reason: "Bundled dsh web frontend version does not match the supported Host catalog.")
+        }
+        guard build.verificationState == "verified" else {
+            return .unverified(reason: "Bundled Host build is awaiting the required macOS CI verification.")
         }
         return .verified(build)
     }
