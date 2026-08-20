@@ -853,6 +853,19 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual((finalNodes.first?.data as? CoreAssistantNode)?.blocks.compactMap(\.text).joined(), "settled")
     }
 
+    func testSnapshotCompactionFixtureMaterializesLandedTypedCheckpoint() {
+        let store = NativeSessionStore()
+        store.loadSnapshotCompactionFixture()
+
+        let compaction = tryUnwrap(store.chatNodes.first(where: { $0.kind == "compaction" })?.data as? CoreCompactionNode)
+        XCTAssertEqual(compaction.compactionID, "snapshot-compact")
+        XCTAssertEqual(compaction.summary, "The earlier workspace review and source inspection were condensed into this checkpoint.")
+        XCTAssertEqual(compaction.shadowedItemCount, 3)
+        XCTAssertEqual(compaction.shadowedTokenCount, 99)
+        XCTAssertEqual(compaction.seq, 106)
+        XCTAssertFalse(store.isRunning)
+    }
+
     func testSnapshotJobsFixtureUsesCurrentHostSessionAndWholeJobSet() {
         let store = NativeSessionStore()
         store.loadSnapshotJobsFixture()

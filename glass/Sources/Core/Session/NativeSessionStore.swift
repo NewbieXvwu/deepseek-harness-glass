@@ -1968,6 +1968,46 @@ final class NativeSessionStore: ObservableObject {
         appliedSequences = Set(conversationEvents.map(\.event.seq))
     }
 
+    /// Snapshot-only landed compaction fixture. It appends the same typed
+    /// checkpoint/summary shape that the Core reducer regression certifies.
+    func loadSnapshotCompactionFixture() {
+        loadSnapshotToolingFixture()
+        let events = [
+            ConversationEventInput(event: SessionEventDTO(
+                type: "compaction/start", seq: 104, time: 104,
+                data: .object(["compactionId": .string("snapshot-compact")])
+            )),
+            ConversationEventInput(event: SessionEventDTO(
+                type: "compaction/summary", seq: 105, time: 105,
+                data: .object([
+                    "compactionId": .string("snapshot-compact"),
+                    "summary": .string("The earlier workspace review and source inspection were condensed into this checkpoint."),
+                    "shadowedItemCount": .number(3),
+                    "shadowedTokenCount": .number(99),
+                ])
+            )),
+            ConversationEventInput(event: SessionEventDTO(
+                type: "user/message", seq: 106, time: 106,
+                data: .object([
+                    "id": .string("snapshot-compact-checkpoint"),
+                    "source": .object([
+                        "kind": .string("plugin"),
+                        "plugin": .string("compact"),
+                        "compactionId": .string("snapshot-compact"),
+                    ]),
+                    "content": .array([]),
+                ]),
+                surfaceOp: .init(op: "replace", start: 1, end: 9)
+            )),
+        ]
+        for input in events {
+            appendConversationEvent(input)
+            apply(event: input.event)
+        }
+        isRunning = false
+        appliedSequences.formUnion(events.map { $0.event.seq })
+    }
+
     /// Snapshot-only queue-dock fixture. It contains only `placement=queued`
     /// Host rows, including a non-text item that verifies the official disabled
     /// edit affordance. It never creates an action API or local queue mutation.
