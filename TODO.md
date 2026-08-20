@@ -461,6 +461,10 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
   - 依赖：T3–T4、T8.3、T10.4、T11。
   - 验收：安全 checklist 全部通过，第三方 Web 插件完全限制在独立沙箱内。
 
+- [ ] **T12.8：迁移遗留 source-text CI gate 至可证伪运行态验证。** 依据 PR #5 的“验证运行态行为，严禁源码文本对暗号”规定，逐步删除对本项目 `.swift` 源码使用关键词、正则或出现次数作为 pass/fail 的 gate；改用 SwiftPM target graph、XCTest/async protocol replay、真实 AppKit/SwiftUI accessibility tree、WindowServer screenshots 与实际 Host integration。
+  - 依赖：T4.6、T5.6、T6.7、T11.7。
+  - 验收：`check-no-webview.sh`、`check-module-boundaries.py`、`check-no-feature-transport.py`、locale/spec literal lint、glass/structural/accessibility gate 及其相关生成检查均完成逐项迁移；每个替代测试具备真实负例、可证伪且对等行为重构保持通过；旧 source-text gate 不再被 workflow 调用或作为 TODO/安全/视觉验收证据。详见 `notes/PR5_QUALITY_COMPLIANCE_AUDIT.md`。
+
 ## 13. 构建、签名、发布与升级治理
 
 - [ ] **T13.1：迁移构建脚本。** 更新 `assemble.sh`、`repair-backend.sh` 与 release workflow，使其组装原生 app、固定 Host payload、生成 `SupportedHostBuilds.json`、打包 spec assets 并执行 smoke tests。
