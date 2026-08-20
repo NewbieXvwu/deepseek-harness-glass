@@ -579,15 +579,16 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 | T2.1 | `[x]` 完成 | `official-ui-spec-build.json` 记录 `sourceCommit`、Host build ID、`uiSpecRevision`、locale/token/layout/fixture SHA-256 revision、确定性 `generatedAt`、生成器版本和 37 项上游输入 hash/行数；`OfficialUISpecBuild.swift` 暴露同一 build ID，Host 启动会拒绝其 ID/commit/UI revision 不匹配的 payload。`check-official-ui-spec-build.py` 从锁定源码重生成并比对，`test-official-ui-spec-build.py` 证明篡改 catalog 必失败，`OfficialUISpecBuildTests` 读取 build ID。`e9fc169` 的 macOS-26 [run 32166053042](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32166053042) 复验通过。此勾选不代表 T2.3 token 的完整生成已完成。 |
 | T2.2 | `[x]` 完成 | `official-locales.json` 从 28 个锁定 official locale 文件生成 1,268 条、634 个成对的 en/zh key；每条记录 namespace/key/value、插值参数、复数类别、来源路径/行号/commit，且解析 catalog revision 与 `OfficialUISpec.Build.localeRevision` 所代表的原始输入 hash 分离。`OfficialLocaleCatalog.swift` 提供双语查询；`check-official-locales.py` 重生成并验证来源、双语/插值/复数一致性及 source-input 绑定；`check-official-locale-literals.py` 与自检拒绝未登记的 SwiftUI 可见文案。`e9fc169` 的 macOS-26 [run 32166053042](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32166053042) 成功完成 Swift XCTest、独立编译和官方/原生 GUI 对照；人工复核未发现本次 locale 迁移新增视觉回归。此勾选不代表 T2.3 token 或下游页面文案的完整逐场景视觉通过。 |
 | T2.6 | `[x]` 完成 | 已建立官方/原生同状态同视口配对、放大局部检查、差异记录、立即修复和CI截图存在性规则。此勾选不代表所有视觉场景都已人工验收。 |
-| T7.3 | `[x]` 完成 | workspace-search、workspace rename、session rename、workspace delete已接入官方场景契约和Host行操作；管理Dialog按钮端帽/描边/禁用色/输入全选已在run 32142821176配对核验。此勾选不代表全部sidebar功能完成。 |
+| T7.3 | `[ ]` RC8 重新认证中 | workspace-search、workspace rename、session rename、workspace delete的代码、官方场景契约和 Host 行操作仍存在；但 run 32142821176 与其管理 dialog 配对工件属于 RC7 历史记录，不能作为 RC8 完成依据。必须以 RC8 官方/原生的 search、rename、delete 浅色/深色同状态图、ARIA/geometry、差异报告、人工分类及当前 head 的 macOS-26 CI 重新闭环。 |
 
 ### D. 视觉场景矩阵
 
-场景目录来源为 `glass/Sources/Spec/Fixtures/visual-scenes.json`，固定官方 commit 为 `141eb6f...`（`dsh-v0.1.0-rc.8`）。所有场景要求 light、DPR 1、同状态、同视口；管理 Dialog 和 workspace search 使用 1280×1100 视口。RC7 的截图和人工复核仅作历史记录，不得作为 RC8 TODO 勾选证据。
+场景目录来源为 `glass/Sources/Spec/Fixtures/visual-scenes.json`，固定官方 commit 为 `141eb6f...`（`dsh-v0.1.0-rc.8`）。每个场景均要求固定的 light 或 dark 主题、DPR 1、同状态、同视口；可见表面按矩阵要求逐步同时覆盖浅色与深色。管理 Dialog 和 workspace search 使用 1280×1100 视口。RC7 的截图和人工复核仅作历史记录，不得作为 RC8 TODO 勾选证据。
 
 | 场景 | 当前证据状态 | 下一步 |
 |---|---|---|
 | `welcome-no-workspace-light` | 已有工件均属于 RC7 历史记录，不能用于 RC8 视觉验收；RC8 场景暂处于 `report-only`，不得从旧 run 推导“无新增回归”。 | 在 macOS-26 CI 以 RC8 WebUI 和同一原生 fixture 重建官方/原生 PNG、ARIA/几何 JSON、量化差异与人工分类；仅在完整证据闭环后评估是否进入 `enforce`。 |
+| `welcome-no-workspace-dark` | RC8 新增深色同状态场景已接入真实 ThemeRuntime `data-ds-dark-theme` 官方捕获、原生 `.darkAqua` 快照和 pair diff，当前为 `report-only`。 | 首次 macOS-26 工件须核对主题级联、文字/几何、ARIA及系统材质差异；分类和修复后才可进入 `enforce`。 |
 | `conversation-details-light` | CI场景契约存在 | 补全RPC fixture、完整node和配对核验 |
 | `tooling-inspector-light` | CI场景契约存在 | 补全tool renderer与详情栏核验 |
 | `workspace-search-light` | RC7 工件仅作历史记录，不能用于 RC8 验收 | 用 RC8 官方/原生同状态 search、空/结果/错误状态重建浅色/深色配对、ARIA/geometry和差异分类。 |
@@ -597,6 +598,8 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 | `approval-composer-light` | 阶段2配对验收；ApprovalPanel 140px裁切已固定 | 补充更广泛approval状态与RPC测试 |
 | `question-composer-light` | 阶段2配对验收；QuestionComposer 310px卡片已固定 | 补充选择/提交/重连测试 |
 | `sidebar-rail-narrow-light` | 场景契约与CI存在性已建立 | 完成1023px阈值、焦点和官方motion配对 |
+| `jobs-expanded-light` | RC8 同状态场景为 `report-only`；现有几何收敛仍需以 RC8 新工件复核。 | 分类现有 light diff、补齐官方同等 transcript/details 闭合与 popover 几何，达到阈值后进入 `enforce`。 |
+| `jobs-expanded-dark` | RC8 新增深色同状态场景已接入真实 ThemeRuntime、Host whole snapshot、原生 `.darkAqua` 和 pair diff，当前为 `report-only`。 | 首次工件须与 light 共享业务 fixture，并独立分类 dark surface、state dot、trigger/popover、文本与系统材质差异；不得由 light 结果代替。 |
 
 ### E. 最近修复与可复用经验
 

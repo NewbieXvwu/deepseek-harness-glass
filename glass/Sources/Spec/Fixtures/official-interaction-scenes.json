@@ -6,7 +6,7 @@
     "logicalViewport": { "width": 1280, "height": 840 },
     "deviceScaleFactor": 1,
     "locale": "en-US",
-    "colorScheme": "light",
+    "colorScheme": "per-scene",
     "accessibility": {
       "reduceTransparency": false,
       "increaseContrast": false,
@@ -61,6 +61,36 @@
       "ariaBaseline": "artifacts/official-webui/jobs-expanded-light.json",
       "screenshotBaseline": "artifacts/official-webui/jobs-expanded-light.png",
       "nativeEntry": "SnapshotExporter.DSH_GLASS_SNAPSHOT_MODE=jobs"
+    },
+    {
+      "id": "welcome-no-workspace-dark",
+      "officialTest": "apps/web/tests/lifecycle-chrome.e2e.ts",
+      "sourceLines": "239-269",
+      "hostFixture": { "kind": "fresh-scaffold", "workspace": "none" },
+      "viewport": { "width": 1280, "height": 840 },
+      "colorScheme": "dark",
+      "accessibility": { "reduceTransparency": false, "increaseContrast": false, "reduceMotion": false, "keyboardOnly": false },
+      "actions": ["navigate to the scaffold", "wait for textbox named Choose workspace", "set the official body[data-ds-dark-theme] cascade", "capture root geometry and body ARIA"],
+      "expectedVisibleText": ["New Session", "Workspaces", "No sessions yet", "Into the Unknown", "Choose workspace"],
+      "expectedLayoutTree": ["body[data-ds-dark-theme]", "AppFrame", "SidebarRoot", "EmptyHero", "InputBar"],
+      "ariaBaseline": "artifacts/official-webui/welcome-no-workspace-dark.json",
+      "screenshotBaseline": "artifacts/official-webui/welcome-no-workspace-dark.png",
+      "nativeEntry": "NativeAppShell.PresentationMode.welcome + DSH_GLASS_SNAPSHOT_COLOR_SCHEME=dark"
+    },
+    {
+      "id": "jobs-expanded-dark",
+      "officialTest": "apps/web/tests/background-job-list.e2e.ts",
+      "sourceLines": "1-130; lifecycle-chrome.e2e.ts:239-269",
+      "hostFixture": { "kind": "replay-plus-live-host-registry", "replayFixture": "apps/web/tests/snapshots/lifecycle-chrome/session.jsonl", "workspace": "connectFreshWorkspace then owner-scoped ctx.jobs.start running + completed" },
+      "viewport": { "width": 1280, "height": 840 },
+      "colorScheme": "dark",
+      "accessibility": { "reduceTransparency": false, "increaseContrast": false, "reduceMotion": false, "keyboardOnly": false },
+      "actions": ["set the official body[data-ds-dark-theme] cascade", "connect a fresh workspace", "send the locked lifecycle replay prompt", "wait for turn settlement", "start one running and one completed owner-scoped Host job", "wait for the session/jobs whole snapshot", "open the Background jobs action", "capture expanded popover"],
+      "expectedVisibleText": ["1 background job running", "sleep 60", "pnpm run build", "running", "completed"],
+      "expectedLayoutTree": ["body[data-ds-dark-theme]", "AppFrame", "selected session treeitem", "ConversationRoot", "JobListAction trigger", "Background jobs list", "StateDot rows"],
+      "ariaBaseline": "artifacts/official-webui/jobs-expanded-dark.json",
+      "screenshotBaseline": "artifacts/official-webui/jobs-expanded-dark.png",
+      "nativeEntry": "SnapshotExporter.DSH_GLASS_SNAPSHOT_MODE=jobs + DSH_GLASS_SNAPSHOT_COLOR_SCHEME=dark"
     },
     {
       "id": "empty-session-workspace",

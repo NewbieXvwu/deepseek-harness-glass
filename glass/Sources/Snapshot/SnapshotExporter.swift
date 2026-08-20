@@ -54,6 +54,10 @@ enum SnapshotExporter {
         }
     }
 
+    static func lockedAppearanceName(snapshotColorScheme: String?) -> NSAppearance.Name {
+        snapshotColorScheme == "dark" ? .darkAqua : .aqua
+    }
+
     @MainActor
     static func exportIfRequested() async throws -> Bool {
         guard let outputPath = ProcessInfo.processInfo.environment["DSH_GLASS_SNAPSHOT_PATH"], !outputPath.isEmpty else {
@@ -110,9 +114,9 @@ enum SnapshotExporter {
         case .welcome, .conversation:
             break
         }
-        let appearanceName: NSAppearance.Name = ProcessInfo.processInfo.environment["DSH_GLASS_SNAPSHOT_COLOR_SCHEME"] == "dark"
-            ? .darkAqua
-            : .aqua
+        let appearanceName = lockedAppearanceName(
+            snapshotColorScheme: ProcessInfo.processInfo.environment["DSH_GLASS_SNAPSHOT_COLOR_SCHEME"]
+        )
         // System split-item materials resolve from the application effective
         // appearance, not only the borderless bitmap context. Set it before
         // creating SwiftUI hosting views so a locked light/dark capture is

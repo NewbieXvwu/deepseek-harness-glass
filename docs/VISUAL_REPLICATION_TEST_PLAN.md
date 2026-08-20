@@ -51,7 +51,7 @@ CI 自检 `glass/ci/test_visual_policy.py` 会在合成的同尺寸图片上证�
 
 ## 4. 场景覆盖与人工审阅
 
-所有场景都来自 `visual-scenes.json`，并应在 light、DPR 1、同一语言和同一 fixture 下完成。管理 dialog 和 workspace search 使用 1280×1100；welcome 目前使用 1280×840。每个场景至少包含一个默认、一个有焦点、一个禁用/异常或忙碌状态；涉及键盘的场景必须记录 focus order。
+所有场景都来自 `visual-scenes.json`，并应在锁定的 locale、DPR 1、同一逻辑视口和同一 Host fixture 下完成。每个可见表面以**状态族**而非单张“主页面”截图进行验收：先建立 light 基准，再在官方 ThemeRuntime 的真实深色级联与原生 `.darkAqua` 下建立 dark 配对；管理 dialog 和 workspace search 使用 1280×1100，welcome/Jobs 使用 1280×840。每个场景至少包含一个默认、一个有焦点、一个禁用/异常或忙碌状态；涉及键盘的场景必须记录 focus order。不得用浏览器系统偏好或 macOS 默认外观替代对官方/原生主题的显式固定。
 
 | 场景族 | 最低覆盖 | 强制人工关注点 |
 |---|---|---|
@@ -61,6 +61,21 @@ CI 自检 `glass/ci/test_visual_policy.py` 会在合成的同尺寸图片上证�
 | Tooling / approval / question | collapsed/expanded、pending、approve/reject、multi-choice、submit | 风险文案、默认焦点、危险操作、Escape、状态回写。 |
 | Workspace/session management | search、rename、delete、archive/fork、keyboard-only | 输入自动选择、button capsule、destructive token、空态与确认流程。 |
 | Settings / plugins | root、general、models、credentials、plugin inventory、dirty/discard/error | sidebar rail、panel 结构、secret 显示策略、schema validation、focus return。 |
+
+### 4.1 场景矩阵扩展规则
+
+新增或实质修改的原生 GUI 组件必须在其 TODO 勾选前扩展截图 CI，而不是依赖无关的 welcome 图。组件作者应先在 `visual-scenes.json` 注册业务状态与原生入口，再在 `official-interaction-scenes.json` 记录真实官方测试/源码、Host fixture、ARIA 基线与主题，最后将官方捕获、WindowServer 原生快照、pair diff 和政策条目接入 `native-ui.yml`。默认先以 `report-only` 建立首对可审计工件；人工分类和修复完成后才可将同一场景升为 `enforce`。
+
+| 组件类型 | 最小新增场景 | 主题覆盖 | 必须额外固定的状态 |
+|---|---|---|---|
+| 持久页面/栏位/导航 | 常规与窄/折叠或 details 开闭状态 | light + dark | resize、focus、selected/disabled |
+| Popover、菜单、dialog | 打开态与 destructive/validation 态 | light + dark | anchor、Escape、默认焦点、输入选中 |
+| Composer、approval、question、queue | idle 与 pending/busy/error 或 cancelled/reconnect 态 | light + dark | keyboard submit、禁用、Host resolution 回写 |
+| Chat、tool、workflow、trajectory、deliverables | 首项、展开/收起、长内容或失败/中断态 | light + dark | 滚动锚点、details 联动、错误/取消、安全降级 |
+| Settings、credentials、plugins | root 与 schema dirty/validation/secret-safe 态 | light + dark | focus return、discard、权限确认、unavailable fallback |
+| 纯 Core-only 变更 | 不产生独立 UI 图；必须在受影响已存在场景回归 | 继承受影响场景 | reducer/transport regression 与无 renderer 证明 |
+
+当前首先覆盖已有确定性 fixture 的 `welcome-no-workspace-{light,dark}` 与 `jobs-expanded-{light,dark}`。其余场景仅在 native Host-shaped fixture、官方真实 capture 与 renderer 同时具备后逐项加入；不得为追求数量而制造 UI-side JSON 假数据或孤立的视觉 mock。
 
 人工评审按以下顺序执行：先确认官方 JSON 的文本和 ARIA 树；再对照几何/布局锚点；随后检查放大差异图中的每个高幅度区域；最后仅将有明确系统 API 理由的残余写入例外。**“macOS 看起来不一样”“SwiftUI 自然如此”“系统材质不可避免”均不是有效例外。**
 
