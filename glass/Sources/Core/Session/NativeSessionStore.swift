@@ -526,6 +526,48 @@ final class NativeSessionStore: ObservableObject {
         }
     }
 
+    /// Source: RC8 `sessions/service.ts:clear`. Clears only the active
+    /// selection so a no-session shell can be shown; it deliberately retains
+    /// resident snapshots for a later open and does not tear down the verified
+    /// Host connection owned by the shell.
+    func clearActiveSelection() {
+        historyTask?.cancel()
+        historyTask = nil
+        olderHistoryTask?.cancel()
+        olderHistoryTask = nil
+        streamTask?.cancel()
+        streamTask = nil
+        recoveryTask?.cancel()
+        recoveryTask = nil
+        recoveryGeneration &+= 1
+        endpoint = nil
+        api = nil
+        hostPathAPI = nil
+        activeSessionCWD = nil
+        activeSessionID = nil
+        phase = .idle
+        items = []
+        resetConversationWindow()
+        toolInvocations = []
+        queuedMessages = []
+        backgroundJobs = []
+        modelDirectory = nil
+        selectedToolCallID = nil
+        pendingApproval = nil
+        pendingQuestion = nil
+        isSubmittingApproval = false
+        isSubmittingQuestion = false
+        appliedSequences = []
+        hasMoreHistory = false
+        isLoadingOlderHistory = false
+        isRunning = false
+        selectedViewID = nil
+        isSubmittingPrompt = false
+        draft = ""
+        pendingImages = []
+        lastError = nil
+    }
+
     func disconnect() {
         historyTask?.cancel()
         historyTask = nil

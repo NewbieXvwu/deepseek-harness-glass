@@ -115,6 +115,22 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertNil(store.extensionState)
     }
 
+    func testClearActiveSelectionRetainsResidentSessionForLaterReopen() {
+        let store = NativeSessionStore()
+        store.loadSnapshotToolingFixture()
+        let originalItemIDs = store.items.map(\.id)
+        XCTAssertEqual(store.selectedSessionID, "snapshot-tooling")
+
+        store.clearActiveSelection()
+
+        XCTAssertNil(store.selectedSessionID)
+        XCTAssertTrue(store.items.isEmpty)
+        XCTAssertNil(store.modelDirectory)
+        XCTAssertNil(store.extensionState)
+        XCTAssertTrue(store.restoreResidentState(for: "snapshot-tooling"))
+        XCTAssertEqual(store.items.map(\.id), originalItemIDs)
+    }
+
     func testSubscriptionWatermarkRollbackRecoversFullAuthorityWindow() async {
         let recoveryReachedHistory = expectation(description: "watermark rollback triggers authority history")
         let api = GapRecoveringSessionAPI(recoveryReachedHistory: recoveryReachedHistory)
