@@ -26,6 +26,10 @@ enum NativeWorkspaceBrowserSearchOnExpand {
     static func settledState(searchExpanded: Bool) -> State {
         State(searchExpanded: searchExpanded, awaitsWideFocus: false)
     }
+
+    static func dismissedState() -> State {
+        State(searchExpanded: false, awaitsWideFocus: false)
+    }
 }
 
 /// Native rendering of the official `WorkspaceBrowser` hierarchy. Host state is
@@ -349,10 +353,14 @@ struct WorkspaceBrowserView: View {
                     .font(OfficialUISpec.Typography.xs13)
                     .foregroundStyle(OfficialUISpec.Token.primary)
                     .focused($searchInputFocused)
+                    .onKeyPress(.escape) {
+                        dismissSearch()
+                        return .handled
+                    }
                     .accessibilityLabel(OfficialUISpec.Text.searchSessionsAccessibility)
 
                 if !store.searchQuery.isEmpty {
-                    Button(action: { store.searchQuery = "" }) {
+                    Button(action: dismissSearch) {
                         OfficialAssetImage(name: "icon-close", template: true)
                             .frame(width: OfficialUISpec.Geometry.px12, height: OfficialUISpec.Geometry.px12)
                             .frame(width: OfficialUISpec.Geometry.px24, height: OfficialUISpec.Geometry.px24)
@@ -911,6 +919,14 @@ struct WorkspaceBrowserView: View {
         requestSidebarExpansion()
     }
 
+    private func dismissSearch() {
+        let state = NativeWorkspaceBrowserSearchOnExpand.dismissedState()
+        searchExpanded = state.searchExpanded
+        searchOnExpand = state.awaitsWideFocus
+        searchInputFocused = false
+        store.searchQuery = ""
+    }
+
     private func toggleSearch() {
         withAnimation(.easeInOut(duration: 0.18)) {
             searchExpanded.toggle()
@@ -918,8 +934,7 @@ struct WorkspaceBrowserView: View {
         if searchExpanded {
             searchInputFocused = true
         } else {
-            searchInputFocused = false
-            store.searchQuery = ""
+            dismissSearch()
         }
     }
 

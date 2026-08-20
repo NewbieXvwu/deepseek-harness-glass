@@ -119,6 +119,10 @@ final class NativeWorkspaceStoreTests: XCTestCase {
             NativeWorkspaceBrowserSearchOnExpand.settledState(searchExpanded: armed.searchExpanded),
             .init(searchExpanded: true, awaitsWideFocus: false)
         )
+        XCTAssertEqual(
+            NativeWorkspaceBrowserSearchOnExpand.dismissedState(),
+            .init(searchExpanded: false, awaitsWideFocus: false)
+        )
     }
 
     func testSearchWithoutVerifiedHostDoesNotInventPrivateResults() {
