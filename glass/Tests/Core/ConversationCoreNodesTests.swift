@@ -95,6 +95,36 @@ final class ConversationCoreNodesTests: XCTestCase {
         XCTAssertEqual(compaction.seq, 19, "checkpoint stays at its landed replacement event, not at summary")
     }
 
+    func testTurnMaxTokensNoticeUsesClosingTurnCoordinatesAndRejectsOtherEndReasons() {
+        let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
+        let entries = [
+            event(seq: 40, type: "turn/start", data: ["turn": .number(6)]),
+            event(seq: 41, type: "step/start", data: ["turn": .number(6), "step": .number(3)]),
+            event(seq: 42, type: "assistant/message", surface: .string("append"), data: [
+                "turn": .number(6), "step": .number(3),
+                "message": .object(["id": .string("cap-answer"), "content": .array([text("partial")])]),
+            ]),
+            event(seq: 43, type: "turn/end", data: [
+                "turn": .number(6),
+                "reason": .object(["kind": .string("max-tokens")]),
+            ]),
+            event(seq: 44, type: "turn/end", data: [
+                "turn": .number(7),
+                "reason": .object(["kind": .string("cancelled")]),
+            ]),
+        ]
+
+        XCTAssertEqual(reducer.replaceWindow(entries.map { .init(event: $0) }, hasMore: false), .immediate)
+        let notice = tryUnwrap(reducer.snapshot(target: "chat").first(where: { $0.kind == "turn-max-tokens" }))
+        let payload = tryUnwrap(notice.data as? CoreTurnMaxTokensNode)
+        XCTAssertEqual(payload.turn, 6)
+        XCTAssertEqual(payload.step, 3)
+        XCTAssertEqual(payload.seq, 43)
+        XCTAssertEqual(payload.time, 43)
+        XCTAssertEqual(notice.anchorSeq, 43)
+        XCTAssertEqual(reducer.snapshot(target: "chat").filter { $0.kind == "turn-max-tokens" }.count, 1)
+    }
+
     func testClosedStepFreezesStreamingAssistantAndRunningToolAtOfficialSyntheticAnchors() {
         let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
         let entries = [

@@ -112,6 +112,15 @@ struct CoreCompactionNode {
     let shadowedTokenCount: Int?
 }
 
+/// Official `turn/end` output-cap notice. It deliberately carries no provider
+/// wording because the renderer owns the versioned locale fallback.
+struct CoreTurnMaxTokensNode {
+    let turn: Int
+    let step: Int
+    let seq: Int
+    let time: Double
+}
+
 /// The Core registry used by the Session reducer for the first official
 /// conversation family. Feature/UI uses only reducer snapshots, never this
 /// registry or raw event DTOs.
@@ -127,6 +136,7 @@ enum ConversationCoreNodeRegistry {
             .init(ToolDefinition()),
             .init(RetryDefinition()),
             .init(TurnErrorDefinition()),
+            .init(TurnMaxTokensDefinition()),
             .init(CompactionDefinition()),
             .init(WorkflowRunDefinition()),
             .init(DeliverablesDefinition())
@@ -627,6 +637,58 @@ private struct TurnErrorDefinition: ConversationNodeDefinition {
         }
         let payload = CoreTurnErrorNode(turn: state.turn, step: step, seq: failure.seq, time: failure.time, message: failure.message, code: failure.code, hiddenByRetry: state.hidden)
         return chatNode(context: context, kind: "turn-error", anchor: Double(failure.seq), data: payload, visibility: state.hidden ? .hidden : .visible)
+    }
+}
+
+// MARK: - Output-token cap notice
+
+/// Source: RC8 `conversation-nodes/turn-max-tokens.ts`. The full browser also
+/// offsets this notice ahead of its later turn-tail renderer. Glass Core does
+/// not yet register that tail node, so the raw turn-end sequence is the exact
+/// fallback anchor prescribed by the official definition when no closing tail
+/// is available.
+private struct TurnMaxTokensDefinition: ConversationNodeDefinition {
+    typealias State = CoreTurnMaxTokensNode
+    let kind = "turn-max-tokens"
+    let target: String? = "chat"
+
+    func match(_ event: SessionEventDTO) -> ConversationMatchResult? {
+        guard event.type == "turn/end",
+              event.data.object(named: "reason")?.string(named: "kind") == "max-tokens",
+              let turn = event.data.coreInteger(named: "turn")
+        else { return nil }
+        return .init(id: turn.description, role: .start)
+    }
+
+    func start(
+        context _: ConversationNodeContext<State>,
+        match: ConversationMatch,
+        reader _: any ConversationContextReader
+    ) -> State {
+        .init(
+            turn: match.event.data.coreInteger(named: "turn") ?? 0,
+            step: maxTokensStep(for: match.location),
+            seq: match.event.seq,
+            time: match.event.time
+        )
+    }
+
+    func update(context: ConversationNodeContext<State>, match _: ConversationMatch) -> State {
+        guard let state = context.state else { preconditionFailure("turn-max-tokens update requires turn/end") }
+        return state
+    }
+
+    func buildViewNode(context: ConversationNodeContext<State>) -> ConversationViewNode? {
+        guard let state = context.state else { return nil }
+        return chatNode(context: context, kind: kind, anchorSeq: state.seq, data: state)
+    }
+
+    private func maxTokensStep(for location: ConversationLocation) -> Int {
+        switch location {
+        case let .step(_, step): return step.step
+        case let .turn(turn): return turn.steps.last?.step ?? 0
+        case .session, .unresolved: return 0
+        }
     }
 }
 
