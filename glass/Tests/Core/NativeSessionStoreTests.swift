@@ -133,6 +133,67 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertNil(store.pendingQuestion)
     }
 
+    func testReducerBackedJobsFixtureMatchesTranscriptAndStreamingFinalReusesSameNodeKey() {
+        let store = NativeSessionStore()
+        store.loadSnapshotJobsFixture()
+
+        XCTAssertEqual(store.items.map(\.text), ["Reply with the single word LIGHTHOUSE and stop.", "LIGHTHOUSE"])
+        let initialMessages = store.chatNodes.compactMap { $0.data as? CoreUserMessageNode }
+        let initialAssistant = store.chatNodes.compactMap { $0.data as? CoreAssistantNode }
+        XCTAssertEqual(initialMessages.map { $0.content.compactMap(\.text).joined() }, ["Reply with the single word LIGHTHOUSE and stop."])
+        XCTAssertEqual(initialAssistant.map { $0.blocks.compactMap(\.text).joined() }, ["LIGHTHOUSE"])
+        XCTAssertEqual(initialAssistant.first?.status, .settled)
+
+        store.applyMuxFrame(sessionEventFrame(
+            sessionID: "fx-alpha",
+            seq: 5,
+            type: "turn/start",
+            data: .object(["turn": .number(2)])
+        ), sessionID: "fx-alpha")
+        store.applyMuxFrame(sessionEventFrame(
+            sessionID: "fx-alpha",
+            seq: 6,
+            type: "step/start",
+            data: .object(["turn": .number(2), "step": .number(1)])
+        ), sessionID: "fx-alpha")
+        store.applyMuxFrame(sessionEventFrame(
+            sessionID: "fx-alpha",
+            seq: 7,
+            type: "assistant/chunk",
+            data: .object([
+                "turn": .number(2),
+                "step": .number(1),
+                "chunk": .object(["type": .string("text-delta"), "index": .number(0), "text": .string("streaming")]),
+            ])
+        ), sessionID: "fx-alpha")
+
+        guard let runningNode = store.chatNodes.first(where: { ($0.data as? CoreAssistantNode)?.turn == 2 }) else {
+            return XCTFail("streaming assistant node was not materialized")
+        }
+        XCTAssertEqual((runningNode.data as? CoreAssistantNode)?.status, .running)
+        XCTAssertEqual((runningNode.data as? CoreAssistantNode)?.blocks.compactMap(\.text).joined(), "streaming")
+
+        store.applyMuxFrame(sessionEventFrame(
+            sessionID: "fx-alpha",
+            seq: 8,
+            type: "assistant/message",
+            data: .object([
+                "turn": .number(2),
+                "step": .number(1),
+                "message": .object([
+                    "id": .string("final-turn-2-step-1"),
+                    "content": .array([.object(["type": .string("text"), "text": .string("settled")])]),
+                ]),
+            ]),
+            surfaceOp: "append"
+        ), sessionID: "fx-alpha")
+
+        let finalNodes = store.chatNodes.filter { ($0.data as? CoreAssistantNode)?.turn == 2 }
+        XCTAssertEqual(finalNodes.map(\.key), [runningNode.key], "final evidence must settle the streaming row, not append a second node")
+        XCTAssertEqual((finalNodes.first?.data as? CoreAssistantNode)?.status, .settled)
+        XCTAssertEqual((finalNodes.first?.data as? CoreAssistantNode)?.blocks.compactMap(\.text).joined(), "settled")
+    }
+
     func testSnapshotJobsFixtureUsesCurrentHostSessionAndWholeJobSet() {
         let store = NativeSessionStore()
         store.loadSnapshotJobsFixture()
@@ -158,6 +219,32 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(SessionJobsPresentation.ordered(jobs).map(\.id), ["stopping-early", "running-late", "failed-new", "done-old"])
         XCTAssertEqual(SessionJobsPresentation.elapsedMilliseconds(for: jobs[1], now: 100), 60)
         XCTAssertEqual(SessionJobsPresentation.elapsedMilliseconds(for: jobs[0], now: 100), 10)
+    }
+
+    private func sessionEventFrame(
+        sessionID: String,
+        seq: Int,
+        type: String,
+        data: JSONValue,
+        surfaceOp: String? = nil
+    ) -> RPCServerRequest {
+        var event: [String: JSONValue] = [
+            "type": .string(type),
+            "seq": .number(Double(seq)),
+            "time": .number(Double(seq)),
+            "data": data,
+        ]
+        if let surfaceOp { event["surfaceOp"] = .string(surfaceOp) }
+        return RPCServerRequest(
+            type: "server-request",
+            rpcId: "event-\(UUID().uuidString)",
+            method: "session/event",
+            payload: .object([
+                "type": .string("session/event"),
+                "sessionId": .string(sessionID),
+                "event": .object(event),
+            ])
+        )
     }
 
     private func eventFrame(sessionID: String, seq: Int, messageID: String, text: String) -> RPCServerRequest {

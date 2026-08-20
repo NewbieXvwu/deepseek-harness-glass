@@ -185,10 +185,17 @@ final class NativeSessionStore: ObservableObject {
         let pendingQuestion: PendingQuestion?
         let lastError: DSHTransportError?
         let appliedSequences: Set<Int>
+        let conversationWindow: [ConversationEventInput]
+        let conversationHasMoreHistory: Bool
     }
 
     @Published private(set) var phase: Phase = .idle
+    /// Compatibility projection retained while individual downstream surfaces
+    /// complete their node-snapshot migration. Chat rendering reads `chatNodes`.
     @Published private(set) var items: [TranscriptItem] = []
+    /// The stable keyed RC8 Chat target snapshot. It is materialized solely by
+    /// `conversationReducer` from Host history/mux evidence.
+    @Published private(set) var chatNodes: [ConversationViewNode] = []
     @Published private(set) var hasMoreHistory = false
     @Published private(set) var isLoadingOlderHistory = false
     @Published private(set) var isRunning = false
@@ -222,6 +229,9 @@ final class NativeSessionStore: ObservableObject {
     private var activeSessionID: String?
     private var residentStates: [String: ResidentSessionState] = [:]
     private var appliedSequences: Set<Int> = []
+    private var conversationReducer = ConversationNodeReducer(
+        definitions: ConversationCoreNodeRegistry.initialDefinitions()
+    )
 
     /// The shell uses this only to replay an existing selection against a new
     /// verified endpoint after Host recovery; the Host remains session truth.
@@ -263,7 +273,9 @@ final class NativeSessionStore: ObservableObject {
             pendingApproval: pendingApproval,
             pendingQuestion: pendingQuestion,
             lastError: lastError,
-            appliedSequences: appliedSequences
+            appliedSequences: appliedSequences,
+            conversationWindow: conversationReducer.rawWindow(),
+            conversationHasMoreHistory: conversationReducer.currentHasMoreHistory()
         )
     }
 
@@ -289,6 +301,7 @@ final class NativeSessionStore: ObservableObject {
         isSubmittingQuestion = false
         lastError = state.lastError
         appliedSequences = state.appliedSequences
+        replaceConversationWindow(state.conversationWindow, hasMore: state.conversationHasMoreHistory)
         return true
     }
 
@@ -309,6 +322,7 @@ final class NativeSessionStore: ObservableObject {
         let restoredResident = restoreResidentState(for: sessionID)
         if !restoredResident {
             items = []
+            resetConversationWindow()
             toolInvocations = []
             queuedMessages = []
             backgroundJobs = []
@@ -343,6 +357,7 @@ final class NativeSessionStore: ObservableObject {
                 guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
                 let response = try await api.history(sessionID: sessionID)
                 guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
+                self?.replaceConversationWindow(response.events.map(ConversationEventInput.init(entry:)), hasMore: response.hasMore)
                 self?.applyHistory(response.events)
                 if let projections = response.projections { self?.projections.seed(sessionID: sessionID, baseline: projections) }
                 self?.hasMoreHistory = response.hasMore
@@ -371,6 +386,7 @@ final class NativeSessionStore: ObservableObject {
         activeSessionID = nil
         phase = .idle
         items = []
+        resetConversationWindow()
         toolInvocations = []
         queuedMessages = []
         backgroundJobs = []
@@ -471,6 +487,7 @@ final class NativeSessionStore: ObservableObject {
             do {
                 let response = try await api.history(sessionID: sessionID, beforeSeq: beforeSeq)
                 guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
+                self?.prependConversationWindow(response.events.map(ConversationEventInput.init(entry:)), hasMore: response.hasMore)
                 self?.applyHistory(response.events)
                 if let projections = response.projections { self?.projections.seed(sessionID: sessionID, baseline: projections) }
                 self?.hasMoreHistory = response.hasMore
@@ -501,6 +518,31 @@ final class NativeSessionStore: ObservableObject {
         }
     }
 
+    private func resetConversationWindow() {
+        conversationReducer = ConversationNodeReducer(
+            definitions: ConversationCoreNodeRegistry.initialDefinitions()
+        )
+        chatNodes = []
+    }
+
+    private func replaceConversationWindow(_ entries: [ConversationEventInput], hasMore: Bool) {
+        conversationReducer = ConversationNodeReducer(
+            definitions: ConversationCoreNodeRegistry.initialDefinitions()
+        )
+        _ = conversationReducer.replaceWindow(entries, hasMore: hasMore)
+        chatNodes = conversationReducer.snapshot(target: "chat")
+    }
+
+    private func prependConversationWindow(_ entries: [ConversationEventInput], hasMore: Bool) {
+        _ = conversationReducer.prepend(entries, hasMore: hasMore)
+        chatNodes = conversationReducer.snapshot(target: "chat")
+    }
+
+    private func appendConversationEvent(_ input: ConversationEventInput) {
+        _ = conversationReducer.append(input)
+        chatNodes = conversationReducer.snapshot(target: "chat")
+    }
+
     private func applyHistory(_ entries: [SessionHistoryEntryDTO]) {
         for entry in entries.sorted(by: { $0.event.seq < $1.event.seq }) {
             apply(event: entry.event, view: entry.view?.view)
@@ -521,7 +563,9 @@ final class NativeSessionStore: ObservableObject {
             guard let eventValue = object["event"],
                   let event = decode(SessionEventDTO.self, from: eventValue)
             else { return }
-            apply(event: event, view: object["view"]?.objectValue?["view"])
+            let view = object["view"].flatMap { decode(ToolEventViewDTO.self, from: $0) }
+            appendConversationEvent(.init(event: event, view: view))
+            apply(event: event, view: view?.view)
         case "session/subscribed":
             applySubscription(object, sessionID: sessionID)
         case "session/projection":
@@ -886,24 +930,50 @@ final class NativeSessionStore: ObservableObject {
         let now = Int(Date().timeIntervalSince1970 * 1_000)
         phase = .ready(sessionID: sessionID)
         activeSessionID = sessionID
-        items = [
-            TranscriptItem(
-                id: "snapshot-jobs-user",
-                role: .user,
-                text: "Reply with the single word LIGHTHOUSE and stop.",
-                isStreaming: false,
+        let conversationEvents = [
+            ConversationEventInput(event: SessionEventDTO(
+                type: "user/message",
+                seq: 1,
                 time: Double(now),
-                sequence: 1
-            ),
-            TranscriptItem(
-                id: "snapshot-jobs-assistant",
-                role: .assistant,
-                text: "LIGHTHOUSE",
-                isStreaming: false,
+                data: .object([
+                    "id": .string("snapshot-jobs-user"),
+                    "content": .array([.object(["type": .string("text"), "text": .string("Reply with the single word LIGHTHOUSE and stop.")])]),
+                    "source": .object(["kind": .string("user")]),
+                ]),
+                surfaceOp: .string("append")
+            )),
+            ConversationEventInput(event: SessionEventDTO(
+                type: "turn/start",
+                seq: 2,
                 time: Double(now),
-                sequence: 2
-            )
+                data: .object(["turn": .number(1)])
+            )),
+            ConversationEventInput(event: SessionEventDTO(
+                type: "step/start",
+                seq: 3,
+                time: Double(now),
+                data: .object(["turn": .number(1), "step": .number(1)])
+            )),
+            ConversationEventInput(event: SessionEventDTO(
+                type: "assistant/message",
+                seq: 4,
+                time: Double(now),
+                data: .object([
+                    "turn": .number(1),
+                    "step": .number(1),
+                    "message": .object([
+                        "id": .string("snapshot-jobs-assistant"),
+                        "content": .array([.object(["type": .string("text"), "text": .string("LIGHTHOUSE")])]),
+                    ]),
+                ]),
+                surfaceOp: .string("append")
+            )),
         ]
+        replaceConversationWindow(conversationEvents, hasMore: false)
+        items = []
+        for input in conversationEvents {
+            apply(event: input.event)
+        }
         toolInvocations = []
         queuedMessages = []
         backgroundJobs = [
@@ -938,7 +1008,7 @@ final class NativeSessionStore: ObservableObject {
         draft = ""
         pendingImages = []
         lastError = nil
-        appliedSequences = [1, 2]
+        appliedSequences = Set(conversationEvents.map(\.event.seq))
     }
 
     /// Snapshot-only Host-shaped approval fixture. It exercises the same
@@ -948,6 +1018,7 @@ final class NativeSessionStore: ObservableObject {
         phase = .ready(sessionID: sessionID)
         activeSessionID = sessionID
         items = []
+        resetConversationWindow()
         toolInvocations = []
         queuedMessages = []
         backgroundJobs = []
@@ -980,6 +1051,7 @@ final class NativeSessionStore: ObservableObject {
         phase = .ready(sessionID: sessionID)
         activeSessionID = sessionID
         items = []
+        resetConversationWindow()
         toolInvocations = []
         queuedMessages = []
         backgroundJobs = []
@@ -1045,22 +1117,50 @@ final class NativeSessionStore: ObservableObject {
         let sessionID = "snapshot-tooling"
         phase = .ready(sessionID: sessionID)
         activeSessionID = sessionID
-        items = [
-            TranscriptItem(
-                id: "event-101",
-                role: .user,
-                text: "Read the project instructions.",
-                isStreaming: false,
-                sequence: 101
-            ),
-            TranscriptItem(
-                id: "event-104",
-                role: .assistant,
-                text: "I found the requested instructions.",
-                isStreaming: false,
-                sequence: 104
-            )
+        let conversationEvents = [
+            ConversationEventInput(event: SessionEventDTO(
+                type: "user/message",
+                seq: 101,
+                time: 101,
+                data: .object([
+                    "id": .string("event-101"),
+                    "content": .array([.object(["type": .string("text"), "text": .string("Read the project instructions.")])]),
+                    "source": .object(["kind": .string("user")]),
+                ]),
+                surfaceOp: .string("append")
+            )),
+            ConversationEventInput(event: SessionEventDTO(
+                type: "turn/start",
+                seq: 102,
+                time: 102,
+                data: .object(["turn": .number(1)])
+            )),
+            ConversationEventInput(event: SessionEventDTO(
+                type: "step/start",
+                seq: 103,
+                time: 103,
+                data: .object(["turn": .number(1), "step": .number(1)])
+            )),
+            ConversationEventInput(event: SessionEventDTO(
+                type: "assistant/message",
+                seq: 104,
+                time: 104,
+                data: .object([
+                    "turn": .number(1),
+                    "step": .number(1),
+                    "message": .object([
+                        "id": .string("event-104"),
+                        "content": .array([.object(["type": .string("text"), "text": .string("I found the requested instructions.")])]),
+                    ]),
+                ]),
+                surfaceOp: .string("append")
+            )),
         ]
+        replaceConversationWindow(conversationEvents, hasMore: false)
+        items = []
+        for input in conversationEvents {
+            apply(event: input.event)
+        }
         toolInvocations = [
             ToolInvocation(
                 id: "snapshot-read",
@@ -1089,7 +1189,7 @@ final class NativeSessionStore: ObservableObject {
         draft = ""
         pendingImages = []
         lastError = nil
-        appliedSequences = [101, 102, 103, 104]
+        appliedSequences = Set(conversationEvents.map(\.event.seq))
     }
 
     private func settleStreaming() {

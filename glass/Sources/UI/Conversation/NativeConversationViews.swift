@@ -47,7 +47,7 @@ private struct NativeActiveConversationSurface: View {
                 presentation: NativeSessionHeaderPresentation(
                     snapshot: sessionSnapshot,
                     sessionID: sessionStore.selectedSessionID,
-                    composerIsBlank: sessionStore.items.isEmpty && sessionStore.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                    composerIsBlank: sessionStore.chatNodes.isEmpty && sessionStore.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                     selectedViewID: sessionStore.selectedViewID
                 ),
                 jobs: sessionStore.backgroundJobs,
@@ -106,7 +106,7 @@ private struct NativeActiveConversationSurface: View {
             Spacer(minLength: 0)
         case .ready:
             NativeTranscriptScrollView(
-                items: sessionStore.items,
+                chatNodes: sessionStore.chatNodes,
                 toolInvocations: sessionStore.toolInvocations,
                 isRunning: sessionStore.isRunning,
                 selectedToolCallID: sessionStore.selectedToolCallID,
@@ -121,25 +121,25 @@ private struct NativeActiveConversationSurface: View {
 
 private struct NativeTranscriptScrollView: View {
     private enum TimelineItem: Identifiable {
-        case message(NativeSessionStore.TranscriptItem)
+        case chat(ConversationViewNode)
         case tool(NativeSessionStore.ToolInvocation)
 
         var id: String {
             switch self {
-            case let .message(item): item.id
+            case let .chat(node): node.key
             case let .tool(invocation): "tool-\(invocation.id)"
             }
         }
 
-        var sequence: Int {
+        var anchor: Double {
             switch self {
-            case let .message(item): item.sequence
-            case let .tool(invocation): invocation.sequence
+            case let .chat(node): node.anchorSeq ?? .greatestFiniteMagnitude
+            case let .tool(invocation): Double(invocation.sequence)
             }
         }
     }
 
-    let items: [NativeSessionStore.TranscriptItem]
+    let chatNodes: [ConversationViewNode]
     let toolInvocations: [NativeSessionStore.ToolInvocation]
     let isRunning: Bool
     let selectedToolCallID: String?
@@ -149,8 +149,17 @@ private struct NativeTranscriptScrollView: View {
     let selectToolCall: (String?) -> Void
 
     private var timeline: [TimelineItem] {
-        (items.map(TimelineItem.message) + toolInvocations.map(TimelineItem.tool))
-            .sorted { $0.sequence < $1.sequence }
+        let visibleMessages = chatNodes.compactMap { node -> TimelineItem? in
+            guard node.visibility != .hidden,
+                  node.data is CoreUserMessageNode || node.data is CoreAssistantNode
+            else { return nil }
+            return .chat(node)
+        }
+        return (visibleMessages + toolInvocations.map(TimelineItem.tool))
+            .sorted {
+                if $0.anchor == $1.anchor { return $0.id < $1.id }
+                return $0.anchor < $1.anchor
+            }
     }
 
     /// Mirrors RC8's follow signature: a streaming delta changes only the tail
@@ -158,9 +167,9 @@ private struct NativeTranscriptScrollView: View {
     private var tailSignature: String {
         let tail = timeline.last
         let textCount: Int
-        if case let .message(item)? = tail { textCount = item.text.count }
+        if case let .chat(node)? = tail { textCount = NativeConversationNodeRow.textCount(in: node) }
         else { textCount = 0 }
-        return "\(tail?.id ?? ""):\(textCount):\(isRunning ? 1 : 0)"
+        return "\(tail?.id ?? \"\"):\(textCount):\(isRunning ? 1 : 0)"
     }
 
     var body: some View {
@@ -181,9 +190,9 @@ private struct NativeTranscriptScrollView: View {
                     }
                     ForEach(timeline) { entry in
                         switch entry {
-                        case let .message(item):
-                            NativeTranscriptBubble(item: item)
-                                .id(item.id)
+                        case let .chat(node):
+                            NativeConversationNodeRow(node: node)
+                                .id(node.key)
                         case let .tool(invocation):
                             NativeToolRow(
                                 invocation: invocation,
@@ -214,46 +223,90 @@ private struct NativeTranscriptScrollView: View {
     }
 }
 
-private struct NativeTranscriptBubble: View {
-    let item: NativeSessionStore.TranscriptItem
+private struct NativeConversationNodeRow: View {
+    let node: ConversationViewNode
 
     var body: some View {
         Group {
-            switch item.role {
-            case .user:
-                VStack(alignment: .trailing, spacing: OfficialUISpec.Spacing.p2) {
-                    HStack {
-                        Spacer(minLength: 0)
-                        Text(item.text)
-                            .font(OfficialUISpec.Typography.base16)
-                            .foregroundStyle(OfficialUISpec.Token.primary)
-                            .textSelection(.enabled)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .padding(.horizontal, OfficialUISpec.Spacing.p16)
-                            .padding(.vertical, OfficialUISpec.Spacing.p10)
-                            .frame(maxWidth: OfficialUISpec.Layout.chatUserMessageMaximum, alignment: .leading)
-                            .background(
-                                OfficialUISpec.Token.conversationBubble,
-                                in: RoundedRectangle(cornerRadius: OfficialUISpec.Layout.chatMessageCornerRadius, style: .continuous)
-                            )
-                    }
-                    NativeMessageActionRow(text: item.text, time: item.time, clockPosition: .start)
-                }
-            case .assistant:
-                VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p2) {
-                    Text(item.text)
+            if let user = node.data as? CoreUserMessageNode {
+                userRow(user)
+            } else if let assistant = node.data as? CoreAssistantNode {
+                assistantRow(assistant)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityLabel(accessibilityText)
+        .accessibilityValue(assistantStatus == .running ? OfficialUISpec.Text.running : "")
+    }
+
+    static func textCount(in node: ConversationViewNode) -> Int {
+        text(in: node).count
+    }
+
+    private static func text(in node: ConversationViewNode) -> String {
+        if let user = node.data as? CoreUserMessageNode {
+            return user.content.compactMap(\.text).joined()
+        }
+        if let assistant = node.data as? CoreAssistantNode {
+            return assistant.blocks.compactMap(\.text).joined()
+        }
+        return ""
+    }
+
+    private var text: String { Self.text(in: node) }
+    private var accessibilityText: String { text }
+    private var assistantStatus: CoreAssistantNode.Status? { (node.data as? CoreAssistantNode)?.status }
+
+    @ViewBuilder
+    private func userRow(_ user: CoreUserMessageNode) -> some View {
+        switch user.kind {
+        case .context:
+            HStack(spacing: OfficialUISpec.Spacing.p6) {
+                Image(systemName: "info.circle")
+                    .imageScale(.small)
+                    .foregroundStyle(OfficialUISpec.Token.secondary)
+                Text(text)
+                    .font(OfficialUISpec.Typography.xs13)
+                    .foregroundStyle(OfficialUISpec.Token.secondary)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.vertical, OfficialUISpec.Spacing.p4)
+            .accessibilityLabel(text)
+        case .user, .steering:
+            VStack(alignment: .trailing, spacing: OfficialUISpec.Spacing.p2) {
+                HStack {
+                    Spacer(minLength: 0)
+                    Text(text)
                         .font(OfficialUISpec.Typography.base16)
                         .foregroundStyle(OfficialUISpec.Token.primary)
                         .textSelection(.enabled)
                         .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    NativeMessageActionRow(text: item.text, time: item.time, clockPosition: .end)
+                        .padding(.horizontal, OfficialUISpec.Spacing.p16)
+                        .padding(.vertical, OfficialUISpec.Spacing.p10)
+                        .frame(maxWidth: OfficialUISpec.Layout.chatUserMessageMaximum, alignment: .leading)
+                        .background(
+                            OfficialUISpec.Token.conversationBubble,
+                            in: RoundedRectangle(cornerRadius: OfficialUISpec.Layout.chatMessageCornerRadius, style: .continuous)
+                        )
                 }
+                NativeMessageActionRow(text: text, time: user.time, clockPosition: .start)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityLabel(item.text)
-        .accessibilityValue(item.isStreaming ? OfficialUISpec.Text.running : "")
+    }
+
+    private func assistantRow(_ assistant: CoreAssistantNode) -> some View {
+        VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p2) {
+            if !text.isEmpty {
+                Text(text)
+                    .font(OfficialUISpec.Typography.base16)
+                    .foregroundStyle(OfficialUISpec.Token.primary)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                NativeMessageActionRow(text: text, time: assistant.time, clockPosition: .end)
+            }
+        }
     }
 }
 
