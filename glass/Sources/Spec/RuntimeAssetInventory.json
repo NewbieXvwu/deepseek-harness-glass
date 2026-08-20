@@ -37,10 +37,10 @@
     {
       "id": "external-port-attachment",
       "source": "95c3ad8 historical 127.0.0.1:3080 probe",
-      "responsibility": "Attach to an arbitrary external dsh web server instead of launching the bundled payload.",
-      "decision": "deleted",
-      "destination": "none",
-      "verification": "No 3080 probe or external Host write path exists; T0.2 fixed support boundary permits only app-owned payload."
+      "responsibility": "Probe and reuse default 127.0.0.1:3080 dsh web instance before spawning the bundled payload.",
+      "decision": "preserved",
+      "destination": "Sources/Core/Host/HarnessHostController.swift",
+      "verification": "HarnessHostController probes loopback 3080; attaches if active or falls back to spawning owned Host."
     },
     {
       "id": "snapshot-export",
