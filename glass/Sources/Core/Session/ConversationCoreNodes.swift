@@ -127,7 +127,8 @@ enum ConversationCoreNodeRegistry {
             .init(RetryDefinition()),
             .init(TurnErrorDefinition()),
             .init(CompactionDefinition()),
-            .init(WorkflowRunDefinition())
+            .init(WorkflowRunDefinition()),
+            .init(DeliverablesDefinition())
         ]
     }
 }

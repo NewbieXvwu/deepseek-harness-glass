@@ -47,6 +47,7 @@ final class ConversationNodeReducer {
     private var contexts: [String: Context] = [:]
     private var hasMoreHistory = false
     private var nodesByTarget: [String: [ConversationViewNode]] = [:]
+    private var locationDataByKey: [String: ConversationLocationData] = [:]
 
     init(
         definitions: [AnyConversationNodeDefinition],
@@ -115,6 +116,22 @@ final class ConversationNodeReducer {
         sortedInputs()
     }
 
+    /// Engine-materialized state-only node values for one exact turn/step.
+    /// Target renderers receive typed results through their Store adapters and
+    /// never reconstruct them by reparsing raw Host events.
+    func locationData(
+        scope: ConversationLocationData.Scope,
+        turn: Int,
+        step: Int? = nil
+    ) -> ConversationLocationDataStore {
+        var values: [String: Any] = [:]
+        for data in locationDataByKey.values where data.scope == scope
+            && data.turn == turn && data.step == step {
+            values[data.key] = data.value
+        }
+        return .init(values: values)
+    }
+
     func currentHasMoreHistory() -> Bool { hasMoreHistory }
 
     private func rebuild() {
@@ -176,6 +193,7 @@ final class ConversationNodeReducer {
 
     private func materialize() {
         var next: [String: [ConversationViewNode]] = [:]
+        var locationData: [String: ConversationLocationData] = [:]
         let ordered = contexts.values.sorted { lhs, rhs in
             let left = lhs.startSeq ?? lhs.matches.first?.event.seq ?? Int.max
             let right = rhs.startSeq ?? rhs.matches.first?.event.seq ?? Int.max
@@ -183,8 +201,13 @@ final class ConversationNodeReducer {
             return left < right
         }
         for context in ordered {
+            let snapshot = context.snapshot()
+            for scope in [ConversationLocationData.Scope.turn, .step] {
+                guard let data = context.definition.buildLocationData(context: snapshot, scope: scope) else { continue }
+                locationData[locationDataKey(data)] = data
+            }
             guard let target = context.definition.target else { continue }
-            guard let node = context.definition.buildViewNode(context: context.snapshot()) else { continue }
+            guard let node = context.definition.buildViewNode(context: snapshot) else { continue }
             precondition(node.key == context.key,
                          "conversation Definition \(context.kind) produced unstable key \(node.key), expected \(context.key)")
             precondition(node.target == target,
@@ -202,6 +225,11 @@ final class ConversationNodeReducer {
             }
         }
         nodesByTarget = next
+        locationDataByKey = locationData
+    }
+
+    private func locationDataKey(_ data: ConversationLocationData) -> String {
+        "\(data.scope.rawValue):\(data.turn):\(data.step.map(String.init) ?? "-"):\(data.key)"
     }
 
     private func publication(for input: ConversationEventInput) -> ConversationPublication {

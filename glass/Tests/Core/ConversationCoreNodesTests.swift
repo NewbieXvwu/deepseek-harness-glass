@@ -288,6 +288,53 @@ final class ConversationCoreNodesTests: XCTestCase {
         XCTAssertEqual(workflow.phases.flatMap(\.members).first?.status, .interrupted)
     }
 
+    func testDeliverablesPublishesSuccessfulMutationPathsAsTurnDataOnly() {
+        let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
+        let entries: [ConversationEventInput] = [
+            .init(event: event(seq: 300, type: "turn/start", data: ["turn": .number(4)])),
+            .init(event: event(seq: 301, type: "tool/call", data: ["turn": .number(4), "callId": .string("write")]), view: toolView("call", [
+                "card": .string("diff"),
+                "locations": .array([.object(["path": .string("out/index.html")]), .object(["path": .string("notes.md")])]),
+            ])),
+            .init(event: toolResult(seq: 302, turn: 4, callID: "write")),
+            .init(event: event(seq: 303, type: "tool/call", data: ["turn": .number(4), "callId": .string("edit")]), view: toolView("call", [
+                "card": .string("generic"), "kind": .string("edit"),
+                "locations": .array([.object(["path": .string("out/index.html")]), .object(["path": .string("out/app.css")])]),
+            ])),
+            .init(event: toolResult(seq: 304, turn: 4, callID: "edit")),
+            .init(event: event(seq: 305, type: "tool/call", data: ["turn": .number(4), "callId": .string("read")]), view: toolView("call", [
+                "card": .string("generic"), "kind": .string("read"),
+                "locations": .array([.object(["path": .string("ignored.md")])]),
+            ])),
+            .init(event: toolResult(seq: 306, turn: 4, callID: "read")),
+            .init(event: event(seq: 307, type: "tool/call", data: ["turn": .number(4), "callId": .string("failed")]), view: toolView("call", [
+                "card": .string("diff"), "locations": .array([.object(["path": .string("failed.md")])]),
+            ])),
+            .init(event: toolResult(seq: 308, turn: 4, callID: "failed", isError: true)),
+        ]
+
+        reducer.replaceWindow(entries, hasMore: false)
+        let data = tryUnwrap(reducer.locationData(scope: .turn, turn: 4).value(for: "deliverables", as: CoreDeliverablesTurnData.self))
+        XCTAssertEqual(data.paths(forClosingSequence: 303), ["out/index.html", "notes.md"])
+        XCTAssertEqual(data.paths(), ["out/index.html", "notes.md", "out/app.css"])
+        XCTAssertTrue(reducer.snapshot(target: "chat").allSatisfy { $0.kind != "deliverables" })
+        XCTAssertNil(reducer.locationData(scope: .turn, turn: 99).value(for: "deliverables", as: CoreDeliverablesTurnData.self))
+    }
+
+    private func toolResult(seq: Int, turn: Int, callID: String, isError: Bool = false) -> SessionEventDTO {
+        event(seq: seq, type: "tool/result", surface: .string("append"), data: [
+            "turn": .number(Double(turn)),
+            "message": .object([
+                "source": .object(["callId": .string(callID)]),
+                "content": .array([.object(isError ? ["isError": .bool(true)] : [:])]),
+            ]),
+        ])
+    }
+
+    private func toolView(_ target: String, _ view: [String: JSONValue]) -> ToolEventViewDTO {
+        .init(for: target, view: .object(view))
+    }
+
     private func text(_ value: String) -> JSONValue {
         .object(["type": .string("text"), "text": .string(value)])
     }
