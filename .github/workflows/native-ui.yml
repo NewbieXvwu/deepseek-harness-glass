@@ -252,8 +252,6 @@ jobs:
           echo "::group::Official locales and UI copy lint"
           python3 glass/ci/check-official-locales.py \
             --official-root .reference/deepseek-harness
-          python3 glass/ci/check-official-locale-literals.py
-          python3 glass/ci/test-official-locale-literals.py
           echo "::endgroup::"
           echo "::group::Official theme tokens"
           python3 glass/ci/check-official-theme-tokens.py \

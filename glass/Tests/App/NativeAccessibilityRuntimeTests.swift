@@ -29,6 +29,11 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
     }
 
     func testConversationComposerExportsFocusAndActionNames() throws {
+        let expected = [
+            OfficialUISpec.Text.composerDefaultPlaceholder,
+            OfficialUISpec.Text.sendMessageAccessibility,
+            OfficialUISpec.Text.commandsAccessibility,
+        ]
         try assertAccessibleLabels(
             in: NativeConversationColumn(
                 mode: .conversation,
@@ -39,11 +44,20 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
                 jobsLanguageCode: nil,
                 openSession: { _ in }
             ),
-            expected: [
-                OfficialUISpec.Text.composerDefaultPlaceholder,
-                OfficialUISpec.Text.sendMessageAccessibility,
-                OfficialUISpec.Text.commandsAccessibility,
-            ]
+            expected: expected
+        )
+        let officialValues = Set(OfficialUISpec.LocaleCatalog.values.values)
+        for label in expected {
+            XCTAssertTrue(officialValues.contains(label), "rendered composer label is missing from official runtime locale catalog: \(label)")
+        }
+    }
+
+    func testRuntimeLocaleCatalogRejectsInjectedNonOfficialAccessibilityLabel() throws {
+        let injected = "non-official-runtime-label"
+        try assertAccessibleLabels(in: Button(injected, action: {}), expected: [injected])
+        XCTAssertFalse(
+            Set(OfficialUISpec.LocaleCatalog.values.values).contains(injected),
+            "negative control must prove the catalog rejects an unregistered rendered label"
         )
     }
 
@@ -99,10 +113,6 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
     }
 
     private func assertAccessibleLabels<V: View>(in view: V, expected: [String]) throws {
-        guard AXIsProcessTrusted() else {
-            throw XCTSkip("Accessibility trust is required to read the window's accessibility tree.")
-        }
-
         let host = NSHostingView(rootView: view)
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 900, height: 840),
@@ -117,9 +127,7 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
 
         let labels = accessibilityLabels(in: host)
         window.orderOut(nil)
-        guard !labels.isEmpty else {
-            throw XCTSkip("The headless macOS runner exposes no SwiftUI accessibility elements despite AX trust; run this tree assertion in a GUI accessibility-test host. The static locked core-path gate remains mandatory in CI.")
-        }
+        XCTAssertFalse(labels.isEmpty, "mounted native view must expose an accessibility tree on the macOS runner")
         for label in expected {
             XCTAssertTrue(labels.contains(label), "expected \(label), exported labels: \(labels)")
         }
