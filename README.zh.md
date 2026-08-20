@@ -2,7 +2,7 @@
 
 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的原生 macOS 客户端——你熟悉的 dsh，装进一扇真正的玻璃窗口。
 
-本仓库 fork 自 [qniequn-boop/deepseek-harness-glass](https://github.com/qniequn-boop/deepseek-harness-glass)。上游项目用原生玻璃窗口包裹官方 WebUI；本 fork 更进一步，用 Swift 6（SwiftUI + AppKit）完整重写浏览器客户端，官方 Host 继续担任后端。核心 UI 禁用 WebKit，由 CI 门禁 `glass/ci/check-no-webview.sh` 强制执行。
+本仓库 fork 自 [qniequn-boop/deepseek-harness-glass](https://github.com/qniequn-boop/deepseek-harness-glass)。上游项目用原生玻璃窗口包裹官方 WebUI；本 fork 更进一步，用 Swift 6（SwiftUI + AppKit）完整重写浏览器客户端，官方 Host 继续担任后端。核心 UI 禁用 WebKit（由 CI 门禁 `glass/ci/check-no-webview.sh` 强制执行）；第三方插件通过自适应双轨制兼容（原生 Manifest/Adapter 优先，未适配的第三方 React 卡片自动由轻量沙箱微宿主兜底承载）。
 
 - **English:** [README.md](README.md)
 

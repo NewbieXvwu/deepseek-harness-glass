@@ -32,7 +32,7 @@
 
 ### 4. 原生化、Host真源和Liquid Glass边界
 
-核心 UI 必须完全原生。会话、工作区、官方设置、模型、凭据、工具、审批、问题、命令和插件配置不得通过 WebView、DOM、JavaScript、CSS注入或网页截图完成。Host 是唯一业务真源；所有读写通过官方 loopback RPC/SSE 和类型化 DTO，原生端不建立与 Host 冲突的业务数据库。Liquid Glass 只用于导航、侧栏、工具栏、inspector、popover、sheet和官方已有的操作控件，不得将内容层整体覆盖为玻璃，也不得借玻璃效果创造官方没有的视觉层级。第三方插件必须先判断是否能用 `NativeUIManifest`/`SwiftAdapter` 原生化；只有明确审计为无法原生化的 web-only 插件，才允许进入严格隔离的 `PluginWebHost` 例外。
+核心 UI 必须完全原生。会话、工作区、官方设置、模型、凭据、工具、审批、问题、命令和插件配置不得通过 WebView、DOM、JavaScript、CSS注入或网页截图完成。Host 是唯一业务真源；所有读写通过官方 loopback RPC/SSE 和类型化 DTO，原生端不建立与 Host 冲突的业务数据库。Liquid Glass 只用于导航、侧栏、工具栏、inspector、popover、sheet和官方已有的操作控件，不得将内容层整体覆盖为玻璃，也不得借玻璃效果创造官方没有的视觉层级。第三方插件实行**渐进双轨制兼容**：检测到专有资产（`SwiftAdapter` / `NativeUIManifest`）时自动走专有原生路径；未提供原生适配的第三方 React 插件自动由轻量沙箱 `PluginWebHost` 局部卡片容器无缝兜底运行；核心应用外壳与会话骨架严禁被 WebView 侵入。
 
 ### 5. “完成”的判定必须有实现、来源和回归证据
 
@@ -56,7 +56,7 @@
 | D1 | 官方 UI 严格复刻。 | 在已锁定 DSH build 下，文案来自官方 locale；结构、间距、行序、状态和官方交互测试场景可追溯到 `OfficialUISpec`。 |
 | D2 | Host 是唯一业务真源。 | 任何会话、工作区、设置、凭据、模型、命令和插件配置，均通过官方 loopback RPC/SSE 获取或写入，不建立与 Host 冲突的持久业务数据库。 |
 | D3 | Liquid Glass 服从系统设计。 | 侧栏、inspector、工具栏、sheet、popover 和少数操作控件优先使用系统材质；内容层不泛滥叠加 glass effect。[9] [10] |
-| D4 | 插件兼容有明确分级。 | 每个插件处于 `native-manifest`、`swift-adapter`、`web-fallback`、`host-only` 或 `unsupported` 的一种状态，状态可在诊断页面查询。 |
+| D4 | 插件兼容实行自适应双轨制。 | 插件按 `swift-adapter` ➔ `native-manifest` ➔ `web-fallback (自动沙箱)` ➔ `host-only` 自动分流，状态可在诊断页面查询。 |
 | D5 | 未验证的 DSH Host 不冒充兼容。 | 启动时检查支持的 Host build；不在矩阵中的版本显示“未验证”，并禁止写入可能造成协议漂移的数据。 |
 
 - [x] **T0.1：在 README 与贡献指南中写入 D0–D5。** 说明 `WebKit` 只能位于 `PluginWebHost` 目标中，禁止在主应用 target 或任何核心 renderer 中导入。
@@ -397,37 +397,37 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
   - 依赖：T4.5、T10.1。
   - 验收：Host 只读或无能力时按钮/文案和官方一致；无法写入时没有误导性的成功状态。
 
-## 11. 第三方插件：Native UI Manifest、Adapter Registry 与极少数 Web fallback
+## 11. 第三方插件：渐进双轨兼容体系（专有原生路径 + 自动沙箱 Web 宿主）
 
-官方浏览器插件依靠 React/Cordis card 注册，并不存在可以自动映射到 Swift UI 的通用描述模型。[14] 因此第三方兼容必须被产品化，不可作为后期临时例外。
+官方浏览器插件依靠 React/Cordis card 注册。为兼顾 macOS 原生质感与社区生态即插即用，采用**自适应双轨制**（有原生资产走专有路径，无则自动启动轻量 Web 沙箱宿主），确保 100% 社区插件零门槛可用。
 
-- [ ] **T11.1：定义 `NativeUIManifest` v1。** 至少声明：`pluginId`、`hostBuildRange`、`manifestVersion`、`kind`、`localeResources`、`sections`、`fields`、`groups`、`order`、`secretRoles`、`validation`、`actions`、`requiredCapabilities`、`webFallbackAllowed`、`integrity`。
+- [ ] **T11.1：定义 `NativeUIManifest` v1。** 声明原生 Schema 描述模型：`pluginId`、`hostBuildRange`、`manifestVersion`、`kind`、`localeResources`、`sections`、`fields`、`groups`、`order`、`secretRoles`、`validation`、`actions`、`requiredCapabilities`、`integrity`。
   - 依赖：T0.2、T10.2。
-  - 验收：manifest 有 JSON Schema、签名/哈希校验、版本升级规则和负面 fixture；未通过完整性检查的 manifest 不加载。
+  - 验收：manifest 有 JSON Schema、版本升级规则和负面 fixture；未通过完整性检查的安全降级到通用沙箱容器。
 
-- [ ] **T11.2：实现 `NativeSchemaForm`。** 支持官方可描述的 text、number、toggle、select、secret、path、group、help、reset、save/discard 和 read-only 字段；字段排列严格由 manifest 指定。
+- [ ] **T11.2：实现 `NativeSchemaForm`。** 支持官方可描述的 text、number、toggle、select、secret、path、group、help、reset、save/discard 和 read-only 字段；字段排列严格由 manifest 指定，以 100% 原生 SwiftUI 动态渲染设置表单。
   - 依赖：T11.1、T10.2。
-  - 验收：任意 manifest field 不会导致代码执行；schema 不支持的字段明确标记为 unsupported，而不是自行猜测界面。
+  - 验收：任意 manifest field 不会导致代码执行；通过纯原生组件实现配置变更并直接提交 Host typed RPC。
 
-- [ ] **T11.3：实现 `SwiftAdapterRegistry`。** 用插件 ID 和 manifest adapter ID 映射经审查的 native renderer；允许复杂插件以一段 Swift feature 复刻官方 UI。
+- [ ] **T11.3：实现 `SwiftAdapterRegistry`。** 用插件 ID 映射深度审查的原生 Swift 特性；允许复杂内置/高频插件以原生 Swift 视图复刻官方交互与 Liquid Glass 质感。
   - 依赖：T11.1。
-  - 验收：adapter 的可用性、最低 Host build、测试 fixture 和 fallback 原因均可枚举。
+  - 验收：adapter 的可用性、最低 Host build、测试 fixture 和生效状态均可枚举。
 
-- [ ] **T11.4：实现插件兼容矩阵。** 列出每个检测到的插件的分类、UI 表面、支持等级、Host version、native manifest/adapter、fallback 许可和原因。
+- [ ] **T11.4：实现插件自适应双轨分流器与兼容矩阵。** 实现装配时的自动路由探测（分流优先级：`SwiftAdapter` ➔ `NativeUIManifest` ➔ `PluginWebHost 自动沙箱` ➔ `Host-Only`）。
   - 依赖：T11.1、T11.3。
-  - 验收：用户和开发者均可查看“为什么这个插件没有原生设置页”；不会把 silent absence 误导为无配置。
+  - 验收：无任何专有适配文件的第三方 React 插件自动路由至沙箱容器；诊断页清晰展示每个插件当前激活的运行轨与原因。
 
-- [ ] **T11.5：实施 `PluginWebHost` POC。** 只有在目标插件被标注 `web-only` 且经过明确审计后，才创建 isolated WebView。限制为 loopback same-origin、禁止远程导航、禁止注入脚本、禁止全局 session UI、禁止读取不属于插件的本地资源。
+- [ ] **T11.5：实现 `PluginWebHost` 自动沙箱微宿主。** 针对未原生化的第三方 React 插件，提供通用的轻量 `mini-host.html` 容器，内置官方 React/Cordis 运行时、公共组件与 CSS Token，自动从 Host 加载 `/plugins/<id>/client.js` 并挂载 React 组件。限制为 loopback same-origin、禁止外网导航、禁止读取非插件本地资源。
   - 依赖：T11.4。
-  - 验收：网络 policy test 阻断外站、file URL、未知 scheme 与 popup；默认安装零 WebView；启用 fallback 有可见的插件名与原因。
+  - 验收：社区标准 React 插件在无任何手动适配下可完整加载、渲染并执行 RPC 交互；网络策略阻断外站请求与 file URL。
 
-- [ ] **T11.6：验证单卡片可嵌入性。** 先验证官方 React card 能否在不加载完整 Web plugin tree 的情况下运行；若不能，明确记录它需完整 settings surface，并重新评估 fallback 的内存、隔离和用户体验成本。
+- [ ] **T11.6：实现沙箱卡片自适应与视觉融合。** 在单卡片/独立设置面板中嵌入沙箱容器：利用 `ResizeObserver` 动态同步内容高度至 SwiftUI 外层以消除内部滚动条；设置透明背景让原生窗口底色透出；自动同步 macOS Light/Dark 模式。
   - 依赖：T11.5。
-  - 验收：POC 得出 `single-card` 或 `full-settings-surface` 的实测结论；未通过隔离门时不发布 fallback。
+  - 验收：第三方卡片高度自适应撑开，随外层原生列表平滑滚动；主题跟随系统毫秒级切换，无白屏/闪烁现象。
 
-- [ ] **T11.7：禁止 fallback 侵入核心 UI。** 会话、侧栏、官方设置、模型、凭据和工具页面绝不能借“插件兼容”恢复为 WebUI。
+- [ ] **T11.7：禁止兼容沙箱侵入核心 UI 骨架。** 会话外壳、侧栏、窗口容器、Composer 与官方核心设置绝不能借“插件兼容”替换为整页 WebUI。
   - 依赖：T11.5。
-  - 验收：运行时 diagnostics 报告核心 WebView 数量始终为 0；CI UI test 覆盖该不变量。
+  - 验收：运行时 diagnostics 报告核心应用结构中 WebView 数量始终为 0；第三方沙箱严格限制在单卡片或独立弹窗边界内。
 
 ## 12. 测试、视觉回归、性能与安全
 
@@ -560,7 +560,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 | 8. Conversation主界面与Composer | 部分完成 | welcome、composer、model/permission控制行和部分prompt/cancel路径已实现；approval/question composer已配对验收 | 完整ChatView、Markdown安全策略、queue/steer、附件、model discovery、stats/todo/goal dock尚未完成 |
 | 9. 工具与复杂节点 | 部分完成 | ApprovalPanel、QuestionComposer和部分tooling inspector fixture存在 | generic tool及bash/read/search/diff/web/workflow/subagent/trajectory/deliverables全套renderer未完成 |
 | 10. 官方设置 | 进行中 | `DSHAPIClient.settingsDescribe/settingsMutate`、`SettingsNamespaceDTO`、secret slot DTO和`NativeSettingsStore`基础已提交 | Settings Root、schema form、draft/dirty/discard、openDocument、General、Models、Credentials、Plugin、Agent Presets和设置视觉回归均未完成 |
-| 11. 插件兼容 | 未开始 | 仅在架构与TODO中规定NativeUIManifest/SwiftAdapter/PluginWebHost分级 | manifest schema/signature、adapter registry、compatibility matrix和隔离Web fallback尚未实现 |
+| 11. 插件兼容 | 未开始 | 仅在架构与TODO中规定渐进双轨制（NativeUIManifest/SwiftAdapter/PluginWebHost自动沙箱） | manifest schema、adapter registry、自适应分流路由和通用Web沙箱微宿主尚未实现 |
 | 12. 测试与审计 | 部分完成 | D0/D1、视觉场景存在性、macOS-26截图门禁已运行 | reducer、transport chaos、布局golden、UI/accessibility、性能、安全和secret泄露测试未完成 |
 | 13. 发布 | 未开始 | native-ui workflow、缓存和固定payload构建链存在 | 签名、公证、升级流程、支持矩阵、feature flags和发布候选审计未完成 |
 

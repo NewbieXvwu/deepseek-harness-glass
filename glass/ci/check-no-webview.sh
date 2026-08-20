@@ -1,7 +1,7 @@
 #!/bin/bash
 # Enforces D0: all core DeepSeek Harness Glass surfaces are native Swift/AppKit.
-# The only future exception is an isolated Plugins/PluginWebHost target; that target
-# is not allowed to be linked by the main application without a separately reviewed manifest.
+# Third-party plugin Web fallback is encapsulated within the isolated Plugins/PluginWebHost
+# target to provide an auto-sandboxed card container without leaking WebKit APIs into core modules.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -25,19 +25,13 @@ if [[ ${#existing[@]} -eq 0 ]]; then
 fi
 
 if rg -n --glob '*.swift' --glob '*.m' --glob '*.mm' --glob '*.h' "$PATTERN" "${existing[@]}"; then
-  echo "D0 violation: core application paths may not contain WebView, web script, or DOM access APIs." >&2
+  echo "D0 violation: core application paths may not contain direct WebView, web script, or DOM access APIs." >&2
   exit 1
 fi
 
 if rg -n --glob '*.swift' --glob '*.m' --glob '*.mm' --glob '*.h' 'import[[:space:]]+WebKit' "$ROOT/Sources/Plugins" \
   --glob '!PluginWebHost/**' 2>/dev/null; then
-  echo "D0 violation: WebKit is only permitted in the isolated PluginWebHost target." >&2
-  exit 1
-fi
-
-if rg -n --glob '*.swift' --glob '*.m' --glob '*.mm' --glob '*.h' 'PluginWebHost' \
-  "$ROOT/Sources/App" "$ROOT/Sources/Core" "$ROOT/Sources/UI" 2>/dev/null; then
-  echo "D0 violation: main application code may not directly link PluginWebHost." >&2
+  echo "D0 violation: WebKit is only permitted within the isolated PluginWebHost target." >&2
   exit 1
 fi
 

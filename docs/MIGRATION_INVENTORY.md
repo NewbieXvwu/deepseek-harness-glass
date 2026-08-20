@@ -17,7 +17,7 @@
 
 ## 当前禁止清单
 
-主应用及其 `Core`、`UI`、`Features`、内置设置模块不得引入 `WebKit`、`WKWebView`、`WKUserScript`、`evaluateJavaScript`、`MutationObserver`、网页 CSS 注入或网页 DOM 读取。未来若存在 `PluginWebHost`，也必须独立 target、显式 manifest、严格 loopback 访问策略和独立安全审查；在此之前该目录仅用于接口定义，不可被 App target 导入。
+主应用及其 `Core`、`UI`、`Features`、内置设置模块不得引入 `WebKit`、`WKWebView`、`WKUserScript`、`evaluateJavaScript`、`MutationObserver`、网页 CSS 注入或网页 DOM 读取。第三方插件兼容通过独立的 `PluginWebHost` 模块承载，实行自适应双轨制（优先原生 Manifest/Adapter，无则自动启动轻量 Web 沙箱卡片容器）；沙箱容器严格限定在单卡片或独立设置面板内，遵循 loopback same-origin 策略并由独立安全测试覆盖，严禁侵入核心应用框架。
 
 ## T1.1 运行时资产台账
 

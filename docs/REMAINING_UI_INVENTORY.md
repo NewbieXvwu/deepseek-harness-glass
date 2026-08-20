@@ -42,7 +42,7 @@
 
 1. **文本和图标来源。** 可见文本只能通过官方 locale 常量；图标只能通过受控官方 SVG。每个新增键、图标、尺寸与状态均登记到 `official-ui-catalog.json`。
 2. **业务状态来源。** SwiftUI Store 只处理瞬态显示/选择状态。所有 durable 状态和服务端操作必须由 `DSHAPIClient`、官方 RPC schema 与 SSE event schema 支撑。
-3. **WebView 例外。** 主界面和设置界面不得使用 WebView。仅 manifest 明确、功能不能等价原生化的插件可进入 `PluginWebHost`，且必须独立审查、隔离权限并建立替代计划。
+3. **WebView 边界与插件双轨制。** 核心主界面与官方设置界面不得使用 WebView。第三方插件实行双轨兼容（原生 Manifest/Adapter 优先，未适配的第三方 React 卡片自动由 `PluginWebHost` 局部沙箱容器承载），沙箱严格限定在单卡片/局部面板内，绝不侵入主应用框架。
 4. **视觉验证。** 每个域都需以官方同尺寸截图对照原生 macOS 26 snapshot；默认覆盖 1280×840、1024px 临界宽度、rail、light/dark、空态、选中、运行和失败状态。
 5. **无障碍与控制层。** 所有图标按钮有官方可访问性键；键盘焦点顺序必须可测。Liquid Glass 仅在导航/控制层，不得覆盖会话、工具输出、表单或代码内容。
 
