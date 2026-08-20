@@ -74,6 +74,17 @@
       }
     },
     {
+      "name": "collapsed-sidebar-compact-rail",
+      "viewport": 1023,
+      "sidebarPreference": 0,
+      "detailsPreference": 360,
+      "expected": {
+        "sidebar": 56,
+        "center": 640,
+        "details": 327
+      }
+    },
+    {
       "name": "collapsed-sidebar-details-minimum-boundary",
       "viewport": 996,
       "sidebarPreference": 0,
