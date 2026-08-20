@@ -73,6 +73,15 @@ final class NativeWorkspaceStore: ObservableObject {
         }
     }
 
+    /// RC8 Host workspace summaries use JavaScript ISO strings, whose usual
+    /// representation includes milliseconds. `ISO8601DateFormatter` does not
+    /// parse that form unless fractional seconds are opted in explicitly.
+    private static let workspaceCreationFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+
     @Published private(set) var phase: Phase = .idle
     @Published private(set) var snapshot: Snapshot = .empty
     @Published var searchQuery = ""
@@ -241,7 +250,7 @@ final class NativeWorkspaceStore: ObservableObject {
         var selectedTime = -Double.infinity
         for workspace in snapshot.workspaces {
             let sessionTime = workspace.sessionIds.compactMap { sessionsByID[$0]?.updatedAt }.max()
-            let creationTime = ISO8601DateFormatter().date(from: workspace.createdAt)?.timeIntervalSince1970 ?? -Double.infinity
+            let creationTime = Self.workspaceCreationFormatter.date(from: workspace.createdAt)?.timeIntervalSince1970 ?? -Double.infinity
             let candidateTime = sessionTime ?? creationTime
             if selected == nil || candidateTime > selectedTime {
                 selected = workspace.workspaceId
