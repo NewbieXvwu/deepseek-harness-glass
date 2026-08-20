@@ -57,7 +57,7 @@ final class ConversationCoreNodesTests: XCTestCase {
                     "content": .array([text("result")])
                 ])
             ]),
-            event(seq: 14, type: "llm/retry", data: ["retryId": .string("retry-1"), "retry": .number(1), "turn": .number(2), "step": .number(1)]),
+            event(seq: 14, type: "llm/retry", data: ["retryId": .string("retry-1"), "retry": .number(1), "turn": .number(2), "step": .number(1), "mode": .string("normal"), "maxRetries": .number(3), "delayMs": .number(1_250), "failure": .object(["message": .string("provider busy"), "code": .string("rate_limit")])]),
             event(seq: 15, type: "llm/retry-started", data: ["retryId": .string("retry-1"), "retry": .number(1), "turn": .number(2), "step": .number(1)]),
             event(seq: 16, type: "turn/end", data: [
                 "turn": .number(2),
@@ -81,7 +81,7 @@ final class ConversationCoreNodesTests: XCTestCase {
         XCTAssertEqual(tool.resultContent.first?.text, "result")
 
         let retry = tryUnwrap(chat.first(where: { $0.kind == "model-retry" })?.data as? CoreRetryNode)
-        XCTAssertEqual(retry.attempts, [.init(seq: 14, time: 14, retry: 1, state: .started)])
+        XCTAssertEqual(retry.attempts, [.init(seq: 14, time: 14, retry: 1, state: .started, delayMilliseconds: 1_250, failureMessage: "provider busy", maximumRetries: 3, unlimited: false)])
 
         let error = tryUnwrap(chat.first(where: { $0.kind == "turn-error" })?.data as? CoreTurnErrorNode)
         XCTAssertEqual(error.message, "transport failed")
