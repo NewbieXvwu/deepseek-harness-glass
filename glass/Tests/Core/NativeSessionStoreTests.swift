@@ -151,6 +151,33 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertNil(freshState.pendingQuestion)
     }
 
+    func testSubagentProjectionReaderPreservesNullSentinelAndRejectsMalformedIdentityOrTiming() {
+        let store = NativeSessionStore()
+        store.loadSnapshotToolingFixture()
+        let sessionID = "snapshot-tooling"
+        XCTAssertEqual(SessionSubagentProjectionReader.identity(from: store.projections, sessionID: sessionID), .absent)
+
+        store.projections.apply(sessionID: sessionID, key: "subagent", value: .null, seq: 1)
+        XCTAssertEqual(SessionSubagentProjectionReader.identity(from: store.projections, sessionID: sessionID), .noValidDescriptor)
+        store.projections.apply(sessionID: sessionID, key: "subagent", value: .object([
+            "mode": .string("continuable"), "label": .string(""), "seq": .number(2),
+        ]), seq: 2)
+        XCTAssertEqual(SessionSubagentProjectionReader.identity(from: store.projections, sessionID: sessionID), .noValidDescriptor)
+        store.projections.apply(sessionID: sessionID, key: "subagent", value: .object([
+            "mode": .string("continuable"), "label": .string("review"), "seq": .number(3),
+        ]), seq: 3)
+        XCTAssertEqual(SessionSubagentProjectionReader.identity(from: store.projections, sessionID: sessionID), .identity(.init(mode: .continuable, label: "review", descriptorSeq: 3)))
+
+        store.projections.apply(sessionID: sessionID, key: "subagentTiming", value: .object([
+            "settledMs": .number(40), "active": .object(["since": .number(100), "through": .number(120)]),
+        ]), seq: 4)
+        XCTAssertEqual(SessionSubagentProjectionReader.timing(from: store.projections, sessionID: sessionID), .init(settledMilliseconds: 40, active: .init(since: 100, through: 120)))
+        store.projections.apply(sessionID: sessionID, key: "subagentTiming", value: .object([
+            "settledMs": .number(40), "active": .object(["since": .number(121), "through": .number(120)]),
+        ]), seq: 5)
+        XCTAssertNil(SessionSubagentProjectionReader.timing(from: store.projections, sessionID: sessionID))
+    }
+
     func testQueueAndJobsUseCompleteHostSnapshotsAndRejectOtherSessionFrames() {
         let store = NativeSessionStore()
         store.loadSnapshotToolingFixture()
