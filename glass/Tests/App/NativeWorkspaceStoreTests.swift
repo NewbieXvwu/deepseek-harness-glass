@@ -51,6 +51,18 @@ final class NativeWorkspaceStoreTests: XCTestCase {
         XCTAssertEqual(NativeWorkspaceStore.recentWorkspaceID(in: emptyOnly), "newer")
     }
 
+    func testSearchWithoutVerifiedHostDoesNotInventPrivateResults() {
+        let store = NativeWorkspaceStore()
+        store.searchQuery = "host-authoritative"
+
+        store.search(query: store.searchQuery, using: nil)
+
+        XCTAssertEqual(store.remoteSearch.query, "host-authoritative")
+        XCTAssertEqual(store.remoteSearch.status, .failed)
+        XCTAssertTrue(store.remoteSearch.items.isEmpty)
+        XCTAssertFalse(store.remoteSearch.hasMore)
+    }
+
     func testSearchSanitizerMatchesRC8NULAndUTF16BoundaryContract() {
         XCTAssertEqual(
             NativeWorkspaceStore.sanitizeSearchQuery("before\u{0000}after"),
