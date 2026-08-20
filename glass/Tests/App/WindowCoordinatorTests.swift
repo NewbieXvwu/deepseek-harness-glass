@@ -52,4 +52,22 @@ final class WindowCoordinatorTests: XCTestCase {
         XCTAssertEqual(coordinator.lifecycle, .visible)
         XCTAssertNil(coordinator.window, "Dock reopen must focus a resident coordinator, not create a second shell")
     }
+
+    func testReinstallReusesTheResidentWindowAndShellController() throws {
+        let coordinator = WindowCoordinator()
+        coordinator.install(presentation: NativeShellPresentation())
+        let residentWindow = try XCTUnwrap(coordinator.window)
+        let residentController = try XCTUnwrap(residentWindow.contentViewController)
+        let initialFocusCount = coordinator.showAndFocusInvocationCount
+        defer { residentWindow.orderOut(nil) }
+
+        coordinator.install(presentation: NativeShellPresentation(mode: .conversation))
+
+        XCTAssertTrue(coordinator.window === residentWindow)
+        XCTAssertTrue(
+            residentWindow.contentViewController === residentController,
+            "installing a new presentation must not create a second native shell controller"
+        )
+        XCTAssertEqual(coordinator.showAndFocusInvocationCount, initialFocusCount + 1)
+    }
 }
