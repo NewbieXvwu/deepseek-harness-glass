@@ -22,6 +22,14 @@ final class GlassPolicyTests: XCTestCase {
         XCTAssertFalse(GlassPolicyBudget.permits([.regularGlassCustomControl, .clearGlassMediaOverlay]))
     }
 
+    func testRuntimeMaterializationDecisionRejectsContentAndUnreviewedPolicies() {
+        XCTAssertTrue(NativeGlassEffectDecision.materializes(policy: .regularGlassCustomControl, isEnabled: true))
+        XCTAssertFalse(NativeGlassEffectDecision.materializes(policy: .regularGlassCustomControl, isEnabled: false))
+        XCTAssertFalse(NativeGlassEffectDecision.materializes(policy: .content, isEnabled: true))
+        XCTAssertFalse(NativeGlassEffectDecision.materializes(policy: .systemNavigation, isEnabled: true))
+        XCTAssertFalse(NativeGlassEffectDecision.materializes(policy: .clearGlassMediaOverlay, isEnabled: true))
+    }
+
     func testAccessibilityPolicyDisablesCustomGlassForTransparencyAndContrast() {
         XCTAssertTrue(NativeGlassControlAccessibilityPolicy.permitsCustomGlass(
             reduceTransparency: false,

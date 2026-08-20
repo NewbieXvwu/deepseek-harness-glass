@@ -50,6 +50,15 @@ enum GlassPolicyBudget {
     }
 }
 
+/// Runtime decision used by actual SwiftUI materialization. Tests exercise this
+/// production branch directly so policy enforcement does not depend on source
+/// spelling or modifier syntax.
+enum NativeGlassEffectDecision {
+    static func materializes(policy: GlassPolicy, isEnabled: Bool) -> Bool {
+        policy == .regularGlassCustomControl && isEnabled
+    }
+}
+
 /// Keeps approved custom controls readable when macOS requests a less
 /// translucent or higher-contrast appearance, and avoids fluid morphing when
 /// motion is reduced. System navigation material remains outside this policy.
@@ -76,10 +85,9 @@ extension View {
         in shape: S,
         isEnabled: Bool = true
     ) -> some View {
-        switch policy {
-        case .regularGlassCustomControl where isEnabled:
+        if NativeGlassEffectDecision.materializes(policy: policy, isEnabled: isEnabled) {
             glassEffect(.regular.interactive(), in: shape)
-        case .regularGlassCustomControl, .content, .systemNavigation, .clearGlassMediaOverlay:
+        } else {
             self
         }
     }
