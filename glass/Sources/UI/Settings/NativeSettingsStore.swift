@@ -4,6 +4,22 @@ import Foundation
 @testable import GlassCore
 @testable import GlassSpec
 #endif
+
+/// Typed settings boundary for the native feature. Production continues to use
+/// the verified `SettingsAPI`; tests can inject success/failure authority without
+/// assembling wire envelopes or raw JSON.
+@MainActor
+protocol NativeSettingsAPI: Sendable {
+    func describe() async throws -> SettingsDescribeResponse
+    func mutate(
+        namespace: String,
+        operations: [SettingsPathOperationDTO],
+        expectedRevision: Int?
+    ) async throws -> SettingsNamespaceDTO
+}
+
+extension SettingsAPI: NativeSettingsAPI {}
+
 /// Host-authoritative settings projection. Secret values never enter this store:
 /// `settings.describe` returns only redacted values plus write-only slot state.
 @MainActor
@@ -25,8 +41,11 @@ final class NativeSettingsStore: ObservableObject {
         revision: nil
     )
 
-    func load(using api: SettingsAPI?) {
-        guard let api else { phase = .idle; return }
+    func load(using api: (any NativeSettingsAPI)?) {
+        guard let api else {
+            clearAuthority(phase: .idle)
+            return
+        }
         phase = .loading
         Task {
             do {
@@ -40,7 +59,7 @@ final class NativeSettingsStore: ObservableObject {
                 )
                 phase = .ready
             } catch {
-                phase = .failed(error.localizedDescription)
+                clearAuthority(phase: .failed(error.localizedDescription))
             }
         }
     }
@@ -48,7 +67,7 @@ final class NativeSettingsStore: ObservableObject {
     func mutate(
         namespace: SettingsNamespaceDTO,
         operation: SettingsPathOperationDTO,
-        using api: SettingsAPI?
+        using api: (any NativeSettingsAPI)?
     ) async throws {
         guard let api else { throw URLError(.notConnectedToInternet) }
         let updated = try await api.mutate(
@@ -67,10 +86,24 @@ final class NativeSettingsStore: ObservableObject {
     /// Writes only an option advertised by the latest Host permission schema,
     /// with the namespace revision carried by `mutate`. Callers cannot route an
     /// arbitrary raw preset string to transport.
-    func selectPermissionPreset(_ preset: String, using api: SettingsAPI?) async throws {
+    func selectPermissionPreset(_ preset: String, using api: (any NativeSettingsAPI)?) async throws {
         guard let namespace = namespaces.first(where: { $0.ns == PermissionPresetProjection.namespace }),
               let operation = permissionPreset.mutation(selecting: preset)
         else { return }
         try await mutate(namespace: namespace, operation: operation, using: api)
+    }
+
+    private func clearAuthority(phase: Phase) {
+        writable = false
+        hasDocument = false
+        namespaces = []
+        permissionPreset = .init(
+            status: .unavailable,
+            writable: false,
+            currentValue: "",
+            options: [],
+            revision: nil
+        )
+        self.phase = phase
     }
 }
