@@ -25,7 +25,7 @@ def local_target(raw: str) -> str | None:
 def main() -> int:
     failures: list[str] = []
     for markdown in ROOT.rglob("*.md"):
-        if any(part in {".git", ".build"} for part in markdown.parts):
+        if any(part in {".git", ".build", ".reference", "node_modules"} for part in markdown.parts):
             continue
         text = markdown.read_text(encoding="utf-8")
         for match in LINK_RE.finditer(text):

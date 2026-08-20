@@ -34,6 +34,7 @@ concurrency:
 
 env:
   OFFICIAL_COMMIT: 141eb6fef83422698aef7a981029e843e8161534
+  DSH_NODE_VERSION: 24.19.0
 
 jobs:
   python-spec-gates:
@@ -50,6 +51,35 @@ jobs:
           repository: deepseek-ai/deepseek-harness
           ref: ${{ env.OFFICIAL_COMMIT }}
           path: .reference/deepseek-harness
+
+      # The locale gate parses upstream TypeScript through its locked `typescript`
+      # dependency; runner-global Node is neither sufficient nor reproducible.
+      - name: Set up locked Node runtime
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.DSH_NODE_VERSION }}
+
+      - name: Install locked pnpm and resolve cache directory
+        run: |
+          # Install the exact package-manager release declared by the locked
+          # official source. Avoid runner or Corepack keyring drift.
+          npm install --global pnpm@11.7.0
+          test "$(pnpm --version)" = "11.7.0"
+          echo "PNPM_STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_ENV"
+
+      - name: Restore official pnpm store
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.PNPM_STORE_PATH }}
+          key: portable-spec-pnpm-${{ runner.os }}-${{ env.DSH_NODE_VERSION }}-${{ env.OFFICIAL_COMMIT }}-${{ hashFiles('.reference/deepseek-harness/pnpm-lock.yaml') }}
+          restore-keys: |
+            portable-spec-pnpm-${{ runner.os }}-${{ env.DSH_NODE_VERSION }}-${{ env.OFFICIAL_COMMIT }}-
+
+      - name: Install locked official TypeScript dependencies
+        run: |
+          cd .reference/deepseek-harness
+          pnpm install --frozen-lockfile
+          test -d node_modules/typescript
 
       - name: Run Python specification and architecture gates
         run: |
