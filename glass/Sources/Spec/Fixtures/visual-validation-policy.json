@@ -179,6 +179,16 @@
       "humanReviewCriteria": ["Verify ThemeRuntime dark cascade, deletion warning copy, focus order, modal geometry and destructive button state against official ARIA/geometry.", "Classify every remaining difference as a native defect or documented system-material exception and attach paired PNG, diff and report before T7.3 completion."],
       "materialRegionExclusion": { "source": "glass/Sources/Spec/Fixtures/official-column-layout-fixtures.json", "derivedColumns": ["sidebar", "details"] }
     },
+    "tooling-inspector-light": {
+      "mode": "report-only",
+      "mustEnforceBeforeTodoCompletion": true,
+      "viewport": { "width": 1280, "height": 840, "devicePixelRatio": 1 },
+      "strict": { "maxMateriallyChangedRatio": 0.008, "maxMeanAbsoluteChannelDifference": 1.15, "maxExactChangedRatio": 0.2 },
+      "systemRenderingExceptions": ["Liquid Glass and font rasterization may differ only under the recorded material and glyph-review rules."],
+      "humanReviewRequired": true,
+      "humanReviewCriteria": ["Verify the seeded Trajectory ledger, selected tool row, Event details Result tab, NAVIGATION_OK text, accessible names and focus against the official ARIA capture.", "Classify every remaining difference as a native defect or documented system-material exception and attach paired PNG, diff and report before tooling renderer completion."],
+      "materialRegionExclusion": { "source": "glass/Sources/Spec/Fixtures/official-column-layout-fixtures.json", "derivedColumns": ["sidebar", "details"] }
+    },
     "approval-composer-light": {
       "mode": "report-only",
       "mustEnforceBeforeTodoCompletion": true,

@@ -403,6 +403,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 - [ ] **T9.6：实现详情栏。** 展示官方可达的 tool detail、input/output/metadata 和选择态；详情列关闭时 subtree 持久化策略应与官方语义一致。
   - 依赖：T5.2、T9.1。
   - 验收：开关详情栏不丢失当前 tool selection；窄窗口自动关闭时不破坏中心会话。
+  - 进度：已为锁定 RC8 seeded navigation fixture 新增 `tooling-inspector-light` 官方 Playwright capture、原生 light snapshot、visual policy 和 native-ui paired comparison；采集经真实搜索、Trajectory tab、tool row 与 Event details Result tab 达到同状态。该项仍缺 generic renderer/详情栏完整语义、当前 SHA macOS 工件与人工差异分类，保持未勾选。
 
 ## 10. 官方设置、凭据、模型与主题
 

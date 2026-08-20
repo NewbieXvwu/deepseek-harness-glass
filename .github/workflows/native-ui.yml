@@ -167,6 +167,8 @@ jobs:
           test -s "artifacts/official-webui/jobs-expanded-light.json"
           test -s "artifacts/official-webui/jobs-expanded-dark.png"
           test -s "artifacts/official-webui/jobs-expanded-dark.json"
+          test -s "artifacts/official-webui/tooling-inspector-light.png"
+          test -s "artifacts/official-webui/tooling-inspector-light.json"
           test -s "artifacts/official-webui/sidebar-rail-narrow-light.png"
           test -s "artifacts/official-webui/sidebar-rail-narrow-light.json"
           test -s "artifacts/official-webui/sidebar-rail-narrow-dark.png"
@@ -340,6 +342,7 @@ jobs:
           test -s "$snapshot_dir/conversation-dark.png"
           test -s "$snapshot_dir/jobs-expanded-light.png"
           test -s "$snapshot_dir/jobs-expanded-dark.png"
+          test -s "$snapshot_dir/tooling-inspector-light.png"
           test -s "$snapshot_dir/tooling-inspector-dark.png"
           test -s "$snapshot_dir/approval-panel-light.png"
           test -s "$snapshot_dir/question-composer-light.png"
@@ -426,6 +429,15 @@ jobs:
             --column-fixtures glass/Sources/Spec/Fixtures/official-column-layout-fixtures.json
           test -s artifacts/visual-diff/jobs-expanded-dark-comparison.png
           test -s artifacts/visual-diff/jobs-expanded-dark-report.json
+          python glass/ci/compare_visual_pair.py \
+            --official artifacts/official-webui/tooling-inspector-light.png \
+            --native artifacts/native-shell/tooling-inspector-light.png \
+            --out-dir artifacts/visual-diff \
+            --scene tooling-inspector-light \
+            --policy glass/Sources/Spec/Fixtures/visual-validation-policy.json \
+            --column-fixtures glass/Sources/Spec/Fixtures/official-column-layout-fixtures.json
+          test -s artifacts/visual-diff/tooling-inspector-light-comparison.png
+          test -s artifacts/visual-diff/tooling-inspector-light-report.json
           for scene in workspace-search-light workspace-search-dark workspace-rename-light workspace-rename-dark session-rename-light session-rename-dark workspace-delete-light workspace-delete-dark approval-composer-light question-composer-light; do
             case "$scene" in
               workspace-search-light) native="workspace-search-official-viewport.png" ;;

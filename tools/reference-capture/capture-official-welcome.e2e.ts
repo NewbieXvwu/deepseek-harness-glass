@@ -268,6 +268,48 @@ describe('reference capture: official welcome and session Jobs action', () => {
     }
   }, 240_000)
 
+  it('captures official tool details inspector from the seeded navigation session', async () => {
+    const name = 'tooling-inspector-light'
+    const toolingScaffold = await launchWebScaffold()
+    const context = await browser.newContext({ viewport, locale: 'en-US', colorScheme: 'light', deviceScaleFactor: 1 })
+    const page = await context.newPage()
+    const consoleTripwire = watchConsole(page)
+    try {
+      const sessionCwd = join(toolingScaffold.workspaceCwd, 'workspace')
+      await mkdir(sessionCwd, { recursive: true })
+      await writeFile(join(sessionCwd, 'nav-a.md'), '# alpha nav\n')
+      await writeFile(join(sessionCwd, 'nav-b.md'), '# beta nav\n')
+      await seedSession(toolingScaffold, await readFile(workspaceSearchFixture, 'utf8'), 'navigation-panes-web-e2e')
+      await page.goto(toolingScaffold.baseUrl, { waitUntil: 'load' })
+      await page.locator('#root').waitFor({ state: 'attached', timeout: 30_000 })
+      await applyOfficialColorScheme(page, 'light')
+      await page.getByText('Ungrouped', { exact: true }).waitFor({ timeout: 30_000 })
+      const searchButton = page.getByRole('button', { name: 'Search sessions' })
+      if (await searchButton.getAttribute('aria-expanded') !== 'true') await searchButton.click()
+      const search = page.getByPlaceholder('Search sessions', { exact: false })
+      await search.fill('WATERFALL')
+      const result = page.getByRole('tree', { name: 'Search results' }).getByRole('treeitem')
+      await result.waitFor({ timeout: 30_000 })
+      await result.click()
+      await page.getByText('FIRST_DONE', { exact: true }).waitFor({ timeout: 30_000 })
+      await page.getByRole('tab', { name: 'Trajectory' }).click()
+      const toolRow = page.locator('tr[data-kind="tool"]').first()
+      await toolRow.waitFor({ timeout: 30_000 })
+      await toolRow.click()
+      const details = page.getByRole('complementary', { name: 'Event details' })
+      await details.waitFor({ timeout: 30_000 })
+      await details.getByRole('tab', { name: 'Result' }).click()
+      await details.getByText('NAVIGATION_OK', { exact: false }).waitFor({ timeout: 30_000 })
+      await page.screenshot({ path: join(outputDirectory, `${name}.png`) })
+      await writeCaptureMetadata(page, name, 'light', viewport, consoleTripwire.warnings, consoleTripwire.pageErrors)
+      expect(consoleTripwire.warnings).toEqual([])
+      expect(consoleTripwire.pageErrors).toEqual([])
+    } finally {
+      await context.close()
+      await toolingScaffold.close()
+    }
+  }, 120_000)
+
   it('captures official approval takeover from the recorded Read Only escalation', async () => {
     const name = 'approval-composer-light'
     const approvalScaffold = await launchWebScaffold({ replayFixture: approvalFixture, paceMs: 15 })

@@ -34,6 +34,11 @@ DSH_GLASS_SNAPSHOT_MODE="jobs" \
 DSH_GLASS_SNAPSHOT_COLOR_SCHEME="dark" \
 "$BINARY"
 
+DSH_GLASS_SNAPSHOT_PATH="$OUTPUT_DIR/tooling-inspector-light.png" \
+DSH_GLASS_SNAPSHOT_MODE="tooling" \
+DSH_GLASS_SNAPSHOT_COLOR_SCHEME="light" \
+"$BINARY"
+
 DSH_GLASS_SNAPSHOT_PATH="$OUTPUT_DIR/tooling-inspector-dark.png" \
 DSH_GLASS_SNAPSHOT_MODE="tooling" \
 DSH_GLASS_SNAPSHOT_COLOR_SCHEME="dark" \
@@ -127,7 +132,7 @@ DSH_GLASS_SNAPSHOT_WIDTH="1023" \
 DSH_GLASS_SNAPSHOT_HEIGHT="840" \
 "$BINARY"
 
-for image in "$OUTPUT_DIR/welcome-light.png" "$OUTPUT_DIR/welcome-dark.png" "$OUTPUT_DIR/sidebar-rail-narrow-light.png" "$OUTPUT_DIR/sidebar-rail-narrow-dark.png" "$OUTPUT_DIR/conversation-dark.png" "$OUTPUT_DIR/jobs-expanded-light.png" "$OUTPUT_DIR/jobs-expanded-dark.png" "$OUTPUT_DIR/tooling-inspector-dark.png" "$OUTPUT_DIR/approval-panel-light.png" "$OUTPUT_DIR/question-composer-light.png" "$OUTPUT_DIR/workspace-search-official-viewport.png" "$OUTPUT_DIR/workspace-rename-official-viewport.png" "$OUTPUT_DIR/session-rename-official-viewport.png" "$OUTPUT_DIR/workspace-delete-official-viewport.png" "$OUTPUT_DIR/workspace-search-official-viewport-dark.png" "$OUTPUT_DIR/workspace-rename-official-viewport-dark.png" "$OUTPUT_DIR/session-rename-official-viewport-dark.png" "$OUTPUT_DIR/workspace-delete-official-viewport-dark.png" "$OUTPUT_DIR/approval-panel-official-viewport.png" "$OUTPUT_DIR/question-composer-official-viewport.png"; do
+for image in "$OUTPUT_DIR/welcome-light.png" "$OUTPUT_DIR/welcome-dark.png" "$OUTPUT_DIR/sidebar-rail-narrow-light.png" "$OUTPUT_DIR/sidebar-rail-narrow-dark.png" "$OUTPUT_DIR/conversation-dark.png" "$OUTPUT_DIR/jobs-expanded-light.png" "$OUTPUT_DIR/jobs-expanded-dark.png" "$OUTPUT_DIR/tooling-inspector-light.png" "$OUTPUT_DIR/tooling-inspector-dark.png" "$OUTPUT_DIR/approval-panel-light.png" "$OUTPUT_DIR/question-composer-light.png" "$OUTPUT_DIR/workspace-search-official-viewport.png" "$OUTPUT_DIR/workspace-rename-official-viewport.png" "$OUTPUT_DIR/session-rename-official-viewport.png" "$OUTPUT_DIR/workspace-delete-official-viewport.png" "$OUTPUT_DIR/workspace-search-official-viewport-dark.png" "$OUTPUT_DIR/workspace-rename-official-viewport-dark.png" "$OUTPUT_DIR/session-rename-official-viewport-dark.png" "$OUTPUT_DIR/workspace-delete-official-viewport-dark.png" "$OUTPUT_DIR/approval-panel-official-viewport.png" "$OUTPUT_DIR/question-composer-official-viewport.png"; do
   test -s "$image"
   sips -g pixelWidth -g pixelHeight "$image"
 done
