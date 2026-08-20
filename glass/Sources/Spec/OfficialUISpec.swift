@@ -450,6 +450,9 @@ enum OfficialUISpec {
         /// Official `StateDot(done)` foreground: `--dsw-alias-state-success-primary`.
         static let success = Theme.aliasStateSuccessPrimary.adaptiveColor
         static let errorPrimary = Theme.aliasStateErrorPrimary.adaptiveColor
+        /// Official `--dsw-alias-state-error-secondary`; the generated token
+        /// catalog has no distinct error-tertiary or error-border role.
+        static let errorSecondary = Theme.aliasStateErrorSecondary.adaptiveColor
     }
 
     /// Source: packages/client/ui-theme/src/styles/gradient-shadow-text.css:7

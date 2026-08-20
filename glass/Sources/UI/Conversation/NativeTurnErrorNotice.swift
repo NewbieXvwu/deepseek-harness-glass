@@ -31,8 +31,8 @@ struct NativeTurnErrorNotice: View {
             }
         }
         .padding(OfficialUISpec.Spacing.p12)
-        .background(OfficialUISpec.Token.errorTertiary, in: RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r8, style: .continuous))
-        .overlay { RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r8, style: .continuous).stroke(OfficialUISpec.Token.errorBorder, lineWidth: OfficialUISpec.Geometry.px1) }
+        .background(OfficialUISpec.Token.errorSecondary.opacity(0.16), in: RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r8, style: .continuous))
+        .overlay { RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r8, style: .continuous).stroke(OfficialUISpec.Token.errorSecondary, lineWidth: OfficialUISpec.Geometry.px1) }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(OfficialUISpec.Text.turnErrorTitle)
     }
