@@ -189,6 +189,7 @@ final class NativeShellPresentation: ObservableObject {
                 endpoint: connection.endpoint,
                 hostPathAPI: apis.host,
                 goalAPI: apis.commands,
+                subagentCatalogAPI: apis.subagents,
                 sessionCWD: sessionCWD(for: selectedSessionID)
             )
         }

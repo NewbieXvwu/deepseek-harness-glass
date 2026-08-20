@@ -43,6 +43,15 @@ protocol NativeGoalAPI: Sendable {
 
 extension CommandsAPI: NativeGoalAPI {}
 
+/// Typed complete direct-child catalog boundary. UI requests refresh explicitly;
+/// no local session summary may manufacture descendants when this API is absent.
+@MainActor
+protocol NativeSubagentCatalogAPI: Sendable {
+    func list(parentSessionID: String) async throws -> SubagentListResponse
+}
+
+extension SubagentsAPI: NativeSubagentCatalogAPI {}
+
 /// Typed desktop-action boundary for settled Markdown file mentions. The Host
 /// keeps both path opening authority and loopback/build-trust enforcement.
 @MainActor
@@ -371,6 +380,8 @@ final class NativeSessionStore: ObservableObject {
     @Published private(set) var selectedToolCallID: String?
     @Published private(set) var pendingApproval: PendingApproval?
     @Published private(set) var pendingQuestion: PendingQuestion?
+    @Published private(set) var subagentCatalog: SubagentListResponse?
+    @Published private(set) var isLoadingSubagentCatalog = false
     @Published private(set) var isSubmittingApproval = false
     @Published private(set) var isSubmittingQuestion = false
     @Published private(set) var lastError: DSHTransportError?
@@ -409,6 +420,8 @@ final class NativeSessionStore: ObservableObject {
     private var endpoint: URL?
     private var api: (any NativeSessionAPI)?
     private var goalAPI: (any NativeGoalAPI)?
+    private var subagentCatalogAPI: (any NativeSubagentCatalogAPI)?
+    private var subagentCatalogTask: Task<Void, Never>?
     private var goalTask: Task<Void, Never>?
     private var queueUpdateTask: Task<Void, Never>?
     @Published private(set) var isSubmittingGoal = false
@@ -457,6 +470,47 @@ final class NativeSessionStore: ObservableObject {
 
     /// Core-internal test seam for goal mutation fencing. Production receives the
     /// same API from `NativeShellPresentation.connectVerifiedHost` via `open`.
+    func setSubagentCatalogAPIForTesting(_ api: (any NativeSubagentCatalogAPI)?) {
+        subagentCatalogTask?.cancel()
+        subagentCatalogTask = nil
+        isLoadingSubagentCatalog = false
+        subagentCatalog = nil
+        subagentCatalogAPI = api
+    }
+
+    /// Refreshes only the selected session's complete Host catalog. Failure is
+    /// fail-closed: the caller observes no catalog rather than local descendants.
+    func refreshSubagentCatalog() {
+        guard let api = subagentCatalogAPI, let sessionID = activeSessionID else {
+            subagentCatalog = nil
+            return
+        }
+        subagentCatalogTask?.cancel()
+        let generation = recoveryGeneration
+        isLoadingSubagentCatalog = true
+        subagentCatalogTask = Task { [weak self] in
+            defer {
+                if self?.recoveryGeneration == generation, self?.activeSessionID == sessionID {
+                    self?.isLoadingSubagentCatalog = false
+                }
+            }
+            do {
+                let catalog = try await api.list(parentSessionID: sessionID)
+                guard !Task.isCancelled,
+                      self?.recoveryGeneration == generation,
+                      self?.activeSessionID == sessionID
+                else { return }
+                self?.subagentCatalog = catalog
+            } catch {
+                guard !Task.isCancelled,
+                      self?.recoveryGeneration == generation,
+                      self?.activeSessionID == sessionID
+                else { return }
+                self?.subagentCatalog = nil
+            }
+        }
+    }
+
     func setGoalAPIForTesting(_ api: (any NativeGoalAPI)?) {
         goalTask?.cancel()
         goalTask = nil
@@ -488,6 +542,7 @@ final class NativeSessionStore: ObservableObject {
         cancelTask?.cancel()
         streamTask?.cancel()
         recoveryTask?.cancel()
+        subagentCatalogTask?.cancel()
     }
 
     /// Core-internal reducer seam used by regression tests; Feature/UI enters
@@ -558,6 +613,7 @@ final class NativeSessionStore: ObservableObject {
         endpoint: URL,
         hostPathAPI: (any NativeHostPathAPI)? = nil,
         goalAPI: (any NativeGoalAPI)? = nil,
+        subagentCatalogAPI: (any NativeSubagentCatalogAPI)? = nil,
         sessionCWD: String? = nil
     ) {
         guard activeSessionID != sessionID || self.endpoint != endpoint else { return }
@@ -570,6 +626,10 @@ final class NativeSessionStore: ObservableObject {
         recoveryTask?.cancel()
         goalTask?.cancel()
         goalTask = nil
+        subagentCatalogTask?.cancel()
+        subagentCatalogTask = nil
+        subagentCatalog = nil
+        isLoadingSubagentCatalog = false
         isSubmittingGoal = false
         goalActionFailure = nil
         locallyClearedGoalID = nil
@@ -582,6 +642,7 @@ final class NativeSessionStore: ObservableObject {
         let authorityGeneration = recoveryGeneration
         self.api = api
         self.goalAPI = goalAPI
+        self.subagentCatalogAPI = subagentCatalogAPI
         self.hostPathAPI = hostPathAPI
         self.activeSessionCWD = sessionCWD
         self.endpoint = endpoint
