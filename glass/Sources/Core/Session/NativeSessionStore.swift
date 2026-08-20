@@ -319,6 +319,11 @@ final class NativeSessionStore: ObservableObject {
     private var cancelTask: Task<Void, Never>?
     private var olderHistoryTask: Task<Void, Never>?
     private var streamTask: Task<Void, Never>?
+    /// A recovery is distinct from initial history loading. Its monotonic token
+    /// prevents an old Host generation, endpoint, or selected session from
+    /// applying models/history/projections after a newer authority request.
+    private var recoveryTask: Task<Void, Never>?
+    private var recoveryGeneration: UInt = 0
     private var endpoint: URL?
     private var api: (any NativeSessionAPI)?
     private var hostPathAPI: (any NativeHostPathAPI)?
@@ -350,6 +355,7 @@ final class NativeSessionStore: ObservableObject {
         promptTask?.cancel()
         cancelTask?.cancel()
         streamTask?.cancel()
+        recoveryTask?.cancel()
     }
 
     /// Core-internal reducer seam used by regression tests; Feature/UI enters
@@ -421,6 +427,8 @@ final class NativeSessionStore: ObservableObject {
         promptTask?.cancel()
         cancelTask?.cancel()
         streamTask?.cancel()
+        recoveryTask?.cancel()
+        recoveryGeneration &+= 1
         self.api = api
         self.hostPathAPI = hostPathAPI
         self.activeSessionCWD = sessionCWD
@@ -490,6 +498,9 @@ final class NativeSessionStore: ObservableObject {
         olderHistoryTask = nil
         streamTask?.cancel()
         streamTask = nil
+        recoveryTask?.cancel()
+        recoveryTask = nil
+        recoveryGeneration &+= 1
         endpoint = nil
         api = nil
         hostPathAPI = nil
@@ -703,6 +714,10 @@ final class NativeSessionStore: ObservableObject {
             guard let eventValue = object["event"],
                   let event = decode(SessionEventDTO.self, from: eventValue)
             else { return }
+            guard !liveEventRequiresAuthorityRecovery(event) else {
+                requestAuthorityRecovery(sessionID: sessionID, reason: .eventGap)
+                return
+            }
             let view = object["view"].flatMap { decode(ToolEventViewDTO.self, from: $0) }
             appendConversationEvent(.init(event: event, view: view))
             apply(event: event, view: view?.view)
@@ -737,6 +752,7 @@ final class NativeSessionStore: ObservableObject {
         // A new mux generation may have lost process-local queue/jobs and events
         // past `lastSeq`; wait for its fresh whole-set frames instead of showing
         // phantom work from the prior Host generation.
+        let priorWindowHighWatermark = conversationReducer.rawWindow().map(\.event.seq).max()
         projections.truncate(sessionID: sessionID, after: subscribed.lastSeq)
         queuedMessages = []
         backgroundJobs = []
@@ -747,6 +763,62 @@ final class NativeSessionStore: ObservableObject {
         pendingQuestion = nil
         isSubmittingApproval = false
         isSubmittingQuestion = false
+        if let priorWindowHighWatermark, subscribed.lastSeq < priorWindowHighWatermark {
+            requestAuthorityRecovery(sessionID: sessionID, reason: .subscriptionWatermark)
+        }
+    }
+
+    private enum AuthorityRecoveryReason {
+        case eventGap
+        case subscriptionWatermark
+    }
+
+    private func liveEventRequiresAuthorityRecovery(_ event: SessionEventDTO) -> Bool {
+        let window = conversationReducer.rawWindow()
+        guard let highest = window.map(\.event.seq).max() else { return false }
+        if window.contains(where: { $0.event.seq == event.seq }) { return false }
+        return event.seq != highest + 1
+    }
+
+    private func requestAuthorityRecovery(sessionID: String, reason _: AuthorityRecoveryReason) {
+        guard let api,
+              let endpoint,
+              activeSessionID == sessionID
+        else { return }
+        recoveryTask?.cancel()
+        recoveryGeneration &+= 1
+        let generation = recoveryGeneration
+        recoveryTask = Task { [weak self] in
+            do {
+                let models = try await api.models(sessionID: sessionID)
+                guard !Task.isCancelled,
+                      self?.recoveryGeneration == generation,
+                      self?.activeSessionID == sessionID,
+                      self?.endpoint == endpoint
+                else { return }
+                let history = try await api.history(sessionID: sessionID, beforeSeq: nil, maxMessages: nil)
+                guard !Task.isCancelled,
+                      self?.recoveryGeneration == generation,
+                      self?.activeSessionID == sessionID,
+                      self?.endpoint == endpoint
+                else { return }
+                self?.modelDirectory = .init(response: models)
+                self?.replaceConversationWindow(history.events.map(ConversationEventInput.init(entry:)), hasMore: history.hasMore)
+                self?.items = []
+                self?.appliedSequences = []
+                self?.applyHistory(history.events)
+                if let projections = history.projections {
+                    self?.projections.seed(sessionID: sessionID, baseline: projections)
+                }
+                self?.hasMoreHistory = history.hasMore
+                self?.phase = .ready(sessionID: sessionID)
+            } catch {
+                // Keep the last complete authority window visible. A newer
+                // mux/recovery generation or a finite stream failure owns any
+                // user-facing transport error policy; stale recovery errors do
+                // not replace a selected resident transcript.
+            }
+        }
     }
 
     private func applyProjection(_ object: [String: JSONValue], sessionID: String) {
