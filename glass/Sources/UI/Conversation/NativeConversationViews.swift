@@ -169,7 +169,7 @@ private struct NativeTranscriptScrollView: View {
         let textCount: Int
         if case let .chat(node)? = tail { textCount = NativeConversationNodeRow.textCount(in: node) }
         else { textCount = 0 }
-        return "\(tail?.id ?? \"\"):\(textCount):\(isRunning ? 1 : 0)"
+        return "\(tail?.id ?? ""):\(textCount):\(isRunning ? 1 : 0)"
     }
 
     var body: some View {
