@@ -100,27 +100,46 @@ actor HostDiagnosticRecorder {
 }
 
 enum HostLogRedactor {
-    /// Compiled once per process. `NSRegularExpression` is documented
-    /// thread-safe, and `redact` is called from an actor-isolated recorder.
-    private static let patterns: [NSRegularExpression] = [
-        #"(?i)\bauthorization\s*:\s*bearer\s+[A-Za-z0-9._~+\-/=]+"#,
-        #"(?i)\bbearer\s+[A-Za-z0-9._~+\-/=]+"#,
-        #"(?i)\b(api[_-]?key|cookie|token|secret|password)\s*[:=]\s*([^\s,;]+)"#,
-        #"(?i)(https?://)[^\s/@:]+:[^\s/@]+@"#,
-    ].compactMap { try? NSRegularExpression(pattern: $0) }
+    private struct Rule {
+        let expression: NSRegularExpression
+        let replacementTemplate: String
+
+        init(pattern: String, replacementTemplate: String) {
+            self.expression = try! NSRegularExpression(pattern: pattern)
+            self.replacementTemplate = replacementTemplate
+        }
+    }
+
+    // Compile once at process initialization. Each rule owns its replacement
+    // semantics so reordering or changing a pattern cannot silently select the
+    // wrong template through pattern-string inspection.
+    private static let rules: [Rule] = [
+        .init(
+            pattern: #"(?i)\bauthorization\s*:\s*bearer\s+[A-Za-z0-9._~+\-/=]+"#,
+            replacementTemplate: "<redacted>"
+        ),
+        .init(
+            pattern: #"(?i)\bbearer\s+[A-Za-z0-9._~+\-/=]+"#,
+            replacementTemplate: "<redacted>"
+        ),
+        .init(
+            pattern: #"(?i)\b(api[_-]?key|cookie|token|secret|password)\s*[:=]\s*([^\s,;]+)"#,
+            replacementTemplate: "<redacted>"
+        ),
+        .init(
+            pattern: #"(?i)(https?://)[^\s/@:]+:[^\s/@]+@"#,
+            replacementTemplate: "$1<redacted>@"
+        ),
+    ]
 
     static func redact(_ text: String) -> String {
-        var result = text
-        for expression in patterns {
+        rules.reduce(text) { result, rule in
             let range = NSRange(result.startIndex..., in: result)
-            let template: String
-            if expression.pattern.hasPrefix("(?i)(https") {
-                template = "$1<redacted>@"
-            } else {
-                template = "<redacted>"
-            }
-            result = expression.stringByReplacingMatches(in: result, range: range, withTemplate: template)
+            return rule.expression.stringByReplacingMatches(
+                in: result,
+                range: range,
+                withTemplate: rule.replacementTemplate
+            )
         }
-        return result
     }
 }

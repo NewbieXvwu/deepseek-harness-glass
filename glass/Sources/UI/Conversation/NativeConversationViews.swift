@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 @testable import GlassCore
 @testable import GlassSpec
 #endif
+@MainActor
 struct NativeConversationColumn: View {
     let mode: NativeAppShell.PresentationMode
     let selectedWorkspaceTitle: String?
@@ -14,6 +15,32 @@ struct NativeConversationColumn: View {
     let jobsPopoverInitiallyOpen: Bool
     let jobsLanguageCode: String?
     let openSession: (String) -> Void
+    /// Held by the resident shell in production; default construction keeps
+    /// isolated preview/snapshot call sites deterministic.
+    let viewRegistry: NativeConversationViewRegistry
+    let headerContributions: NativeConversationHeaderContributionRegistry
+
+    init(
+        mode: NativeAppShell.PresentationMode,
+        selectedWorkspaceTitle: String?,
+        sessionSnapshot: NativeWorkspaceStore.Snapshot,
+        sessionStore: NativeSessionStore,
+        jobsPopoverInitiallyOpen: Bool,
+        jobsLanguageCode: String?,
+        openSession: @escaping (String) -> Void,
+        viewRegistry: NativeConversationViewRegistry,
+        headerContributions: NativeConversationHeaderContributionRegistry
+    ) {
+        self.mode = mode
+        self.selectedWorkspaceTitle = selectedWorkspaceTitle
+        self.sessionSnapshot = sessionSnapshot
+        self.sessionStore = sessionStore
+        self.jobsPopoverInitiallyOpen = jobsPopoverInitiallyOpen
+        self.jobsLanguageCode = jobsLanguageCode
+        self.openSession = openSession
+        self.viewRegistry = viewRegistry
+        self.headerContributions = headerContributions
+    }
 
     var body: some View {
         switch mode {
@@ -25,7 +52,9 @@ struct NativeConversationColumn: View {
                 sessionStore: sessionStore,
                 jobsPopoverInitiallyOpen: jobsPopoverInitiallyOpen,
                 jobsLanguageCode: jobsLanguageCode,
-                openSession: openSession
+                openSession: openSession,
+                viewRegistry: viewRegistry,
+                headerContributions: headerContributions
             )
         }
     }
@@ -40,6 +69,8 @@ private struct NativeActiveConversationSurface: View {
     let jobsPopoverInitiallyOpen: Bool
     let jobsLanguageCode: String?
     let openSession: (String) -> Void
+    @ObservedObject var viewRegistry: NativeConversationViewRegistry
+    @ObservedObject var headerContributions: NativeConversationHeaderContributionRegistry
 
     var body: some View {
         VStack(spacing: OfficialUISpec.Spacing.p0) {
@@ -48,18 +79,38 @@ private struct NativeActiveConversationSurface: View {
                     snapshot: sessionSnapshot,
                     sessionID: sessionStore.selectedSessionID,
                     composerIsBlank: sessionStore.chatNodes.isEmpty && sessionStore.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                    selectedViewID: sessionStore.selectedViewID
+                    selectedViewID: sessionStore.selectedViewID,
+                    viewRegistry: viewRegistry
                 ),
                 jobs: sessionStore.backgroundJobs,
                 jobsPopoverInitiallyOpen: jobsPopoverInitiallyOpen,
                 jobsLanguageCode: jobsLanguageCode,
+                contributionContext: contributionContext,
+                headerContributions: headerContributions,
                 openSession: openSession,
                 selectView: sessionStore.selectView
             )
-            transcriptBody
+            activeViewBody
             composerTakeover
         }
         .background(OfficialUISpec.Token.base)
+    }
+
+    private var contributionContext: NativeConversationContributionContext {
+        .init(
+            sessionID: sessionStore.selectedSessionID,
+            sessionSnapshot: sessionSnapshot,
+            sessionStore: sessionStore
+        )
+    }
+
+    @ViewBuilder
+    private var activeViewBody: some View {
+        if let view = viewRegistry.render(selectedID: sessionStore.selectedViewID, context: contributionContext) {
+            view
+        } else {
+            transcriptBody
+        }
     }
 
     @ViewBuilder

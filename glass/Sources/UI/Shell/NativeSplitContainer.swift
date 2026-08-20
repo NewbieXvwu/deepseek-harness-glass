@@ -30,6 +30,10 @@ final class NativeShellPresentation: ObservableObject {
 
     let workspaceStore: NativeWorkspaceStore
     let sessionStore: NativeSessionStore
+    /// Window-resident native counterparts of RC8's contribution ledgers.
+    /// They deliberately outlive individual SwiftUI root-view assignments.
+    let conversationViewRegistry = NativeConversationViewRegistry()
+    let conversationHeaderContributions = NativeConversationHeaderContributionRegistry()
     let workspaceSnapshotDialog: WorkspaceBrowserView.SnapshotDialog
     /// Snapshot-only presentation affordance; never part of Host session truth.
     let jobsPopoverInitiallyOpen: Bool
@@ -38,6 +42,12 @@ final class NativeShellPresentation: ObservableObject {
     private var apis: HarnessAPIs?
     private var selectedToolObservation: AnyCancellable?
     private var observedEndpoint: URL?
+    /// Source: RC8 `WorkspaceRuntime.connecting`. Concurrent New Session
+    /// requests for one workspace share the same blank lookup/create work.
+    private var blankConnectionTasks: [String: Task<String, Error>] = [:]
+    /// Cancels navigation from stale blank-connect completions after a newer
+    /// selection, endpoint switch, or no-workspace clear.
+    private var newSessionGeneration = 0
 
     init(
         mode: NativeAppShell.PresentationMode = .welcome,
@@ -79,6 +89,9 @@ final class NativeShellPresentation: ObservableObject {
         // creates only fresh typed facades and uses the Host's official
         // read-only cold-resume path before observing the new mux endpoint.
         let selectedSessionID = sessionStore.selectedSessionID
+        newSessionGeneration &+= 1
+        blankConnectionTasks.values.forEach { $0.cancel() }
+        blankConnectionTasks.removeAll()
         workspaceStore.stopObservingHostEvents()
         let apis = HarnessAPIs(
             baseURL: connection.endpoint,
@@ -114,6 +127,9 @@ final class NativeShellPresentation: ObservableObject {
     }
 
     func disconnectHost() {
+        newSessionGeneration &+= 1
+        blankConnectionTasks.values.forEach { $0.cancel() }
+        blankConnectionTasks.removeAll()
         apis = nil
         observedEndpoint = nil
         hostDescription = nil
@@ -142,21 +158,73 @@ final class NativeShellPresentation: ObservableObject {
         workspaceStore.snapshot.sessions.first(where: { $0.sessionId == sessionID })?.cwd
     }
 
-    /// Source: `sessions.schema.ts:sessionCreateRequestSchema`.
+    /// Source: RC8 `workspaces/service.ts:startSession` and
+    /// `connectWorkspace`. Explicit workspace wins, then the selected session's
+    /// workspace, then the Host-order stable recent-workspace projection. A
+    /// missing target clears only selection; it does not create an unscoped
+    /// synthetic session or disconnect the Host.
     func createSession(in workspaceID: String?) {
-        guard let apis else { return }
-        Task { [weak self] in
+        guard let apis, let endpoint = observedEndpoint else { return }
+        let snapshot = workspaceStore.snapshot
+        let currentWorkspaceID = snapshot.selectedSessionID.flatMap { selectedID in
+            snapshot.workspaces.first(where: { $0.sessionIds.contains(selectedID) })?.workspaceId
+        }
+        let target = workspaceID ?? currentWorkspaceID ?? NativeWorkspaceStore.recentWorkspaceID(in: snapshot)
+        guard let target else {
+            newSessionGeneration &+= 1
+            workspaceStore.select(sessionID: nil, workspaceID: nil)
+            sessionStore.clearActiveSelection()
+            mode = .welcome
+            detailsVisible = false
+            return
+        }
+
+        newSessionGeneration &+= 1
+        let generation = newSessionGeneration
+        Task { @MainActor [weak self] in
             guard let self else { return }
             do {
-                let created = try await apis.sessions.create(workspaceID: workspaceID)
-                guard !Task.isCancelled else { return }
-                selectSession(created.sessionId, workspaceID: workspaceID)
+                let sessionID = try await connectWorkspace(target, using: apis)
+                guard !Task.isCancelled,
+                      newSessionGeneration == generation,
+                      observedEndpoint == endpoint
+                else { return }
+                selectSession(sessionID, workspaceID: target)
                 workspaceStore.refresh(using: apis)
             } catch {
-                // Store refresh remains Host-authoritative; no synthetic session
-                // row or error copy is created on a rejected create operation.
+                // RC8 treats a rejected blank connection as non-fatal: keep the
+                // current selection usable and wait for the next Host authority.
             }
         }
+    }
+
+    /// Source: RC8 `WorkspaceRuntime.connectWorkspace`. Only a blank session
+    /// that is both accounted by the workspace and has the workspace canonical
+    /// cwd is reusable; archived blanks are intentionally invisible and cannot
+    /// be opened. A create is coalesced per workspace until it settles.
+    private func connectWorkspace(_ workspaceID: String, using apis: HarnessAPIs) async throws -> String {
+        if let task = blankConnectionTasks[workspaceID] {
+            return try await task.value
+        }
+        let task = Task<String, Error> { @MainActor [weak self] in
+            guard let self else { throw CancellationError() }
+            guard let workspace = self.workspaceStore.snapshot.workspaces.first(where: { $0.workspaceId == workspaceID }) else {
+                throw URLError(.fileDoesNotExist)
+            }
+            let archived = self.workspaceStore.snapshot.archivedSessionIDs
+            if let reusable = self.workspaceStore.snapshot.sessions.first(where: { session in
+                session.blank
+                    && session.cwd == workspace.path
+                    && workspace.sessionIds.contains(session.sessionId)
+                    && !archived.contains(session.sessionId)
+            }) {
+                return reusable.sessionId
+            }
+            return try await apis.sessions.create(workspaceID: workspaceID).sessionId
+        }
+        blankConnectionTasks[workspaceID] = task
+        defer { blankConnectionTasks[workspaceID] = nil }
+        return try await task.value
     }
 
     /// Source: `workspace.schema.ts:workspaceRenameRequestSchema`.
@@ -171,6 +239,22 @@ final class NativeShellPresentation: ObservableObject {
     func deleteWorkspace(_ workspaceID: String) async throws {
         guard let apis else { throw URLError(.notConnectedToInternet) }
         _ = try await apis.workspaces.delete(workspaceID: workspaceID)
+        guard !Task.isCancelled else { return }
+        workspaceStore.refresh(using: apis)
+    }
+
+    /// Source: `workspace.schema.ts:workspaceInsertBeforeRequestSchema`.
+    func moveWorkspace(_ workspaceID: String, beforeWorkspaceID: String?) async throws {
+        guard let apis else { throw URLError(.notConnectedToInternet) }
+        _ = try await apis.workspaces.insertBefore(workspaceID: workspaceID, beforeWorkspaceID: beforeWorkspaceID)
+        guard !Task.isCancelled else { return }
+        workspaceStore.refresh(using: apis)
+    }
+
+    /// Source: `workspace.schema.ts:workspaceInsertSessionBeforeRequestSchema`.
+    func moveSession(_ sessionID: String, in workspaceID: String, beforeSessionID: String?) async throws {
+        guard let apis else { throw URLError(.notConnectedToInternet) }
+        _ = try await apis.workspaces.insertSessionBefore(workspaceID: workspaceID, sessionID: sessionID, beforeSessionID: beforeSessionID)
         guard !Task.isCancelled else { return }
         workspaceStore.refresh(using: apis)
     }
@@ -279,7 +363,9 @@ final class NativeShellController: NativeSplitViewController {
                 jobsLanguageCode: presentation.jobsSnapshotLanguageCode,
                 openSession: { sessionID in
                     presentation.selectSession(sessionID, workspaceID: Self.workspaceID(for: sessionID, in: presentation))
-                }
+                },
+                viewRegistry: presentation.conversationViewRegistry,
+                headerContributions: presentation.conversationHeaderContributions
             ),
             details: Self.details(for: presentation),
             sidebarPreference: presentation.sidebarPreference,
@@ -348,7 +434,9 @@ final class NativeShellController: NativeSplitViewController {
                     guard let self else { return }
                     let current = self.presentation
                     current.selectSession(sessionID, workspaceID: Self.workspaceID(for: sessionID, in: current))
-                }
+                },
+                viewRegistry: presentation.conversationViewRegistry,
+                headerContributions: presentation.conversationHeaderContributions
             ),
             details: Self.details(for: presentation),
             sidebarPreference: presentation.sidebarPreference,
@@ -400,6 +488,12 @@ final class NativeShellController: NativeSplitViewController {
                 },
                 commitSessionRename: { sessionID, title in
                     try await presentation.renameSession(sessionID, title: title)
+                },
+                moveWorkspace: { workspaceID, beforeWorkspaceID in
+                    try await presentation.moveWorkspace(workspaceID, beforeWorkspaceID: beforeWorkspaceID)
+                },
+                moveSession: { sessionID, workspaceID, beforeSessionID in
+                    try await presentation.moveSession(sessionID, in: workspaceID, beforeSessionID: beforeSessionID)
                 }
             ),
             workspaceSnapshotDialog: presentation.workspaceSnapshotDialog,

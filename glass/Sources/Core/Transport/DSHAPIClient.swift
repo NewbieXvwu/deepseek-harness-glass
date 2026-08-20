@@ -147,6 +147,16 @@ struct DSHAPIClient: Sendable {
         try await call("workspace.delete", payload: WorkspaceDeleteRequest(workspaceId: workspaceID))
     }
 
+    /// Source: `workspace.schema.ts:workspaceInsertBeforeRequestSchema`.
+    func workspaceInsertBefore(workspaceID: String, beforeWorkspaceID: String? = nil) async throws -> WorkspaceInsertBeforeResponse {
+        try await call("workspace.insertBefore", payload: WorkspaceInsertBeforeRequest(workspaceId: workspaceID, beforeWorkspaceId: beforeWorkspaceID))
+    }
+
+    /// Source: `workspace.schema.ts:workspaceInsertSessionBeforeRequestSchema`.
+    func workspaceInsertSessionBefore(workspaceID: String, sessionID: String, beforeSessionID: String? = nil) async throws -> WorkspaceInsertSessionBeforeResponse {
+        try await call("workspace.insertSessionBefore", payload: WorkspaceInsertSessionBeforeRequest(workspaceId: workspaceID, sessionId: sessionID, beforeSessionId: beforeSessionID))
+    }
+
     /// Source: `workspace.schema.ts:workspaceArchiveSessionRequestSchema`.
     func workspaceArchiveSession(sessionID: String) async throws -> WorkspaceArchiveSessionResponse {
         try await call("workspace.archiveSession", payload: WorkspaceArchiveSessionRequest(sessionId: sessionID))
@@ -547,6 +557,29 @@ struct WorkspaceDeleteRequest: Codable, Sendable {
 /// Source: `workspace.schema.ts:workspaceDeleteValueSchema`.
 struct WorkspaceDeleteResponse: Decodable, Sendable {
     let deleted: Bool
+}
+
+/// Source: `workspace.schema.ts:workspaceInsertBeforeRequestSchema`.
+struct WorkspaceInsertBeforeRequest: Codable, Sendable {
+    let workspaceId: String
+    let beforeWorkspaceId: String?
+}
+
+/// Source: `workspace.schema.ts:workspaceInsertBeforeValueSchema`.
+struct WorkspaceInsertBeforeResponse: Decodable, Sendable {
+    let workspaceIds: [String]
+}
+
+/// Source: `workspace.schema.ts:workspaceInsertSessionBeforeRequestSchema`.
+struct WorkspaceInsertSessionBeforeRequest: Codable, Sendable {
+    let workspaceId: String
+    let sessionId: String
+    let beforeSessionId: String?
+}
+
+/// Source: `workspace.schema.ts:workspaceInsertSessionBeforeValueSchema`.
+struct WorkspaceInsertSessionBeforeResponse: Decodable, Sendable {
+    let workspace: WorkspaceSummaryDTO
 }
 
 /// Source: `workspace.schema.ts:workspaceArchiveSessionRequestSchema`.

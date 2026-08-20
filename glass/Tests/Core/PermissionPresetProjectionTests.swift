@@ -25,6 +25,20 @@ final class PermissionPresetProjectionTests: XCTestCase {
         XCTAssertNil(state.mutation(selecting: "invented"), "unknown preset must never reach transport")
     }
 
+    func testDisplayNormalizesOnlyStrictASCIILowerKebabCaseWithoutRegex() {
+        XCTAssertEqual(PermissionPresetProjection.display(value: "read-only", suppliedLabel: "read-only"), "Read Only")
+        XCTAssertEqual(PermissionPresetProjection.display(value: "release-2026", suppliedLabel: "release-2026"), "Release 2026")
+        XCTAssertEqual(PermissionPresetProjection.display(value: "danger-full-access", suppliedLabel: "danger-full-access"), "Full access")
+
+        for label in ["", "-leading", "trailing-", "double--dash", "Upper-case", "naïve-mode", "with_space"] {
+            XCTAssertEqual(
+                PermissionPresetProjection.display(value: "custom", suppliedLabel: label),
+                label,
+                "invalid non-kebab label must remain Host-authoritative and verbatim: \(label)"
+            )
+        }
+    }
+
     func testFailsClosedForAbsentMalformedOrNonWritablePermissionDescriptor() {
         let unavailable = PermissionPresetProjection.state(namespaces: [], writable: true)
         XCTAssertEqual(unavailable.status, .unavailable)

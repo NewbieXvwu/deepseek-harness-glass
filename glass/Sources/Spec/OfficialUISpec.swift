@@ -154,6 +154,13 @@ enum OfficialUISpec {
         static let addWorkspace = "Add workspace"
         static let sessions = "Sessions"
         static let viewOptions = "View options"
+        // Source: packages/client/ui-workspace/src/client/locales.ts (en)
+        static let groupBy = "Group by"
+        static let groupByWorkspace = "WorkSpace"
+        static let groupByFlat = "In one list"
+        static let orderBy = "Order by"
+        static let orderByManual = "Manual"
+        static let orderByUpdated = "Last updated"
         static let searchSessionsAccessibility = "Search sessions"
         static let searchSessionsPlaceholder = "Search sessions..."
         static let clearSearch = "Clear search"

@@ -73,6 +73,15 @@ final class NativeWorkspaceStore: ObservableObject {
         }
     }
 
+    /// RC8 Host workspace summaries use JavaScript ISO strings, whose usual
+    /// representation includes milliseconds. `ISO8601DateFormatter` does not
+    /// parse that form unless fractional seconds are opted in explicitly.
+    private static let workspaceCreationFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+
     @Published private(set) var phase: Phase = .idle
     @Published private(set) var snapshot: Snapshot = .empty
     @Published var searchQuery = ""
@@ -85,6 +94,22 @@ final class NativeWorkspaceStore: ObservableObject {
 
     /// Source: `events.schema.ts:hostFrameSchema`. A single list reload folds
     /// batches of related host increments into the host-authoritative snapshot.
+    /// Source: RC8 `WorkspaceBrowser.sanitizeSearchQuery`. `String.UTF16View`
+    /// matches the JavaScript wire length model and the boundary adjustment
+    /// prevents a dangling high surrogate from reaching `session.search`.
+    static func sanitizeSearchQuery(_ value: String) -> String {
+        let withoutNul = value.replacingOccurrences(of: "\u{0000}", with: "")
+        let units = Array(withoutNul.utf16)
+        guard units.count > 500 else { return withoutNul }
+        var end = 500
+        if end < units.count,
+           (0xD800...0xDBFF).contains(units[end - 1]),
+           (0xDC00...0xDFFF).contains(units[end]) {
+            end -= 1
+        }
+        return String(decoding: units.prefix(end), as: UTF16.self)
+    }
+
     private static let browserAffectingHostMethods: Set<String> = [
         "host/session-added",
         "host/session-removed",
@@ -175,7 +200,7 @@ final class NativeWorkspaceStore: ObservableObject {
     /// `session-search.ts:SESSION_SEARCH_RESULT_LIMIT`. The store owns request
     /// cancellation and stale result suppression; the view only binds text.
     func search(query: String, using api: SessionsAPI?) {
-        let normalized = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalized = Self.sanitizeSearchQuery(query).trimmingCharacters(in: .whitespacesAndNewlines)
         searchTask?.cancel()
         guard !normalized.isEmpty else {
             remoteSearch = .idle
@@ -212,6 +237,27 @@ final class NativeWorkspaceStore: ObservableObject {
             guard !Task.isCancelled else { return }
             self?.refresh(using: apis)
         }
+    }
+
+    /// Source: RC8 `workspaces/service.ts:recentWorkspace`. This is a pure
+    /// projection over the current Host baselines: a workspace with the most
+    /// recently updated accounted session wins; an empty account falls back to
+    /// its creation instant; equal timestamps intentionally retain Host list
+    /// order by updating only on a strict improvement.
+    static func recentWorkspaceID(in snapshot: Snapshot) -> String? {
+        let sessionsByID = Dictionary(uniqueKeysWithValues: snapshot.sessions.map { ($0.sessionId, $0) })
+        var selected: String?
+        var selectedTime = -Double.infinity
+        for workspace in snapshot.workspaces {
+            let sessionTime = workspace.sessionIds.compactMap { sessionsByID[$0]?.updatedAt }.max()
+            let creationTime = Self.workspaceCreationFormatter.date(from: workspace.createdAt)?.timeIntervalSince1970 ?? -Double.infinity
+            let candidateTime = sessionTime ?? creationTime
+            if selected == nil || candidateTime > selectedTime {
+                selected = workspace.workspaceId
+                selectedTime = candidateTime
+            }
+        }
+        return selected
     }
 
     func select(sessionID: String?, workspaceID: String?) {

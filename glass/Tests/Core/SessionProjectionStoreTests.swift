@@ -1,3 +1,4 @@
+import Combine
 import XCTest
 
 @testable import GlassCore
@@ -14,6 +15,21 @@ final class SessionProjectionStoreTests: XCTestCase {
         XCTAssertEqual(store.value(sessionID: "a", key: "title"), .string("new"))
         XCTAssertEqual(store.row(sessionID: "a", key: "title")?.seq, 20)
         XCTAssertEqual(store.value(sessionID: "b", key: "title"), .string("other"))
+    }
+
+    func testProjectionPublicationFiresForAcceptedHigherSequenceOnly() async {
+        let store = SessionProjectionStore()
+        let changed = expectation(description: "accepted Host projection rows publish")
+        changed.expectedFulfillmentCount = 2
+        let subscription = store.objectWillChange.sink { _ in changed.fulfill() }
+        defer { subscription.cancel() }
+
+        store.apply(sessionID: "session", key: "title", value: .string("first"), seq: 1)
+        store.apply(sessionID: "session", key: "title", value: .string("duplicate"), seq: 1)
+        store.apply(sessionID: "session", key: "title", value: .string("stale"), seq: 0)
+        store.apply(sessionID: "session", key: "title", value: .string("second"), seq: 2)
+        await fulfillment(of: [changed], timeout: 1)
+        XCTAssertEqual(store.value(sessionID: "session", key: "title"), .string("second"))
     }
 
     func testHistoryBaselineSeedsAndClearsOnlyRowsNoNewerThanCut() {

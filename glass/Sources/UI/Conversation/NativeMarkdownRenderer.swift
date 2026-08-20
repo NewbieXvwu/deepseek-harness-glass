@@ -9,6 +9,15 @@ import SwiftUI
 /// interactive only when it is an absolute HTTP(S) URL; the renderer never
 /// delegates `file:`, `data:`, `javascript:` or relative destinations to macOS.
 enum NativeMarkdownSecurityPolicy {
+    private static let executableHTMLExpression = try! NSRegularExpression(
+        pattern: #"(?is)<(script|style|iframe|object|embed)[^>]*>.*?</\1>"#
+    )
+    private static let htmlCommentExpression = try! NSRegularExpression(pattern: #"(?is)<!--.*?-->"#)
+    private static let htmlTagExpression = try! NSRegularExpression(pattern: #"(?is)<[^>]+>"#)
+    private static let markdownLinkExpression = try! NSRegularExpression(
+        pattern: #"\[([^\]]*)\]\(([^\s\)]+)(?:\s+[^\)]*)?\)"#
+    )
+
     static func externalURL(from raw: String) -> URL? {
         guard let components = URLComponents(string: raw.trimmingCharacters(in: .whitespacesAndNewlines)),
               let scheme = components.scheme?.lowercased(),
@@ -19,29 +28,15 @@ enum NativeMarkdownSecurityPolicy {
         return url
     }
 
-    /// Compiled once per process. The sanitizer runs on every streamed chunk,
-    /// so recompiling these per call would dominate markdown rendering cost.
-    private static let scriptPatterns: [NSRegularExpression] = [
-        #"(?is)<(script|style|iframe|object|embed)[^>]*>.*?</\1>"#,
-        #"(?is)<!--.*?-->"#,
-        #"(?is)<[^>]+>"#,
-    ].compactMap { try? NSRegularExpression(pattern: $0) }
-
-    private static let linkPattern = try! NSRegularExpression(pattern: #"\[([^\]]*)\]\(([^\s\)]+)(?:\s+[^\)]*)?\)"#)
-
     /// Removes executable HTML elements and turns unsafe Markdown links into
     /// inert prose before `AttributedString` receives the document. This is a
     /// defensive parser boundary, not an HTML renderer or sanitizer bypass.
     static func sanitizedInlineMarkdown(_ source: String) -> String {
-        var result = source
-        for expression in scriptPatterns {
-            result = expression.stringByReplacingMatches(
-                in: result,
-                range: NSRange(result.startIndex..., in: result),
-                withTemplate: ""
-            )
-        }
-        let matches = linkPattern.matches(in: result, range: NSRange(result.startIndex..., in: result)).reversed()
+        var result = replacingMatches(in: source, using: executableHTMLExpression, with: "")
+        result = replacingMatches(in: result, using: htmlCommentExpression, with: "")
+        result = replacingMatches(in: result, using: htmlTagExpression, with: "")
+
+        let matches = markdownLinkExpression.matches(in: result, range: NSRange(result.startIndex..., in: result)).reversed()
         for match in matches {
             guard let labelRange = Range(match.range(at: 1), in: result),
                   let destinationRange = Range(match.range(at: 2), in: result),
@@ -53,6 +48,14 @@ enum NativeMarkdownSecurityPolicy {
             result.replaceSubrange(fullRange, with: replacement)
         }
         return result
+    }
+
+    private static func replacingMatches(in source: String, using expression: NSRegularExpression, with replacement: String) -> String {
+        expression.stringByReplacingMatches(
+            in: source,
+            range: NSRange(source.startIndex..., in: source),
+            withTemplate: replacement
+        )
     }
 
     @discardableResult

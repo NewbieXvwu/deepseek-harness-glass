@@ -80,6 +80,17 @@
       "allowedDifferenceClasses": ["font-rendering", "system-glass"]
     },
     {
+      "id": "workspace-search-dark",
+      "surface": "workspace.session-search",
+      "state": "fixture-query-waterfall-seeded-history",
+      "colorScheme": "dark",
+      "viewport": { "width": 1280, "height": 1100 },
+      "officialComponents": ["WorkspaceBrowser", "SearchResults", "SearchResultItem", "ThemeRuntime"],
+      "nativeEntry": "SnapshotExporter.DSH_GLASS_SNAPSHOT_MODE=workspace-search + DSH_GLASS_SNAPSHOT_COLOR_SCHEME=dark",
+      "requiredEvidence": ["source-map", "official-screenshot", "native-screenshot", "paired-viewport", "difference-ledger", "post-fix-recapture", "layout-rectangles", "accessibility", "keyboard-focus", "rpc-fixture"],
+      "allowedDifferenceClasses": ["font-rendering", "system-glass"]
+    },
+    {
       "id": "workspace-rename-light",
       "surface": "workspace.rename-dialog",
       "state": "fixture-workspace-rename-open",
@@ -87,6 +98,17 @@
       "officialComponents": ["WorkspaceBrowser", "Modal", "Button"],
       "nativeEntry": "SnapshotExporter.DSH_GLASS_SNAPSHOT_MODE=workspace-rename",
       "requiredEvidence": ["source-map", "official-screenshot", "native-screenshot", "paired-viewport", "difference-ledger", "post-fix-recapture", "layout-rectangles", "accessibility", "rpc-fixture"],
+      "allowedDifferenceClasses": ["font-rendering", "system-glass"]
+    },
+    {
+      "id": "workspace-rename-dark",
+      "surface": "workspace.rename-dialog",
+      "state": "fixture-workspace-rename-open",
+      "colorScheme": "dark",
+      "viewport": { "width": 1280, "height": 1100 },
+      "officialComponents": ["WorkspaceBrowser", "Modal", "Button", "ThemeRuntime"],
+      "nativeEntry": "SnapshotExporter.DSH_GLASS_SNAPSHOT_MODE=workspace-rename + DSH_GLASS_SNAPSHOT_COLOR_SCHEME=dark",
+      "requiredEvidence": ["source-map", "official-screenshot", "native-screenshot", "paired-viewport", "difference-ledger", "post-fix-recapture", "layout-rectangles", "accessibility", "keyboard-focus", "rpc-fixture"],
       "allowedDifferenceClasses": ["font-rendering", "system-glass"]
     },
     {
@@ -100,6 +122,17 @@
       "allowedDifferenceClasses": ["font-rendering", "system-glass"]
     },
     {
+      "id": "session-rename-dark",
+      "surface": "workspace.session-rename-dialog",
+      "state": "fixture-session-rename-open",
+      "colorScheme": "dark",
+      "viewport": { "width": 1280, "height": 1100 },
+      "officialComponents": ["WorkspaceBrowser", "Modal", "Button", "ThemeRuntime"],
+      "nativeEntry": "SnapshotExporter.DSH_GLASS_SNAPSHOT_MODE=session-rename + DSH_GLASS_SNAPSHOT_COLOR_SCHEME=dark",
+      "requiredEvidence": ["source-map", "official-screenshot", "native-screenshot", "paired-viewport", "difference-ledger", "post-fix-recapture", "layout-rectangles", "accessibility", "keyboard-focus", "rpc-fixture"],
+      "allowedDifferenceClasses": ["font-rendering", "system-glass"]
+    },
+    {
       "id": "workspace-delete-light",
       "surface": "workspace.delete-dialog",
       "state": "fixture-workspace-delete-open",
@@ -107,6 +140,17 @@
       "officialComponents": ["WorkspaceBrowser", "Modal", "Button"],
       "nativeEntry": "SnapshotExporter.DSH_GLASS_SNAPSHOT_MODE=workspace-delete",
       "requiredEvidence": ["source-map", "official-screenshot", "native-screenshot", "paired-viewport", "difference-ledger", "post-fix-recapture", "layout-rectangles", "accessibility", "rpc-fixture"],
+      "allowedDifferenceClasses": ["font-rendering", "system-glass"]
+    },
+    {
+      "id": "workspace-delete-dark",
+      "surface": "workspace.delete-dialog",
+      "state": "fixture-workspace-delete-open",
+      "colorScheme": "dark",
+      "viewport": { "width": 1280, "height": 1100 },
+      "officialComponents": ["WorkspaceBrowser", "Modal", "Button", "ThemeRuntime"],
+      "nativeEntry": "SnapshotExporter.DSH_GLASS_SNAPSHOT_MODE=workspace-delete + DSH_GLASS_SNAPSHOT_COLOR_SCHEME=dark",
+      "requiredEvidence": ["source-map", "official-screenshot", "native-screenshot", "paired-viewport", "difference-ledger", "post-fix-recapture", "layout-rectangles", "accessibility", "keyboard-focus", "rpc-fixture"],
       "allowedDifferenceClasses": ["font-rendering", "system-glass"]
     },
     {
@@ -133,9 +177,22 @@
       "id": "sidebar-rail-narrow-light",
       "surface": "sidebar.compact-rail",
       "state": "viewport-below-auto-collapse",
+      "colorScheme": "light",
       "viewport": { "width": 1023, "height": 840 },
       "officialComponents": ["AppFrame", "SidebarRoot"],
-      "requiredEvidence": ["source-map", "official-screenshot", "native-screenshot", "layout-rectangles", "keyboard-focus"],
+      "nativeEntry": "SnapshotExporter.DSH_GLASS_SNAPSHOT_MODE=welcome + DSH_GLASS_SNAPSHOT_WIDTH=1023 + DSH_GLASS_SNAPSHOT_COLOR_SCHEME=light",
+      "requiredEvidence": ["source-map", "official-screenshot", "native-screenshot", "paired-viewport", "difference-ledger", "post-fix-recapture", "layout-rectangles", "accessibility", "keyboard-focus"],
+      "allowedDifferenceClasses": ["font-rendering", "system-glass"]
+    },
+    {
+      "id": "sidebar-rail-narrow-dark",
+      "surface": "sidebar.compact-rail",
+      "state": "viewport-below-auto-collapse",
+      "colorScheme": "dark",
+      "viewport": { "width": 1023, "height": 840 },
+      "officialComponents": ["AppFrame", "SidebarRoot", "ThemeRuntime"],
+      "nativeEntry": "SnapshotExporter.DSH_GLASS_SNAPSHOT_MODE=welcome + DSH_GLASS_SNAPSHOT_WIDTH=1023 + DSH_GLASS_SNAPSHOT_COLOR_SCHEME=dark",
+      "requiredEvidence": ["source-map", "official-screenshot", "native-screenshot", "paired-viewport", "difference-ledger", "post-fix-recapture", "layout-rectangles", "accessibility", "keyboard-focus"],
       "allowedDifferenceClasses": ["font-rendering", "system-glass"]
     }
   ],

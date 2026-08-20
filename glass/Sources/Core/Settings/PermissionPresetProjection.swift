@@ -95,31 +95,31 @@ enum PermissionPresetProjection {
         return options
     }
 
-    private static func display(value: String, suppliedLabel: String) -> String {
+    static func display(value: String, suppliedLabel: String) -> String {
         if value == fullAccessPreset { return "Full access" }
-        guard isKebabCase(suppliedLabel) else { return suppliedLabel }
+guard isASCIILowerKebabCase(suppliedLabel) else { return suppliedLabel }
         return suppliedLabel.split(separator: "-").map {
             $0.prefix(1).uppercased() + $0.dropFirst()
         }.joined(separator: " ")
     }
 
-    private static func isKebabCase(_ text: String) -> Bool {
-        guard !text.isEmpty else { return false }
-        var previousHyphen = false
-        for (index, scalar) in text.unicodeScalars.enumerated() {
-            let ascii = scalar.value
-            let isLower = ascii >= 97 && ascii <= 122
-            let isDigit = ascii >= 48 && ascii <= 57
-            if scalar == "-" {
-                guard !previousHyphen, index > 0, index < text.unicodeScalars.count - 1 else { return false }
-                previousHyphen = true
-            } else if isLower || isDigit {
-                previousHyphen = false
-            } else {
+/// Avoids compiling a regular expression on every settings projection. The
+    /// Host schema permits only ASCII lowercase/digit segments separated by one
+    /// hyphen; any other label is preserved verbatim rather than normalized.
+    private static func isASCIILowerKebabCase(_ value: String) -> Bool {
+        guard !value.isEmpty else { return false }
+        var needsSegmentCharacter = true
+        for scalar in value.unicodeScalars {
+            switch scalar.value {
+            case 48 ... 57, 97 ... 122: // 0...9, a...z
+                needsSegmentCharacter = false
+            case 45 where !needsSegmentCharacter: // '-'
+                needsSegmentCharacter = true
+            default:
                 return false
             }
         }
-        return true
+        return !needsSegmentCharacter
     }
 }
 

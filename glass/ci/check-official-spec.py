@@ -1,27 +1,30 @@
 #!/usr/bin/env python3
-"""Static D1 gate for the native SwiftUI migration.
+"""D1 gate for deterministic native-spec provenance and registered assets.
 
-This gate intentionally validates only deterministic provenance facts:
-- the versioned catalog is structurally sound and bound to the locked commit;
-- every registered SVG is one valid root document;
-- native UI code does not introduce direct Text("...") product strings.
-
-It never claims that a screenshot alone proves fidelity; visual and behavior
-reviews remain separate evidence gates.
+The gate validates generated catalogs, SVG well-formedness, the TSX AST-backed
+icon reproduction boundary, and direct UI product-copy policy. Visual fidelity
+remains separately enforced through same-state official/native artifact pairs.
 """
 from __future__ import annotations
 
+import argparse
 import json
+import os
 import re
+import subprocess
 import sys
+import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = ROOT.parent
 CATALOG_PATH = ROOT / "Sources/Spec/OfficialUISpec/official-ui-catalog.json"
 SCENES_PATH = ROOT / "Sources/Spec/Fixtures/visual-scenes.json"
 ASSET_DIR = ROOT / "assets"
 UI_ROOT = ROOT / "Sources/UI"
+ICON_EXTRACTOR = PROJECT_ROOT / "tools/extract_official_icon.py"
+ICON_AST_EXTRACTOR = PROJECT_ROOT / "tools/spec-generation/extract_official_icon_ast.mjs"
 LOCKED_COMMIT = "141eb6fef83422698aef7a981029e843e8161534"
 
 
@@ -60,13 +63,88 @@ def verify_assets(catalog: dict) -> None:
             fail(f"asset {path.name} does not have an SVG root")
 
 
+def node24() -> Path:
+    configured = os.environ.get("NODE24_BIN")
+    if configured:
+        candidate = Path(configured) / "node"
+        if candidate.is_file():
+            return candidate
+    configured = os.environ.get("DSH_NODE") or os.environ.get("NODE")
+    return Path(configured) if configured else Path("node")
+
+
+def indexed_icon_source(source: str) -> tuple[str, str] | None:
+    path, separator, component = source.partition(":")
+    if not separator or not component.startswith("Icon"):
+        return None
+    if path != "packages/client/ui-primitives/src/icons/index.tsx":
+        return None
+    return path, component
+
+
+def verify_ast_icon_assets(catalog: dict, official_root: Path) -> None:
+    generated = 0
+    with tempfile.TemporaryDirectory(prefix="dsh-icon-ast-") as temporary:
+        output_dir = Path(temporary)
+        for asset_name, descriptor in catalog["assets"].items():
+            target = indexed_icon_source(descriptor["source"])
+            if target is None:
+                continue
+            source_relative, component = target
+            source = official_root / source_relative
+            if not source.is_file():
+                fail(f"AST icon source is missing: {source_relative}")
+            regenerated = output_dir / f"{asset_name}.svg"
+            completed = subprocess.run(
+                [sys.executable, str(ICON_EXTRACTOR), str(source), component, str(regenerated)],
+                text=True,
+                capture_output=True,
+            )
+            if completed.returncode != 0:
+                fail(f"AST icon extraction failed for {asset_name}: {completed.stderr.strip() or completed.stdout.strip()}")
+            registered = ASSET_DIR / f"{asset_name}.svg"
+            if regenerated.read_bytes() != registered.read_bytes():
+                fail(f"AST icon output differs byte-for-byte: {asset_name} <- {source_relative}:{component}")
+            generated += 1
+
+        # Structural negatives prove that the AST visitor rejects shapes which
+        # old source slicing could silently misinterpret. The fixture is outside
+        # the official tree on purpose: only the locked TypeScript parser is a
+        # dependency of this behavioral check.
+        bad = output_dir / "malformed.tsx"
+        bad.write_text(
+            "export const MissingSVG = (\n"
+            "  { size = 16, className }: IconProps,\n"
+            ") => (\n"
+            "  <span className={className}>{size}</span>\n"
+            ")\n"
+            "export const DynamicWidth = ({ size = 16, className }: IconProps) => (\n"
+            "  <svg width={size + 1} height={size} className={className}></svg>\n"
+            ")\n",
+            encoding="utf-8",
+        )
+        for component, expected in (
+            ("MissingSVG", "exactly one SVG JSX element; found 0"),
+            ("DynamicWidth", "width must be the size parameter"),
+        ):
+            completed = subprocess.run(
+                [str(node24()), str(ICON_AST_EXTRACTOR), str(official_root), str(bad), component],
+                text=True,
+                capture_output=True,
+            )
+            if completed.returncode == 0 or expected not in completed.stderr:
+                fail(f"AST icon structural negative did not fail closed for {component}: {completed.stdout}{completed.stderr}")
+    if generated == 0:
+        fail("catalog contains no registered index.tsx icon assets for AST verification")
+
+
 def verify_scenes() -> dict:
     try:
         scenes = json.loads(SCENES_PATH.read_text(encoding="utf-8"))
     except FileNotFoundError:
         fail(f"missing visual scene catalog: {SCENES_PATH}")
     except json.JSONDecodeError as error:
-        fail(f"invalid visual scene JSON: {error}")
+        fail(f"invalid visual scene catalog JSON: {error}")
     if scenes.get("officialSourceCommit") != LOCKED_COMMIT:
         fail("visual scene catalog differs from the locked official baseline")
     contract = scenes.get("captureContract", {})
@@ -104,10 +182,21 @@ def verify_catalog_sources(catalog: dict) -> None:
                 fail(f"{group_name}.{key} lacks a source record")
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--official-root", type=Path, required=True)
+    return parser.parse_args()
+
+
 def main() -> None:
+    arguments = parse_args()
+    official_root = arguments.official_root.resolve()
+    if not (official_root / "package.json").is_file():
+        fail(f"official root is not a repository root: {official_root}")
     catalog = load_catalog()
     verify_catalog_sources(catalog)
     verify_assets(catalog)
+    verify_ast_icon_assets(catalog, official_root)
     scenes = verify_scenes()
     verify_ui_text()
     print(

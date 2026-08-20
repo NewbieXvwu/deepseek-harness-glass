@@ -88,6 +88,12 @@ struct WorkspacesAPI: Sendable {
     func create(path: String) async throws -> WorkspaceCreateResponse { try await client.workspaceCreate(path: path) }
     func rename(workspaceID: String, title: String) async throws -> WorkspaceRenameResponse { try await client.workspaceRename(workspaceID: workspaceID, title: title) }
     func delete(workspaceID: String) async throws -> WorkspaceDeleteResponse { try await client.workspaceDelete(workspaceID: workspaceID) }
+    func insertBefore(workspaceID: String, beforeWorkspaceID: String? = nil) async throws -> WorkspaceInsertBeforeResponse {
+        try await client.workspaceInsertBefore(workspaceID: workspaceID, beforeWorkspaceID: beforeWorkspaceID)
+    }
+    func insertSessionBefore(workspaceID: String, sessionID: String, beforeSessionID: String? = nil) async throws -> WorkspaceInsertSessionBeforeResponse {
+        try await client.workspaceInsertSessionBefore(workspaceID: workspaceID, sessionID: sessionID, beforeSessionID: beforeSessionID)
+    }
     func archiveSession(sessionID: String) async throws -> WorkspaceArchiveSessionResponse { try await client.workspaceArchiveSession(sessionID: sessionID) }
 }
 

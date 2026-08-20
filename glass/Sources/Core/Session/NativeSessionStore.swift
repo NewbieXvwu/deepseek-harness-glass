@@ -35,38 +35,28 @@ extension HostAPI: NativeHostPathAPI {}
 enum NativeProjectPathResolver {
     static func resolve(cwd: String?, path: String) -> String {
         guard !isAbsolute(path), let cwd, !cwd.isEmpty else { return path }
-        let base = trimTrailingSeparators(cwd)
-        let relative = trimLeadingSeparators(path)
+let base = trimmingTrailingSeparators(from: cwd)
+        let relative = trimmingLeadingSeparators(from: path)
         return "\(base)/\(relative)"
     }
 
-    /// Character scan equivalent of `[/\\]+$` removal: no regex re-compilation.
-    private static func trimTrailingSeparators(_ string: String) -> String {
-        var end = string.endIndex
-        while end > string.startIndex {
-            let previous = string.index(before: end)
-            switch string[previous] {
-            case "/", "\\":
-                end = previous
-            default:
-                return String(string[..<end])
-            }
+    private static func trimmingTrailingSeparators(from value: String) -> String {
+        var end = value.endIndex
+        while end > value.startIndex {
+            let previous = value.index(before: end)
+            guard value[previous] == "/" || value[previous] == "\\" else { break }
+            end = previous
         }
-        return ""
+        return String(value[..<end])
     }
 
-    /// Character scan equivalent of `^[/\\]+` removal: no regex re-compilation.
-    private static func trimLeadingSeparators(_ string: String) -> String {
-        var start = string.startIndex
-        while start < string.endIndex {
-            switch string[start] {
-            case "/", "\\":
-                start = string.index(after: start)
-            default:
-                return String(string[start...])
-            }
+    private static func trimmingLeadingSeparators(from value: String) -> String {
+        var start = value.startIndex
+        while start < value.endIndex {
+            guard value[start] == "/" || value[start] == "\\" else { break }
+            start = value.index(after: start)
         }
-        return ""
+        return String(value[start...])
     }
 
     private static func isAbsolute(_ path: String) -> Bool {
@@ -148,7 +138,7 @@ final class NativeSessionStore: ObservableObject {
     /// Source: `events.schema.ts:approval/requested`; rpcID is the stable
     /// answerable ServerRequest correlation identity and must be echoed on
     /// `/api/respond`, while approvalID identifies the business request.
-    struct PendingApproval: Identifiable {
+    struct PendingApproval: Identifiable, Equatable {
         let rpcID: String
         let sessionID: String
         let approvalID: String
@@ -160,7 +150,7 @@ final class NativeSessionStore: ObservableObject {
     }
 
     /// Source: `events.schema.ts:askUserQuestionItemSchema`.
-    struct PendingQuestion: Identifiable {
+    struct PendingQuestion: Identifiable, Equatable {
         struct Option: Identifiable, Equatable {
             let label: String
             let detail: String?
@@ -168,12 +158,38 @@ final class NativeSessionStore: ObservableObject {
         }
 
         struct Item: Identifiable, Equatable {
+            enum Intent: Equatable {
+                case planReview(approve: String)
+            }
+
             let id: String
             let question: String
             let header: String?
             let detail: String?
             let options: [Option]
             let multiSelect: Bool
+            /// Optional official presentation intent. Unknown wire tags reject
+            /// the entire question request rather than falling back to an
+            /// invented generic interaction.
+            let intent: Intent?
+
+            init(
+                id: String,
+                question: String,
+                header: String?,
+                detail: String?,
+                options: [Option],
+                multiSelect: Bool,
+                intent: Intent? = nil
+            ) {
+                self.id = id
+                self.question = question
+                self.header = header
+                self.detail = detail
+                self.options = options
+                self.multiSelect = multiSelect
+                self.intent = intent
+            }
         }
 
         let rpcID: String
@@ -261,6 +277,7 @@ final class NativeSessionStore: ObservableObject {
         let toolInvocations: [ToolInvocation]
         let queuedMessages: [QueuedMessage]
         let backgroundJobs: [BackgroundJob]
+        let modelDirectory: CoreSessionModelDirectory?
         let selectedToolCallID: String?
         let pendingApproval: PendingApproval?
         let pendingQuestion: PendingQuestion?
@@ -289,6 +306,10 @@ final class NativeSessionStore: ObservableObject {
     @Published private(set) var toolInvocations: [ToolInvocation] = []
     @Published private(set) var queuedMessages: [QueuedMessage] = []
     @Published private(set) var backgroundJobs: [BackgroundJob] = []
+    /// The per-session Host `session.models` authority. A nil value means it has
+    /// not been loaded or the current session cannot be restored yet; it is not
+    /// an invitation to invent a default provider/model pair.
+    @Published private(set) var modelDirectory: CoreSessionModelDirectory?
     @Published private(set) var selectedToolCallID: String?
     @Published private(set) var pendingApproval: PendingApproval?
     @Published private(set) var pendingQuestion: PendingQuestion?
@@ -300,11 +321,33 @@ final class NativeSessionStore: ObservableObject {
     /// reducer-owned event folding never substitutes for this store.
     let projections = SessionProjectionStore()
 
+    /// One typed read-only adapter over all extension surfaces attached to the
+    /// active session. Durable conversation nodes and transient mux projections
+    /// stay separated at their authority boundary; consumers never reconstruct
+    /// queue, jobs, approval, question, todo, or goal state from raw events.
+    var extensionState: CoreSessionExtensionState? {
+        guard let activeSessionID else { return nil }
+        return .init(
+            projections: projections,
+            sessionID: activeSessionID,
+            modelDirectory: modelDirectory,
+            queuedMessages: queuedMessages,
+            backgroundJobs: backgroundJobs,
+            pendingApproval: pendingApproval,
+            pendingQuestion: pendingQuestion
+        )
+    }
+
     private var historyTask: Task<Void, Never>?
     private var promptTask: Task<Void, Never>?
     private var cancelTask: Task<Void, Never>?
     private var olderHistoryTask: Task<Void, Never>?
     private var streamTask: Task<Void, Never>?
+    /// A recovery is distinct from initial history loading. Its monotonic token
+    /// prevents an old Host generation, endpoint, or selected session from
+    /// applying models/history/projections after a newer authority request.
+    private var recoveryTask: Task<Void, Never>?
+    private var recoveryGeneration: UInt = 0
     private var endpoint: URL?
     private var api: (any NativeSessionAPI)?
     private var hostPathAPI: (any NativeHostPathAPI)?
@@ -336,6 +379,7 @@ final class NativeSessionStore: ObservableObject {
         promptTask?.cancel()
         cancelTask?.cancel()
         streamTask?.cancel()
+        recoveryTask?.cancel()
     }
 
     /// Core-internal reducer seam used by regression tests; Feature/UI enters
@@ -352,6 +396,7 @@ final class NativeSessionStore: ObservableObject {
             toolInvocations: toolInvocations,
             queuedMessages: queuedMessages,
             backgroundJobs: backgroundJobs,
+            modelDirectory: modelDirectory,
             selectedToolCallID: selectedToolCallID,
             pendingApproval: pendingApproval,
             pendingQuestion: pendingQuestion,
@@ -377,6 +422,7 @@ final class NativeSessionStore: ObservableObject {
         toolInvocations = state.toolInvocations
         queuedMessages = state.queuedMessages
         backgroundJobs = state.backgroundJobs
+        modelDirectory = state.modelDirectory
         selectedToolCallID = state.selectedToolCallID
         pendingApproval = state.pendingApproval
         pendingQuestion = state.pendingQuestion
@@ -405,6 +451,9 @@ final class NativeSessionStore: ObservableObject {
         promptTask?.cancel()
         cancelTask?.cancel()
         streamTask?.cancel()
+        recoveryTask?.cancel()
+        recoveryGeneration &+= 1
+        let authorityGeneration = recoveryGeneration
         self.api = api
         self.hostPathAPI = hostPathAPI
         self.activeSessionCWD = sessionCWD
@@ -417,6 +466,7 @@ final class NativeSessionStore: ObservableObject {
             toolInvocations = []
             queuedMessages = []
             backgroundJobs = []
+            modelDirectory = nil
             selectedToolCallID = nil
             pendingApproval = nil
             pendingQuestion = nil
@@ -444,10 +494,19 @@ final class NativeSessionStore: ObservableObject {
                 // read-only cold-resume path. After a Host restart, models()
                 // reattaches a persisted selected session before mux opens;
                 // history() alone intentionally serves detached logs.
-                _ = try await api.models(sessionID: sessionID)
-                guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
+                let models = try await api.models(sessionID: sessionID)
+                guard !Task.isCancelled,
+                      self?.recoveryGeneration == authorityGeneration,
+                      self?.activeSessionID == sessionID,
+                      self?.endpoint == endpoint
+                else { return }
+                self?.modelDirectory = .init(response: models)
                 let response = try await api.history(sessionID: sessionID, beforeSeq: nil, maxMessages: nil)
-                guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
+                guard !Task.isCancelled,
+                      self?.recoveryGeneration == authorityGeneration,
+                      self?.activeSessionID == sessionID,
+                      self?.endpoint == endpoint
+                else { return }
                 self?.replaceConversationWindow(response.events.map(ConversationEventInput.init(entry:)), hasMore: response.hasMore)
                 self?.applyHistory(response.events)
                 if let projections = response.projections { self?.projections.seed(sessionID: sessionID, baseline: projections) }
@@ -455,23 +514,42 @@ final class NativeSessionStore: ObservableObject {
                 self?.phase = .ready(sessionID: sessionID)
                 self?.observeMux(sessionID: sessionID, endpoint: endpoint)
             } catch let error as DSHTransportError {
-                guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
+                guard !Task.isCancelled,
+                      self?.recoveryGeneration == authorityGeneration,
+                      self?.activeSessionID == sessionID,
+                      self?.endpoint == endpoint
+                else { return }
                 self?.lastError = error
                 if !restoredResident { self?.phase = .failed(sessionID: sessionID) }
             } catch {
-                guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
+                guard !Task.isCancelled,
+                      self?.recoveryGeneration == authorityGeneration,
+                      self?.activeSessionID == sessionID,
+                      self?.endpoint == endpoint
+                else { return }
                 if !restoredResident { self?.phase = .failed(sessionID: sessionID) }
             }
         }
     }
 
-    func disconnect() {
+    /// Source: RC8 `sessions/service.ts:clear`. Clears only the active
+    /// selection so a no-session shell can be shown; it deliberately retains
+    /// resident snapshots for a later open and does not tear down the verified
+    /// Host connection owned by the shell.
+    func clearActiveSelection() {
+        // Preserve the currently staged Host projection before clearing only
+        // the selection. RC8 `sessions.clear()` does not evict that resident
+        // view; a later open may restore it while fresh authority arrives.
+        preserveActiveState()
         historyTask?.cancel()
         historyTask = nil
         olderHistoryTask?.cancel()
         olderHistoryTask = nil
         streamTask?.cancel()
         streamTask = nil
+        recoveryTask?.cancel()
+        recoveryTask = nil
+        recoveryGeneration &+= 1
         endpoint = nil
         api = nil
         hostPathAPI = nil
@@ -483,6 +561,45 @@ final class NativeSessionStore: ObservableObject {
         toolInvocations = []
         queuedMessages = []
         backgroundJobs = []
+        modelDirectory = nil
+        selectedToolCallID = nil
+        pendingApproval = nil
+        pendingQuestion = nil
+        isSubmittingApproval = false
+        isSubmittingQuestion = false
+        appliedSequences = []
+        hasMoreHistory = false
+        isLoadingOlderHistory = false
+        isRunning = false
+        selectedViewID = nil
+        isSubmittingPrompt = false
+        draft = ""
+        pendingImages = []
+        lastError = nil
+    }
+
+    func disconnect() {
+        historyTask?.cancel()
+        historyTask = nil
+        olderHistoryTask?.cancel()
+        olderHistoryTask = nil
+        streamTask?.cancel()
+        streamTask = nil
+        recoveryTask?.cancel()
+        recoveryTask = nil
+        recoveryGeneration &+= 1
+        endpoint = nil
+        api = nil
+        hostPathAPI = nil
+        activeSessionCWD = nil
+        activeSessionID = nil
+        phase = .idle
+        items = []
+        resetConversationWindow()
+        toolInvocations = []
+        queuedMessages = []
+        backgroundJobs = []
+        modelDirectory = nil
         selectedToolCallID = nil
         pendingApproval = nil
         pendingQuestion = nil
@@ -674,7 +791,8 @@ final class NativeSessionStore: ObservableObject {
     /// Core-internal Host mux reducer. The transport owns envelope decoding;
     /// Feature/UI receives the resulting published typed state only.
     func applyMuxFrame(_ frame: RPCServerRequest, sessionID: String) {
-        guard let object = frame.payload.objectValue,
+        guard activeSessionID == sessionID,
+              let object = frame.payload.objectValue,
               object["sessionId"]?.stringValue == sessionID
         else { return }
 
@@ -683,6 +801,10 @@ final class NativeSessionStore: ObservableObject {
             guard let eventValue = object["event"],
                   let event = decode(SessionEventDTO.self, from: eventValue)
             else { return }
+            guard !liveEventRequiresAuthorityRecovery(event) else {
+                requestAuthorityRecovery(sessionID: sessionID, reason: .eventGap)
+                return
+            }
             let view = object["view"].flatMap { decode(ToolEventViewDTO.self, from: $0) }
             appendConversationEvent(.init(event: event, view: view))
             apply(event: event, view: view?.view)
@@ -717,9 +839,73 @@ final class NativeSessionStore: ObservableObject {
         // A new mux generation may have lost process-local queue/jobs and events
         // past `lastSeq`; wait for its fresh whole-set frames instead of showing
         // phantom work from the prior Host generation.
+        let priorWindowHighWatermark = conversationReducer.rawWindow().map(\.event.seq).max()
         projections.truncate(sessionID: sessionID, after: subscribed.lastSeq)
         queuedMessages = []
         backgroundJobs = []
+        // approval/question ServerRequests are generation-bound, exactly like
+        // queue/jobs. A restarted Host can no longer resolve an old rpcId; keep
+        // no stale takeover visible until the fresh mux baseline re-emits it.
+        pendingApproval = nil
+        pendingQuestion = nil
+        isSubmittingApproval = false
+        isSubmittingQuestion = false
+        if let priorWindowHighWatermark, subscribed.lastSeq < priorWindowHighWatermark {
+            requestAuthorityRecovery(sessionID: sessionID, reason: .subscriptionWatermark)
+        }
+    }
+
+    private enum AuthorityRecoveryReason {
+        case eventGap
+        case subscriptionWatermark
+    }
+
+    private func liveEventRequiresAuthorityRecovery(_ event: SessionEventDTO) -> Bool {
+        let window = conversationReducer.rawWindow()
+        guard let highest = window.map(\.event.seq).max() else { return false }
+        if window.contains(where: { $0.event.seq == event.seq }) { return false }
+        return event.seq != highest + 1
+    }
+
+    private func requestAuthorityRecovery(sessionID: String, reason _: AuthorityRecoveryReason) {
+        guard let api,
+              let endpoint,
+              activeSessionID == sessionID
+        else { return }
+        recoveryTask?.cancel()
+        recoveryGeneration &+= 1
+        let generation = recoveryGeneration
+        recoveryTask = Task { [weak self] in
+            do {
+                let models = try await api.models(sessionID: sessionID)
+                guard !Task.isCancelled,
+                      self?.recoveryGeneration == generation,
+                      self?.activeSessionID == sessionID,
+                      self?.endpoint == endpoint
+                else { return }
+                let history = try await api.history(sessionID: sessionID, beforeSeq: nil, maxMessages: nil)
+                guard !Task.isCancelled,
+                      self?.recoveryGeneration == generation,
+                      self?.activeSessionID == sessionID,
+                      self?.endpoint == endpoint
+                else { return }
+                self?.modelDirectory = .init(response: models)
+                self?.replaceConversationWindow(history.events.map(ConversationEventInput.init(entry:)), hasMore: history.hasMore)
+                self?.items = []
+                self?.appliedSequences = []
+                self?.applyHistory(history.events)
+                if let projections = history.projections {
+                    self?.projections.seed(sessionID: sessionID, baseline: projections)
+                }
+                self?.hasMoreHistory = history.hasMore
+                self?.phase = .ready(sessionID: sessionID)
+            } catch {
+                // Keep the last complete authority window visible. A newer
+                // mux/recovery generation or a finite stream failure owns any
+                // user-facing transport error policy; stale recovery errors do
+                // not replace a selected resident transcript.
+            }
+        }
     }
 
     private func applyProjection(_ object: [String: JSONValue], sessionID: String) {
@@ -841,13 +1027,27 @@ final class NativeSessionStore: ObservableObject {
         } else {
             options = []
         }
+        let intent: PendingQuestion.Item.Intent?
+        if let rawIntent = object["intent"]?.objectValue {
+            guard let kind = rawIntent["kind"]?.stringValue else { return nil }
+            switch kind {
+            case "plan-review":
+                guard let approve = rawIntent["approve"]?.stringValue else { return nil }
+                intent = .planReview(approve: approve)
+            default:
+                return nil
+            }
+        } else {
+            intent = nil
+        }
         return PendingQuestion.Item(
             id: id,
             question: question,
             header: object["header"]?.stringValue,
             detail: object["detail"]?.stringValue,
             options: options,
-            multiSelect: object["multiSelect"]?.boolValue ?? false
+            multiSelect: object["multiSelect"]?.boolValue ?? false,
+            intent: intent
         )
     }
 
@@ -1130,6 +1330,7 @@ final class NativeSessionStore: ObservableObject {
         ]
         pendingApproval = nil
         pendingQuestion = nil
+        modelDirectory = nil
         selectedToolCallID = nil
         isSubmittingApproval = false
         isSubmittingQuestion = false
@@ -1154,6 +1355,7 @@ final class NativeSessionStore: ObservableObject {
         toolInvocations = []
         queuedMessages = []
         backgroundJobs = []
+        modelDirectory = nil
         pendingApproval = PendingApproval(
             rpcID: "fx-rpc-approval",
             sessionID: sessionID,
@@ -1187,6 +1389,7 @@ final class NativeSessionStore: ObservableObject {
         toolInvocations = []
         queuedMessages = []
         backgroundJobs = []
+        modelDirectory = nil
         pendingApproval = nil
         pendingQuestion = PendingQuestion(
             rpcID: "fx-rpc-question",
@@ -1202,7 +1405,8 @@ final class NativeSessionStore: ObservableObject {
                         PendingQuestion.Option(label: "研究潜力型", detail: "更看重 Agent 理解、训练评测思路和长期成长空间。"),
                         PendingQuestion.Option(label: "均衡型", detail: "同时要求工程能力和 Agent 认知，但可能筛选门槛更高。")
                     ],
-                    multiSelect: false
+                    multiSelect: false,
+                    intent: nil
                 ),
                 PendingQuestion.Item(
                     id: "work-mode",
@@ -1213,7 +1417,8 @@ final class NativeSessionStore: ObservableObject {
                         PendingQuestion.Option(label: "先做小型原型 (Recommended)", detail: "用可运行结果尽快验证关键假设。"),
                         PendingQuestion.Option(label: "先写完整设计", detail: "先收敛边界、协议和风险，再开始实现。")
                     ],
-                    multiSelect: false
+                    multiSelect: false,
+                    intent: nil
                 ),
                 PendingQuestion.Item(
                     id: "signals",
@@ -1225,7 +1430,8 @@ final class NativeSessionStore: ObservableObject {
                         PendingQuestion.Option(label: "代码质量", detail: nil),
                         PendingQuestion.Option(label: "Agent 产品判断", detail: nil)
                     ],
-                    multiSelect: true
+                    multiSelect: true,
+                    intent: nil
                 )
             ]
         )
@@ -1313,6 +1519,11 @@ final class NativeSessionStore: ObservableObject {
                 view: nil
             )
         ]
+        queuedMessages = []
+        backgroundJobs = []
+        modelDirectory = nil
+        pendingApproval = nil
+        pendingQuestion = nil
         selectedToolCallID = "snapshot-read"
         isRunning = true
         hasMoreHistory = false

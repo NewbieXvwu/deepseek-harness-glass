@@ -216,6 +216,17 @@ extension HarnessHostControllerTests {
 
 
 extension HarnessHostControllerTests {
+    func testAnnouncementParserAcceptsBoundedSplitLoopbackEndpointAndRejectsMalformedInput() {
+        let prefix = String(repeating: "x", count: 1_200)
+        let output = prefix + "dsh web: http://127.0.0.1:43123/api\n"
+        let endpoint = HarnessHostController.announcedEndpoint(in: output, fromUTF16Offset: 1_100)
+        XCTAssertEqual(endpoint?.absoluteString, "http://127.0.0.1:43123/api")
+        XCTAssertNil(HarnessHostController.announcedEndpoint(in: "dsh web: https://127.0.0.1:43123", fromUTF16Offset: 0))
+        XCTAssertNil(HarnessHostController.announcedEndpoint(in: "dsh web: http://localhost:43123", fromUTF16Offset: 0))
+        XCTAssertNil(HarnessHostController.announcedEndpoint(in: "dsh web: http://127.0.0.1", fromUTF16Offset: 0))
+        XCTAssertNil(HarnessHostController.announcedEndpoint(in: output, fromUTF16Offset: -1))
+    }
+
     func testDiagnosticsAreCopyableCompleteAndRedacted() async throws {
         let recorder = HostDiagnosticRecorder(dshHome: "/tmp/diagnostic-home")
         let endpoint = try XCTUnwrap(URL(string: "http://127.0.0.1:43123"))
@@ -244,6 +255,17 @@ extension HarnessHostControllerTests {
             XCTAssertFalse(copy.contains(secret), "diagnostic copy must redact \(secret)")
         }
         XCTAssertTrue(copy.contains("<redacted>"))
+    }
+
+    func testHostLogRedactorIsStableAcrossRepeatedCallsAndPreservesURLScheme() {
+        let input = "Authorization: Bearer alpha-token cookie=browser-cookie https://user:password@example.test/path secret=hidden"
+        let expected = HostLogRedactor.redact(input)
+        XCTAssertEqual(HostLogRedactor.redact(input), expected)
+        XCTAssertEqual(HostLogRedactor.redact(expected), expected)
+        XCTAssertTrue(expected.contains("https://<redacted>@example.test/path"))
+        for secret in ["alpha-token", "browser-cookie", "user:password", "hidden"] {
+            XCTAssertFalse(expected.contains(secret), "redactor must remove \(secret)")
+        }
     }
 }
 

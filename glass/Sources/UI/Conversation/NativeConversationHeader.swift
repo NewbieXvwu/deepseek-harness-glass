@@ -12,29 +12,10 @@ struct NativeConversationViewTab: Identifiable, Equatable {
     let label: String
 }
 
-/// RC8's `conversation.view` registry projection. A stale retained id resolves
-/// to Chat exactly as `ConversationSession.resolveActiveView` does upstream.
-///
-/// The trajectory plugin deliberately is not registered here until T9.5 owns a
-/// real target renderer. Exposing an enabled tab that could only show a blank
-/// or duplicate Chat surface would violate its `conversation.view` contract.
-enum NativeConversationViewRegistry {
-    static let chatID = "chat"
-
-    static let registeredTabs = [
-        NativeConversationViewTab(id: chatID, label: OfficialUISpec.Text.chat),
-    ]
-
-    static func resolve(selectedID: String?) -> NativeConversationViewTab? {
-        let requestedID = selectedID ?? chatID
-        return registeredTabs.first { $0.id == requestedID }
-            ?? registeredTabs.first { $0.id == chatID }
-    }
-}
-
 /// Presentation-only projection of the strict RC8 session header. Its inputs
 /// are the Host-authoritative session list snapshot and Core-owned session
 /// state; it never reparses event payloads or owns durable session metadata.
+@MainActor
 struct NativeSessionHeaderPresentation: Equatable {
     struct Breadcrumb: Identifiable, Equatable {
         let id: String
@@ -57,7 +38,8 @@ struct NativeSessionHeaderPresentation: Equatable {
         snapshot: NativeWorkspaceStore.Snapshot,
         sessionID: String?,
         composerIsBlank: Bool,
-        selectedViewID: String?
+        selectedViewID: String?,
+        viewRegistry: NativeConversationViewRegistry
     ) {
         self.sessionID = sessionID
         self.composerIsBlank = composerIsBlank
@@ -65,8 +47,8 @@ struct NativeSessionHeaderPresentation: Equatable {
         let selected = sessionID.flatMap { sessionByID[$0] }
         blank = selected?.blank ?? false
         agentPreset = selected?.agentPreset
-        tabs = NativeConversationViewRegistry.registeredTabs
-        activeTab = NativeConversationViewRegistry.resolve(selectedID: selectedViewID)
+        tabs = viewRegistry.registeredTabs
+        activeTab = viewRegistry.resolve(selectedID: selectedViewID)
         breadcrumbs = Self.deriveAncestry(
             sessionByID: sessionByID,
             selectedSessionID: sessionID
@@ -104,6 +86,8 @@ struct NativeConversationHeader: View {
     let jobs: [NativeSessionStore.BackgroundJob]
     let jobsPopoverInitiallyOpen: Bool
     let jobsLanguageCode: String?
+    let contributionContext: NativeConversationContributionContext
+    @ObservedObject var headerContributions: NativeConversationHeaderContributionRegistry
     let openSession: (String) -> Void
     let selectView: (String) -> Void
 
@@ -116,8 +100,7 @@ struct NativeConversationHeader: View {
                         headerActions
                     }
                     Spacer(minLength: OfficialUISpec.Spacing.p0)
-                    // RC8 reserves a separate utility seat. No utility is
-                    // invented until its source and action contract are mapped.
+                    headerUtilities
                 }
                 .frame(minHeight: OfficialUISpec.Layout.sessionHeaderTitleRowHeight)
 
@@ -183,6 +166,22 @@ struct NativeConversationHeader: View {
                 initiallyOpen: jobsPopoverInitiallyOpen,
                 languageCode: jobsLanguageCode
             )
+            ForEach(Array(headerContributions.render(slot: .actions, context: contributionContext).enumerated()), id: \.offset) { _, view in
+                view
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var headerUtilities: some View {
+        let utilities = headerContributions.render(slot: .utilities, context: contributionContext)
+        if !utilities.isEmpty {
+            HStack(spacing: OfficialUISpec.Spacing.p8) {
+                ForEach(Array(utilities.enumerated()), id: \.offset) { _, view in
+                    view
+                }
+            }
+            .padding(.leading, OfficialUISpec.Spacing.p20)
         }
     }
 

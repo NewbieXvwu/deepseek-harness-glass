@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 
 #if DEEPSEEK_HARNESS_PACKAGE
@@ -40,6 +41,11 @@ struct WorkspaceBrowserView: View {
         var commitWorkspaceRename: (String, String) async throws -> Void = { _, _ in }
         var commitWorkspaceDelete: (String) async throws -> Void = { _ in }
         var commitSessionRename: (String, String) async throws -> Void = { _, _ in }
+        /// Source: `workspace.insertBefore`; only real workspace group drags call this.
+        var moveWorkspace: (String, String?) async throws -> Void = { _, _ in }
+        /// Source: `workspace.insertSessionBefore`; only manually ordered real
+        /// workspace accounts call this after their local order is committed.
+        var moveSession: (String, String, String?) async throws -> Void = { _, _, _ in }
     }
 
     private struct RenameTarget: Identifiable {
@@ -50,6 +56,25 @@ struct WorkspaceBrowserView: View {
     private struct DeleteTarget: Identifiable {
         let id: String
         let title: String
+    }
+
+    /// In-flight RC8 workspace drag state. It is never persisted.
+    private struct WorkspaceDrag: Equatable {
+        let workspaceID: String
+        var over: DropTarget?
+    }
+
+    /// In-flight RC8 session drag state. The account key prevents a session
+    /// drag from crossing workspace/ungrouped account boundaries.
+    private struct SessionDrag: Equatable {
+        let accountKey: String
+        let sessionID: String
+        var over: DropTarget?
+    }
+
+    private struct DropTarget: Equatable {
+        let id: String
+        let half: NativeWorkspaceBrowserOrdering.DropHalf
     }
 
     @State private var searchExpanded = false
@@ -63,6 +88,20 @@ struct WorkspaceBrowserView: View {
     @State private var deleting = false
     @State private var deleteCommittedID: String?
     @State private var deleteError: String?
+    /// Source: RC8 `createWorkspaceViewStore`: new browsers group by workspace
+    /// and promote activity in the `updated` ordering mode.
+    @State private var sessionGroupMode: NativeWorkspaceBrowserOrdering.SessionGroupMode = .workspace
+    @State private var sessionOrderMode: NativeWorkspaceBrowserOrdering.SessionOrderMode = .updated
+    /// Browser-local account order is deliberately separate from Host workspace
+    /// membership/order. Ungrouped and `updated` reorders never write Host RPCs.
+    @State private var sessionOrderByAccount: [String: [String]] = [:]
+    /// RC8 compares this account-local timestamp baseline to promote only new
+    /// activity while retaining the user-edited order of unaffected sessions.
+    @State private var sessionUpdatedAtByAccount: [String: [String: Double]] = [:]
+    @State private var workspaceDrag: WorkspaceDrag?
+    @State private var sessionDrag: SessionDrag?
+    @State private var workspaceDropCommitted = false
+    @State private var sessionDropCommitted = false
 
     init(
         store: NativeWorkspaceStore,
@@ -128,6 +167,23 @@ struct WorkspaceBrowserView: View {
                 self.deleteCommittedID = nil
                 deleteTarget = nil
             }
+            .onChange(of: store.snapshot.sessions.map { "\($0.sessionId)|\($0.updatedAt)" }) { _, _ in
+                reconcileBrowserLocalOrders()
+            }
+            .onChange(of: store.snapshot.workspaces.flatMap(\.sessionIds)) { _, _ in
+                reconcileBrowserLocalOrders()
+            }
+            .onChange(of: sessionOrderMode) { _, _ in
+                reconcileBrowserLocalOrders(sortUpdatedAccounts: true)
+            }
+            .onChange(of: sessionGroupMode) { _, _ in
+                sessionDrag = nil
+                sessionDropCommitted = false
+                reconcileBrowserLocalOrders(sortUpdatedAccounts: true)
+            }
+            .onAppear {
+                reconcileBrowserLocalOrders(sortUpdatedAccounts: true)
+            }
             .sheet(item: $workspaceRenameTarget) { target in
                 NativeRenameSheet(
                     title: OfficialUISpec.Text.renameWorkspaceTitle,
@@ -179,7 +235,28 @@ struct WorkspaceBrowserView: View {
             searchControl
 
             if !searchExpanded {
-                Button(action: {}) {
+                Menu {
+                    Text(OfficialUISpec.Text.groupBy)
+                    Button(OfficialUISpec.Text.groupByWorkspace) {
+                        sessionGroupMode = .workspace
+                    }
+                    .disabled(sessionGroupMode == .workspace)
+                    Button(OfficialUISpec.Text.groupByFlat) {
+                        sessionGroupMode = .flat
+                    }
+                    .disabled(sessionGroupMode == .flat)
+                    Divider()
+                    Text(OfficialUISpec.Text.orderBy)
+                    Divider()
+                    Button(OfficialUISpec.Text.orderByManual) {
+                        sessionOrderMode = .manual
+                    }
+                    .disabled(sessionOrderMode == .manual)
+                    Button(OfficialUISpec.Text.orderByUpdated) {
+                        sessionOrderMode = .updated
+                    }
+                    .disabled(sessionOrderMode == .updated)
+                } label: {
                     OfficialAssetImage(name: "icon-personalization", template: true)
                         .frame(width: OfficialUISpec.Geometry.px16, height: OfficialUISpec.Geometry.px16)
                         .frame(
@@ -187,7 +264,7 @@ struct WorkspaceBrowserView: View {
                             height: OfficialUISpec.Layout.workspaceIconControl
                         )
                 }
-                .buttonStyle(OfficialCircleIconButtonStyle())
+                .menuStyle(.borderlessButton)
                 .accessibilityLabel(OfficialUISpec.Text.viewOptions)
 
                 Button(action: actions.addWorkspace) {
@@ -251,17 +328,29 @@ struct WorkspaceBrowserView: View {
 
     @ViewBuilder
     private var listArea: some View {
-        ScrollView {
-            LazyVStack(spacing: OfficialUISpec.Layout.workspaceListRowGap) {
-                if searchIsActive {
-                    searchResults
-                } else {
-                    workspaceGroups
+        let firstWorkspaceID = store.snapshot.workspaces.first?.workspaceId
+        let workspaceDropAtListStart = !searchIsActive
+            && sessionGroupMode == .workspace
+            && workspaceDrag?.over?.id == firstWorkspaceID
+            && workspaceDrag?.over?.half == .before
+        ZStack(alignment: .top) {
+            ScrollView {
+                LazyVStack(spacing: OfficialUISpec.Layout.workspaceListRowGap) {
+                    if searchIsActive {
+                        searchResults
+                    } else {
+                        workspaceGroups
+                    }
                 }
+                .padding(.leading, OfficialUISpec.Spacing.p4)
+                .padding(.trailing, OfficialUISpec.Spacing.p2)
+                .padding(.bottom, OfficialUISpec.Spacing.p16)
             }
-            .padding(.leading, OfficialUISpec.Spacing.p4)
-            .padding(.trailing, OfficialUISpec.Spacing.p2)
-            .padding(.bottom, OfficialUISpec.Spacing.p16)
+            if workspaceDropAtListStart {
+                NativeWorkspaceDropMarker(half: .before)
+                    .padding(.leading, OfficialUISpec.Spacing.p4)
+                    .padding(.trailing, OfficialUISpec.Spacing.p2)
+            }
         }
         .accessibilityLabel(searchIsActive
             ? OfficialUISpec.Text.searchSessionsAccessibility
@@ -272,20 +361,69 @@ struct WorkspaceBrowserView: View {
     private var workspaceGroups: some View {
         let snapshot = store.snapshot
         let groups = snapshot.workspaces
-        if groups.isEmpty && snapshot.ungroupedSessions.isEmpty {
+        if sessionGroupMode == .flat {
+            NativeFlatSessionListView(
+                sessions: orderedSessions(
+                    flatSessions(in: snapshot),
+                    accountKey: NativeWorkspaceBrowserOrdering.flatSessionOrderKey
+                ),
+                selectedSessionID: snapshot.selectedSessionID,
+                sessionDragActive: sessionDrag?.accountKey == NativeWorkspaceBrowserOrdering.flatSessionOrderKey,
+                sessionMarker: { sessionID in
+                    sessionDrag?.over?.id == sessionID ? sessionDrag?.over?.half : nil
+                },
+                onSelectSession: { sessionID in
+                    let workspaceID = snapshot.workspaces.first { $0.sessionIds.contains(sessionID) }?.workspaceId
+                    actions.selectSession(sessionID, workspaceID)
+                },
+                onStartSessionDrag: {
+                    startSessionDrag($0, accountKey: NativeWorkspaceBrowserOrdering.flatSessionOrderKey)
+                },
+                onHoverSessionDrag: { hoverSessionDrag(over: $0, half: $1) },
+                onDropSessionDrag: { commitSessionDrag(over: $0, half: $1) },
+                onExitSessionDrag: { sessionID in
+                    if sessionDrag?.over?.id == sessionID { sessionDrag?.over = nil }
+                },
+                actions: rowActions
+            )
+        } else if groups.isEmpty && snapshot.ungroupedSessions.isEmpty {
             NativeWorkspaceEmptyState(text: OfficialUISpec.Text.noSessionsYet)
         } else {
             ForEach(groups) { workspace in
-                let sessions = snapshot.sessions(in: workspace)
+                let sessions = orderedSessions(
+                    snapshot.sessions(in: workspace),
+                    accountKey: workspace.workspaceId
+                )
                 NativeWorkspaceGroupView(
                     workspace: workspace,
                     hostHome: hostHome,
                     sessions: sessions,
                     selectedSessionID: snapshot.selectedSessionID,
                     expanded: expandedWorkspaceIDs.contains(workspace.workspaceId),
+                    workspaceMarker: workspaceDrag?.over?.id == workspace.workspaceId ? workspaceDrag?.over?.half : nil,
+                    hidesTopMarker: workspace.workspaceId == snapshot.workspaces.first?.workspaceId
+                        && workspaceDrag?.over?.id == workspace.workspaceId
+                        && workspaceDrag?.over?.half == .before,
+                    workspaceDragActive: workspaceDrag != nil,
+                    sessionDragActive: sessionDrag?.accountKey == workspace.workspaceId,
+                    sessionMarker: { sessionID in
+                        sessionDrag?.over?.id == sessionID ? sessionDrag?.over?.half : nil
+                    },
                     onToggle: { toggleWorkspace(workspace.workspaceId) },
                     onCreateSession: { actions.createSession(workspace.workspaceId) },
                     onSelectSession: { actions.selectSession($0, workspace.workspaceId) },
+                    onStartWorkspaceDrag: { startWorkspaceDrag(workspace.workspaceId) },
+                    onHoverWorkspaceDrag: { hoverWorkspaceDrag(over: workspace.workspaceId, half: $0) },
+                    onDropWorkspaceDrag: { commitWorkspaceDrag(over: workspace.workspaceId, half: $0) },
+                    onExitWorkspaceDrag: {
+                        if workspaceDrag?.over?.id == workspace.workspaceId { workspaceDrag?.over = nil }
+                    },
+                    onStartSessionDrag: { startSessionDrag($0, accountKey: workspace.workspaceId) },
+                    onHoverSessionDrag: { hoverSessionDrag(over: $0, half: $1) },
+                    onDropSessionDrag: { commitSessionDrag(over: $0, half: $1) },
+                    onExitSessionDrag: { sessionID in
+                        if sessionDrag?.over?.id == sessionID { sessionDrag?.over = nil }
+                    },
                     actions: rowActions
                 )
             }
@@ -293,11 +431,26 @@ struct WorkspaceBrowserView: View {
             if !snapshot.ungroupedSessions.isEmpty {
                 NativeUngroupedWorkspaceGroupView(
                     hostHome: hostHome,
-                    sessions: snapshot.ungroupedSessions,
+                    sessions: orderedSessions(
+                        snapshot.ungroupedSessions,
+                        accountKey: NativeWorkspaceBrowserOrdering.ungroupedAccountKey
+                    ),
                     selectedSessionID: snapshot.selectedSessionID,
                     expanded: expandedWorkspaceIDs.contains(ungroupedWorkspaceKey),
+                    sessionDragActive: sessionDrag?.accountKey == NativeWorkspaceBrowserOrdering.ungroupedAccountKey,
+                    sessionMarker: { sessionID in
+                        sessionDrag?.over?.id == sessionID ? sessionDrag?.over?.half : nil
+                    },
                     onToggle: { toggleWorkspace(ungroupedWorkspaceKey) },
                     onSelectSession: { actions.selectSession($0, nil) },
+                    onStartSessionDrag: {
+                        startSessionDrag($0, accountKey: NativeWorkspaceBrowserOrdering.ungroupedAccountKey)
+                    },
+                    onHoverSessionDrag: { hoverSessionDrag(over: $0, half: $1) },
+                    onDropSessionDrag: { commitSessionDrag(over: $0, half: $1) },
+                    onExitSessionDrag: { sessionID in
+                        if sessionDrag?.over?.id == sessionID { sessionDrag?.over = nil }
+                    },
                     actions: rowActions
                 )
             }
@@ -543,6 +696,166 @@ struct WorkspaceBrowserView: View {
         }
     }
 
+    /// Source: RC8 `nextSessionOrderAccount`. Every browser-local account is
+    /// reconciled against current Host membership; `updated` then promotes only
+    /// newly active sessions while keeping manually edited unaffected order.
+    private func reconcileBrowserLocalOrders(sortUpdatedAccounts: Bool = false) {
+        let snapshot = store.snapshot
+        let sessionByID = Dictionary(uniqueKeysWithValues: snapshot.sessions.map { ($0.sessionId, $0) })
+        let accountedIDs = Set(snapshot.workspaces.flatMap(\.sessionIds))
+        var accounts: [(key: String, sessionIDs: [String])] = snapshot.workspaces.map {
+            ($0.workspaceId, $0.sessionIds.filter { sessionByID[$0] != nil })
+        }
+        accounts.append((
+            NativeWorkspaceBrowserOrdering.ungroupedAccountKey,
+            snapshot.visibleSessions.map(\.sessionId).filter { !accountedIDs.contains($0) }
+        ))
+        accounts.append((
+            NativeWorkspaceBrowserOrdering.flatSessionOrderKey,
+            flatSessions(in: snapshot).map(\.sessionId)
+        ))
+
+        var nextOrderByAccount: [String: [String]] = [:]
+        var nextUpdatedAtByAccount: [String: [String: Double]] = [:]
+        for account in accounts {
+            let sessions = account.sessionIDs.compactMap { sessionByID[$0] }
+            var order = NativeWorkspaceBrowserOrdering.reconciledOrder(
+                hostIDs: account.sessionIDs,
+                storedOrder: sessionOrderByAccount[account.key]
+            )
+            if sessionOrderMode == .updated {
+                let previousUpdatedAt = sessionUpdatedAtByAccount[account.key] ?? [:]
+                let promoted = sessions.filter { session in
+                    sortUpdatedAccounts
+                        || previousUpdatedAt[session.sessionId] == nil
+                        || session.updatedAt > (previousUpdatedAt[session.sessionId] ?? -.infinity)
+                }.sorted { lhs, rhs in
+                    lhs.updatedAt == rhs.updatedAt
+                        ? lhs.sessionId < rhs.sessionId
+                        : lhs.updatedAt > rhs.updatedAt
+                }
+                if !promoted.isEmpty {
+                    let promotedIDs = Set(promoted.map(\.sessionId))
+                    order = promoted.map(\.sessionId) + order.filter { !promotedIDs.contains($0) }
+                }
+            }
+            nextOrderByAccount[account.key] = order
+            nextUpdatedAtByAccount[account.key] = Dictionary(
+                uniqueKeysWithValues: sessions.map { ($0.sessionId, $0.updatedAt) }
+            )
+        }
+        sessionOrderByAccount = nextOrderByAccount
+        sessionUpdatedAtByAccount = nextUpdatedAtByAccount
+    }
+
+    /// Source: RC8 `deriveFlat`: every browser-visible session is a top-level
+    /// row, newest first with stable session identity tie-break before local
+    /// flat-account reconciliation is applied.
+    private func flatSessions(in snapshot: NativeWorkspaceStore.Snapshot) -> [SessionSummaryDTO] {
+        snapshot.visibleSessions.sorted { lhs, rhs in
+            lhs.updatedAt == rhs.updatedAt
+                ? lhs.sessionId < rhs.sessionId
+                : lhs.updatedAt > rhs.updatedAt
+        }
+    }
+
+    private func orderedSessions(_ sessions: [SessionSummaryDTO], accountKey: String) -> [SessionSummaryDTO] {
+        let sessionByID = Dictionary(uniqueKeysWithValues: sessions.map { ($0.sessionId, $0) })
+        let order = NativeWorkspaceBrowserOrdering.reconciledOrder(
+            hostIDs: sessions.map(\.sessionId),
+            storedOrder: sessionOrderByAccount[accountKey]
+        )
+        return order.compactMap { sessionByID[$0] }
+    }
+
+    private func startWorkspaceDrag(_ workspaceID: String) {
+        workspaceDropCommitted = false
+        workspaceDrag = WorkspaceDrag(workspaceID: workspaceID, over: nil)
+    }
+
+    private func hoverWorkspaceDrag(over workspaceID: String, half: NativeWorkspaceBrowserOrdering.DropHalf) {
+        guard workspaceDrag != nil else { return }
+        workspaceDrag?.over = DropTarget(id: workspaceID, half: half)
+    }
+
+    @discardableResult
+    private func commitWorkspaceDrag(over workspaceID: String, half: NativeWorkspaceBrowserOrdering.DropHalf) -> Bool {
+        guard !workspaceDropCommitted, let active = workspaceDrag else { return false }
+        workspaceDropCommitted = true
+        workspaceDrag = nil
+        let decision = NativeWorkspaceBrowserOrdering.workspaceDecision(
+            workspaceID: active.workspaceID,
+            overWorkspaceID: workspaceID,
+            half: half,
+            workspaceIDs: store.snapshot.workspaces.map(\.workspaceId)
+        )
+        guard case let .host(workspaceID, beforeWorkspaceID) = decision else { return true }
+        Task {
+            do {
+                try await actions.moveWorkspace(workspaceID, beforeWorkspaceID)
+            } catch {
+                // RC8 retains the Host-authoritative order on rejection; a
+                // later Host frame/refresh remains the only visual authority.
+            }
+        }
+        return true
+    }
+
+    private func startSessionDrag(_ sessionID: String, accountKey: String) {
+        sessionDropCommitted = false
+        sessionDrag = SessionDrag(accountKey: accountKey, sessionID: sessionID, over: nil)
+    }
+
+    private func hoverSessionDrag(over sessionID: String, half: NativeWorkspaceBrowserOrdering.DropHalf) {
+        guard sessionDrag != nil else { return }
+        sessionDrag?.over = DropTarget(id: sessionID, half: half)
+    }
+
+    @discardableResult
+    private func commitSessionDrag(over sessionID: String, half: NativeWorkspaceBrowserOrdering.DropHalf) -> Bool {
+        guard !sessionDropCommitted, let active = sessionDrag else { return false }
+        sessionDropCommitted = true
+        sessionDrag = nil
+        let snapshot = store.snapshot
+        let hostOrder: [String]
+        if active.accountKey == NativeWorkspaceBrowserOrdering.ungroupedAccountKey {
+            hostOrder = snapshot.ungroupedSessions.map(\.sessionId)
+        } else if active.accountKey == NativeWorkspaceBrowserOrdering.flatSessionOrderKey {
+            hostOrder = flatSessions(in: snapshot).map(\.sessionId)
+        } else {
+            hostOrder = snapshot.workspaces.first(where: { $0.workspaceId == active.accountKey })?.sessionIds ?? []
+        }
+        let ordered = NativeWorkspaceBrowserOrdering.reconciledOrder(
+            hostIDs: hostOrder,
+            storedOrder: sessionOrderByAccount[active.accountKey]
+        )
+        let decision = NativeWorkspaceBrowserOrdering.sessionDecision(
+            sessionID: active.sessionID,
+            accountKey: active.accountKey,
+            overSessionID: sessionID,
+            half: half,
+            orderedSessionIDs: ordered,
+            orderMode: sessionOrderMode
+        )
+        switch decision {
+        case .noOp:
+            return true
+        case let .local(order):
+            sessionOrderByAccount[active.accountKey] = order
+        case let .host(sessionID, workspaceID, beforeSessionID, viewOrder):
+            sessionOrderByAccount[active.accountKey] = viewOrder
+            Task {
+                do {
+                    try await actions.moveSession(sessionID, workspaceID, beforeSessionID)
+                } catch {
+                    // A rejected manual reorder must not invent durable order;
+                    // the next Host refresh reconciles this local account.
+                }
+            }
+        }
+        return true
+    }
+
     private func toggleSearch() {
         withAnimation(.easeInOut(duration: 0.18)) {
             searchExpanded.toggle()
@@ -699,9 +1012,22 @@ private struct NativeWorkspaceGroupView: View {
     let sessions: [SessionSummaryDTO]
     let selectedSessionID: String?
     let expanded: Bool
+    let workspaceMarker: NativeWorkspaceBrowserOrdering.DropHalf?
+    let hidesTopMarker: Bool
+    let workspaceDragActive: Bool
+    let sessionDragActive: Bool
+    let sessionMarker: (String) -> NativeWorkspaceBrowserOrdering.DropHalf?
     let onToggle: () -> Void
     let onCreateSession: () -> Void
     let onSelectSession: (String) -> Void
+    let onStartWorkspaceDrag: () -> Void
+    let onHoverWorkspaceDrag: (NativeWorkspaceBrowserOrdering.DropHalf) -> Void
+    let onDropWorkspaceDrag: (NativeWorkspaceBrowserOrdering.DropHalf) -> Bool
+    let onExitWorkspaceDrag: () -> Void
+    let onStartSessionDrag: (String) -> Void
+    let onHoverSessionDrag: (String, NativeWorkspaceBrowserOrdering.DropHalf) -> Void
+    let onDropSessionDrag: (String, NativeWorkspaceBrowserOrdering.DropHalf) -> Bool
+    let onExitSessionDrag: (String) -> Void
     let actions: WorkspaceBrowserView.Actions
 
     var body: some View {
@@ -713,6 +1039,7 @@ private struct NativeWorkspaceGroupView: View {
                 expanded: expanded,
                 onToggle: onToggle,
                 onCreateSession: onCreateSession,
+                onStartDrag: onStartWorkspaceDrag,
                 actions: actions,
                 workspaceID: workspace.workspaceId
             )
@@ -722,10 +1049,63 @@ private struct NativeWorkspaceGroupView: View {
                     NativeSessionRow(
                         session: session,
                         selected: session.sessionId == selectedSessionID,
+                        marker: sessionMarker(session.sessionId),
+                        dragActive: sessionDragActive,
                         onSelect: { onSelectSession(session.sessionId) },
+                        onStartDrag: { onStartSessionDrag(session.sessionId) },
+                        onHoverDrag: { onHoverSessionDrag(session.sessionId, $0) },
+                        onDropDrag: { onDropSessionDrag(session.sessionId, $0) },
+                        onExitDrag: { onExitSessionDrag(session.sessionId) },
                         actions: actions
                     )
                 }
+            }
+        }
+        .nativeWorkspaceDropTarget(
+            active: { workspaceDragActive },
+            hover: onHoverWorkspaceDrag,
+            drop: onDropWorkspaceDrag,
+            exited: onExitWorkspaceDrag
+        )
+        .overlay(alignment: workspaceMarker == .after ? .bottom : .top) {
+            if let workspaceMarker, workspaceMarker != .before || !hidesTopMarker {
+                NativeWorkspaceDropMarker(half: workspaceMarker)
+            }
+        }
+    }
+}
+
+/// Source: RC8 `FlatList`: every visible session is a top-level browser row.
+/// Its `__flat_session_order__` account is always local, including manual mode.
+private struct NativeFlatSessionListView: View {
+    let sessions: [SessionSummaryDTO]
+    let selectedSessionID: String?
+    let sessionDragActive: Bool
+    let sessionMarker: (String) -> NativeWorkspaceBrowserOrdering.DropHalf?
+    let onSelectSession: (String) -> Void
+    let onStartSessionDrag: (String) -> Void
+    let onHoverSessionDrag: (String, NativeWorkspaceBrowserOrdering.DropHalf) -> Void
+    let onDropSessionDrag: (String, NativeWorkspaceBrowserOrdering.DropHalf) -> Bool
+    let onExitSessionDrag: (String) -> Void
+    let actions: WorkspaceBrowserView.Actions
+
+    var body: some View {
+        if sessions.isEmpty {
+            NativeWorkspaceEmptyState(text: OfficialUISpec.Text.noSessionsYet)
+        } else {
+            ForEach(sessions) { session in
+                NativeSessionRow(
+                    session: session,
+                    selected: session.sessionId == selectedSessionID,
+                    marker: sessionMarker(session.sessionId),
+                    dragActive: sessionDragActive,
+                    onSelect: { onSelectSession(session.sessionId) },
+                    onStartDrag: { onStartSessionDrag(session.sessionId) },
+                    onHoverDrag: { onHoverSessionDrag(session.sessionId, $0) },
+                    onDropDrag: { onDropSessionDrag(session.sessionId, $0) },
+                    onExitDrag: { onExitSessionDrag(session.sessionId) },
+                    actions: actions
+                )
             }
         }
     }
@@ -736,8 +1116,14 @@ private struct NativeUngroupedWorkspaceGroupView: View {
     let sessions: [SessionSummaryDTO]
     let selectedSessionID: String?
     let expanded: Bool
+    let sessionDragActive: Bool
+    let sessionMarker: (String) -> NativeWorkspaceBrowserOrdering.DropHalf?
     let onToggle: () -> Void
     let onSelectSession: (String) -> Void
+    let onStartSessionDrag: (String) -> Void
+    let onHoverSessionDrag: (String, NativeWorkspaceBrowserOrdering.DropHalf) -> Void
+    let onDropSessionDrag: (String, NativeWorkspaceBrowserOrdering.DropHalf) -> Bool
+    let onExitSessionDrag: (String) -> Void
     let actions: WorkspaceBrowserView.Actions
 
     var body: some View {
@@ -749,6 +1135,7 @@ private struct NativeUngroupedWorkspaceGroupView: View {
                 expanded: expanded,
                 onToggle: onToggle,
                 onCreateSession: {},
+                onStartDrag: nil,
                 actions: actions,
                 workspaceID: nil
             )
@@ -757,7 +1144,13 @@ private struct NativeUngroupedWorkspaceGroupView: View {
                     NativeSessionRow(
                         session: session,
                         selected: session.sessionId == selectedSessionID,
+                        marker: sessionMarker(session.sessionId),
+                        dragActive: sessionDragActive,
                         onSelect: { onSelectSession(session.sessionId) },
+                        onStartDrag: { onStartSessionDrag(session.sessionId) },
+                        onHoverDrag: { onHoverSessionDrag(session.sessionId, $0) },
+                        onDropDrag: { onDropSessionDrag(session.sessionId, $0) },
+                        onExitDrag: { onExitSessionDrag(session.sessionId) },
                         actions: actions
                     )
                 }
@@ -774,6 +1167,9 @@ private struct NativeWorkspaceRow: View {
     let expanded: Bool
     let onToggle: () -> Void
     let onCreateSession: () -> Void
+    /// Nil for the synthetic ungrouped group, which RC8 never permits as a
+    /// workspace drag source.
+    let onStartDrag: (() -> Void)?
     let actions: WorkspaceBrowserView.Actions
     let workspaceID: String?
 
@@ -782,7 +1178,7 @@ private struct NativeWorkspaceRow: View {
     }
 
     var body: some View {
-        HStack(spacing: OfficialUISpec.Spacing.p6) {
+        let row = HStack(spacing: OfficialUISpec.Spacing.p6) {
             Button(action: onToggle) {
                 OfficialAssetImage(name: expanded ? "icon-folder-open" : "icon-folder-close", template: true)
                     .frame(width: OfficialUISpec.Geometry.px16, height: OfficialUISpec.Geometry.px16)
@@ -821,13 +1217,28 @@ private struct NativeWorkspaceRow: View {
         .padding(.horizontal, OfficialUISpec.Spacing.p8)
         .background(Color.clear, in: RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r8, style: .continuous))
         .help(hoverPath ?? "")
+
+        if let onStartDrag, let workspaceID {
+            row.onDrag {
+                onStartDrag()
+                return NSItemProvider(object: workspaceID as NSString)
+            }
+        } else {
+            row
+        }
     }
 }
 
 private struct NativeSessionRow: View {
     let session: SessionSummaryDTO
     let selected: Bool
+    let marker: NativeWorkspaceBrowserOrdering.DropHalf?
+    let dragActive: Bool
     let onSelect: () -> Void
+    let onStartDrag: () -> Void
+    let onHoverDrag: (NativeWorkspaceBrowserOrdering.DropHalf) -> Void
+    let onDropDrag: (NativeWorkspaceBrowserOrdering.DropHalf) -> Bool
+    let onExitDrag: () -> Void
     let actions: WorkspaceBrowserView.Actions
     @State private var isHovering = false
 
@@ -877,9 +1288,58 @@ private struct NativeSessionRow: View {
             )
         }
         .buttonStyle(.plain)
+        .onDrag {
+            onStartDrag()
+            return NSItemProvider(object: session.sessionId as NSString)
+        }
+        .nativeWorkspaceDropTarget(
+            active: { dragActive },
+            hover: onHoverDrag,
+            drop: onDropDrag,
+            exited: onExitDrag
+        )
+        .overlay(alignment: marker == .after ? .bottom : .top) {
+            if let marker {
+                NativeWorkspaceDropMarker(half: marker)
+            }
+        }
         .onHover { isHovering = $0 }
         .accessibilityLabel(sessionTitle(session))
         .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+
+/// Source: RC8 `WorkspaceBrowser.module.css:381-427`. The official marker
+/// combines a 2px business-primary insertion line with two 5×7 chevrons.
+private struct NativeWorkspaceDropMarker: View {
+    let half: NativeWorkspaceBrowserOrdering.DropHalf
+
+    var body: some View {
+        Canvas { context, size in
+            let color = OfficialUISpec.Token.businessBlue
+            let centerY: CGFloat = 5
+            var line = Path()
+            line.move(to: CGPoint(x: 4, y: centerY))
+            line.addLine(to: CGPoint(x: size.width, y: centerY))
+            context.stroke(line, with: .color(color), style: StrokeStyle(lineWidth: 2))
+
+            var upperChevron = Path()
+            upperChevron.move(to: CGPoint(x: 0, y: 0))
+            upperChevron.addLine(to: CGPoint(x: 4, y: 5))
+            upperChevron.addLine(to: CGPoint(x: 0, y: 7))
+            context.stroke(upperChevron, with: .color(color), style: StrokeStyle(lineWidth: 2))
+
+            var lowerChevron = Path()
+            lowerChevron.move(to: CGPoint(x: 0, y: 5))
+            lowerChevron.addLine(to: CGPoint(x: 4, y: 10))
+            lowerChevron.addLine(to: CGPoint(x: 0, y: 12))
+            context.stroke(lowerChevron, with: .color(color), style: StrokeStyle(lineWidth: 2))
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: OfficialUISpec.Spacing.p12)
+        .offset(y: half == .before ? -OfficialUISpec.Spacing.p8 : OfficialUISpec.Spacing.p8)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 

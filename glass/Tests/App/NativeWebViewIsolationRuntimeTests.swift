@@ -30,7 +30,9 @@ final class NativeWebViewIsolationRuntimeTests: XCTestCase {
                 sessionStore: NativeSessionStore(),
                 jobsPopoverInitiallyOpen: false,
                 jobsLanguageCode: nil,
-                openSession: { _ in }
+                openSession: { _ in },
+                viewRegistry: NativeConversationViewRegistry(),
+                headerContributions: NativeConversationHeaderContributionRegistry()
             ),
             surface: "conversation"
         )
