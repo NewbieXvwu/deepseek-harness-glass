@@ -261,11 +261,11 @@ struct LLMDiscoverModelsResponse: Codable, Sendable { let models: [LLMDiscovered
 
 // MARK: - Goals / command DTOs
 
-struct GoalReferenceDTO: Codable, Sendable { let id: String; let revision: Int }
+struct GoalReferenceDTO: Codable, Sendable, Equatable { let id: String; let revision: Int }
 struct GoalReferenceResponse: Codable, Sendable { let ref: GoalReferenceDTO }
 struct GoalCreateRequest: Codable, Sendable { let sessionId: String; let objective: String; let maxGoalRounds: Int? }
 struct GoalEditRequest: Codable, Sendable { let sessionId: String; let ref: GoalReferenceDTO; let objective: String?; let maxGoalRounds: Int? }
-struct GoalReferenceRequest: Codable, Sendable { let sessionId: String; let ref: GoalReferenceDTO }
+struct GoalReferenceRequest: Codable, Sendable, Equatable { let sessionId: String; let ref: GoalReferenceDTO }
 struct GoalClearResponse: Codable, Sendable { let cleared: Bool }
 
 // MARK: - Skills DTOs
