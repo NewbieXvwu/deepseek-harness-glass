@@ -84,6 +84,14 @@ extension OfficialUISpecBuildTests {
             }
             XCTAssertFalse(labels.isEmpty)
             XCTAssertTrue(labels.allSatisfy(OfficialAccessibilityBaselineCatalog.isRegisteredAccessibilityLabel))
+            XCTAssertTrue(
+                corePath.source.hasPrefix("Sources/") && corePath.source.hasSuffix(".swift"),
+                "baseline core path must retain its reviewed native Swift source"
+            )
+            XCTAssertFalse(
+                corePath.focusContract.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                "baseline core path must retain a non-empty focus contract"
+            )
         }
         XCTAssertNil(OfficialAccessibilityBaselineCatalog.resolvedLabels(for: "not-an-official-scene"))
         XCTAssertFalse(OfficialAccessibilityBaselineCatalog.isRegisteredAccessibilityLabel("not-an-official-accessibility-label"))

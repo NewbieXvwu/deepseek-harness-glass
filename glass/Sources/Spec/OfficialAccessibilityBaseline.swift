@@ -3,6 +3,10 @@ import Foundation
 struct OfficialAccessibilityBaseline: Decodable, Equatable {
     struct CorePath: Decodable, Equatable {
         let scene: String
+        /// Native source file implementing the registered path. This stays
+        /// required so a fixture cannot preserve labels while silently losing
+        /// the source mapping needed for source-to-visual/accessibility review.
+        let source: String
         let requiredLabels: [String]
         let focusContract: String
     }
