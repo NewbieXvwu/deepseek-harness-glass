@@ -5,6 +5,8 @@
   "inputs": [
     "packages/client/ui-layout/src/client/columns.ts",
     "packages/client/ui-sidebar/src/client/locales.ts",
+    "packages/client/ui-sidebar/src/client/SidebarRoot.tsx",
+    "packages/client/ui-sidebar/src/client/SidebarRoot.module.css",
     "packages/client/ui-workspace/src/client/locales.ts",
     "packages/client/ui-conversation/src/client/locales.ts",
     "packages/client/ui-settings-general/src/client/locales.ts",
@@ -113,10 +115,15 @@
     "questionFooterTrailing": { "value": 10, "source": "packages/client/ui-user-questions/src/client/QuestionComposer.module.css:.footer padding-right" },
     "questionFooterActionGap": { "value": 12, "source": "packages/client/ui-user-questions/src/client/QuestionComposer.module.css:.footerActions gap" },
     "questionFooterFeedbackMinimumHeight": { "value": 16, "source": "packages/client/ui-user-questions/src/client/QuestionComposer.module.css:.feedback min-height" },
-    "questionCardBottomPadding": { "value": 10, "source": "packages/client/ui-user-questions/src/client/QuestionComposer.module.css:.card padding-bottom" }
+    "questionCardBottomPadding": { "value": 10, "source": "packages/client/ui-user-questions/src/client/QuestionComposer.module.css:.card padding-bottom" },
+    "sidebarLogoRowHeight": { "value": 60, "source": "packages/client/ui-sidebar/src/client/SidebarRoot.module.css:.logoRow height" },
+    "sidebarBrandMarkSize": { "value": 24, "source": "packages/client/ui-sidebar/src/client/SidebarRoot.module.css:.brandIdentity/.brandMark" },
+    "sidebarBuildBadgeHeight": { "value": 16, "source": "packages/client/ui-sidebar/src/client/SidebarRoot.module.css:.buildRevision height" },
+    "sidebarNewSessionHeight": { "value": 38, "source": "packages/client/ui-sidebar/src/client/SidebarRoot.module.css:.newSession height" }
   },
   "text": {
     "newSession": { "value": "New Session", "source": "packages/client/ui-sidebar/src/client/locales.ts" },
+    "sidebarFallbackBrand": { "value": "DSH Local Build", "source": "packages/client/ui-sidebar/src/client/SidebarRoot.tsx:fallbackBrandName" },
     "workspaces": { "value": "Workspaces", "source": "packages/client/ui-workspace/src/client/locales.ts" },
     "noSessionsYet": { "value": "No sessions yet", "source": "packages/client/ui-workspace/src/client/locales.ts" },
     "settings": { "value": "Settings", "source": "packages/client/ui-settings-general/src/client/locales.ts" },

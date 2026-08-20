@@ -5,6 +5,10 @@ import SwiftUI
 enum OfficialUISpec {
     static let deepSeekHarnessCommit = Build.sourceCommit
     static let hostBuildID = Build.id
+    /// Source: RC8 `SidebarRoot.tsx` uses `DSH_CLIENT_COMMIT_HASH` in its
+    /// fallback brand slot. The native fixed-build client projects the same
+    /// locked source revision rather than accepting runtime-provided copy.
+    static var sidebarBuildRevision: String { String(Build.sourceCommit.prefix(7)) }
 
     enum Layout {
         // Source: packages/client/ui-layout/src/client/columns.ts
@@ -35,6 +39,11 @@ enum OfficialUISpec {
         // Source: packages/client/ui-primitives/src/BrandWordmark.tsx → official SVG viewBox.
         static let sidebarWordmarkWidth: CGFloat = 182
         static let sidebarWordmarkHeight: CGFloat = 24
+        // Source: packages/client/ui-sidebar/src/client/SidebarRoot.module.css
+        static let sidebarLogoRowHeight: CGFloat = 60
+        static let sidebarBrandMarkSize: CGFloat = 24
+        static let sidebarBuildBadgeHeight: CGFloat = 16
+        static let sidebarNewSessionHeight: CGFloat = 38
 
         // Source: packages/client/ui-workspace/src/client/WorkspaceBrowser.module.css
         static let workspaceSectionHeaderHeight: CGFloat = 36
@@ -112,6 +121,8 @@ enum OfficialUISpec {
     enum Text {
         // Source: packages/client/ui-sidebar/src/client/locales.ts (en)
         static let newSession = "New Session"
+        // Source: packages/client/ui-sidebar/src/client/SidebarRoot.tsx:fallbackBrandName
+        static let sidebarFallbackBrand = "DSH Local Build"
         static let newSessionAccessibility = "New session"
         static let collapseSidebarAccessibility = "Collapse sidebar"
         static let openSidebarAccessibility = "Open sidebar"
@@ -387,6 +398,9 @@ enum OfficialUISpec {
         static let codeSmall12 = Font.system(size: 12, weight: .regular, design: .monospaced)
         static let codeSmallStrong12 = Font.system(size: 12, weight: .medium, design: .monospaced)
         static let codeBlock13 = Font.system(size: 13, weight: .regular, design: .monospaced)
+        // Source: packages/client/ui-sidebar/src/client/SidebarRoot.module.css
+        static let sidebarBrand17 = Font.system(size: 17, weight: .semibold)
+        static let sidebarBuildBadge8 = Font.system(size: 8, weight: .medium, design: .monospaced)
         static let heroTitle = Font.system(size: 26, weight: .medium)
     }
 }

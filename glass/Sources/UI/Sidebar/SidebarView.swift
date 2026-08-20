@@ -91,12 +91,7 @@ struct NativeSidebarView: View {
     private var wideHeader: some View {
         GlassEffectContainer(spacing: OfficialUISpec.Spacing.p12) {
             HStack(spacing: OfficialUISpec.Spacing.p8) {
-                OfficialAssetImage(name: "brand-wordmark")
-                    .frame(
-                        width: OfficialUISpec.Layout.sidebarWordmarkWidth,
-                        height: OfficialUISpec.Layout.sidebarWordmarkHeight,
-                        alignment: .leading
-                    )
+                wideBrand
                 Spacer(minLength: 0)
                 Button(action: { setCollapsed(true) }) {
                     OfficialAssetImage(name: "icon-panel-left", template: true)
@@ -108,9 +103,36 @@ struct NativeSidebarView: View {
                 .accessibilityLabel(OfficialUISpec.Text.collapseSidebarAccessibility)
             }
         }
-        .frame(height: OfficialUISpec.Geometry.px60)
+        .frame(height: OfficialUISpec.Layout.sidebarLogoRowHeight)
         .padding(.leading, OfficialUISpec.Spacing.p4)
         .padding(.bottom, OfficialUISpec.Spacing.p8)
+    }
+
+    private var wideBrand: some View {
+        Button(action: onNewSession) {
+            HStack(spacing: OfficialUISpec.Spacing.p8) {
+                OfficialAssetImage(name: "fish-logo")
+                    .frame(
+                        width: OfficialUISpec.Layout.sidebarBrandMarkSize,
+                        height: OfficialUISpec.Layout.sidebarBrandMarkSize
+                    )
+                Text(OfficialUISpec.Text.sidebarFallbackBrand)
+                    .font(OfficialUISpec.Typography.sidebarBrand17)
+                    .lineLimit(1)
+                Text(OfficialUISpec.sidebarBuildRevision)
+                    .font(OfficialUISpec.Typography.sidebarBuildBadge8)
+                    .foregroundStyle(OfficialUISpec.Token.primaryForeground)
+                    .padding(.horizontal, OfficialUISpec.Spacing.p4)
+                    .frame(height: OfficialUISpec.Layout.sidebarBuildBadgeHeight)
+                    .background(
+                        OfficialUISpec.Token.primary,
+                        in: RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r3, style: .continuous)
+                    )
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(OfficialUISpec.Text.newSessionAccessibility)
     }
 
     private var newSessionButton: some View {
@@ -122,7 +144,7 @@ struct NativeSidebarView: View {
                     .font(OfficialUISpec.Typography.sStrong14)
                 Spacer(minLength: 0)
             }
-            .frame(height: OfficialUISpec.Geometry.px36)
+            .frame(height: OfficialUISpec.Layout.sidebarNewSessionHeight)
             .padding(.horizontal, OfficialUISpec.Spacing.p16)
         }
         .buttonStyle(OfficialNewSessionButtonStyle())
