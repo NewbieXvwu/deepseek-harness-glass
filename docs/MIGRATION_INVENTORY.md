@@ -35,7 +35,7 @@
 | Node、payload、manifest、Info.plist、图标、签名 | 保留 | `assemble.sh`、payload lockfile、Spec | Node 24.19.0 与 rc.8 payload 必须精确对应锁定官方 commit；原子 staging 后 ad-hoc 签名。 | `check-supported-host-build.py`、codesign 和 artifact manifest。 |
 | `repair-backend.sh` | 保留（维护工具） | `glass/repair-backend.sh` | 只重装 exact rc.8 payload；临时 `DSH_HOME` 冒烟，不覆盖用户数据。 | 脚本静态审阅；后续维护工具测试。 |
 | native CI 与 release workflow | 保留并扩展 | `.github/workflows/` | native CI 是 D0/D1/support/visual 工件门；release 仅使用同一精确 payload，签名/公证仍待发布治理任务。 | macOS-26 当前提交 run。 |
-| 历史 WebView/DOM/CSS 注入壳 | 删除主路径，仅官方对照可用 | App target 外部参考目录 | 任何主业务 UI、Core、UI、Features 不得链接 WebKit 或读取网页 DOM。 | D0 `check-no-webview.sh`。 |
+| 历史 WebView/DOM/CSS 注入壳 | 删除主路径，仅官方对照可用 | App target 外部参考目录 | 任何主业务 UI 在真实运行态 `NSView` tree 中均不得装载 `WKWebView` 或以网页 DOM 替代交互。 | D0 `NativeWebViewIsolationRuntimeTests`：装载核心表面并递归检查 view tree，另以真实注入 WebView 的负例证伪。 |
 
 > 资产清单不等于完成所有功能。它只保证 T1.1 的运行时意图已被显式分类、每项都有目标归属和可执行验证，之后的 T1.2–T13 必须逐项实现其产品行为与视觉证据。
 

@@ -2,7 +2,7 @@
 
 A native macOS client for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) — the dsh you know, in a real glass window.
 
-This repository is a fork of [qniequn-boop/deepseek-harness-glass](https://github.com/qniequn-boop/deepseek-harness-glass). The upstream project wrapped the official web UI in a glass window; this fork replaces the browser client entirely, reimplementing it in Swift 6 with SwiftUI and AppKit while keeping the official Host as the backend. WebKit is banned from the core UI, enforced in CI by `glass/ci/check-no-webview.sh`; third-party plugins are supported via an adaptive dual-track system (native Manifest/Adapter first, with automatic sandboxed micro-host fallback for arbitrary React cards).
+This repository is a fork of [qniequn-boop/deepseek-harness-glass](https://github.com/qniequn-boop/deepseek-harness-glass). The upstream project wrapped the official web UI in a glass window; this fork replaces the browser client entirely, reimplementing it in Swift 6 with SwiftUI and AppKit while keeping the official Host as the backend. Core native surfaces are checked in macOS CI by mounting real views and recursively asserting that their `NSView` trees contain no `WKWebView`; the test includes a real injected-WebView negative control. Third-party plugins are supported via an adaptive dual-track system (native Manifest/Adapter first, with automatic sandboxed micro-host fallback for arbitrary React cards).
 
 - **中文文档：** [README.zh.md](README.zh.md)
 
@@ -67,7 +67,7 @@ Useful local checks before changing official-facing behavior:
 
 ```bash
 python3 glass/ci/check-official-spec.py
-bash glass/ci/check-no-webview.sh
+python3 glass/ci/test-package-target-graph.py
 ```
 
 ## License and attribution

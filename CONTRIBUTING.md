@@ -8,7 +8,7 @@
 git status --short
 git log -10 --oneline
 python3 glass/ci/check-official-spec.py
-bash glass/ci/check-no-webview.sh
+python3 glass/ci/test-package-target-graph.py
 gh run list --repo NewbieXvwu/deepseek-harness-glass --limit 10
 ```
 
@@ -18,7 +18,7 @@ gh run list --repo NewbieXvwu/deepseek-harness-glass --limit 10
 
 ## 2. WebKit 边界
 
-`glass/Sources/App`、`Core`、`UI`、`Features`、`Snapshot` 与内置设置/会话 renderer 不导入 `WebKit`，不使用 `WKWebView`、`WKUserScript`、`evaluateJavaScript`、DOM API 或 CSS 注入。`glass/ci/check-no-webview.sh` 是阻断性门禁。
+核心应用的 sidebar、conversation、details、settings 等原生表面不得在运行态 `NSView` tree 中装载 `WKWebView`，也不得以 Web/DOM/CSS 注入替代核心交互。D0 由 `NativeWebViewIsolationRuntimeTests` 在 macOS XCTest 中实际装载核心 SwiftUI 表面、递归检查其 `NSView` tree，并以注入真实 `WKWebView` 的反例证明探测器可证伪；不得以对项目 Swift 源码的关键词扫描取代该运行态证据。
 
 第三方插件的 Web 兼容由未来独立编译的 `Plugins/PluginWebHost` target 承载，实行自适应双轨制（原生 Manifest/Adapter 优先，未适配的第三方 React 卡片自动由轻量沙箱微宿主兜底）。沙箱严格限定在单卡片或独立设置面板内，遵循 loopback same-origin 策略并由独立安全测试覆盖，严禁侵入会话、侧栏、官方设置、模型、凭据或工具页面等核心结构。
 

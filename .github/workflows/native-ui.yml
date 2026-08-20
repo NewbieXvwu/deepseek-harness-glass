@@ -283,9 +283,6 @@ jobs:
       - name: Run native architecture gates
         run: |
           set -euo pipefail
-          echo "::group::No WebView in core UI"
-          ./glass/ci/check-no-webview.sh
-          echo "::endgroup::"
           echo "::group::Runtime asset migration inventory"
           python3 glass/ci/check-runtime-asset-inventory.py
           echo "::endgroup::"
