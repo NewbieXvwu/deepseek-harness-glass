@@ -115,7 +115,7 @@ enum NativeMarkdownDocument {
         if inFence {
             // An incomplete streaming fence remains literal prose until its
             // closing delimiter arrives, matching RC8's conservative tail rule.
-            prose.append("```\(language ?? \"\")")
+            prose.append("```\(language ?? "")")
             prose.append(contentsOf: code)
             language = nil
         }
