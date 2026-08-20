@@ -22,6 +22,15 @@
       "allowedDifferenceClasses": ["font-rendering", "system-glass"]
     },
     {
+      "id": "jobs-expanded-light",
+      "surface": "conversation.session-header-background-jobs",
+      "state": "selected-session-two-host-jobs-expanded",
+      "officialComponents": ["AppFrame", "ConversationRoot", "JobListAction", "StateDot"],
+      "nativeEntry": "SnapshotExporter.DSH_GLASS_SNAPSHOT_MODE=jobs",
+      "requiredEvidence": ["source-map", "official-screenshot", "native-screenshot", "paired-viewport", "difference-ledger", "post-fix-recapture", "layout-rectangles", "accessibility", "rpc-fixture"],
+      "allowedDifferenceClasses": ["font-rendering", "system-glass"]
+    },
+    {
       "id": "conversation-details-light",
       "surface": "conversation.chat-with-details",
       "state": "session-selected",

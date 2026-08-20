@@ -9,8 +9,16 @@ import SwiftUI
 /// only the Host's `session/jobs` whole snapshot and hides entirely when empty.
 struct NativeJobsHeaderAction: View {
     let jobs: [NativeSessionStore.BackgroundJob]
-    @State private var open = false
+    /// Used solely by SnapshotExporter to capture the official expanded state.
+    let initiallyOpen: Bool
+    @State private var open: Bool
     @State private var nowMilliseconds = Int(Date().timeIntervalSince1970 * 1_000)
+
+    init(jobs: [NativeSessionStore.BackgroundJob], initiallyOpen: Bool = false) {
+        self.jobs = jobs
+        self.initiallyOpen = initiallyOpen
+        _open = State(initialValue: initiallyOpen)
+    }
 
     private var orderedJobs: [NativeSessionStore.BackgroundJob] { SessionJobsPresentation.ordered(jobs) }
     private var liveCount: Int { jobs.filter(SessionJobsPresentation.isLive).count }

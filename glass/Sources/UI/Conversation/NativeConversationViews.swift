@@ -10,13 +10,17 @@ struct NativeConversationColumn: View {
     let mode: NativeAppShell.PresentationMode
     let selectedWorkspaceTitle: String?
     @ObservedObject var sessionStore: NativeSessionStore
+    let jobsPopoverInitiallyOpen: Bool
 
     var body: some View {
         switch mode {
         case .welcome:
             NativeWelcomeSurface(selectedWorkspaceTitle: selectedWorkspaceTitle)
         case .conversation, .tooling, .approval, .question:
-            NativeActiveConversationSurface(sessionStore: sessionStore)
+            NativeActiveConversationSurface(
+                sessionStore: sessionStore,
+                jobsPopoverInitiallyOpen: jobsPopoverInitiallyOpen
+            )
         }
     }
 }
@@ -26,10 +30,14 @@ struct NativeConversationColumn: View {
 /// for snapshot fixtures whose deterministic conversation mode has no Host.
 private struct NativeActiveConversationSurface: View {
     @ObservedObject var sessionStore: NativeSessionStore
+    let jobsPopoverInitiallyOpen: Bool
 
     var body: some View {
         VStack(spacing: OfficialUISpec.Spacing.p0) {
-            NativeConversationHeader(jobs: sessionStore.backgroundJobs)
+            NativeConversationHeader(
+                jobs: sessionStore.backgroundJobs,
+                jobsPopoverInitiallyOpen: jobsPopoverInitiallyOpen
+            )
             transcriptBody
             composerTakeover
         }
@@ -94,13 +102,14 @@ private struct NativeActiveConversationSurface: View {
 
 private struct NativeConversationHeader: View {
     let jobs: [NativeSessionStore.BackgroundJob]
+    let jobsPopoverInitiallyOpen: Bool
 
     var body: some View {
         HStack {
             Text(OfficialUISpec.Text.chat)
                 .font(OfficialUISpec.Typography.sStrong14)
             Spacer(minLength: 0)
-            NativeJobsHeaderAction(jobs: jobs)
+            NativeJobsHeaderAction(jobs: jobs, initiallyOpen: jobsPopoverInitiallyOpen)
         }
         .frame(height: OfficialUISpec.Geometry.px56)
         .padding(.horizontal, OfficialUISpec.Spacing.p20)

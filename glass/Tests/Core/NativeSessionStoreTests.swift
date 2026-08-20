@@ -130,6 +130,21 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertNil(store.pendingQuestion)
     }
 
+    func testSnapshotJobsFixtureUsesCurrentHostSessionAndWholeJobSet() {
+        let store = NativeSessionStore()
+        store.loadSnapshotJobsFixture()
+
+        XCTAssertEqual(store.selectedSessionID, "fx-alpha")
+        XCTAssertEqual(store.items.map(\.text), ["Reply with the single word LIGHTHOUSE and stop.", "LIGHTHOUSE"])
+        XCTAssertEqual(store.backgroundJobs.map(\.id), ["bash-1", "bash-2"])
+        XCTAssertEqual(store.backgroundJobs.map(\.status), [.running, .completed])
+        XCTAssertEqual(store.backgroundJobs.map(\.label), ["sleep 60", "pnpm run build"])
+        XCTAssertTrue(store.backgroundJobs[0].isLive)
+        XCTAssertFalse(store.backgroundJobs[1].isLive)
+        XCTAssertNil(store.pendingApproval)
+        XCTAssertNil(store.pendingQuestion)
+    }
+
     func testJobsPresentationUsesOfficialOrderingAndElapsedRules() {
         let jobs = [
             NativeSessionStore.BackgroundJob(id: "done-old", kind: "shell", label: "done-old", status: .completed, detail: nil, startedAt: 10, finishedAt: 20),

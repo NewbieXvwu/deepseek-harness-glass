@@ -831,6 +831,67 @@ final class NativeSessionStore: ObservableObject {
         return object["command"] as? String
     }
 
+    /// Snapshot-only Host-shaped Jobs fixture. It represents the same complete
+    /// `session/jobs` snapshot that the Host owns in production: one live bash
+    /// task and one settled bash task. It exists only for paired visual capture.
+    func loadSnapshotJobsFixture() {
+        let sessionID = "fx-alpha"
+        let now = Int(Date().timeIntervalSince1970 * 1_000)
+        phase = .ready(sessionID: sessionID)
+        activeSessionID = sessionID
+        items = [
+            TranscriptItem(
+                id: "snapshot-jobs-user",
+                role: .user,
+                text: "Reply with the single word LIGHTHOUSE and stop.",
+                isStreaming: false,
+                sequence: 1
+            ),
+            TranscriptItem(
+                id: "snapshot-jobs-assistant",
+                role: .assistant,
+                text: "LIGHTHOUSE",
+                isStreaming: false,
+                sequence: 2
+            )
+        ]
+        toolInvocations = []
+        queuedMessages = []
+        backgroundJobs = [
+            BackgroundJob(
+                id: "bash-1",
+                kind: "bash",
+                label: "sleep 60",
+                status: .running,
+                detail: nil,
+                startedAt: now,
+                finishedAt: nil
+            ),
+            BackgroundJob(
+                id: "bash-2",
+                kind: "bash",
+                label: "pnpm run build",
+                status: .completed,
+                detail: nil,
+                startedAt: now,
+                finishedAt: now
+            )
+        ]
+        pendingApproval = nil
+        pendingQuestion = nil
+        selectedToolCallID = nil
+        isSubmittingApproval = false
+        isSubmittingQuestion = false
+        isRunning = false
+        hasMoreHistory = false
+        isLoadingOlderHistory = false
+        isSubmittingPrompt = false
+        draft = ""
+        pendingImages = []
+        lastError = nil
+        appliedSequences = [1, 2]
+    }
+
     /// Snapshot-only Host-shaped approval fixture. It exercises the same
     /// `PendingApproval` holder that a live `approval/requested` mux frame sets.
     func loadSnapshotApprovalFixture() {

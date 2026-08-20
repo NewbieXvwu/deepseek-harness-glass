@@ -14,6 +14,7 @@ EXPECTED_COMMIT = "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
 REQUIRED_SCENES = {
     "startup-empty-hero",
     "welcome-no-workspace-light",
+    "jobs-expanded-light",
     "empty-session-workspace",
     "streaming-answer",
     "tool-call-details",

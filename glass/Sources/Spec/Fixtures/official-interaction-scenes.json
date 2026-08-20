@@ -48,6 +48,21 @@
       "nativeEntry": "NativeAppShell.PresentationMode.welcome"
     },
     {
+      "id": "jobs-expanded-light",
+      "officialTest": "apps/web/tests/capture-official-welcome.e2e.ts",
+      "sourceLines": "70-104",
+      "hostFixture": { "kind": "replay-plus-live-host-registry", "replayFixture": "apps/web/tests/snapshots/lifecycle-chrome/session.jsonl", "workspace": "connectFreshWorkspace then owner-scoped ctx.jobs.start running + completed" },
+      "viewport": { "width": 1280, "height": 840 },
+      "colorScheme": "light",
+      "accessibility": { "reduceTransparency": false, "increaseContrast": false, "reduceMotion": false, "keyboardOnly": false },
+      "actions": ["connect a fresh workspace", "send the locked lifecycle replay prompt", "wait for turn settlement", "start one running and one completed owner-scoped Host job", "wait for the session/jobs whole snapshot", "open the Background jobs action", "capture expanded popover"],
+      "expectedVisibleText": ["1 background job running", "sleep 60", "pnpm run build", "running", "completed"],
+      "expectedLayoutTree": ["AppFrame", "selected session treeitem", "ConversationRoot", "JobListAction trigger", "Background jobs list", "StateDot rows"],
+      "ariaBaseline": "artifacts/official-webui/jobs-expanded-light.json",
+      "screenshotBaseline": "artifacts/official-webui/jobs-expanded-light.png",
+      "nativeEntry": "SnapshotExporter.DSH_GLASS_SNAPSHOT_MODE=jobs"
+    },
+    {
       "id": "empty-session-workspace",
       "officialTest": "apps/web/tests/cold-blank-session.e2e.ts",
       "sourceLines": "fixture and selected blank-session assertions",

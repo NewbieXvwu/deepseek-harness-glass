@@ -28,6 +28,8 @@ final class NativeShellPresentation: ObservableObject {
     let workspaceStore: NativeWorkspaceStore
     let sessionStore: NativeSessionStore
     let workspaceSnapshotDialog: WorkspaceBrowserView.SnapshotDialog
+    /// Snapshot-only presentation affordance; never part of Host session truth.
+    let jobsPopoverInitiallyOpen: Bool
     private var apis: HarnessAPIs?
     private var selectedToolObservation: AnyCancellable?
     private var observedEndpoint: URL?
@@ -36,12 +38,14 @@ final class NativeShellPresentation: ObservableObject {
         mode: NativeAppShell.PresentationMode = .welcome,
         workspaceStore: NativeWorkspaceStore? = nil,
         sessionStore: NativeSessionStore? = nil,
-        workspaceSnapshotDialog: WorkspaceBrowserView.SnapshotDialog = .none
+        workspaceSnapshotDialog: WorkspaceBrowserView.SnapshotDialog = .none,
+        jobsPopoverInitiallyOpen: Bool = false
     ) {
         self.mode = mode
         self.workspaceStore = workspaceStore ?? NativeWorkspaceStore()
         self.sessionStore = sessionStore ?? NativeSessionStore()
         self.workspaceSnapshotDialog = workspaceSnapshotDialog
+        self.jobsPopoverInitiallyOpen = jobsPopoverInitiallyOpen
         self.detailsVisible = self.sessionStore.selectedToolCallID != nil
         switch workspaceSnapshotDialog {
         case .none:
@@ -232,7 +236,8 @@ final class NativeShellController: NativeSplitViewController {
             conversation: NativeConversationColumn(
                 mode: presentation.mode,
                 selectedWorkspaceTitle: Self.selectedWorkspaceTitle(for: presentation),
-                sessionStore: presentation.sessionStore
+                sessionStore: presentation.sessionStore,
+                jobsPopoverInitiallyOpen: presentation.jobsPopoverInitiallyOpen
             ),
             details: Self.details(for: presentation),
             sidebarPreference: presentation.sidebarPreference,
@@ -284,7 +289,8 @@ final class NativeShellController: NativeSplitViewController {
             conversation: NativeConversationColumn(
                 mode: presentation.mode,
                 selectedWorkspaceTitle: Self.selectedWorkspaceTitle(for: presentation),
-                sessionStore: presentation.sessionStore
+                sessionStore: presentation.sessionStore,
+                jobsPopoverInitiallyOpen: presentation.jobsPopoverInitiallyOpen
             ),
             details: Self.details(for: presentation),
             sidebarPreference: presentation.sidebarPreference,

@@ -185,6 +185,8 @@ jobs:
         run: |
           test -s "artifacts/official-webui/welcome-no-workspace-light.png"
           test -s "artifacts/official-webui/welcome-no-workspace-light.json"
+          test -s "artifacts/official-webui/jobs-expanded-light.png"
+          test -s "artifacts/official-webui/jobs-expanded-light.json"
 
       # This fixture is intentionally copied only after the optional upstream
       # build (its cross-plane e2e imports are not part of that aggregate), but
@@ -355,6 +357,7 @@ jobs:
             | tee native-shell-snapshot.log
           test -s "$snapshot_dir/welcome-light.png"
           test -s "$snapshot_dir/conversation-dark.png"
+          test -s "$snapshot_dir/jobs-expanded-light.png"
           test -s "$snapshot_dir/tooling-inspector-dark.png"
           test -s "$snapshot_dir/approval-panel-light.png"
           test -s "$snapshot_dir/question-composer-light.png"
@@ -373,7 +376,7 @@ jobs:
           path: /tmp/dsh-visual-venv
           key: visual-venv-${{ runner.os }}-${{ env.IMAGE_VERSION }}-pillow-numpy-1
 
-      - name: Compare official and native welcome screenshots
+      - name: Compare official and native visual scenes
         run: |
           if [ ! -x /tmp/dsh-visual-venv/bin/python ]; then
             python3 -m venv /tmp/dsh-visual-venv
@@ -390,6 +393,15 @@ jobs:
             --column-fixtures glass/Sources/Spec/Fixtures/official-column-layout-fixtures.json
           test -s artifacts/visual-diff/welcome-no-workspace-light-comparison.png
           test -s artifacts/visual-diff/welcome-no-workspace-light-report.json
+          python glass/ci/compare_visual_pair.py \
+            --official artifacts/official-webui/jobs-expanded-light.png \
+            --native artifacts/native-shell/jobs-expanded-light.png \
+            --out-dir artifacts/visual-diff \
+            --scene jobs-expanded-light \
+            --policy glass/Sources/Spec/Fixtures/visual-validation-policy.json \
+            --column-fixtures glass/Sources/Spec/Fixtures/official-column-layout-fixtures.json
+          test -s artifacts/visual-diff/jobs-expanded-light-comparison.png
+          test -s artifacts/visual-diff/jobs-expanded-light-report.json
 
       - name: Upload native UI review bundle
         if: always()

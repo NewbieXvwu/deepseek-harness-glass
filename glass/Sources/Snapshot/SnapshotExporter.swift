@@ -64,7 +64,7 @@ enum SnapshotExporter {
         let mode: NativeAppShell.PresentationMode
         let workspaceSnapshotDialog: WorkspaceBrowserView.SnapshotDialog
         switch requestedMode {
-        case "conversation":
+        case "conversation", "jobs":
             mode = .conversation
         case "workspace-search", "workspace-rename", "session-rename", "workspace-delete":
             mode = .welcome
@@ -90,6 +90,9 @@ enum SnapshotExporter {
         let sessionStore = NativeSessionStore()
         let workspaceStore = NativeWorkspaceStore()
         switch mode {
+        case .conversation where requestedMode == "jobs":
+            sessionStore.loadSnapshotJobsFixture()
+            workspaceStore.loadSnapshotFixtureWorkspace()
         case .tooling:
             sessionStore.loadSnapshotToolingFixture()
         case .approval:
@@ -119,7 +122,8 @@ enum SnapshotExporter {
             mode: mode,
             workspaceStore: workspaceStore,
             sessionStore: sessionStore,
-            workspaceSnapshotDialog: workspaceSnapshotDialog
+            workspaceSnapshotDialog: workspaceSnapshotDialog,
+            jobsPopoverInitiallyOpen: requestedMode == "jobs"
         )
         let shellController = NativeShellRootController(presentation: presentation)
         let size = snapshotSize(environment: ProcessInfo.processInfo.environment)
