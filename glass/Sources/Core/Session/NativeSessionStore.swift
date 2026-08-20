@@ -720,6 +720,13 @@ final class NativeSessionStore: ObservableObject {
         projections.truncate(sessionID: sessionID, after: subscribed.lastSeq)
         queuedMessages = []
         backgroundJobs = []
+        // approval/question ServerRequests are generation-bound, exactly like
+        // queue/jobs. A restarted Host can no longer resolve an old rpcId; keep
+        // no stale takeover visible until the fresh mux baseline re-emits it.
+        pendingApproval = nil
+        pendingQuestion = nil
+        isSubmittingApproval = false
+        isSubmittingQuestion = false
     }
 
     private func applyProjection(_ object: [String: JSONValue], sessionID: String) {

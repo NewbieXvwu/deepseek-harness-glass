@@ -211,6 +211,37 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertNil(store.projections.value(sessionID: "snapshot-tooling", key: "todo"))
     }
 
+    func testSubscriptionGenerationClearsPendingInteractionTakeoversAlongsideQueueAndJobs() {
+        let store = NativeSessionStore()
+        store.loadSnapshotToolingFixture()
+        let sessionID = "snapshot-tooling"
+        store.applyMuxFrame(queueFrame(sessionID: sessionID, items: [
+            queuedItem(id: "q-1", messageID: "m-1", placement: "queued", content: []),
+        ]), sessionID: sessionID)
+        store.applyMuxFrame(jobsFrame(sessionID: sessionID, jobs: [job(id: "job-1", status: "running", startedAt: 1)]), sessionID: sessionID)
+        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "approval-rpc", method: "approval/requested", payload: .object([
+            "type": .string("approval/requested"), "sessionId": .string(sessionID), "approvalId": .string("approval-1"), "toolName": .string("bash"),
+        ])), sessionID: sessionID)
+        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "question-rpc", method: "question/requested", payload: .object([
+            "type": .string("question/requested"), "sessionId": .string(sessionID),
+            "questions": .array([.object(["id": .string("q-1"), "question": .string("Proceed?")])]),
+        ])), sessionID: sessionID)
+        XCTAssertNotNil(store.extensionState?.pendingApproval)
+        XCTAssertNotNil(store.extensionState?.pendingQuestion)
+
+        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "subscribed-2", method: "session/subscribed", payload: .object([
+            "type": .string("session/subscribed"), "sessionId": .string(sessionID), "lastSeq": .number(0),
+        ])), sessionID: sessionID)
+
+        let state = tryUnwrap(store.extensionState)
+        XCTAssertTrue(state.queuedMessages.isEmpty)
+        XCTAssertTrue(state.backgroundJobs.isEmpty)
+        XCTAssertNil(state.pendingApproval)
+        XCTAssertNil(state.pendingQuestion)
+        XCTAssertFalse(store.isSubmittingApproval)
+        XCTAssertFalse(store.isSubmittingQuestion)
+    }
+
     func testResidentWindowRestoreRetainsSelectionToolsAndTransientHostStateAcrossSessionSwitch() {
         let store = NativeSessionStore()
         store.loadSnapshotToolingFixture()
