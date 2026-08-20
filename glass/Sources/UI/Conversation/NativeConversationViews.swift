@@ -11,7 +11,7 @@ struct NativeConversationColumn: View {
     let selectedWorkspaceTitle: String?
     @ObservedObject var sessionStore: NativeSessionStore
     let jobsPopoverInitiallyOpen: Bool
-    let jobsLanguageCode: String? = nil
+    let jobsLanguageCode: String?
 
     var body: some View {
         switch mode {
