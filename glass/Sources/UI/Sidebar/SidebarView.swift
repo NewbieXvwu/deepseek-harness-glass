@@ -92,7 +92,7 @@ struct NativeSidebarView: View {
         GlassEffectContainer(spacing: OfficialUISpec.Spacing.p12) {
             HStack(spacing: OfficialUISpec.Spacing.p8) {
                 wideBrand
-                Spacer(minLength: 0)
+                    .layoutPriority(1)
                 Button(action: { setCollapsed(true) }) {
                     OfficialAssetImage(name: "icon-panel-left", template: true)
                         .frame(width: OfficialUISpec.Geometry.px16, height: OfficialUISpec.Geometry.px16)
