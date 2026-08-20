@@ -42,6 +42,24 @@ final class NativeMaterialIsolationRuntimeTests: XCTestCase {
         )
     }
 
+    func testAccessibilityNavigationFallbackDoesNotMaterializeVisualEffect() {
+        let control = Button(action: {}) {
+            Image(systemName: "sidebar.left")
+        }
+        .buttonStyle(NativeGlassNavigationButtonStyle())
+        .environment(\.accessibilityReduceTransparency, true)
+        assertNoVisualEffects(in: control, surface: "reduce-transparency navigation control")
+    }
+
+    func testHighContrastNavigationFallbackDoesNotMaterializeVisualEffect() {
+        let control = Button(action: {}) {
+            Image(systemName: "sidebar.left")
+        }
+        .buttonStyle(NativeGlassNavigationButtonStyle())
+        .environment(\.colorSchemeContrast, .increased)
+        assertNoVisualEffects(in: control, surface: "high-contrast navigation control")
+    }
+
     func testDetailsCloseForgetsDraggedWidthAndReopenUsesOfficialDefault() {
         let presentation = NativeShellPresentation(mode: .conversation)
         presentation.openDetails()
