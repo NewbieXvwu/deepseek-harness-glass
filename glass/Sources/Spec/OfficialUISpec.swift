@@ -242,6 +242,16 @@ enum OfficialUISpec {
         static let trajectory = "Trajectory"
         // Source: packages/client/ui-deliverables/src/client/locales.ts:17-21 (en)
         static let producedFiles = "Produced"
+        // Source: packages/client/ui-workflow-run/src/client/locales.ts:29-47 (en)
+        static let workflowNoMembers = "No members started"
+        static let workflowUnphased = "Unphased"
+        static let workflowEmptyPhase = "Empty phase name"
+        static let workflowEmptyMember = "Empty member name"
+        static let workflowRunning = "Running"
+        static let workflowCompleted = "Completed"
+        static let workflowFailed = "Failed"
+        static let workflowCancelled = "Cancelled"
+        static let workflowInterrupted = "Interrupted"
         static let producedFilesMoreOne = "+ 1 file"
         static let producedFilesMoreTemplate = "+ {count} files"
         static let producedFilesOpenTemplate = "Open {name}"
