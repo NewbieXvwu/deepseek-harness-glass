@@ -7,10 +7,55 @@ import XCTest
 @MainActor
 final class NativeConversationHeaderTests: XCTestCase {
     func testUnknownRetainedViewResolvesToStableChatFallback() {
-        XCTAssertEqual(NativeConversationViewRegistry.resolve(selectedID: nil)?.id, "chat")
-        XCTAssertEqual(NativeConversationViewRegistry.resolve(selectedID: "removed-plugin-view")?.id, "chat")
-        XCTAssertEqual(NativeConversationViewRegistry.resolve(selectedID: "chat")?.label, OfficialUISpec.Text.chat)
-        XCTAssertEqual(NativeConversationViewRegistry.registeredTabs.count, 1)
+        let registry = NativeConversationViewRegistry()
+        XCTAssertEqual(registry.resolve(selectedID: nil)?.id, "chat")
+        XCTAssertEqual(registry.resolve(selectedID: "removed-plugin-view")?.id, "chat")
+        XCTAssertEqual(registry.resolve(selectedID: "chat")?.label, OfficialUISpec.Text.chat)
+        XCTAssertEqual(registry.registeredTabs.count, 1)
+    }
+
+    func testViewRegistryOrdersLabelsRejectsDuplicatesAndDisposesSafely() throws {
+        let registry = NativeConversationViewRegistry()
+        let late = try registry.register(id: "z-late", order: 20, label: "Late") { _ in AnyView(EmptyView()) }
+        let early = try registry.register(id: "early", order: -1, label: "Early") { _ in AnyView(EmptyView()) }
+        let bare = try registry.register(id: "bare", order: 10) { _ in AnyView(EmptyView()) }
+
+        XCTAssertEqual(registry.registeredTabs.map(\.id), ["early", "chat", "bare", "z-late"])
+        XCTAssertEqual(registry.registeredTabs.map(\.label), ["Early", OfficialUISpec.Text.chat, "bare", "Late"])
+        XCTAssertThrowsError(try registry.register(id: "early", order: 30) { _ in AnyView(EmptyView()) }) { error in
+            XCTAssertEqual(error as? NativeConversationContributionRegistryError, .duplicateViewID("early"))
+        }
+
+        registry.unregister(early)
+        XCTAssertEqual(registry.resolve(selectedID: "early")?.id, NativeConversationViewRegistry.chatID)
+        XCTAssertEqual(registry.registeredTabs.map(\.id), ["chat", "bare", "z-late"])
+        registry.unregister(early) // A stale disposer cannot remove another entry.
+        XCTAssertEqual(registry.registeredTabs.map(\.id), ["chat", "bare", "z-late"])
+        registry.unregister(bare)
+        registry.unregister(late)
+        XCTAssertEqual(registry.registeredTabs.map(\.id), ["chat"])
+    }
+
+    func testHeaderContributionSlotsRemainSeparateAndDisposeByNonce() throws {
+        let registry = NativeConversationHeaderContributionRegistry()
+        let action = try registry.register(slot: .actions, id: "action", order: 1) { _ in AnyView(EmptyView()) }
+        let utility = try registry.register(slot: .utilities, id: "utility", order: 0) { _ in AnyView(EmptyView()) }
+        let context = NativeConversationContributionContext(
+            sessionID: nil,
+            sessionSnapshot: .init(workspaces: [], sessions: [], archivedSessionIDs: [], selectedSessionID: nil, selectedWorkspaceID: nil),
+            sessionStore: NativeSessionStore()
+        )
+
+        XCTAssertEqual(registry.render(slot: .actions, context: context).count, 1)
+        XCTAssertEqual(registry.render(slot: .utilities, context: context).count, 1)
+        XCTAssertThrowsError(try registry.register(slot: .actions, id: "action", order: 2) { _ in AnyView(EmptyView()) }) { error in
+            XCTAssertEqual(error as? NativeConversationContributionRegistryError, .duplicateHeaderContribution(slot: .actions, id: "action"))
+        }
+        registry.unregister(action)
+        XCTAssertTrue(registry.render(slot: .actions, context: context).isEmpty)
+        XCTAssertEqual(registry.render(slot: .utilities, context: context).count, 1)
+        registry.unregister(utility)
+        XCTAssertTrue(registry.render(slot: .utilities, context: context).isEmpty)
     }
 
     func testJobsFixtureProvidesOfficialSessionTitleAndPresetProjection() throws {
@@ -51,7 +96,8 @@ final class NativeConversationHeaderTests: XCTestCase {
             snapshot: snapshot,
             sessionID: "child",
             composerIsBlank: true,
-            selectedViewID: "removed-plugin-view"
+            selectedViewID: "removed-plugin-view",
+            viewRegistry: NativeConversationViewRegistry()
         )
         XCTAssertEqual(blank.breadcrumbs.map(\.title), ["Parent session", "Subagent session"])
         XCTAssertEqual(blank.agentPreset, nil)
@@ -62,7 +108,8 @@ final class NativeConversationHeaderTests: XCTestCase {
             snapshot: snapshot,
             sessionID: "child",
             composerIsBlank: false,
-            selectedViewID: nil
+            selectedViewID: nil,
+            viewRegistry: NativeConversationViewRegistry()
         )
         XCTAssertFalse(drafted.hidesChrome)
     }

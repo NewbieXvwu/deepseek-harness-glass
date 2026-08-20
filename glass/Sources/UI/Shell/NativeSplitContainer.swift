@@ -30,6 +30,10 @@ final class NativeShellPresentation: ObservableObject {
 
     let workspaceStore: NativeWorkspaceStore
     let sessionStore: NativeSessionStore
+    /// Window-resident native counterparts of RC8's contribution ledgers.
+    /// They deliberately outlive individual SwiftUI root-view assignments.
+    let conversationViewRegistry = NativeConversationViewRegistry()
+    let conversationHeaderContributions = NativeConversationHeaderContributionRegistry()
     let workspaceSnapshotDialog: WorkspaceBrowserView.SnapshotDialog
     /// Snapshot-only presentation affordance; never part of Host session truth.
     let jobsPopoverInitiallyOpen: Bool
@@ -279,7 +283,9 @@ final class NativeShellController: NativeSplitViewController {
                 jobsLanguageCode: presentation.jobsSnapshotLanguageCode,
                 openSession: { sessionID in
                     presentation.selectSession(sessionID, workspaceID: Self.workspaceID(for: sessionID, in: presentation))
-                }
+                },
+                viewRegistry: presentation.conversationViewRegistry,
+                headerContributions: presentation.conversationHeaderContributions
             ),
             details: Self.details(for: presentation),
             sidebarPreference: presentation.sidebarPreference,
@@ -348,7 +354,9 @@ final class NativeShellController: NativeSplitViewController {
                     guard let self else { return }
                     let current = self.presentation
                     current.selectSession(sessionID, workspaceID: Self.workspaceID(for: sessionID, in: current))
-                }
+                },
+                viewRegistry: presentation.conversationViewRegistry,
+                headerContributions: presentation.conversationHeaderContributions
             ),
             details: Self.details(for: presentation),
             sidebarPreference: presentation.sidebarPreference,
