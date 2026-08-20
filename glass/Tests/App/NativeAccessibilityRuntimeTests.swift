@@ -28,6 +28,27 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         )
     }
 
+    func testExpandedSidebarExportsStaticShellControlsAndWorkspaceSettingsSeats() throws {
+        try assertAccessibleLabels(
+            in: NativeSidebarView(
+                workspaceStore: NativeWorkspaceStore(),
+                collapsed: false,
+                setCollapsed: { _ in },
+                workspaceActions: WorkspaceBrowserView.Actions(),
+                workspaceSnapshotDialog: .none,
+                onNewSession: {},
+                onOpenSettings: {}
+            ),
+            expected: [
+                // RC8 has two independent New Session controls in wide mode:
+                // the wordmark shortcut and the outlined capsule.
+                OfficialUISpec.Text.newSessionAccessibility,
+                OfficialUISpec.Text.collapseSidebarAccessibility,
+                OfficialUISpec.Text.settings,
+            ]
+        )
+    }
+
     func testConversationComposerExportsFocusAndActionNames() throws {
         let expected = [
             OfficialUISpec.Text.composerDefaultPlaceholder,
