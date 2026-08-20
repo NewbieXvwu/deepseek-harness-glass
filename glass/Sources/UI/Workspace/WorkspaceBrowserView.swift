@@ -328,17 +328,29 @@ struct WorkspaceBrowserView: View {
 
     @ViewBuilder
     private var listArea: some View {
-        ScrollView {
-            LazyVStack(spacing: OfficialUISpec.Layout.workspaceListRowGap) {
-                if searchIsActive {
-                    searchResults
-                } else {
-                    workspaceGroups
+        let firstWorkspaceID = store.snapshot.workspaces.first?.workspaceId
+        let workspaceDropAtListStart = !searchIsActive
+            && sessionGroupMode == .workspace
+            && workspaceDrag?.over?.id == firstWorkspaceID
+            && workspaceDrag?.over?.half == .before
+        ZStack(alignment: .top) {
+            ScrollView {
+                LazyVStack(spacing: OfficialUISpec.Layout.workspaceListRowGap) {
+                    if searchIsActive {
+                        searchResults
+                    } else {
+                        workspaceGroups
+                    }
                 }
+                .padding(.leading, OfficialUISpec.Spacing.p4)
+                .padding(.trailing, OfficialUISpec.Spacing.p2)
+                .padding(.bottom, OfficialUISpec.Spacing.p16)
             }
-            .padding(.leading, OfficialUISpec.Spacing.p4)
-            .padding(.trailing, OfficialUISpec.Spacing.p2)
-            .padding(.bottom, OfficialUISpec.Spacing.p16)
+            if workspaceDropAtListStart {
+                NativeWorkspaceDropMarker(half: .before)
+                    .padding(.leading, OfficialUISpec.Spacing.p4)
+                    .padding(.trailing, OfficialUISpec.Spacing.p2)
+            }
         }
         .accessibilityLabel(searchIsActive
             ? OfficialUISpec.Text.searchSessionsAccessibility
@@ -389,6 +401,9 @@ struct WorkspaceBrowserView: View {
                     selectedSessionID: snapshot.selectedSessionID,
                     expanded: expandedWorkspaceIDs.contains(workspace.workspaceId),
                     workspaceMarker: workspaceDrag?.over?.id == workspace.workspaceId ? workspaceDrag?.over?.half : nil,
+                    hidesTopMarker: workspace.workspaceId == snapshot.workspaces.first?.workspaceId
+                        && workspaceDrag?.over?.id == workspace.workspaceId
+                        && workspaceDrag?.over?.half == .before,
                     workspaceDragActive: workspaceDrag != nil,
                     sessionDragActive: sessionDrag?.accountKey == workspace.workspaceId,
                     sessionMarker: { sessionID in
@@ -992,6 +1007,7 @@ private struct NativeWorkspaceGroupView: View {
     let selectedSessionID: String?
     let expanded: Bool
     let workspaceMarker: NativeWorkspaceBrowserOrdering.DropHalf?
+    let hidesTopMarker: Bool
     let workspaceDragActive: Bool
     let sessionDragActive: Bool
     let sessionMarker: (String) -> NativeWorkspaceBrowserOrdering.DropHalf?
@@ -1046,7 +1062,7 @@ private struct NativeWorkspaceGroupView: View {
             exited: onExitWorkspaceDrag
         )
         .overlay(alignment: workspaceMarker == .after ? .bottom : .top) {
-            if let workspaceMarker {
+            if let workspaceMarker, workspaceMarker != .before || !hidesTopMarker {
                 NativeWorkspaceDropMarker(half: workspaceMarker)
             }
         }
