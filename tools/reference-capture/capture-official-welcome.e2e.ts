@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
-import { chromium } from 'playwright'
+import { chromium, type Page } from 'playwright'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { launchWebScaffold, watchConsole, type WebScaffold } from './scaffold.ts'
 import { connectFreshWorkspace, REPO_ROOT } from './support.ts'
@@ -15,7 +15,7 @@ type CaptureColorScheme = typeof captureColorSchemes[number]
 let scaffold: WebScaffold
 let browser: Awaited<ReturnType<typeof chromium.launch>>
 
-type CapturePage = Awaited<ReturnType<typeof browser.newPage>>
+type CapturePage = Page
 
 async function applyOfficialColorScheme(page: CapturePage, colorScheme: CaptureColorScheme): Promise<void> {
   // RC8 ThemeRuntime uses this body attribute as the authoritative dark-theme
@@ -93,7 +93,8 @@ describe('reference capture: official welcome and session Jobs action', () => {
   it('captures official 1280x840 welcome fixtures in light and dark mode without browser errors', async () => {
     for (const colorScheme of captureColorSchemes) {
       const name = `welcome-no-workspace-${colorScheme}`
-      const page = await browser.newPage({ viewport, locale: 'en-US', colorScheme, deviceScaleFactor: 1 })
+      const context = await browser.newContext({ viewport, locale: 'en-US', colorScheme, deviceScaleFactor: 1 })
+      const page = await context.newPage()
       const consoleTripwire = watchConsole(page)
       await page.goto(scaffold.baseUrl, { waitUntil: 'load' })
       await page.locator('#root').waitFor({ state: 'attached', timeout: 30_000 })
@@ -103,14 +104,15 @@ describe('reference capture: official welcome and session Jobs action', () => {
       await writeCaptureMetadata(page, name, colorScheme, consoleTripwire.warnings, consoleTripwire.pageErrors)
       expect(consoleTripwire.warnings).toEqual([])
       expect(consoleTripwire.pageErrors).toEqual([])
-      await page.close()
+      await context.close()
     }
   }, 120_000)
 
   it('captures official expanded Jobs actions in light and dark mode from Host-owned whole snapshots', async () => {
     for (const colorScheme of captureColorSchemes) {
       const name = `jobs-expanded-${colorScheme}`
-      const page = await browser.newPage({ viewport, locale: 'en-US', colorScheme, deviceScaleFactor: 1 })
+      const context = await browser.newContext({ viewport, locale: 'en-US', colorScheme, deviceScaleFactor: 1 })
+      const page = await context.newPage()
       const consoleTripwire = watchConsole(page)
       await page.goto(scaffold.baseUrl, { waitUntil: 'load' })
       await page.locator('#root').waitFor({ state: 'attached', timeout: 30_000 })
@@ -149,7 +151,7 @@ describe('reference capture: official welcome and session Jobs action', () => {
         // the PNG/ARIA evidence is written so scaffold.close() never awaits an
         // artificial indefinitely-running task.
         live.settle()
-        await page.close()
+        await context.close()
       }
     }
   }, 120_000)
