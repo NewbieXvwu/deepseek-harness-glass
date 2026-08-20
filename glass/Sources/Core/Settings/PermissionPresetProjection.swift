@@ -95,13 +95,31 @@ enum PermissionPresetProjection {
         return options
     }
 
-    private static func display(value: String, suppliedLabel: String) -> String {
+    static func display(value: String, suppliedLabel: String) -> String {
         if value == fullAccessPreset { return "Full access" }
-        let isKebab = suppliedLabel.range(of: "^[a-z0-9]+(-[a-z0-9]+)*$", options: .regularExpression) != nil
-        guard isKebab else { return suppliedLabel }
+        guard isASCIILowerKebabCase(suppliedLabel) else { return suppliedLabel }
         return suppliedLabel.split(separator: "-").map {
             $0.prefix(1).uppercased() + $0.dropFirst()
         }.joined(separator: " ")
+    }
+
+    /// Avoids compiling a regular expression on every settings projection. The
+    /// Host schema permits only ASCII lowercase/digit segments separated by one
+    /// hyphen; any other label is preserved verbatim rather than normalized.
+    private static func isASCIILowerKebabCase(_ value: String) -> Bool {
+        guard !value.isEmpty else { return false }
+        var needsSegmentCharacter = true
+        for scalar in value.unicodeScalars {
+            switch scalar.value {
+            case 48 ... 57, 97 ... 122: // 0...9, a...z
+                needsSegmentCharacter = false
+            case 45 where !needsSegmentCharacter: // '-'
+                needsSegmentCharacter = true
+            default:
+                return false
+            }
+        }
+        return !needsSegmentCharacter
     }
 }
 
