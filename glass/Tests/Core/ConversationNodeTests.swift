@@ -163,6 +163,146 @@ final class ConversationNodeTests: XCTestCase {
         XCTAssertEqual(reducer.rawWindow().map(\.event.seq), [40])
     }
 
+    /// Differential guard for the incremental streaming path: appending the same
+    /// window one event at a time must produce byte-for-byte the same raw
+    /// window, view-node array (keys/order/payloads), and location facts that a
+    /// single full rebuild produces — including facts an update retires.
+    func testIncrementalAppendsMatchFullRebuildSnapshot() {
+        let definitions: [AnyConversationNodeDefinition] = [
+            .init(FixtureDefinition()),
+            .init(LocationFixtureDefinition()),
+            .init(ChurnFixtureDefinition()),
+        ]
+        let events: [ConversationEventInput] = [
+            .init(event: event(seq: 1, type: "turn/start", data: ["turn": .number(1)])),
+            .init(event: event(seq: 2, type: "step/start", data: ["turn": .number(1), "step": .number(1)])),
+            .init(event: event(seq: 3, type: "fixture/start", data: ["turn": .number(1), "step": .number(1)])),
+            .init(event: event(seq: 4, type: "fixture/update", data: ["turn": .number(1), "step": .number(1)])),
+            .init(event: event(seq: 5, type: "fixture/location", data: ["turn": .number(1), "step": .number(1)])),
+            .init(event: event(seq: 6, type: "churn/start", data: ["turn": .number(1), "step": .number(1)])),
+            .init(event: event(seq: 7, type: "churn/finish", data: ["turn": .number(1), "step": .number(1)])),
+            .init(event: event(seq: 8, type: "step/end", data: ["turn": .number(1), "step": .number(1)])),
+            .init(event: event(seq: 9, type: "turn/end", data: ["turn": .number(1)])),
+            .init(event: event(seq: 10, type: "fixture/publication", data: [:])),
+        ]
+
+        let full = ConversationNodeReducer(definitions: definitions)
+        full.replaceWindow(events, hasMore: false)
+
+        let incremental = ConversationNodeReducer(definitions: definitions)
+        for input in events {
+            incremental.append(input)
+        }
+
+        XCTAssertEqual(incremental.rawWindow().map(\.event.seq), full.rawWindow().map(\.event.seq))
+        for target in ["chat", "inspector", "timeline"] {
+            assertNodesEqual(incremental.snapshot(target: target), full.snapshot(target: target))
+        }
+        for turn in 0...2 {
+            assertLocationEqual(
+                incremental.locationData(scope: .turn, turn: turn),
+                full.locationData(scope: .turn, turn: turn)
+            )
+            for step in [nil, 1, 2] {
+                assertLocationEqual(
+                    incremental.locationData(scope: .step, turn: turn, step: step),
+                    full.locationData(scope: .step, turn: turn, step: step)
+                )
+            }
+        }
+    }
+
+    private func assertNodesEqual(
+        _ lhs: [ConversationViewNode],
+        _ rhs: [ConversationViewNode],
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        XCTAssertEqual(lhs.map(\.key), rhs.map(\.key), "view node keys diverge", file: file, line: line)
+        XCTAssertEqual(lhs.map(\.kind), rhs.map(\.kind), "view node kinds diverge", file: file, line: line)
+        XCTAssertEqual(lhs.map(\.id), rhs.map(\.id), "view node ids diverge", file: file, line: line)
+        XCTAssertEqual(lhs.map(\.target), rhs.map(\.target), "view node targets diverge", file: file, line: line)
+        XCTAssertEqual(
+            lhs.map { String(describing: $0.data) },
+            rhs.map { String(describing: $0.data) },
+            "view node payloads diverge",
+            file: file,
+            line: line
+        )
+    }
+
+    private func assertLocationEqual(
+        _ lhs: ConversationLocationDataStore,
+        _ rhs: ConversationLocationDataStore,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        XCTAssertEqual(
+            lhs.value(for: "churnDone", as: String.self),
+            rhs.value(for: "churnDone", as: String.self),
+            "churn location fact diverges",
+            file: file,
+            line: line
+        )
+    }
+
+    private struct ChurnFixtureDefinition: ConversationNodeDefinition {
+        struct State: Equatable {
+            let seqStart: Int
+            let phase: String
+        }
+
+        let kind = "churn"
+        let target: String? = "inspector"
+
+        func match(_ event: SessionEventDTO) -> ConversationMatchResult? {
+            switch event.type {
+            case "churn/start": return .init(id: "churn", role: .start)
+            case "churn/finish": return .init(id: "churn", role: .update)
+            default: return nil
+            }
+        }
+
+        func start(
+            context _: ConversationNodeContext<State>,
+            match: ConversationMatch,
+            reader _: any ConversationContextReader
+        ) -> State {
+            .init(seqStart: match.event.seq, phase: "open")
+        }
+
+        func update(context: ConversationNodeContext<State>, match _: ConversationMatch) -> State {
+            guard let state = context.state else { preconditionFailure("churn update requires state") }
+            return .init(seqStart: state.seqStart, phase: "done")
+        }
+
+        func buildViewNode(context: ConversationNodeContext<State>) -> ConversationViewNode? {
+            guard let state = context.state, let target else { return nil }
+            return .init(key: context.key, kind: context.kind, id: context.id, target: target, data: state)
+        }
+
+        /// Retires the fact after `.open` and issues a fresh `turn`-scoped fact
+        /// only once the update lands. An incremental append must remove the
+        /// stale key exactly like a full rebuild would.
+        func buildLocationData(
+            context: ConversationNodeContext<State>,
+            scope: ConversationLocationData.Scope
+        ) -> ConversationLocationData? {
+            guard let state = context.state, state.phase == "done", scope == .turn,
+                  let turn = turnNumber(of: context.matches.last?.location ?? .unresolved)
+            else { return nil }
+            return .init(scope: scope, turn: turn, step: nil, key: "churnDone", value: state.phase)
+        }
+
+        private func turnNumber(of location: ConversationLocation) -> Int? {
+            switch location {
+            case .session, .unresolved: return nil
+            case .turn(let turn): return turn.turn
+            case .step(let turn, _): return turn.turn
+            }
+        }
+    }
+
     private func event(seq: Int, type: String, data: [String: JSONValue] = [:]) -> SessionEventDTO {
         SessionEventDTO(
             type: type,

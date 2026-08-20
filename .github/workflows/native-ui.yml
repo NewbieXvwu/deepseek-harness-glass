@@ -243,6 +243,10 @@ jobs:
             glass/build/backend/node_modules
           key: dsh-host-payload-v1-macos-26-arm64-node-${{ env.DSH_NODE_VERSION }}-${{ hashFiles('glass/ci/dsh-backend-payload/package-lock.json') }}
 
+      - name: Install official spec generation toolchain
+        run: |
+          npm ci --no-audit --no-fund --prefix tools/spec-generation
+
       - name: Run official specification gates
         run: |
           set -euo pipefail
@@ -253,13 +257,15 @@ jobs:
           echo "::endgroup::"
           echo "::group::Official UI spec build"
           python3 glass/ci/check-official-ui-spec-build.py \
-            --official-root .reference/deepseek-harness
+            --official-root .reference/deepseek-harness \
+            --node "$NODE24_BIN/node"
           python3 glass/ci/test-official-ui-spec-build.py \
             --official-root .reference/deepseek-harness
           echo "::endgroup::"
           echo "::group::Official locales and UI copy lint"
           python3 glass/ci/check-official-locales.py \
-            --official-root .reference/deepseek-harness
+            --official-root .reference/deepseek-harness \
+            --node "$NODE24_BIN/node"
           echo "::endgroup::"
           echo "::group::Official theme tokens"
           python3 glass/ci/check-official-theme-tokens.py \

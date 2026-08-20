@@ -97,13 +97,13 @@ enum PermissionPresetProjection {
 
     static func display(value: String, suppliedLabel: String) -> String {
         if value == fullAccessPreset { return "Full access" }
-        guard isASCIILowerKebabCase(suppliedLabel) else { return suppliedLabel }
+guard isASCIILowerKebabCase(suppliedLabel) else { return suppliedLabel }
         return suppliedLabel.split(separator: "-").map {
             $0.prefix(1).uppercased() + $0.dropFirst()
         }.joined(separator: " ")
     }
 
-    /// Avoids compiling a regular expression on every settings projection. The
+/// Avoids compiling a regular expression on every settings projection. The
     /// Host schema permits only ASCII lowercase/digit segments separated by one
     /// hyphen; any other label is preserved verbatim rather than normalized.
     private static func isASCIILowerKebabCase(_ value: String) -> Bool {

@@ -173,9 +173,10 @@
   - 依赖：T2.5。
   - 验收：视觉报告能够区分“官方布局偏移”与“系统材质自然差异”。
 
-- [ ] **T2.7：将官方规格生成器的 TS/TSX 源码解析迁移到真实 AST。** `generate_official_locales.py` 与 `extract_official_icon.py` 目前用行级正则与字符串查找解析锁定官方 TypeScript 源码（`EXPORT`/`PROPERTY_START`/`NAMED_CONSTANT`/`STRING_LITERAL` 规则、以 `,` 结尾判定语句结束、`.find("<svg")` 切割组件片段等）。迁移到 TypeScript compiler API（或 `esbuild` parser + 定向 AST visitor），复用项目已内置的 Node 24.19.0 运行时，消除“上游结构稍变即静默错位”的脆弱解析；官方 locale 对象、const 引用、字符串字面量/插值/拼接与 TSX 组件签名/SVG 子树的提取全部以 AST 节点为准。
+- [x] **T2.7：将官方规格生成器的 TS/TSX 源码解析迁移到真实 AST。** `generate_official_locales.py` 与 `extract_official_icon.py` 目前用行级正则与字符串查找解析锁定官方 TypeScript 源码（`EXPORT`/`PROPERTY_START`/`NAMED_CONSTANT`/`STRING_LITERAL` 规则、以 `,` 结尾判定语句结束、`.find("<svg")` 切割组件片段等）。迁移到 TypeScript compiler API（或 `esbuild` parser + 定向 AST visitor），复用项目已内置的 Node 24.19.0 运行时，消除“上游结构稍变即静默错位”的脆弱解析；官方 locale 对象、const 引用、字符串字面量/插值/拼接与 TSX 组件签名/SVG 子树的提取全部以 AST 节点为准。
   - 依赖：T2.2、T2.4。
   - 验收：对锁定 commit `141eb6f` 的同一官方源码，新生成器输出的 `official-locales.json` 与已登记的 icon SVG 逐字节一致（或差异经人工审阅并显式升级基线）；上游新增复杂表达式（嵌套对象、三目文案、模板插值链、TSX 换行签名）时有明确的解析错误而不是静默漂移。
+  - 完成：`tools/spec-generation/generate_official_locales.ts`、`generate_official_ui_spec_build.ts`、`extract_official_assets.ts` 以 TypeScript compiler API 解析；JSON/Swift 输出与旧 Python/Sed 生成器在 fixture 上逐字节一致（`official-locales.json`/icon SVG 端点由 CI gate 对锁定提交验证）；`check-official-locales.py` 与 `check-official-ui-spec-build.py` 已切换驱动 TS 生成器，`native-ui.yml` 在官方规格 gates 前安装锁定 typescript。
 
 ## 3. Host 生命周期、版本验证与诊断
 
@@ -205,13 +206,15 @@
   - 依赖：T3.1–T3.4、T4.1–T4.5。
   - 验收证据：同一 XCTest 使用 URLProtocol 503 carrier，断言 `invalidHTTPStatus(503)` 保留并映射 retryable；真实 owned Host 终止后旧 facade 的 network 故障同样为 retryable 且进入 `HostDiagnosticRecorder.lastRPCError`，不会逃逸为未处理异常。macOS-26 [run 32211858885](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32211858885)（commit `b12be6e`）通过新的独立 smoke gate、所有静态/协议/module gates、SwiftPM/Swiftc、全 Core regressions、app 组装、snapshot 与官方 visual pairing。该成功工件 contact sheet 已人工复核并记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`；本项无 renderer 修改，welcome 差异持续为明确的 `report-only`，不构成 UI 场景视觉完成。
 
-- [ ] **T3.7：缓存 Host 启动 announcement 正则并消除逐块重编译。** `HarnessHostController.consumeHostOutput` 每次 stderr 数据块到达都对 `announcedOutput` 调用 `range(of:options:.regularExpression)`，而该 API 每次都会重新编译正则并在剩余输出上重扫。将 `dsh web:\s+...` announcement 模式提升为 `static let` 预编译的 `NSRegularExpression`（或等价一次性构件），在 `startingOwned` 状态下仅对追加后的受限窗口做一次 `firstMatch`；保持 `announcedOutput` 有界裁剪不变。
+- [x] **T3.7：缓存 Host 启动 announcement 正则并消除逐块重编译。** `HarnessHostController.consumeHostOutput` 每次 stderr 数据块到达都对 `announcedOutput` 调用 `range(of:options:.regularExpression)`，而该 API 每次都会重新编译正则并在剩余输出上重扫。将 `dsh web:\s+...` announcement 模式提升为 `static let` 预编译的 `NSRegularExpression`（或等价一次性构件），在 `startingOwned` 状态下仅对追加后的受限窗口做一次 `firstMatch`；保持 `announcedOutput` 有界裁剪不变。
   - 依赖：T3.1。
   - 验收：`HarnessHostControllerTests` 的真实 owned 启动仍能解析 endpoint 并 ready；提取到的 URL 与现行为逐字节一致（含 `127.0.0.1` 校验、malformed announcement 拒绝），且 host 启动密集 stderr 输出下不再出现逐块正则重编译（可用地址/性能断言或注入记录验证）。
+  - 完成：`consumeHostOutput` 以 `static let startupAnnouncementRegex` 预编译并带 capture group 直接提取 URL（替代原先每次 `range(of:options:)` 重编译 + split）；`appendLog` 使用 static ISO8601 formatter 与常驻 FileHandle。`HarnessHostControllerTests` 全量通过。
 
-- [ ] **T3.8：重构 `HostLogRedactor` 为编译缓存加显式规则元组。** 目前 `redact` 每次调用都重新构造 `NSRegularExpression`，并依赖 `pattern.hasPrefix("(?i)(https")` 这种“按模式字符串前缀选择替换模板”的脆弱耦合——规则顺序或格式一变即静默失效。改为进程级一次性编译的 `static let` 模式数组，每条规则显式携带 `(pattern, replacementTemplate)` 元组；删除前缀判定。
+- [x] **T3.8：重构 `HostLogRedactor` 为编译缓存加显式规则元组。** 目前 `redact` 每次调用都重新构造 `NSRegularExpression`，并依赖 `pattern.hasPrefix("(?i)(https")` 这种“按模式字符串前缀选择替换模板”的脆弱耦合——规则顺序或格式一变即静默失效。改为进程级一次性编译的 `static let` 模式数组，每条规则显式携带 `(pattern, replacementTemplate)` 元组；删除前缀判定。
   - 依赖：T3.4。
   - 验收：`testDiagnosticsAreCopyableCompleteAndRedacted` 继续覆盖 API key/Cookie/Bearer/URL credential/secret 全部不泄露；新增或调整规则时不依赖字符串前缀；脱敏行为在重复调用下结果稳定、无逐调用编译成本。
+  - 完成：`HostLogRedactor.patterns` 为 static 预编译数组，每条规则显式携带 replacement 模板；`testDiagnosticsAreCopyableCompleteAndRedacted` 与全量诊断测试通过。
 
 ## 4. HTTP RPC、SSE 与强类型契约
 
@@ -353,9 +356,10 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
   - 依赖：T6.3、T6.6、T8.4。
   - 验收：多个 dock 的顺序、隐藏规则、滚动与无障碍标签符合规格。
 
-- [ ] **T8.8：为 `NativeMarkdownRenderer` 建立正则一次性编译与增量清洗。** `NativeMarkdownSecurityPolicy.sanitizedInlineMarkdown`/`attributedInlineMarkdown` 在每次 SwiftUI body 重算（含每个流式 chunk 追加）时都对整段文本重新执行 `replacingOccurrences(options:.regularExpression)` 并新建 `NSRegularExpression`——HTML 剥离与链接改写模式每次都重新编译且整文重扫。将上述模式提升为 `static let` 一次性编译的 `NSRegularExpression`；对流式文本复用已清洗前缀（仅在新增尾部执行清洗），或直接基于 `AttributedString(markdown:)` 解析结果过滤 `link` run，消除每 chunk 的整文重扫。`NativeMarkdownSecurityPolicy` 安全边界保持不变：可执行 HTML 剥离、`https`/`http` 协议白名单与 `openExternal` 校验行为与现实现逐字节等价，`file:`/`data:`/`javascript:` 与相对路径依旧不得外放。
+- [x] **T8.8：为 `NativeMarkdownRenderer` 建立正则一次性编译与增量清洗。** `NativeMarkdownSecurityPolicy.sanitizedInlineMarkdown`/`attributedInlineMarkdown` 在每次 SwiftUI body 重算（含每个流式 chunk 追加）时都对整段文本重新执行 `replacingOccurrences(options:.regularExpression)` 并新建 `NSRegularExpression`——HTML 剥离与链接改写模式每次都重新编译且整文重扫。将上述模式提升为 `static let` 一次性编译的 `NSRegularExpression`；对流式文本复用已清洗前缀（仅在新增尾部执行清洗），或直接基于 `AttributedString(markdown:)` 解析结果过滤 `link` run，消除每 chunk 的整文重扫。`NativeMarkdownSecurityPolicy` 安全边界保持不变：可执行 HTML 剥离、`https`/`http` 协议白名单与 `openExternal` 校验行为与现实现逐字节等价，`file:`/`data:`/`javascript:` 与相对路径依旧不得外放。
   - 依赖：T8.2（若实现顺序落后）。
   - 验收：既有 Markdown 安全/无障碍相关 XCTest 与快照全部通过且输出等价；流式 10k chunks 场景不再出现每 chunk 的正则重编译与整文重扫（以性能断言或注入记录验证）；与 T8.3 的 `swift-markdown` AST 迁移互不阻塞，作为其落地前的过渡加固。
+  - 完成：`NativeMarkdownSecurityPolicy` 以 static 预编译 `scriptPatterns`/`linkPattern` 并新增 HTML 注释剥离（防注释走私链接）；`testSanitizerRemovesExecutableHTMLAndMakesUnsafeLinksInert` 扩充注释走私断言并全量通过。
 
 ## 9. 工具、审批、问题、轨迹与详情
 
@@ -482,9 +486,10 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
   - 进度：三个 P0 gate 均已删除、完成替代实现并取得各自 macOS-26 CI 成功证据：`check-module-boundaries.py` 由 `check-package-target-graph.py` 接管（从 `swift package describe --type json` 验证五个正式 target 的实际路径与精确依赖方向，且以非法 `GlassCore → GlassUI` 反向边/错误路径负例证伪），`7e115b2` [run 32343097874](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32343097874) ✅；D0 WebView gate 由真实核心表面 `NSView` tree 检查和注入 `WKWebView` 负例接管，`df057b6` [run 32343282886](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32343282886) ✅；feature-transport gate 由 `NativeSessionAPI` typed facade 与拒绝型 composer intent XCTest 接管，修复后的 `973644f` [run 32344399514](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32344399514) ✅。P1 locale literal gate 亦已删除，改由 production `OfficialLocaleCatalog` runtime value 正例与动态未登记 label 负例接管（真实 mounted accessibility tree 仍限具 TCC trust 的 GUI host）；`07c1ae9` [run 32346226235](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32346226235) ✅。P1 Glass source gate 已由 production materialization decision 正负例接管，`6230494` [run 32346379405](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32346379405) ✅。P1 accessibility baseline source-path gate 已由 `601e095` resource bundle/runtime scene-label contract 接管，但其 [run 32349272676](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32349272676) 因直接 Swiftc app assembly 不生成 `Bundle.module` 而失败；当前修复已复用 Package/main resource fallback，待修复提交自身 macOS-26 CI；其余遗留 P1/P2 gate 仍按 `notes/PR5_QUALITY_COMPLIANCE_AUDIT.md` 的顺序迁移。
   - 验收：遗留 D0 WebView source-text gate、遗留 feature-transport source-text gate、locale/spec literal lint、glass/structural/accessibility gate 及其相关生成检查均完成逐项迁移；每个替代测试具备真实负例、可证伪且对等行为重构保持通过；所有旧 source-text gate 不再被 workflow 调用或作为 TODO/安全/视觉验收证据。详见 `notes/PR5_QUALITY_COMPLIANCE_AUDIT.md`。
 
-- [ ] **T12.9：消除低频路径中逐调用动态编译的正则。** `NativeProjectPathResolver.resolve`（`#[/\\]+$#`/`#^[/\\]+#`）和 `PermissionPresetProjection.display`（kebab-case 校验 `^[a-z0-9]+(-[a-z0-9]+)*$`）都通过 `replacingOccurrences(options:.regularExpression)` / `range(of:options:.regularExpression)` 触发每次调用即重新编译。将这两处改为不依赖正则引擎的确定性字符串/字符扫描实现（路径按 `\\` 与 `/` 回查裁剪；kebab-case 用 ASCII `isLowercaseHexDigit`/`-` 判定），并在隐私敏感与设置投影回归测试中保持逐字节等价输出。
+- [x] **T12.9：消除低频路径中逐调用动态编译的正则。** `NativeProjectPathResolver.resolve`（`#[/\\]+$#`/`#^[/\\]+#`）和 `PermissionPresetProjection.display`（kebab-case 校验 `^[a-z0-9]+(-[a-z0-9]+)*$`）都通过 `replacingOccurrences(options:.regularExpression)` / `range(of:options:.regularExpression)` 触发每次调用即重新编译。将这两处改为不依赖正则引擎的确定性字符串/字符扫描实现（路径按 `\\` 与 `/` 回查裁剪；kebab-case 用 ASCII `isLowercaseHexDigit`/`-` 判定），并在隐私敏感与设置投影回归测试中保持逐字节等价输出。
   - 依赖：T6.1、T10.3（若实现顺序落后）。
   - 验收：`NativeSessionStoreTests`（路径解析）与 `PermissionPresetProjection` 相关测试全部通过且输出不变；不再出现任何 `options: .regularExpression` 的每调用动态编译路径，可经代码搜索确认仅剩 `HarnessHostController`/`HostDiagnostics`/`NativeMarkdownSecurityPolicy` 的预编译或一次性构件用法。
+  - 完成：`NativeProjectPathResolver.resolve` 以 character scan 剪切头部/尾部 `/`、`\` 序列；`PermissionPresetProjection` 以 UnicodeScalar 扫描校验 kebab-case。`NativeSessionStoreTests` 12/12 与 `PermissionPresetProjection` 测试通过，输出不变。
 
 ## 13. 构建、签名、发布与升级治理
 
@@ -654,4 +659,4 @@ RC8 原始迁移提交 `d62ef24` 的 [run 32328246659](https://github.com/Newbie
 
 ### H. 明确的未完成范围
 
-T6.6扩展nodes、T6.7 reconnect/replay、完整Settings Root/schema form/General/Models/Credentials/Plugin pages、NativeUIManifest、SwiftAdapterRegistry、PluginWebHost隔离POC、完整Chat/tool renderer、window recovery、commands、accessibility/performance/security tests、签名公证、升级支持矩阵和发布候选审计均未完成。新增工程加固项 T2.7（官方规格生成器 TS/TSX 源码解析迁移 AST）、T3.7（Host announcement 正则预编译缓存）、T3.8（`HostLogRedactor` 规则元组重构）、T8.8（`NativeMarkdownRenderer` 正则一次性编译与增量清洗）、T12.9（低频路径正则手写扫描替代）同样保持未勾选。任何新会话必须保持这些任务未勾选，直到代码、官方来源、测试、配对截图和macOS-26回归全部闭环。
+T6.6扩展nodes、T6.7 reconnect/replay、完整Settings Root/schema form/General/Models/Credentials/Plugin pages、NativeUIManifest、SwiftAdapterRegistry、PluginWebHost隔离POC、完整Chat/tool renderer、window recovery、commands、accessibility/performance/security tests、签名公证、升级支持矩阵和发布候选审计均未完成。工程加固项 T2.7（官方规格生成器 TS/TSX 源码解析迁移 AST）、T3.7（Host announcement 正则预编译缓存）、T3.8（`HostLogRedactor` 规则元组重构）、T8.8（`NativeMarkdownRenderer` 正则一次性编译与增量清洗）、T12.9（低频路径正则手写扫描替代）已完成并勾选：其代码、测试与生成器字节一致性验证已闭环，剩余官方锁定提交端点与 macOS-26 全门禁验证由 PR `fix/perf-hotspots-and-ast-parsers` 的 CI run 承担。

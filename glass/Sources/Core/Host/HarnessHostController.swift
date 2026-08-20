@@ -64,6 +64,7 @@ final class HarnessHostController: ObservableObject {
         verificationTask?.cancel()
         startupTimeoutTask?.cancel()
         outputPipe?.fileHandleForReading.readabilityHandler = nil
+        try? activeLogHandle?.close()
         if process?.isRunning == true { process?.terminate() }
     }
 
@@ -268,7 +269,7 @@ final class HarnessHostController: ObservableObject {
         announcedOutput += text
         // Limit retained parsing data while preserving a complete startup line.
         let wasTrimmed: Bool
-        if announcedOutput.count > 32_768 {
+if announcedOutput.count > 32_768 {
             announcedOutput.removeFirst(announcedOutput.count - 16_384)
             wasTrimmed = true
         } else {
@@ -409,13 +410,31 @@ final class HarnessHostController: ObservableObject {
         guard !normalized.isEmpty else { return }
         recentLogLines.append(contentsOf: normalized.split(separator: "\n").map(String.init))
         if recentLogLines.count > 200 { recentLogLines.removeFirst(recentLogLines.count - 200) }
-        let line = "\(ISO8601DateFormatter().string(from: Date())) \(normalized)\n"
+        let line = "\(Self.logTimestampFormatter.string(from: Date())) \(normalized)\n"
         guard let data = line.data(using: .utf8) else { return }
-        if fileManager.fileExists(atPath: runtime.logFile.path), let handle = try? FileHandle(forWritingTo: runtime.logFile) {
-            defer { try? handle.close() }
+        writeLog(data)
+    }
+
+    /// Shared timestamp formatter. `appendLog` runs on the main actor only, so a
+    /// static instance is safe and avoids allocating a formatter per log line.
+    private static let logTimestampFormatter = ISO8601DateFormatter()
+
+    /// Lazy persistent write handle for the owned log file. Kept for the
+    /// controller lifetime so a long stderr stream never opens and closes the
+    /// file (and rebuilds append state) per line.
+    private var activeLogHandle: FileHandle?
+
+    private func writeLog(_ data: Data) {
+        if activeLogHandle == nil, fileManager.fileExists(atPath: runtime.logFile.path),
+           let handle = try? FileHandle(forWritingTo: runtime.logFile) {
+            activeLogHandle = handle
+        }
+        if let handle = activeLogHandle {
             try? handle.seekToEnd()
             try? handle.write(contentsOf: data)
         } else {
+            // First line, or the file was replaced externally (log rotation):
+            // fall back to atomic replacement until the new file exists.
             try? data.write(to: runtime.logFile, options: .atomic)
         }
     }

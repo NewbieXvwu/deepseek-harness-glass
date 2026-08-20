@@ -492,17 +492,23 @@ struct WorkspaceBrowserView: View {
         }
     }
 
+    /// The trimmed effective search query, normalized once per body evaluation
+    /// instead of repeated `trimmingCharacters` work in four computed paths.
+    private var trimmedSearchQuery: String {
+        store.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     private var searchIsActive: Bool {
-        !store.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !trimmedSearchQuery.isEmpty
     }
 
     private var remoteSearchIsPending: Bool {
-        let query = store.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        let query = trimmedSearchQuery
         return !query.isEmpty && (store.remoteSearch.query != query || store.remoteSearch.status == .loading)
     }
 
     private var matchingHasMore: Bool {
-        let query = store.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        let query = trimmedSearchQuery
         guard !query.isEmpty else { return false }
         let currentRemote = store.remoteSearch.query == query ? store.remoteSearch : .idle
         return currentRemote.hasMore || mergedSearchResults.count > OfficialUISpec.Layout.sessionSearchResultLimit
@@ -513,7 +519,7 @@ struct WorkspaceBrowserView: View {
     }
 
     private var mergedSearchResults: [SearchResult] {
-        let query = store.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        let query = trimmedSearchQuery
         guard !query.isEmpty else { return [] }
         let snapshot = store.snapshot
         let queryFolded = query.lowercased()

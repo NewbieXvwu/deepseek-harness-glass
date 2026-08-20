@@ -35,7 +35,7 @@ extension HostAPI: NativeHostPathAPI {}
 enum NativeProjectPathResolver {
     static func resolve(cwd: String?, path: String) -> String {
         guard !isAbsolute(path), let cwd, !cwd.isEmpty else { return path }
-        let base = trimmingTrailingSeparators(from: cwd)
+let base = trimmingTrailingSeparators(from: cwd)
         let relative = trimmingLeadingSeparators(from: path)
         return "\(base)/\(relative)"
     }
@@ -78,6 +78,12 @@ enum NativeProjectPathResolver {
 /// their dedicated adapters rather than being guessed here.
 @MainActor
 final class NativeSessionStore: ObservableObject {
+    /// Shared codecs for the per-frame JSON round-trip in `decode(_:from:)` and
+    /// `prettyContent(in:)`. The store is @MainActor-isolated, so reuse is safe
+    /// and avoids allocating two codecs per streamed frame.
+    private static let jsonEncoder = JSONEncoder()
+    private static let jsonDecoder = JSONDecoder()
+
     enum Phase: Equatable {
         case idle
         case loading(sessionID: String)
@@ -1195,7 +1201,7 @@ final class NativeSessionStore: ObservableObject {
               let arguments = data["arguments"]?.stringValue
         else { return }
         guard !toolInvocations.contains(where: { $0.id == callID }) else { return }
-        toolInvocations.append(ToolInvocation(
+        let invocation = ToolInvocation(
             id: callID,
             name: name,
             arguments: arguments,
@@ -1203,8 +1209,20 @@ final class NativeSessionStore: ObservableObject {
             state: .running,
             sequence: event.seq,
             view: view
-        ))
-        toolInvocations.sort { $0.sequence < $1.sequence }
+        )
+        // Sorted-insert by sequence; keeps the timeline merge linear and avoids
+        // re-sorting the whole array on every tool call.
+        var lower = toolInvocations.startIndex
+        var upper = toolInvocations.endIndex
+        while lower < upper {
+            let mid = (lower + upper) / 2
+            if toolInvocations[mid].sequence < invocation.sequence {
+                lower = mid + 1
+            } else {
+                upper = mid
+            }
+        }
+        toolInvocations.insert(invocation, at: lower)
     }
 
     private func applyToolResult(_ event: SessionEventDTO, view: JSONValue?) {
@@ -1527,14 +1545,29 @@ final class NativeSessionStore: ObservableObject {
         if let index = items.firstIndex(where: { $0.id == item.id }) {
             items[index] = item
         } else {
-            items.append(item)
-            items.sort { $0.sequence < $1.sequence || ($0.sequence == $1.sequence && $0.id < $1.id) }
+            // Items keep the (sequence, id) ascending invariant; a sorted insert
+            // replaces the full-array re-sort that made a long stream O(n log n).
+            var lower = items.startIndex
+            var upper = items.endIndex
+            while lower < upper {
+                let mid = (lower + upper) / 2
+                if isOrdered(items[mid], before: item) {
+                    lower = mid + 1
+                } else {
+                    upper = mid
+                }
+            }
+            items.insert(item, at: lower)
         }
+    }
+
+    private func isOrdered(_ lhs: TranscriptItem, before rhs: TranscriptItem) -> Bool {
+        lhs.sequence < rhs.sequence || (lhs.sequence == rhs.sequence && lhs.id < rhs.id)
     }
 
     private func prettyContent(in message: [String: JSONValue]) -> String? {
         guard let content = message["content"]?.arrayValue,
-              let data = try? JSONEncoder().encode(content),
+              let data = try? Self.jsonEncoder.encode(content),
               let rendered = String(data: data, encoding: .utf8),
               !rendered.isEmpty
         else { return nil }
@@ -1563,7 +1596,7 @@ final class NativeSessionStore: ObservableObject {
     }
 
     private func decode<Value: Decodable>(_ type: Value.Type, from value: JSONValue) -> Value? {
-        guard let data = try? JSONEncoder().encode(value) else { return nil }
-        return try? JSONDecoder().decode(Value.self, from: data)
+        guard let data = try? Self.jsonEncoder.encode(value) else { return nil }
+        return try? Self.jsonDecoder.decode(Value.self, from: data)
     }
 }

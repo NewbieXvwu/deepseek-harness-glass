@@ -12,6 +12,7 @@ enum NativeMarkdownSecurityPolicy {
     private static let executableHTMLExpression = try! NSRegularExpression(
         pattern: #"(?is)<(script|style|iframe|object|embed)[^>]*>.*?</\1>"#
     )
+    private static let htmlCommentExpression = try! NSRegularExpression(pattern: #"(?is)<!--.*?-->"#)
     private static let htmlTagExpression = try! NSRegularExpression(pattern: #"(?is)<[^>]+>"#)
     private static let markdownLinkExpression = try! NSRegularExpression(
         pattern: #"\[([^\]]*)\]\(([^\s\)]+)(?:\s+[^\)]*)?\)"#
@@ -32,6 +33,7 @@ enum NativeMarkdownSecurityPolicy {
     /// defensive parser boundary, not an HTML renderer or sanitizer bypass.
     static func sanitizedInlineMarkdown(_ source: String) -> String {
         var result = replacingMatches(in: source, using: executableHTMLExpression, with: "")
+        result = replacingMatches(in: result, using: htmlCommentExpression, with: "")
         result = replacingMatches(in: result, using: htmlTagExpression, with: "")
 
         let matches = markdownLinkExpression.matches(in: result, range: NSRange(result.startIndex..., in: result)).reversed()
