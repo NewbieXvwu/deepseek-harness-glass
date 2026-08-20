@@ -15,6 +15,7 @@ struct HarnessAPIs: Sendable {
     let credentials: CredentialsAPI
     let llm: LLMAPI
     let commands: CommandsAPI
+    let subagents: SubagentsAPI
     let skills: SkillsAPI
     let agentPresets: AgentPresetsAPI
     let downloads: DownloadsAPI
@@ -38,6 +39,7 @@ struct HarnessAPIs: Sendable {
         credentials = CredentialsAPI(client: client)
         llm = LLMAPI(client: client)
         commands = CommandsAPI(client: client)
+        subagents = SubagentsAPI(client: client)
         skills = SkillsAPI(client: client)
         agentPresets = AgentPresetsAPI(client: client)
         downloads = DownloadsAPI(client: client)
@@ -81,6 +83,17 @@ struct SessionsAPI: Sendable {
             rpcID: rpcID,
             error: RPCBusinessError(code: "cancelled", message: "the user closed this question request", details: .object([:]))
         )
+    }
+}
+
+/// Typed RC8 subagent domain. A catalog is Host authority and is never
+/// reconstructed from ordinary session summaries.
+struct SubagentsAPI: Sendable {
+    private let client: DSHAPIClient
+    init(client: DSHAPIClient) { self.client = client }
+
+    func list(parentSessionID: String) async throws -> SubagentListResponse {
+        try await client.subagentList(parentSessionID: parentSessionID)
     }
 }
 
@@ -258,6 +271,25 @@ struct LLMDiscoverModelsRequest: Codable, Sendable {
 }
 struct LLMDiscoveredModelDTO: Codable, Sendable, Identifiable { let id: String; let name: String?; let contextWindow: Int?; let maxTokens: Int? }
 struct LLMDiscoverModelsResponse: Codable, Sendable { let models: [LLMDiscoveredModelDTO] }
+
+// MARK: - Subagent DTOs
+
+/// Source: RC8 `subagents.ts:13-63`. `kind` controls which optional fields are
+/// meaningful; callers must fail closed for malformed combinations.
+struct SubagentListRequest: Codable, Sendable, Equatable { let parentSessionId: String }
+struct SubagentListEntryDTO: Codable, Sendable, Equatable {
+    let kind: String
+    let id: String
+    let activity: String?
+    let hasChildren: Bool?
+    let mode: String?
+    let label: String?
+    let reason: String?
+}
+struct SubagentListResponse: Codable, Sendable, Equatable {
+    let entries: [SubagentListEntryDTO]
+    let parentAvailable: Bool
+}
 
 // MARK: - Goals / command DTOs
 

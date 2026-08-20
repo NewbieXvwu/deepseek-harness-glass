@@ -81,6 +81,12 @@ struct DSHAPIClient: Sendable {
         )
     }
 
+    /// Source: `subagents.ts:65-75` at the locked RC8 baseline. This is a
+    /// complete direct-child catalog, not a delta inferred from session.list.
+    func subagentList(parentSessionID: String) async throws -> SubagentListResponse {
+        try await call("subagent.list", payload: SubagentListRequest(parentSessionId: parentSessionID))
+    }
+
     func workspaceList() async throws -> WorkspaceListResponse {
         try await call("workspace.list", payload: EmptyPayload())
     }
