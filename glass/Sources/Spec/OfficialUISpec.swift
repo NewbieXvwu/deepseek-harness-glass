@@ -274,6 +274,10 @@ enum OfficialUISpec {
         static let subagentRunning = "running"
         static let subagentInactive = "not running"
         static let subagentTreeAccessibility = "Subagent sessions"
+        static let subagentOneShotReadOnlyTitle = "One-shot subagent record"
+        static let subagentOneShotReadOnlyBody = "One-shot tasks do not accept follow-ups; review the full execution record here."
+        static let subagentParentUnavailableReadOnlyTitle = "This subagent is read-only for now"
+        static let subagentParentUnavailableReadOnlyBody = "The parent session is offline; reopen it to continue sending messages."
         static func subagentTotalCount(_ count: Int) -> String {
             "\(count) subagent\(count == 1 ? "" : "s")"
         }

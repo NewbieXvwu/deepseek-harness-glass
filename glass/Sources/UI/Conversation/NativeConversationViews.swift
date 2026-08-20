@@ -169,6 +169,11 @@ private struct NativeActiveConversationSurface: View {
                 answer: sessionStore.answerQuestion,
                 cancel: sessionStore.cancelQuestion
             )
+        } else if case let .identity(identity)? = sessionStore.extensionState?.subagentIdentity,
+                  identity.mode == .oneShot {
+            NativeSubagentReadOnlyComposer(reason: .oneShot)
+                .padding(.horizontal, OfficialUISpec.Layout.composerClearance)
+                .padding(.bottom, OfficialUISpec.Spacing.p8)
         } else {
             NativeInteractiveComposerCard(sessionStore: sessionStore)
                 .frame(maxWidth: OfficialUISpec.Layout.composerMaximum)
