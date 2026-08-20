@@ -95,6 +95,14 @@ struct SubagentsAPI: Sendable {
     func list(parentSessionID: String) async throws -> SubagentListResponse {
         try await client.subagentList(parentSessionID: parentSessionID)
     }
+
+    func prompt(_ request: SubagentPromptRequest) async throws -> SubagentPromptResponse {
+        try await client.subagentPrompt(request)
+    }
+
+    func interrupt(_ request: SubagentInterruptRequest) async throws -> SubagentInterruptResponse {
+        try await client.subagentInterrupt(request)
+    }
 }
 
 struct WorkspacesAPI: Sendable {
@@ -290,6 +298,22 @@ struct SubagentListResponse: Codable, Sendable, Equatable {
     let entries: [SubagentListEntryDTO]
     let parentAvailable: Bool
 }
+/// RC8 `SubagentAddress` narrowed to the only mode permitted for prompt and
+/// interrupt. The caller supplies no free-form mode string.
+struct SubagentPromptRequest: Codable, Sendable, Equatable {
+    let parentSessionId: String
+    let childSessionId: String
+    let mode: String = "continuable"
+    let content: [SessionPromptContent]
+    let clientTimeZone: String?
+}
+struct SubagentPromptResponse: Codable, Sendable, Equatable { let messageId: String }
+struct SubagentInterruptRequest: Codable, Sendable, Equatable {
+    let parentSessionId: String
+    let childSessionId: String
+    let mode: String = "continuable"
+}
+struct SubagentInterruptResponse: Codable, Sendable, Equatable { let accepted: Bool }
 
 // MARK: - Goals / command DTOs
 

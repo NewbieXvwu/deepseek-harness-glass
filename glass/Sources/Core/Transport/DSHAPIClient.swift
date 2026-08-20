@@ -87,6 +87,18 @@ struct DSHAPIClient: Sendable {
         try await call("subagent.list", payload: SubagentListRequest(parentSessionId: parentSessionID))
     }
 
+    /// Source: RC8 `subagents.ts:97-106`; a continuable child prompt always
+    /// retains its durable direct-parent address at the typed boundary.
+    func subagentPrompt(_ request: SubagentPromptRequest) async throws -> SubagentPromptResponse {
+        try await call("subagent.prompt", payload: request)
+    }
+
+    /// Source: RC8 `subagents.ts:108-119`; acceptance is admission only and
+    /// never settles the child's Host-owned running state locally.
+    func subagentInterrupt(_ request: SubagentInterruptRequest) async throws -> SubagentInterruptResponse {
+        try await call("subagent.interrupt", payload: request)
+    }
+
     func workspaceList() async throws -> WorkspaceListResponse {
         try await call("workspace.list", payload: EmptyPayload())
     }
