@@ -47,6 +47,7 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
                 OfficialUISpec.Text.collapseSidebarAccessibility,
                 OfficialUISpec.Text.settings,
             ],
+            expectedCounts: [OfficialUISpec.Text.newSessionAccessibility: 2],
             forbidden: [OfficialUISpec.Text.openSidebarAccessibility]
         )
     }
@@ -151,6 +152,7 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
     private func assertAccessibleLabels<V: View>(
         in view: V,
         expected: [String],
+        expectedCounts: [String: Int] = [:],
         forbidden: [String] = []
     ) throws {
         guard AXIsProcessTrusted() else {
@@ -175,6 +177,13 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         }
         for label in expected {
             XCTAssertTrue(labels.contains(label), "expected \(label), exported labels: \(labels)")
+        }
+        for (label, count) in expectedCounts {
+            XCTAssertEqual(
+                labels.filter { $0 == label }.count,
+                count,
+                "expected \(count) occurrences of \(label), exported labels: \(labels)"
+            )
         }
         for label in forbidden {
             XCTAssertFalse(labels.contains(label), "forbidden hidden-control label \(label), exported labels: \(labels)")
