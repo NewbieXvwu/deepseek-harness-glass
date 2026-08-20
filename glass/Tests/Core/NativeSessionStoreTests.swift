@@ -327,6 +327,31 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.items.last?.time, 500)
     }
 
+    func testQuestionRequestPreservesOfficialPlanReviewIntentAndRejectsUnknownIntent() {
+        let store = NativeSessionStore()
+        store.loadSnapshotToolingFixture()
+        let sessionID = "snapshot-tooling"
+        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "plan-review-rpc", method: "question/requested", payload: .object([
+            "type": .string("question/requested"), "sessionId": .string(sessionID),
+            "questions": .array([.object([
+                "id": .string("review"), "question": .string("Approve the plan?"),
+                "intent": .object(["kind": .string("plan-review"), "approve": .string("Approve plan")]),
+            ])]),
+        ])), sessionID: sessionID)
+        XCTAssertEqual(store.pendingQuestion?.rpcID, "plan-review-rpc")
+        XCTAssertEqual(store.pendingQuestion?.items.first?.intent, .planReview(approve: "Approve plan"))
+
+        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "unknown-intent-rpc", method: "question/requested", payload: .object([
+            "type": .string("question/requested"), "sessionId": .string(sessionID),
+            "questions": .array([.object([
+                "id": .string("bad"), "question": .string("Unsupported?"),
+                "intent": .object(["kind": .string("future-intent")]),
+            ])]),
+        ])), sessionID: sessionID)
+        XCTAssertEqual(store.pendingQuestion?.rpcID, "plan-review-rpc")
+        XCTAssertEqual(store.pendingQuestion?.items.first?.intent, .planReview(approve: "Approve plan"))
+    }
+
     func testPendingApprovalAndQuestionClearOnlyOnMatchingHostResolution() {
         let store = NativeSessionStore()
         store.loadSnapshotToolingFixture()

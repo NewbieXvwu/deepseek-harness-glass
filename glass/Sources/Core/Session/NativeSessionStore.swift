@@ -152,12 +152,20 @@ final class NativeSessionStore: ObservableObject {
         }
 
         struct Item: Identifiable, Equatable {
+            enum Intent: Equatable {
+                case planReview(approve: String)
+            }
+
             let id: String
             let question: String
             let header: String?
             let detail: String?
             let options: [Option]
             let multiSelect: Bool
+            /// Optional official presentation intent. Unknown wire tags reject
+            /// the entire question request rather than falling back to an
+            /// invented generic interaction.
+            let intent: Intent? = nil
         }
 
         let rpcID: String
@@ -849,13 +857,27 @@ final class NativeSessionStore: ObservableObject {
         } else {
             options = []
         }
+        let intent: PendingQuestion.Item.Intent?
+        if let rawIntent = object["intent"]?.objectValue {
+            guard let kind = rawIntent["kind"]?.stringValue else { return nil }
+            switch kind {
+            case "plan-review":
+                guard let approve = rawIntent["approve"]?.stringValue else { return nil }
+                intent = .planReview(approve: approve)
+            default:
+                return nil
+            }
+        } else {
+            intent = nil
+        }
         return PendingQuestion.Item(
             id: id,
             question: question,
             header: object["header"]?.stringValue,
             detail: object["detail"]?.stringValue,
             options: options,
-            multiSelect: object["multiSelect"]?.boolValue ?? false
+            multiSelect: object["multiSelect"]?.boolValue ?? false,
+            intent: intent
         )
     }
 
