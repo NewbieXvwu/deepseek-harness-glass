@@ -425,9 +425,9 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
   - 依赖：T11.5。
   - 验收：第三方卡片高度自适应撑开，随外层原生列表平滑滚动；主题跟随系统毫秒级切换，无白屏/闪烁现象。
 
-- [ ] **T11.7：禁止兼容沙箱侵入核心 UI 骨架。** 会话外壳、侧栏、窗口容器、Composer 与官方核心设置绝不能借“插件兼容”替换为整页 WebUI。
+- [ ] **T11.7：禁止兼容沙箱侵入核心 UI 骨架。** 会话外壳、侧栏、窗口容器、Composer 与官方核心设置绝不能借“插件兼容”替换为整页 WebUI；`PluginWebHost` 只能由独立的插件路由/宿主 target 引用，`GlassCore`、`GlassUI`、`DeepSeekHarnessGlassApp` 与其核心 shell 路径不得直接依赖或链接它。
   - 依赖：T11.5。
-  - 验收：运行时 diagnostics 报告核心应用结构中 WebView 数量始终为 0；第三方沙箱严格限制在单卡片或独立弹窗边界内。
+  - 验收：运行时 diagnostics 报告核心应用结构中 WebView 数量始终为 0；第三方沙箱严格限制在单卡片或独立弹窗边界内；`check-no-webview.sh`（或其后继静态 gate）必须拒绝 Core/UI/App 对 `PluginWebHost` 的 import、symbol reference 或 SwiftPM target dependency，仅允许明确登记的隔离插件路由 target 连接该微宿主。
 
 ## 12. 测试、视觉回归、性能与安全
 
