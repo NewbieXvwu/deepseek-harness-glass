@@ -1,5 +1,6 @@
 import XCTest
-
+import GlassSpec
+@testable import GlassPortableCore
 @testable import GlassCore
 
 @MainActor

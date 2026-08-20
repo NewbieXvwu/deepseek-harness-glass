@@ -137,7 +137,7 @@ private final class ExportProtocolState: @unchecked Sendable {
     }
 }
 
-private final class ExportURLProtocol: URLProtocol, @unchecked Sendable {
+private final class ExportURLProtocol: URLProtocol {
     static let state = ExportProtocolState()
 
     override class func canInit(with request: URLRequest) -> Bool { true }

@@ -412,11 +412,11 @@ final class HarnessHostController: ObservableObject {
         let line = "\(ISO8601DateFormatter().string(from: Date())) \(normalized)\n"
         guard let data = line.data(using: .utf8) else { return }
         if fileManager.fileExists(atPath: runtime.logFile.path), let handle = try? FileHandle(forWritingTo: runtime.logFile) {
-            defer { try? handle.close() }
-            try? handle.seekToEnd()
-            try? handle.write(contentsOf: data)
+            defer { _ = try? handle.close() }
+            _ = try? handle.seekToEnd()
+            _ = try? handle.write(contentsOf: data)
         } else {
-            try? data.write(to: runtime.logFile, options: .atomic)
+            _ = try? data.write(to: runtime.logFile, options: .atomic)
         }
     }
 }

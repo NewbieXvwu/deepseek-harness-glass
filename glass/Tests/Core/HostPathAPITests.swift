@@ -72,7 +72,7 @@ final class HostPathAPITests: XCTestCase {
     }
 }
 
-private final class HostPathURLProtocol: URLProtocol, @unchecked Sendable {
+private final class HostPathURLProtocol: URLProtocol {
     private static let state = HostPathState()
 
     static func reset() { state.reset() }
