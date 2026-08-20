@@ -32,3 +32,11 @@ RC8 的正式基线为 `deepseek-ai/deepseek-harness@141eb6fef83422698aef7a98102
 [1]: https://github.com/NewbieXvwu/deepseek-harness-glass/pull/2 "PR #2"
 [2]: https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32328246659 "PR #2 原始 head 的 macOS 26 CI"
 [3]: https://github.com/deepseek-ai/deepseek-harness/tree/141eb6fef83422698aef7a981029e843e8161534 "DeepSeek Harness RC8 locked source"
+
+## 截图矩阵失败关闭：真实视口不得被缩放或裁剪
+
+截图矩阵提交 `a3d38ac` 的首次 macOS-26 [run 32329706938](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32329706938) 在官方 capture 阶段失败：两个主题共用的 Host workspace 导致深色 Jobs 页不再出现 `Choose workspace`。提交 `746eb6f` 隔离浏览器 context 后，仍因 Host registry 是 scaffold 级状态而失败；`721bfa0` 改为每个主题独立 scaffold/DSH_HOME。该修复又暴露 welcome 无模型场景错误加载未消费 replay 的问题，`1915fd1` 在 [run 32330510895](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32330510895) 中关闭此问题。
+
+`32330510895` 已成功完成官方浅色/深色 capture、受控 Host、规格/架构门禁、SwiftPM、XCTest、app 装配和原生快照，但在比较步骤失败：`jobs-expanded-light` native PNG 为 **1369×840**，无法与官方 1280×840 同状态图比较；同一 run 的 `jobs-expanded-dark`、两个 welcome 图均为 1280×840。该差异是导出路径中的窗口尺寸漂移，不是系统材质例外，也不得通过缩放、裁切或跳过 light pair 绕过。
+
+后续修复在 `SnapshotExporter` 的 SwiftUI/AppKit refresh 后重新施加 1280×840 content viewport，并在实际 WindowServer capture 前再次验证；新增 XCTest 明确拒绝 1369×840 的 post-layout drift。该提交仍必须取得其自身的 macOS-26 run，且 four-pair compare（welcome light/dark、Jobs light/dark）均完成，才可恢复 PR 合并审查。

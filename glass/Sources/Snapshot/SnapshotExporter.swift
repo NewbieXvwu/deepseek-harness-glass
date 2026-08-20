@@ -58,6 +58,10 @@ enum SnapshotExporter {
         snapshotColorScheme == "dark" ? .darkAqua : .aqua
     }
 
+    static func viewportMatches(requested: NSSize, actual: NSSize) -> Bool {
+        abs(actual.width - requested.width) <= 1 && abs(actual.height - requested.height) <= 1
+    }
+
     @MainActor
     static func exportIfRequested() async throws -> Bool {
         guard let outputPath = ProcessInfo.processInfo.environment["DSH_GLASS_SNAPSHOT_PATH"], !outputPath.isEmpty else {
@@ -188,8 +192,7 @@ enum SnapshotExporter {
         // so the capture was a two-column shell compared against a
         // three-column baseline. Refuse to export a mislaid viewport.
         let actualContentSize = window.contentRect(forFrameRect: window.frame).size
-        if abs(actualContentSize.width - captureSize.width) > 1
-            || abs(actualContentSize.height - captureSize.height) > 1 {
+        if !viewportMatches(requested: captureSize, actual: actualContentSize) {
             throw SnapshotError.viewportClamped(
                 requested: captureSize,
                 actual: actualContentSize,
@@ -200,6 +203,22 @@ enum SnapshotExporter {
         window.contentView?.layoutSubtreeIfNeeded()
         shellController.refreshForCurrentViewport()
         window.contentViewController?.view.layoutSubtreeIfNeeded()
+        // A SwiftUI/AppKit refresh may update a fitting-size constraint after
+        // the first sizing pass. Re-assert the requested content viewport
+        // before asking WindowServer to capture; accepting a wider source then
+        // cropping/rescaling it would invalidate the same-state evidence.
+        window.setContentSize(captureSize)
+        window.contentView?.frame = NSRect(origin: .zero, size: captureSize)
+        window.contentViewController?.view.layoutSubtreeIfNeeded()
+        window.contentView?.layoutSubtreeIfNeeded()
+        let finalContentSize = window.contentRect(forFrameRect: window.frame).size
+        if !viewportMatches(requested: captureSize, actual: finalContentSize) {
+            throw SnapshotError.viewportClamped(
+                requested: captureSize,
+                actual: finalContentSize,
+                display: NSScreen.main?.frame.size ?? .zero
+            )
+        }
         window.displayIfNeeded()
 
         // macOS 26 replaces the obsolete CGWindowList image APIs with this
