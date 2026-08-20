@@ -203,7 +203,9 @@ private struct NativeActiveConversationSurface: View {
                 hasMoreHistory: sessionStore.hasMoreHistory,
                 isLoadingOlderHistory: sessionStore.isLoadingOlderHistory,
                 loadOlderHistory: sessionStore.loadOlderHistory,
-                selectToolCall: sessionStore.selectToolCall
+                selectToolCall: sessionStore.selectToolCall,
+                deliverablesForAssistant: sessionStore.deliverables,
+                openKnownProjectPath: sessionStore.openKnownProjectPath
             )
         }
     }
@@ -237,6 +239,8 @@ private struct NativeTranscriptScrollView: View {
     let isLoadingOlderHistory: Bool
     let loadOlderHistory: () -> Void
     let selectToolCall: (String?) -> Void
+    let deliverablesForAssistant: (CoreAssistantNode) -> [String]
+    let openKnownProjectPath: (String) -> Void
 
     private var timeline: [TimelineItem] {
         let visibleMessages = chatNodes.compactMap { node -> TimelineItem? in
@@ -308,7 +312,11 @@ private struct NativeTranscriptScrollView: View {
                     ForEach(timeline) { entry in
                         switch entry {
                         case let .chat(node):
-                            NativeConversationNodeRow(node: node)
+                            NativeConversationNodeRow(
+                                node: node,
+                                deliverablesForAssistant: deliverablesForAssistant,
+                                openKnownProjectPath: openKnownProjectPath
+                            )
                                 .id(node.key)
                         case let .tool(invocation):
                             NativeToolRow(
@@ -342,6 +350,8 @@ private struct NativeTranscriptScrollView: View {
 
 private struct NativeConversationNodeRow: View {
     let node: ConversationViewNode
+    let deliverablesForAssistant: (CoreAssistantNode) -> [String]
+    let openKnownProjectPath: (String) -> Void
 
     var body: some View {
         Group {
@@ -417,6 +427,10 @@ private struct NativeConversationNodeRow: View {
             if !text.isEmpty {
                 NativeMarkdownText(markdown: text, streaming: assistant.status == .running)
                 NativeMessageActionRow(text: text, time: assistant.time, clockPosition: .end)
+                let paths = deliverablesForAssistant(assistant)
+                if !paths.isEmpty {
+                    NativeProducedFiles(paths: paths, open: openKnownProjectPath)
+                }
             }
         }
     }

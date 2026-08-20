@@ -433,6 +433,17 @@ final class NativeSessionStore: ObservableObject {
     /// verified endpoint after Host recovery; the Host remains session truth.
     var selectedSessionID: String? { activeSessionID }
 
+    /// RC8 `selectProducedFiles` counterpart. The state-only deliverables node
+    /// stays in reducer-owned turn location data; this read-only seam applies
+    /// its official closing-assistant cut before a native turn-tail renderer
+    /// receives paths. It never parses raw history or creates local artifacts.
+    func deliverables(forClosingAssistant assistant: CoreAssistantNode) -> [String] {
+        conversationReducer
+            .locationData(scope: .turn, turn: assistant.turn)
+            .value(for: "deliverables", as: CoreDeliverablesTurnData.self)?
+            .paths(forClosingSequence: assistant.seq) ?? []
+    }
+
     /// Core-internal test seam for queue mutation fencing. Production receives
     /// the same API from `NativeShellPresentation.connectVerifiedHost` via `open`.
     func setSessionAPIForTesting(_ api: (any NativeSessionAPI)?) {

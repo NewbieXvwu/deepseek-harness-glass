@@ -240,6 +240,17 @@ enum OfficialUISpec {
         static let chat = "Chat"
         // Source: packages/client/ui-trajectory/src/client/locales.ts:50 (en)
         static let trajectory = "Trajectory"
+        // Source: packages/client/ui-deliverables/src/client/locales.ts:17-21 (en)
+        static let producedFiles = "Produced"
+        static let producedFilesMoreOne = "+ 1 file"
+        static let producedFilesMoreTemplate = "+ {count} files"
+        static let producedFilesOpenTemplate = "Open {name}"
+        static func producedFilesMore(_ count: Int) -> String {
+            count == 1 ? producedFilesMoreOne : producedFilesMoreTemplate.replacingOccurrences(of: "{count}", with: String(count))
+        }
+        static func producedFilesOpen(name: String) -> String {
+            producedFilesOpenTemplate.replacingOccurrences(of: "{name}", with: name)
+        }
         // Source: packages/client/ui-conversation/src/client/locales.ts (en)
         static let todoTitle = "To-dos"
         static let todoProgressDoneTemplate = "{done} completed"
