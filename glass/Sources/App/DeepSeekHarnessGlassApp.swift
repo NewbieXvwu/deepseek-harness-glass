@@ -9,9 +9,14 @@ import AppKit
 @main
 @MainActor
 final class DeepSeekHarnessGlassApp: NSObject, NSApplicationDelegate {
-    private let windowCoordinator = WindowCoordinator()
+    private(set) var windowCoordinator: WindowCoordinator
     private var hostCoordinator: HostLifecycleCoordinator?
     private var menuBarCoordinator: MenuBarCoordinator?
+
+    init(windowCoordinator: WindowCoordinator = WindowCoordinator()) {
+        self.windowCoordinator = windowCoordinator
+        super.init()
+    }
 
     static func main() {
         let app = NSApplication.shared

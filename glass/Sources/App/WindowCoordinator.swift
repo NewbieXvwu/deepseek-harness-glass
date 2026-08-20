@@ -68,6 +68,7 @@ enum NativeWindowLifecycle: Equatable {
 final class WindowCoordinator: NSObject, NSWindowDelegate {
     private(set) var window: NSWindow?
     private(set) var lifecycle: NativeWindowLifecycle = .visible
+    private(set) var showAndFocusInvocationCount = 0
     private var presentation: NativeShellPresentation?
 
     func install(presentation: NativeShellPresentation) {
@@ -90,6 +91,7 @@ final class WindowCoordinator: NSObject, NSWindowDelegate {
     /// Reopens hidden or minimized windows from the menu bar, Dock or a future
     /// system restoration callback without creating a second shell/controller.
     func showAndFocus() {
+        showAndFocusInvocationCount += 1
         lifecycle.reveal()
         guard let window else { return }
         if window.isMiniaturized { window.deminiaturize(nil) }

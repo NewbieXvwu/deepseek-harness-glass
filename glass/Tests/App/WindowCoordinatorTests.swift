@@ -40,4 +40,16 @@ final class WindowCoordinatorTests: XCTestCase {
         lifecycle.reveal()
         XCTAssertEqual(lifecycle, .visible, "reopen must deminiaturize before focusing")
     }
+
+    func testDockReopenDelegatesToTheExistingCoordinatorWithoutCreatingAShell() {
+        let coordinator = WindowCoordinator()
+        let app = DeepSeekHarnessGlassApp(windowCoordinator: coordinator)
+
+        XCTAssertNil(coordinator.window)
+        XCTAssertEqual(coordinator.showAndFocusInvocationCount, 0)
+        XCTAssertTrue(app.applicationShouldHandleReopen(NSApplication.shared, hasVisibleWindows: false))
+        XCTAssertEqual(coordinator.showAndFocusInvocationCount, 1)
+        XCTAssertEqual(coordinator.lifecycle, .visible)
+        XCTAssertNil(coordinator.window, "Dock reopen must focus a resident coordinator, not create a second shell")
+    }
 }
