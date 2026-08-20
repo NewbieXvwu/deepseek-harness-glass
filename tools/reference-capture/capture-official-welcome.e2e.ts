@@ -221,10 +221,21 @@ describe('reference capture: official welcome and session Jobs action', () => {
         const page = await context.newPage()
         const consoleTripwire = watchConsole(page)
         try {
+          if (kind === 'session-rename') {
+            const sessionCwd = join(managementScaffold.workspaceCwd, 'workspace')
+            await mkdir(sessionCwd, { recursive: true })
+            await writeFile(join(sessionCwd, 'nav-a.md'), '# alpha nav\n')
+            await writeFile(join(sessionCwd, 'nav-b.md'), '# beta nav\n')
+            await seedSession(managementScaffold, await readFile(workspaceSearchFixture, 'utf8'), 'navigation-panes-web-e2e')
+          }
           await page.goto(managementScaffold.baseUrl, { waitUntil: 'load' })
           await page.locator('#root').waitFor({ state: 'attached', timeout: 30_000 })
           await applyOfficialColorScheme(page, colorScheme)
-          await connectFreshWorkspace(page, managementScaffold.workspaceCwd)
+          if (kind === 'session-rename') {
+            await page.getByText('Ungrouped', { exact: true }).waitFor({ timeout: 30_000 })
+          } else {
+            await connectFreshWorkspace(page, managementScaffold.workspaceCwd)
+          }
           const dialogName = await openWorkspaceManagementDialog(page, kind)
           await page.getByRole('dialog', { name: dialogName }).waitFor({ timeout: 30_000 })
           await page.screenshot({ path: join(outputDirectory, `${name}.png`) })
