@@ -62,6 +62,27 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(api.promptSessionIDs, [sessionID])
     }
 
+    func testInitialAuthorityFromReplacedEndpointCannotReviveOldColdState() async {
+        let oldModelsReached = expectation(description: "old endpoint reaches delayed initial models read")
+        let oldAPI = GatedInitialModelsAPI(modelsReached: oldModelsReached)
+        let store = NativeSessionStore()
+        let oldEndpoint = URL(string: "http://127.0.0.1:1")!
+        let replacementEndpoint = URL(string: "http://127.0.0.1:2")!
+        store.open(sessionID: "same-session", using: oldAPI, endpoint: oldEndpoint)
+        await fulfillment(of: [oldModelsReached], timeout: 1)
+
+        // The first typed facade is non-cooperative: it completes only after
+        // cancellation and the replacement endpoint have already become live.
+        store.open(sessionID: "same-session", using: RejectingSessionAPI(promptReachedFacade: nil), endpoint: replacementEndpoint)
+        await oldAPI.releaseModels()
+        for _ in 0..<20 { await Task.yield() }
+
+        XCTAssertEqual(store.selectedSessionID, "same-session")
+        XCTAssertTrue(store.items.isEmpty)
+        XCTAssertNil(store.modelDirectory)
+        XCTAssertNil(store.extensionState)
+    }
+
     func testCancelledRecoveryCannotReviveDisconnectedSession() async {
         let recoveryReachedModels = expectation(description: "recovery reaches delayed models read")
         let api = GatedGapRecoveryAPI(recoveryReachedModels: recoveryReachedModels)
@@ -594,6 +615,33 @@ final class NativeSessionStoreTests: XCTestCase {
             promptReachedFacade.fulfill()
             return SessionPromptResponse(accepted: true)
         }
+        func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
+        func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+        func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+        func cancelQuestion(rpcID _: String) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+    }
+
+    @MainActor
+    private final class GatedInitialModelsAPI: NativeSessionAPI {
+        let modelsReached: XCTestExpectation
+        private let modelsGate = RecoveryGate()
+
+        init(modelsReached: XCTestExpectation) {
+            self.modelsReached = modelsReached
+        }
+
+        func models(sessionID _: String) async throws -> SessionModelsResponse {
+            modelsReached.fulfill()
+            await modelsGate.wait()
+            return .init(current: .init(provider: "stale-provider", model: "stale-model", reasoningEffort: nil), routable: true, groups: [], failures: [])
+        }
+
+        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
+            .init(events: [], hasMore: false, projections: nil)
+        }
+
+        func releaseModels() async { await modelsGate.open() }
+        func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
         func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
         func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
         func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
