@@ -67,24 +67,27 @@ struct NativeSubagentCatalogHeaderAction: View {
         .accessibilityLabel(OfficialUISpec.Text.subagentTreeAccessibility)
     }
 
-    @ViewBuilder
-    private func catalogRows(parentID: String, entries: [SubagentListEntryDTO], depth: Int) -> some View {
-        ForEach(entries, id: \.id) { entry in
+    /// SwiftUI cannot infer a recursive opaque result on current macOS SDKs.
+    /// Erasure is limited to the branch boundary; rows remain typed Host DTOs.
+    private func catalogRows(parentID: String, entries: [SubagentListEntryDTO], depth: Int) -> AnyView {
+        AnyView(ForEach(entries, id: \.id) { entry in
             if entry.kind == "child" {
-                childRow(entry, parentID: parentID, depth: depth)
-                if entry.hasChildren == true, expandedParentIDs.contains(entry.id) {
-                    let childEntries = sessionStore.subagentCatalogs[entry.id]?.entries ?? []
-                    catalogRows(parentID: entry.id, entries: childEntries, depth: depth + 1)
-                    catalogStateRow(parentID: entry.id, depth: depth + 1)
-                }
+                AnyView(VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p0) {
+                    childRow(entry, parentID: parentID, depth: depth)
+                    if entry.hasChildren == true, expandedParentIDs.contains(entry.id) {
+                        let childEntries = sessionStore.subagentCatalogs[entry.id]?.entries ?? []
+                        catalogRows(parentID: entry.id, entries: childEntries, depth: depth + 1)
+                        catalogStateRow(parentID: entry.id, depth: depth + 1)
+                    }
+                })
             } else {
-                Text(entry.reason ?? OfficialUISpec.Text.subagentLoadError)
+                AnyView(Text(entry.reason ?? OfficialUISpec.Text.subagentLoadError)
                     .font(OfficialUISpec.Typography.xs13)
                     .foregroundStyle(OfficialUISpec.Token.errorPrimary)
                     .padding(.leading, OfficialUISpec.Spacing.p8 * CGFloat(depth))
-                    .padding(OfficialUISpec.Spacing.p8)
+                    .padding(OfficialUISpec.Spacing.p8))
             }
-        }
+        })
     }
 
     @ViewBuilder
