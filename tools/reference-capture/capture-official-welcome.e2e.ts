@@ -79,9 +79,10 @@ function registryJob(label: string) {
 describe('reference capture: official welcome and session Jobs action', () => {
   beforeAll(async () => {
     await mkdir(outputDirectory, { recursive: true })
-    // Welcome remains a no-model-call state. Each Jobs theme creates its own
-    // isolated scaffold below because the Host registry is stateful.
-    scaffold = await launchWebScaffold({ replayFixture: lifecycleFixture, paceMs: 100 })
+    // Welcome is a no-model-call state, so it must not mount a replay fixture
+    // with an unconsumed scripted turn. Each Jobs theme creates its own isolated
+    // replay scaffold below because the Host registry is stateful.
+    scaffold = await launchWebScaffold()
     browser = await chromium.launch({ headless: true })
   }, 120_000)
 
