@@ -9,6 +9,9 @@ glass/dist/
 # SwiftPM build artifacts
 glass/.build/
 
+# AST-driven spec generation toolchain (npm install regenerates it)
+tools/spec-generation/node_modules/
+
 # Unrelated local folders
 mac阵列音箱/
 

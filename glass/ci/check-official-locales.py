@@ -16,13 +16,15 @@ ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY_ROOT = ROOT.parent
 CATALOG = ROOT / "Sources/Spec/Locales/official-locales.json"
 SPEC_BUILD = ROOT / "Sources/Spec/OfficialUISpec/official-ui-spec-build.json"
-GENERATOR = REPOSITORY_ROOT / "tools/spec-generation/generate_official_locales.py"
+GENERATOR = REPOSITORY_ROOT / "tools/spec-generation/generate_official_locales.ts"
+GENERATOR_DIR = GENERATOR.parent
 EXPECTED_COMMIT = "141eb6fef83422698aef7a981029e843e8161534"
 
 
 def arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--official-root", type=Path, required=True)
+    parser.add_argument("--node", default="node", help="path to the Node.js binary")
     return parser.parse_args()
 
 
@@ -77,11 +79,11 @@ def main() -> None:
         regenerated_json = temporary_root / "official-locales.json"
         regenerated_swift = temporary_root / "OfficialLocaleCatalog.swift"
         subprocess.run([
-            sys.executable, str(GENERATOR),
+            args.node, "--experimental-strip-types", str(GENERATOR),
             "--official-root", str(args.official_root),
             "--json-output", str(regenerated_json),
             "--swift-output", str(regenerated_swift),
-        ], check=True)
+        ], check=True, cwd=GENERATOR_DIR)
         if regenerated_json.read_bytes() != CATALOG.read_bytes():
             raise SystemExit("official locale JSON catalog is stale; regenerate from the locked official source")
     print(f"Official locale data provenance passed: {len(entries)} entries / {len(by_id)} en+zh keys; compiled runtime parity is covered by XCTest.")

@@ -1,0 +1,10 @@
+{
+  "name": "dsh-official-spec-tools",
+  "private": true,
+  "version": "1.0.0",
+  "description": "AST-driven official specification extractors (locales, icons, brand assets) for DeepSeek Harness Glass.",
+  "type": "module",
+  "dependencies": {
+    "typescript": "5.9.3"
+  }
+}
