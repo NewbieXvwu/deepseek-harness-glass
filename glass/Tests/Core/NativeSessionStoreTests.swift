@@ -243,6 +243,77 @@ final class NativeSessionStoreTests: XCTestCase {
         ])
     }
 
+    func testSnapshotGoalFixtureUsesCurrentHostGoalProjection() {
+        let store = NativeSessionStore()
+        store.loadSnapshotGoalFixture()
+
+        XCTAssertEqual(store.selectedSessionID, "snapshot-tooling")
+        XCTAssertFalse(store.isRunning)
+        XCTAssertNil(store.selectedToolCallID)
+        XCTAssertEqual(store.extensionState?.goal?.id, "snapshot-goal")
+        XCTAssertEqual(store.extensionState?.goal?.objective, "Rebuild the official client as a native macOS app")
+        XCTAssertEqual(store.extensionState?.goal?.phase, .active)
+    }
+
+    func testGoalActionsUseActiveHostProjectionRefWithoutOptimisticMutation() async {
+        let store = NativeSessionStore()
+        store.loadSnapshotTodoFixture()
+        let sessionID = tryUnwrap(store.selectedSessionID)
+        store.projections.apply(sessionID: sessionID, key: "goal", value: goalProjection(id: "goal-1", revision: 4, objective: "Ship safely", phase: "active"), seq: 106)
+        let invoked = expectation(description: "pause goal reaches typed Host seam")
+        let api = RecordingGoalAPI(invoked: invoked)
+        store.setGoalAPIForTesting(api)
+
+        store.pauseGoal()
+        await fulfillment(of: [invoked], timeout: 1)
+        await eventually(timeout: 1) { !store.isSubmittingGoal }
+
+        XCTAssertEqual(api.pauseRequests, [.init(sessionId: sessionID, ref: .init(id: "goal-1", revision: 4))])
+        XCTAssertFalse(store.isSubmittingGoal)
+        XCTAssertNil(store.goalActionFailure)
+        XCTAssertNil(store.locallyClearedGoalID)
+        XCTAssertEqual(store.extensionState?.goal?.objective, "Ship safely", "successful RPC waits for the authoritative goal projection rather than locally changing state")
+        XCTAssertEqual(store.extensionState?.goal?.phase, .active)
+    }
+
+    func testSuccessfulGoalClearUsesPresentationMarkerWithoutMutatingProjection() async {
+        let store = NativeSessionStore()
+        store.loadSnapshotTodoFixture()
+        let sessionID = tryUnwrap(store.selectedSessionID)
+        store.projections.apply(sessionID: sessionID, key: "goal", value: goalProjection(id: "goal-clear", revision: 6, objective: "Clear from bar", phase: "active"), seq: 106)
+        let invoked = expectation(description: "clear goal reaches typed Host seam")
+        let api = RecordingGoalAPI(invoked: invoked)
+        store.setGoalAPIForTesting(api)
+
+        store.clearGoal()
+        await fulfillment(of: [invoked], timeout: 1)
+        await eventually(timeout: 1) { !store.isSubmittingGoal }
+
+        XCTAssertEqual(api.clearRequests, [.init(sessionId: sessionID, ref: .init(id: "goal-clear", revision: 6))])
+        XCTAssertEqual(store.locallyClearedGoalID, "goal-clear")
+        XCTAssertEqual(store.extensionState?.goal?.objective, "Clear from bar", "the core never replaces Host projection data with a local tombstone")
+    }
+
+    func testGoalActionSurfacesOnlyHostBusinessFailureAndKeepsProjection() async {
+        let store = NativeSessionStore()
+        store.loadSnapshotTodoFixture()
+        let sessionID = tryUnwrap(store.selectedSessionID)
+        store.projections.apply(sessionID: sessionID, key: "goal", value: goalProjection(id: "goal-2", revision: 7, objective: "Keep scope", phase: "active"), seq: 106)
+        let invoked = expectation(description: "clear goal reaches typed Host seam")
+        let api = RecordingGoalAPI(invoked: invoked, error: .init(code: "revision_conflict", message: "refresh goal", details: .object([:])))
+        store.setGoalAPIForTesting(api)
+
+        store.clearGoal()
+        await fulfillment(of: [invoked], timeout: 1)
+        await eventually(timeout: 1) { !store.isSubmittingGoal }
+
+        XCTAssertEqual(api.clearRequests, [.init(sessionId: sessionID, ref: .init(id: "goal-2", revision: 7))])
+        XCTAssertFalse(store.isSubmittingGoal)
+        XCTAssertEqual(store.goalActionFailure, .init(message: "refresh goal", code: "revision_conflict"))
+        XCTAssertNil(store.locallyClearedGoalID)
+        XCTAssertEqual(store.extensionState?.goal?.objective, "Keep scope")
+    }
+
     func testExtensionStateJoinsOnlyTypedActiveSessionAuthoritiesAndFailsClosedForMalformedTodos() {
         let store = NativeSessionStore()
         store.loadSnapshotToolingFixture()
@@ -624,6 +695,64 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(SessionJobsPresentation.ordered(jobs).map(\.id), ["stopping-early", "running-late", "failed-new", "done-old"])
         XCTAssertEqual(SessionJobsPresentation.elapsedMilliseconds(for: jobs[1], now: 100), 60)
         XCTAssertEqual(SessionJobsPresentation.elapsedMilliseconds(for: jobs[0], now: 100), 10)
+    }
+
+    private func goalProjection(id: String, revision: Int, objective: String, phase: String) -> JSONValue {
+        .object([
+            "goal": .object([
+                "id": .string(id),
+                "revision": .number(Double(revision)),
+                "objective": .string(objective),
+                "phase": .string(phase),
+                "maxGoalRounds": .number(4),
+            ]),
+            "roundsStarted": .number(0),
+            "createdAt": .number(100),
+            "updatedAt": .number(100),
+        ])
+    }
+
+    @MainActor
+    private final class RecordingGoalAPI: NativeGoalAPI {
+        let invoked: XCTestExpectation
+        let error: RPCBusinessError?
+        private(set) var editRequests: [GoalEditRequest] = []
+        private(set) var pauseRequests: [GoalReferenceRequest] = []
+        private(set) var resumeRequests: [GoalReferenceRequest] = []
+        private(set) var clearRequests: [GoalReferenceRequest] = []
+
+        init(invoked: XCTestExpectation, error: RPCBusinessError? = nil) {
+            self.invoked = invoked
+            self.error = error
+        }
+
+        func edit(_ request: GoalEditRequest) async throws -> GoalReferenceResponse {
+            editRequests.append(request)
+            invoked.fulfill()
+            if let error { throw error }
+            return .init(ref: request.ref)
+        }
+
+        func pause(_ request: GoalReferenceRequest) async throws -> GoalReferenceResponse {
+            pauseRequests.append(request)
+            invoked.fulfill()
+            if let error { throw error }
+            return .init(ref: request.ref)
+        }
+
+        func resume(_ request: GoalReferenceRequest) async throws -> GoalReferenceResponse {
+            resumeRequests.append(request)
+            invoked.fulfill()
+            if let error { throw error }
+            return .init(ref: request.ref)
+        }
+
+        func clear(_ request: GoalReferenceRequest) async throws -> GoalClearResponse {
+            clearRequests.append(request)
+            invoked.fulfill()
+            if let error { throw error }
+            return .init(cleared: true)
+        }
     }
 
     private func eventually(timeout: TimeInterval, condition: @escaping @MainActor () -> Bool) async {

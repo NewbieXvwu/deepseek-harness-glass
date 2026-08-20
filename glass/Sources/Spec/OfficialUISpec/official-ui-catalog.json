@@ -234,7 +234,18 @@
     "questionSubmitting": { "value": "Submitting…", "source": "packages/client/locale/src/locales/en.ts:submitting" },
     "questionIncomplete": { "value": "Please complete this question first.", "source": "packages/client/ui-user-questions/src/client/locales.ts:error.incomplete" },
     "questionUnanswered": { "value": "Please select an option or enter a custom answer.", "source": "packages/client/ui-user-questions/src/client/locales.ts:error.unanswered" },
-    "questionProgressTemplate": { "value": "{current} / {total}", "source": "packages/client/ui-user-questions/src/client/QuestionComposer.tsx:progress" }
+    "questionProgressTemplate": { "value": "{current} / {total}", "source": "packages/client/ui-user-questions/src/client/QuestionComposer.tsx:progress" },
+    "goalPhaseActive": { "value": "Ongoing Goal", "source": "packages/client/ui-goal/src/client/locales.ts:phase.active" },
+    "goalPhasePaused": { "value": "Paused Goal", "source": "packages/client/ui-goal/src/client/locales.ts:phase.paused" },
+    "goalPhaseBlocked": { "value": "Blocked Goal", "source": "packages/client/ui-goal/src/client/locales.ts:phase.blocked" },
+    "goalObjectiveAccessibility": { "value": "Goal objective", "source": "packages/client/ui-goal/src/client/locales.ts:objective.aria" },
+    "goalSaveAccessibility": { "value": "Save goal", "source": "packages/client/ui-goal/src/client/locales.ts:action.save" },
+    "goalCancelAccessibility": { "value": "Cancel edit", "source": "packages/client/ui-goal/src/client/locales.ts:action.cancel" },
+    "goalEditAccessibility": { "value": "Edit goal", "source": "packages/client/ui-goal/src/client/locales.ts:action.edit" },
+    "goalPauseAccessibility": { "value": "Pause goal", "source": "packages/client/ui-goal/src/client/locales.ts:action.pause" },
+    "goalResumeAccessibility": { "value": "Resume goal", "source": "packages/client/ui-goal/src/client/locales.ts:action.resume" },
+    "goalClearAccessibility": { "value": "Clear goal", "source": "packages/client/ui-goal/src/client/locales.ts:action.clear" },
+    "goalActionFailureTemplate": { "value": "{message} ({code})", "source": "packages/client/ui-goal/src/client/GoalBar.tsx:runAction" }
   },
   "assets": {
     "brand-wordmark": { "source": "packages/client/ui-primitives/src/BrandWordmark.tsx" },
@@ -265,6 +276,10 @@
     "icon-tool-others": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconSparkle16" },
     "icon-check": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconCheckOutline14" },
     "icon-checklist": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconChecklistOutline14" },
+    "icon-goal": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconGoalOutline16" },
+    "icon-pause": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconPauseOutline16" },
+    "icon-play": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconPlayOutline16" },
+    "icon-trash": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconTrashOutline16" },
     "icon-chevron-left": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconChevronLeftOutline14" },
     "icon-chevron-right": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconChevronRightOutline14" }
   }

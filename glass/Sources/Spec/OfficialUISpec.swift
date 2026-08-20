@@ -38,6 +38,16 @@ enum OfficialUISpec {
         static let todoDockHeaderGap: CGFloat = 10
         static let todoDockListMaximumHeight: CGFloat = 180
         static let todoDockInset: CGFloat = 8
+        // Source: packages/client/ui-goal/src/client/GoalBar.module.css
+        static let goalDockHeight: CGFloat = 36
+        static let goalDockCornerRadius: CGFloat = 12
+        static let goalDockLeadingPadding: CGFloat = 12
+        static let goalDockTrailingPadding: CGFloat = 5
+        static let goalDockVerticalPadding: CGFloat = 4
+        static let goalDockContentGap: CGFloat = 10
+        static let goalDockIconControl: CGFloat = 28
+        static let goalDockInputHeight: CGFloat = 26
+        static let goalDockInputCornerRadius: CGFloat = 6
         static let heroGap: CGFloat = 12
         // Source: ui-conversation/chat/ChatView.module.css + MessageItem.module.css
         static let chatMessageGap: CGFloat = 16
@@ -242,6 +252,23 @@ enum OfficialUISpec {
         static func todoProgressPending(_ value: Int) -> String {
             todoProgressPendingTemplate.replacingOccurrences(of: "{pending}", with: String(value))
         }
+        // Source: packages/client/ui-goal/src/client/locales.ts (en) and GoalBar.tsx.
+        static let goalPhaseActive = "Ongoing Goal"
+        static let goalPhasePaused = "Paused Goal"
+        static let goalPhaseBlocked = "Blocked Goal"
+        static let goalObjectiveAccessibility = "Goal objective"
+        static let goalSaveAccessibility = "Save goal"
+        static let goalCancelAccessibility = "Cancel edit"
+        static let goalEditAccessibility = "Edit goal"
+        static let goalPauseAccessibility = "Pause goal"
+        static let goalResumeAccessibility = "Resume goal"
+        static let goalClearAccessibility = "Clear goal"
+        static let goalActionFailureTemplate = "{message} ({code})"
+        static func goalActionFailure(message: String, code: String) -> String {
+            goalActionFailureTemplate
+                .replacingOccurrences(of: "{message}", with: message)
+                .replacingOccurrences(of: "{code}", with: code)
+        }
         // Source: packages/client/locale/src/locales/en.ts
         static let copy = "Copy"
         static let copied = "Copied"
@@ -322,6 +349,8 @@ enum OfficialUISpec {
         static let base = Theme.aliasBgBase.adaptiveColor
         static let sidebar = Theme.specificSidebarFill.adaptiveColor
         static let elevated = Theme.aliasBgLayer1.adaptiveColor
+        /// Source: `--dsw-specific-tip`, used by RC8 Todo/Goal composer strips.
+        static let specificTip = Theme.specificTip.adaptiveColor
         static let primary = Theme.aliasLabelPrimary.adaptiveColor
         static let primaryForeground = Theme.aliasLabelPrimaryForeground.adaptiveColor
         static let primaryInverted = Theme.aliasLabelPrimaryInverted.adaptiveColor

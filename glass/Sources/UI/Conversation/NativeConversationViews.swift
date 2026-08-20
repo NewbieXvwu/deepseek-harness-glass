@@ -115,12 +115,24 @@ private struct NativeActiveConversationSurface: View {
 
     @ViewBuilder
     private var composerDock: some View {
-        if sessionStore.pendingApproval == nil,
-           sessionStore.pendingQuestion == nil,
-           let todos = sessionStore.extensionState?.todos,
-           NativeTodoDockPresentation.isVisible(todos) {
+        if sessionStore.pendingApproval == nil, sessionStore.pendingQuestion == nil {
             VStack(spacing: OfficialUISpec.Layout.todoDockContentGap) {
-                NativeTodoDock(todos: todos)
+                if let todos = sessionStore.extensionState?.todos,
+                   NativeTodoDockPresentation.isVisible(todos) {
+                    NativeTodoDock(todos: todos)
+                }
+                if let goal = sessionStore.extensionState?.goal,
+                   NativeGoalDockPresentation.isVisible(goal, locallyClearedGoalID: sessionStore.locallyClearedGoalID) {
+                    NativeGoalDock(
+                        goal: goal,
+                        isSubmitting: sessionStore.isSubmittingGoal,
+                        failure: sessionStore.goalActionFailure,
+                        edit: sessionStore.editGoal,
+                        pause: sessionStore.pauseGoal,
+                        resume: sessionStore.resumeGoal,
+                        clear: sessionStore.clearGoal
+                    )
+                }
                 composerTakeover
             }
         } else {

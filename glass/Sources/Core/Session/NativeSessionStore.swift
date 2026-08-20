@@ -21,6 +21,19 @@ protocol NativeSessionAPI: Sendable {
 
 extension SessionsAPI: NativeSessionAPI {}
 
+/// Typed Host action seam for RC8 GoalBar. A successful RPC returns only a
+/// compare-and-set reference (or clear receipt); visible state must still wait
+/// for the authoritative `goal` whole projection update.
+@MainActor
+protocol NativeGoalAPI: Sendable {
+    func edit(_ request: GoalEditRequest) async throws -> GoalReferenceResponse
+    func pause(_ request: GoalReferenceRequest) async throws -> GoalReferenceResponse
+    func resume(_ request: GoalReferenceRequest) async throws -> GoalReferenceResponse
+    func clear(_ request: GoalReferenceRequest) async throws -> GoalClearResponse
+}
+
+extension CommandsAPI: NativeGoalAPI {}
+
 /// Typed desktop-action boundary for settled Markdown file mentions. The Host
 /// keeps both path opening authority and loopback/build-trust enforcement.
 @MainActor
@@ -89,6 +102,14 @@ final class NativeSessionStore: ObservableObject {
         case loading(sessionID: String)
         case ready(sessionID: String)
         case failed(sessionID: String)
+    }
+
+    /// The only error shape the RC8 GoalBar displays inline: Host-provided
+    /// business message plus code. Transport failures stay on the existing
+    /// session recovery path and never gain invented goal-specific wording.
+    struct GoalActionFailure: Equatable {
+        let message: String
+        let code: String
     }
 
     enum Role: Equatable {
@@ -350,6 +371,14 @@ final class NativeSessionStore: ObservableObject {
     private var recoveryGeneration: UInt = 0
     private var endpoint: URL?
     private var api: (any NativeSessionAPI)?
+    private var goalAPI: (any NativeGoalAPI)?
+    private var goalTask: Task<Void, Never>?
+    @Published private(set) var isSubmittingGoal = false
+    @Published private(set) var goalActionFailure: GoalActionFailure?
+    /// RC8 GoalBar hides a successfully cleared goal before the next whole
+    /// projection arrives. This is a view marker only; `extensionState.goal`
+    /// remains Host-owned and unchanged.
+    @Published private(set) var locallyClearedGoalID: String?
     private var hostPathAPI: (any NativeHostPathAPI)?
     private var activeSessionCWD: String?
     private var activeSessionID: String?
@@ -362,6 +391,17 @@ final class NativeSessionStore: ObservableObject {
     /// The shell uses this only to replay an existing selection against a new
     /// verified endpoint after Host recovery; the Host remains session truth.
     var selectedSessionID: String? { activeSessionID }
+
+    /// Core-internal test seam for goal mutation fencing. Production receives the
+    /// same API from `NativeShellPresentation.connectVerifiedHost` via `open`.
+    func setGoalAPIForTesting(_ api: (any NativeGoalAPI)?) {
+        goalTask?.cancel()
+        goalTask = nil
+        isSubmittingGoal = false
+        goalActionFailure = nil
+        locallyClearedGoalID = nil
+        goalAPI = api
+    }
 
     /// Source: RC8 `SessionProjectionMap.imageLimits`. Absence means the Host
     /// has no composed attachment service, so UI callers do not invent limits
@@ -442,6 +482,7 @@ final class NativeSessionStore: ObservableObject {
         using api: any NativeSessionAPI,
         endpoint: URL,
         hostPathAPI: (any NativeHostPathAPI)? = nil,
+        goalAPI: (any NativeGoalAPI)? = nil,
         sessionCWD: String? = nil
     ) {
         guard activeSessionID != sessionID || self.endpoint != endpoint else { return }
@@ -452,9 +493,15 @@ final class NativeSessionStore: ObservableObject {
         cancelTask?.cancel()
         streamTask?.cancel()
         recoveryTask?.cancel()
+        goalTask?.cancel()
+        goalTask = nil
+        isSubmittingGoal = false
+        goalActionFailure = nil
+        locallyClearedGoalID = nil
         recoveryGeneration &+= 1
         let authorityGeneration = recoveryGeneration
         self.api = api
+        self.goalAPI = goalAPI
         self.hostPathAPI = hostPathAPI
         self.activeSessionCWD = sessionCWD
         self.endpoint = endpoint
@@ -552,6 +599,12 @@ final class NativeSessionStore: ObservableObject {
         recoveryGeneration &+= 1
         endpoint = nil
         api = nil
+        goalTask?.cancel()
+        goalTask = nil
+        goalAPI = nil
+        isSubmittingGoal = false
+        goalActionFailure = nil
+        locallyClearedGoalID = nil
         hostPathAPI = nil
         activeSessionCWD = nil
         activeSessionID = nil
@@ -590,6 +643,12 @@ final class NativeSessionStore: ObservableObject {
         recoveryGeneration &+= 1
         endpoint = nil
         api = nil
+        goalTask?.cancel()
+        goalTask = nil
+        goalAPI = nil
+        isSubmittingGoal = false
+        goalActionFailure = nil
+        locallyClearedGoalID = nil
         hostPathAPI = nil
         activeSessionCWD = nil
         activeSessionID = nil
@@ -694,6 +753,76 @@ final class NativeSessionStore: ObservableObject {
                 // The draft remains available after a rejected prompt, matching
                 // the official composer retry posture. Prompt-error presentation
                 // is added with the attachment/notice surface.
+            }
+        }
+    }
+
+    // MARK: - Goal action face
+
+    /// Source: RC8 `GoalBar.onEdit`. The Host compares the active projection ref;
+    /// this method never writes the returned ref into `goal` state.
+    func editGoal(objective: String) {
+        let trimmed = objective.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        submitGoalAction { api, sessionID, goal in
+            _ = try await api.edit(.init(
+                sessionId: sessionID,
+                ref: .init(id: goal.id, revision: goal.revision),
+                objective: trimmed,
+                maxGoalRounds: nil
+            ))
+        }
+    }
+
+    /// Source: RC8 `GoalBar.onPause`.
+    func pauseGoal() {
+        submitGoalAction { api, sessionID, goal in
+            _ = try await api.pause(.init(sessionId: sessionID, ref: .init(id: goal.id, revision: goal.revision)))
+        }
+    }
+
+    /// Source: RC8 `GoalBar.onResume`.
+    func resumeGoal() {
+        submitGoalAction { api, sessionID, goal in
+            _ = try await api.resume(.init(sessionId: sessionID, ref: .init(id: goal.id, revision: goal.revision)))
+        }
+    }
+
+    /// Source: RC8 `GoalBar.onClear`. Success records only the same-goal
+    /// presentation marker until the Host tombstone projection catches up.
+    func clearGoal() {
+        submitGoalAction(hideGoalOnSuccess: true) { api, sessionID, goal in
+            _ = try await api.clear(.init(sessionId: sessionID, ref: .init(id: goal.id, revision: goal.revision)))
+        }
+    }
+
+    private func submitGoalAction(
+        hideGoalOnSuccess: Bool = false,
+        _ operation: @escaping @MainActor (any NativeGoalAPI, String, CoreGoalProjection) async throws -> Void
+    ) {
+        guard !isSubmittingGoal,
+              let goalAPI,
+              let sessionID = activeSessionID,
+              let goal = extensionState?.goal
+        else { return }
+        isSubmittingGoal = true
+        goalActionFailure = nil
+        goalTask?.cancel()
+        goalTask = Task { [weak self] in
+            defer {
+                guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
+                self?.isSubmittingGoal = false
+            }
+            do {
+                try await operation(goalAPI, sessionID, goal)
+                guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
+                if hideGoalOnSuccess { self?.locallyClearedGoalID = goal.id }
+            } catch let error as RPCBusinessError {
+                guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
+                self?.goalActionFailure = .init(message: error.message, code: error.code)
+            } catch {
+                // Transport and cancellation remain handled by the existing
+                // session recovery surfaces; GoalBar never manufactures copy.
             }
         }
     }
@@ -1544,6 +1673,28 @@ final class NativeSessionStore: ObservableObject {
             .object(["content": .string("Inspect the project instructions"), "status": .string("completed")]),
             .object(["content": .string("Implement the native todo dock"), "status": .string("in_progress")]),
             .object(["content": .string("Run the paired visual review"), "status": .string("pending")]),
+        ]), seq: 105)
+        selectedToolCallID = nil
+        isRunning = false
+    }
+
+    /// Snapshot-only goal-dock fixture. It mirrors the live whole `goal`
+    /// projection consumed by the native strip; mutation actions remain absent
+    /// because a snapshot must never issue a Host RPC.
+    func loadSnapshotGoalFixture() {
+        loadSnapshotToolingFixture()
+        guard let sessionID = activeSessionID else { preconditionFailure("goal fixture requires an active snapshot session") }
+        projections.apply(sessionID: sessionID, key: "goal", value: .object([
+            "goal": .object([
+                "id": .string("snapshot-goal"),
+                "revision": .number(1),
+                "objective": .string("Rebuild the official client as a native macOS app"),
+                "phase": .string("active"),
+                "maxGoalRounds": .number(4),
+            ]),
+            "roundsStarted": .number(1),
+            "createdAt": .number(100),
+            "updatedAt": .number(100),
         ]), seq: 105)
         selectedToolCallID = nil
         isRunning = false

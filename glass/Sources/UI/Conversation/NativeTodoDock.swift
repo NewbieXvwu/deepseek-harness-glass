@@ -52,7 +52,6 @@ struct NativeTodoDock: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel(OfficialUISpec.Text.todoTitle)
                 .accessibilityValue(NativeTodoDockPresentation.progressLabel(for: todos))
-                .accessibilityExpanded(!collapsed)
 
                 if !collapsed {
                     ScrollView {
