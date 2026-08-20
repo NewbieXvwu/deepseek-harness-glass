@@ -165,7 +165,25 @@ final class NativeSessionStore: ObservableObject {
             /// Optional official presentation intent. Unknown wire tags reject
             /// the entire question request rather than falling back to an
             /// invented generic interaction.
-            let intent: Intent? = nil
+            let intent: Intent?
+
+            init(
+                id: String,
+                question: String,
+                header: String?,
+                detail: String?,
+                options: [Option],
+                multiSelect: Bool,
+                intent: Intent? = nil
+            ) {
+                self.id = id
+                self.question = question
+                self.header = header
+                self.detail = detail
+                self.options = options
+                self.multiSelect = multiSelect
+                self.intent = intent
+            }
         }
 
         let rpcID: String
