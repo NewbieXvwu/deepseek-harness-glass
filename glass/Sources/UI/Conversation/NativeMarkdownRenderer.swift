@@ -9,6 +9,14 @@ import SwiftUI
 /// interactive only when it is an absolute HTTP(S) URL; the renderer never
 /// delegates `file:`, `data:`, `javascript:` or relative destinations to macOS.
 enum NativeMarkdownSecurityPolicy {
+    private static let executableHTMLExpression = try! NSRegularExpression(
+        pattern: #"(?is)<(script|style|iframe|object|embed)[^>]*>.*?</\1>"#
+    )
+    private static let htmlTagExpression = try! NSRegularExpression(pattern: #"(?is)<[^>]+>"#)
+    private static let markdownLinkExpression = try! NSRegularExpression(
+        pattern: #"\[([^\]]*)\]\(([^\s\)]+)(?:\s+[^\)]*)?\)"#
+    )
+
     static func externalURL(from raw: String) -> URL? {
         guard let components = URLComponents(string: raw.trimmingCharacters(in: .whitespacesAndNewlines)),
               let scheme = components.scheme?.lowercased(),
@@ -23,17 +31,10 @@ enum NativeMarkdownSecurityPolicy {
     /// inert prose before `AttributedString` receives the document. This is a
     /// defensive parser boundary, not an HTML renderer or sanitizer bypass.
     static func sanitizedInlineMarkdown(_ source: String) -> String {
-        var result = source
-        result = result.replacingOccurrences(
-            of: #"(?is)<(script|style|iframe|object|embed)[^>]*>.*?</\1>"#,
-            with: "",
-            options: .regularExpression
-        )
-        result = result.replacingOccurrences(of: #"(?is)<[^>]+>"#, with: "", options: .regularExpression)
+        var result = replacingMatches(in: source, using: executableHTMLExpression, with: "")
+        result = replacingMatches(in: result, using: htmlTagExpression, with: "")
 
-        let pattern = #"\[([^\]]*)\]\(([^\s\)]+)(?:\s+[^\)]*)?\)"#
-        guard let expression = try? NSRegularExpression(pattern: pattern) else { return result }
-        let matches = expression.matches(in: result, range: NSRange(result.startIndex..., in: result)).reversed()
+        let matches = markdownLinkExpression.matches(in: result, range: NSRange(result.startIndex..., in: result)).reversed()
         for match in matches {
             guard let labelRange = Range(match.range(at: 1), in: result),
                   let destinationRange = Range(match.range(at: 2), in: result),
@@ -45,6 +46,14 @@ enum NativeMarkdownSecurityPolicy {
             result.replaceSubrange(fullRange, with: replacement)
         }
         return result
+    }
+
+    private static func replacingMatches(in source: String, using expression: NSRegularExpression, with replacement: String) -> String {
+        expression.stringByReplacingMatches(
+            in: source,
+            range: NSRange(source.startIndex..., in: source),
+            withTemplate: replacement
+        )
     }
 
     @discardableResult

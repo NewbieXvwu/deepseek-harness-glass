@@ -34,6 +34,28 @@ final class NativeMarkdownRendererTests: XCTestCase {
         XCTAssertTrue(sanitized.contains("[safe](https://example.com)"))
     }
 
+    func testStreamingSanitizerIsDeterministicAndNeverActivatesUnsafeLinkPrefixes() {
+        let chunks = [
+            "before <script>ignored",
+            "()</script> [unsafe](file:///tmp/secret)",
+            " [safe](https://example.com/docs) <img src=x onerror=alert(1)> after",
+        ]
+        var streamed = ""
+        for chunk in chunks {
+            streamed += chunk
+            let once = NativeMarkdownSecurityPolicy.sanitizedInlineMarkdown(streamed)
+            XCTAssertEqual(once, NativeMarkdownSecurityPolicy.sanitizedInlineMarkdown(streamed))
+            let activeLinks = NativeMarkdownSecurityPolicy.attributedInlineMarkdown(streamed).runs.compactMap { $0.link?.absoluteString }
+            XCTAssertFalse(activeLinks.contains(where: { $0.hasPrefix("file:") || $0.hasPrefix("javascript:") || $0.hasPrefix("data:") }))
+        }
+
+        let settled = NativeMarkdownSecurityPolicy.sanitizedInlineMarkdown(streamed)
+        XCTAssertFalse(settled.localizedCaseInsensitiveContains("<script"))
+        XCTAssertFalse(settled.localizedCaseInsensitiveContains("onerror"))
+        XCTAssertTrue(settled.contains("unsafe (file:///tmp/secret)"))
+        XCTAssertTrue(settled.contains("[safe](https://example.com/docs)"))
+    }
+
     func testRenderedAttributedMarkdownRetainsOnlyHTTPLinkAttributes() {
         let attributed = NativeMarkdownSecurityPolicy.attributedInlineMarkdown(
             "[safe](https://example.com) [file](file:///tmp/private) <javascript:alert(1)>"
