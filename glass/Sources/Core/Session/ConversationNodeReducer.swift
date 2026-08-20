@@ -47,6 +47,7 @@ final class ConversationNodeReducer {
     private var contexts: [String: Context] = [:]
     private var hasMoreHistory = false
     private var nodesByTarget: [String: [ConversationViewNode]] = [:]
+    private var locationDataByKey: [String: ConversationLocationData] = [:]
 
     init(
         definitions: [AnyConversationNodeDefinition],
@@ -115,6 +116,22 @@ final class ConversationNodeReducer {
         sortedInputs()
     }
 
+    /// Engine-materialized state-only node values for one exact turn/step.
+    /// Target renderers receive typed results through their Store adapters and
+    /// never reconstruct them by reparsing raw Host events.
+    func locationData(
+        scope: ConversationLocationData.Scope,
+        turn: Int,
+        step: Int? = nil
+    ) -> ConversationLocationDataStore {
+        var values: [String: Any] = [:]
+        for data in locationDataByKey.values where data.scope == scope
+            && data.turn == turn && data.step == step {
+            values[data.key] = data.value
+        }
+        return .init(values: values)
+    }
+
     func currentHasMoreHistory() -> Bool { hasMoreHistory }
 
     private func rebuild() {
@@ -176,6 +193,7 @@ final class ConversationNodeReducer {
 
     private func materialize() {
         var next: [String: [ConversationViewNode]] = [:]
+        var locationData: [String: ConversationLocationData] = [:]
         let ordered = contexts.values.sorted { lhs, rhs in
             let left = lhs.startSeq ?? lhs.matches.first?.event.seq ?? Int.max
             let right = rhs.startSeq ?? rhs.matches.first?.event.seq ?? Int.max
@@ -183,8 +201,13 @@ final class ConversationNodeReducer {
             return left < right
         }
         for context in ordered {
+            let snapshot = context.snapshot()
+            for scope in [ConversationLocationData.Scope.turn, .step] {
+                guard let data = context.definition.buildLocationData(context: snapshot, scope: scope) else { continue }
+                locationData[locationDataKey(data)] = data
+            }
             guard let target = context.definition.target else { continue }
-            guard let node = context.definition.buildViewNode(context: context.snapshot()) else { continue }
+            guard let node = context.definition.buildViewNode(context: snapshot) else { continue }
             precondition(node.key == context.key,
                          "conversation Definition \(context.kind) produced unstable key \(node.key), expected \(context.key)")
             precondition(node.target == target,
@@ -202,6 +225,11 @@ final class ConversationNodeReducer {
             }
         }
         nodesByTarget = next
+        locationDataByKey = locationData
+    }
+
+    private func locationDataKey(_ data: ConversationLocationData) -> String {
+        "\(data.scope.rawValue):\(data.turn):\(data.step.map(String.init) ?? "-"):\(data.key)"
     }
 
     private func publication(for input: ConversationEventInput) -> ConversationPublication {
@@ -306,11 +334,32 @@ private struct ConversationTimeline {
     }
 
     private var turns: [Int: TurnFacts] = [:]
+    /// Durable plugin events (for example `tool-workflow/*`) do not repeat
+    /// turn/step fields, but the official assembler assigns them to the active
+    /// location. Preserve that engine-owned placement separately from event data.
+    private var inferredLocations: [Int: (turn: Int, step: Int?)] = [:]
 
     init(entries: [ConversationEventInput]) {
+        var activeTurn: Int?
+        var activeStep: (turn: Int, step: Int)?
         for entry in entries {
             let event = entry.event
-            guard let turn = event.data.integer(named: "turn") else { continue }
+            let explicitTurn = event.data.integer(named: "turn")
+            if event.type == "turn/start", let explicitTurn {
+                activeTurn = explicitTurn
+                activeStep = nil
+            }
+            if event.type == "step/start", let explicitTurn,
+               let explicitStep = event.data.integer(named: "step") {
+                activeTurn = explicitTurn
+                activeStep = (explicitTurn, explicitStep)
+            }
+            if explicitTurn == nil, let activeTurn {
+                inferredLocations[event.seq] = activeStep?.turn == activeTurn
+                    ? (activeTurn, activeStep?.step)
+                    : (activeTurn, nil)
+            }
+            guard let turn = explicitTurn else { continue }
             var facts = turns[turn] ?? TurnFacts(start: nil, end: nil, steps: [:])
             if event.type == "turn/start" { facts.start = event }
             if event.type == "turn/end" { facts.end = event }
@@ -321,15 +370,26 @@ private struct ConversationTimeline {
                 facts.steps[step] = stepFacts
             }
             turns[turn] = facts
+            if event.type == "step/end", let endingStep = event.data.integer(named: "step"),
+               activeStep?.turn == turn, activeStep?.step == endingStep {
+                activeStep = nil
+            }
+            if event.type == "turn/end", activeTurn == turn {
+                activeTurn = nil
+                activeStep = nil
+            }
         }
     }
 
     func location(for event: SessionEventDTO) -> ConversationLocation {
-        guard let turnNumber = event.data.integer(named: "turn"), let facts = turns[turnNumber] else {
+        let inferred = inferredLocations[event.seq]
+        guard let turnNumber = event.data.integer(named: "turn") ?? inferred?.turn,
+              let facts = turns[turnNumber]
+        else {
             return .session
         }
         let turn = makeTurn(number: turnNumber, facts: facts)
-        guard let stepNumber = event.data.integer(named: "step") else { return .turn(turn) }
+        guard let stepNumber = event.data.integer(named: "step") ?? inferred?.step else { return .turn(turn) }
         let stepFacts = facts.steps[stepNumber] ?? StepFacts(start: nil, end: nil)
         let step = ConversationStepLocation(
             turn: turnNumber,

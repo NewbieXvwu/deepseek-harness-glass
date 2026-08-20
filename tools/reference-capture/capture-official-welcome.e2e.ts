@@ -42,17 +42,21 @@ async function writeCaptureMetadata(
 }
 
 /** Start a true registry-backed job without consuming model output. */
-function registryJob(label: string, outcome?: 'completed') {
+function registryJob(label: string) {
+  let settle!: () => void
   return {
-    kind: 'bash' as const,
-    label,
-    run: () => ({
-      cancel: () => {},
-      done: outcome === 'completed'
-        ? Promise.resolve({ status: 'completed' as const })
-        : new Promise<never>(() => {}),
-      readOutput: () => '',
-    }),
+    spec: {
+      kind: 'bash' as const,
+      label,
+      run: () => ({
+        cancel: () => {},
+        done: new Promise<{ status: 'completed' }>((resolve) => {
+          settle = () => { resolve({ status: 'completed' }) }
+        }),
+        readOutput: () => '',
+      }),
+    },
+    settle: () => { settle() },
   }
 }
 
@@ -100,19 +104,29 @@ describe('reference capture: official welcome and session Jobs action', () => {
     const agent = scaffold.ctx.agents.get(sessionID)
     if (agent === undefined) throw new Error('Jobs reference capture requires the current Host agent')
     if (scaffold.ctx.jobs === undefined) throw new Error('Jobs reference capture requires the bundled Host registry')
-    scaffold.ctx.jobs.start({ ...registryJob('sleep 60'), owner: agent })
-    scaffold.ctx.jobs.start({ ...registryJob('pnpm run build', 'completed'), owner: agent })
+    const live = registryJob('sleep 60')
+    const completed = registryJob('pnpm run build')
+    scaffold.ctx.jobs.start({ ...live.spec, owner: agent })
+    scaffold.ctx.jobs.start({ ...completed.spec, owner: agent })
+    completed.settle()
 
-    const action = page.getByRole('button', { name: '1 background job running' })
-    await action.waitFor({ timeout: 30_000 })
-    await action.click()
-    const list = page.getByRole('list', { name: 'Background jobs' })
-    await list.waitFor({ timeout: 30_000 })
-    await page.getByText('completed', { exact: true }).waitFor({ timeout: 30_000 })
-    await page.screenshot({ path: join(outputDirectory, 'jobs-expanded-light.png') })
-    await writeCaptureMetadata(page, 'jobs-expanded-light', consoleTripwire.warnings, consoleTripwire.pageErrors)
-    expect(consoleTripwire.warnings).toEqual([])
-    expect(consoleTripwire.pageErrors).toEqual([])
-    await page.close()
+    try {
+      const action = page.getByRole('button', { name: '1 background job running' })
+      await action.waitFor({ timeout: 30_000 })
+      await action.click()
+      const list = page.getByRole('list', { name: 'Background jobs' })
+      await list.waitFor({ timeout: 30_000 })
+      await page.getByText('completed', { exact: true }).waitFor({ timeout: 30_000 })
+      await page.screenshot({ path: join(outputDirectory, 'jobs-expanded-light.png') })
+      await writeCaptureMetadata(page, 'jobs-expanded-light', consoleTripwire.warnings, consoleTripwire.pageErrors)
+      expect(consoleTripwire.warnings).toEqual([])
+      expect(consoleTripwire.pageErrors).toEqual([])
+    } finally {
+      // The capture intentionally observes this job as live. Settle only after
+      // the PNG/ARIA evidence is written so scaffold.close() never awaits an
+      // artificial indefinitely-running task.
+      live.settle()
+      await page.close()
+    }
   }, 120_000)
 })

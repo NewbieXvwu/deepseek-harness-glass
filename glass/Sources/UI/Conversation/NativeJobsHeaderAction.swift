@@ -26,15 +26,20 @@ struct NativeJobsHeaderAction: View {
     var body: some View {
         if !jobs.isEmpty {
             Button(action: { open.toggle(); nowMilliseconds = Int(Date().timeIntervalSince1970 * 1_000) }) {
-                HStack(spacing: OfficialUISpec.Spacing.p6) {
+                HStack(spacing: 3) {
                     Circle().fill(liveCount > 0 ? OfficialUISpec.Token.businessBlue : OfficialUISpec.Token.caption)
                         .frame(width: 6, height: 6)
                     Text(countLabel)
-                        .font(OfficialUISpec.Typography.xs13)
+                        .font(.system(size: 12))
+                        .padding(.horizontal, 5)
                     Image(systemName: "chevron.down")
                         .font(.system(size: 11, weight: .semibold))
                         .rotationEffect(.degrees(open ? 180 : 0))
                 }
+                .padding(.vertical, 3)
+                .padding(.horizontal, 2)
+                .frame(minHeight: 28)
+                .foregroundStyle(OfficialUISpec.Token.caption)
             }
             .buttonStyle(.plain)
             .accessibilityLabel(countLabel)
@@ -46,21 +51,40 @@ struct NativeJobsHeaderAction: View {
     }
 
     private var menu: some View {
-        VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p8) {
+        VStack(alignment: .leading, spacing: 1) {
             ForEach(orderedJobs) { job in
-                HStack(alignment: .firstTextBaseline, spacing: OfficialUISpec.Spacing.p8) {
+                HStack(spacing: 8) {
                     Circle().fill(statusColor(job.status)).frame(width: 7, height: 7)
-                    Text(job.kind).font(OfficialUISpec.Typography.xs13).foregroundStyle(OfficialUISpec.Token.secondary)
-                    Text(job.label).font(OfficialUISpec.Typography.xs13).lineLimit(1)
-                    Spacer(minLength: 0)
-                    Text(job.detail ?? statusLabel(job.status)).font(OfficialUISpec.Typography.xs13).foregroundStyle(OfficialUISpec.Token.caption)
-                    Text(duration(for: job)).font(OfficialUISpec.Typography.xs13).foregroundStyle(OfficialUISpec.Token.caption)
+                    Text(job.kind)
+                        .font(.system(size: 11))
+                        .foregroundStyle(OfficialUISpec.Token.secondary)
+                        .padding(.horizontal, 6)
+                        .background(OfficialUISpec.Token.elevated, in: RoundedRectangle(cornerRadius: 5, style: .continuous))
+                    Text(job.label)
+                        .font(.system(size: 13, design: .monospaced))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Text(job.detail ?? statusLabel(job.status))
+                        .font(.system(size: 11))
+                        .foregroundStyle(OfficialUISpec.Token.caption)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .frame(maxWidth: 134, alignment: .trailing)
+                    Text(duration(for: job))
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(OfficialUISpec.Token.caption)
+                        .fixedSize(horizontal: true, vertical: false)
                 }
+                .padding(.vertical, 6)
+                .padding(.horizontal, 8)
+                .frame(minHeight: 32)
+                .foregroundStyle(SessionJobsPresentation.isLive(job) ? OfficialUISpec.Token.primary : OfficialUISpec.Token.caption)
                 .accessibilityElement(children: .combine)
             }
         }
-        .padding(OfficialUISpec.Spacing.p12)
-        .frame(minWidth: 300, maxWidth: 460, alignment: .leading)
+        .padding(4)
+        .frame(width: 336, alignment: .leading)
     }
 
     private var countLabel: String {
