@@ -261,7 +261,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 - [ ] **T5.2：实现 AppKit 三栏容器与架构解耦。** `NativeShellRootController` 继承 `NSSplitViewController`，保持 sidebar、conversation、details 三个 `NSSplitViewItem` 承载各自 SwiftUI 内容。将原有 1000+ 行混合代码严格解耦：剥离所有 Workspace 管理弹窗（Rename/Delete）移回 SwiftUI 声明式 `.sheet` / `.overlay`；剥离 NSTextField 代理与坐标胶水；分栏容器自身瘦身至不超过 150 行，纯粹负责 `NSSplitView` 的像素级吸附、折叠手感与 `NativeSplitLayoutPolicy` 约束。
   - 依赖：T2.4、T5.1。
   - 验收证据：`NativeSplitLayoutPolicyTests` 覆盖锁定 1280px `280/640/360` 基线、sidebar 264–420 clamp、56px collapsed rail、details 300–520 clamp、divider 可用宽度限制与 details collapse；解耦后无任何业务弹窗与多余 delegate 泄漏在分栏控制器内。
-  - 进度：依据 RC8 `ui-layout` 的 `columns.ts`、`AppFrame.tsx` 与 `stores.ts`，已将窄窗口默认 rail、`narrowExpanded` 临时展开和跨断点 reset 映射为 `NativeSidebarLayoutState`；两条回归覆盖“窄窗口展开不改写宽窗口偏好”和“宽窗口收缩偏好在窄窗口临时展开后恢复”。来源与本地门禁记录于 `notes/T5.2-rc8-sidebar-layout-sources.md`。该行为改动仍须以当前提交的 macOS-26 runtime XCTest、1023px light/dark paired screenshots、键盘焦点与人工差异分类闭环，故保持未勾选。
+  - 进度：依据 RC8 `ui-layout` 的 `columns.ts`、`AppFrame.tsx` 与 `stores.ts`，已将窄窗口默认 rail、`narrowExpanded` 临时展开和跨断点 reset 映射为 `NativeSidebarLayoutState`；三条回归覆盖“窄窗口展开不改写宽窗口偏好”、“宽窗口收缩偏好在窄窗口临时展开后恢复”与“同一窄 regime 的重复 viewport refresh 不清除用户临时展开”。来源与本地门禁记录于 `notes/T5.2-rc8-sidebar-layout-sources.md`。该行为改动仍须以当前提交的 macOS-26 runtime XCTest、1023px light/dark paired screenshots、键盘焦点与人工差异分类闭环，故保持未勾选。
 
 - [ ] **T5.3：让系统负责 sidebar/inspector 材质。** `NativeSplitViewController` 使用 `NSSplitViewItem(sidebarWithViewController:)` 与 `NSSplitViewItem(inspectorWithViewController:)`，两个 SwiftUI宿主保持透明；禁止在这两个结构区域加 `NSVisualEffectView`、固定官方色 canvas、全窗自定义模糊或壁纸亮度采样来“模拟”玻璃。系统在 Light/Dark、Reduce Transparency、Increase Contrast 下负责导航材质的自然适配。
   - 依赖：T5.2。

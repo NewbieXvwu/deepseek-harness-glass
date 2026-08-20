@@ -91,6 +91,18 @@ final class NativeSplitLayoutPolicyTests: XCTestCase {
         XCTAssertFalse(state.narrowExpanded, "the narrow-only override must reset at the breakpoint")
     }
 
+    func testRepeatedNarrowViewportRefreshPreservesManualExpansion() {
+        var state = NativeSidebarLayoutState()
+        state.setNarrow(true)
+        state.setCollapsed(false)
+        XCTAssertFalse(state.isCollapsed)
+        XCTAssertTrue(state.narrowExpanded)
+
+        state.setNarrow(true)
+        XCTAssertFalse(state.isCollapsed, "a viewport refresh within the same narrow regime must preserve the user's open rail")
+        XCTAssertTrue(state.narrowExpanded)
+    }
+
     func testWideCollapsedPreferenceSurvivesNarrowManualExpansion() {
         var state = NativeSidebarLayoutState()
         state.setCollapsed(true)
