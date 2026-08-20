@@ -15,8 +15,16 @@ struct OfficialAccessibilityBaseline: Decodable, Equatable {
 }
 
 enum OfficialAccessibilityBaselineCatalog {
+    private static var resourceBundle: Bundle {
+        #if SWIFT_PACKAGE
+        .module
+        #else
+        .main
+        #endif
+    }
+
     static let baseline: OfficialAccessibilityBaseline = {
-        guard let url = Bundle.module.url(forResource: "official-accessibility-baseline", withExtension: "json"),
+        guard let url = resourceBundle.url(forResource: "official-accessibility-baseline", withExtension: "json"),
               let decoded = try? JSONDecoder().decode(OfficialAccessibilityBaseline.self, from: Data(contentsOf: url))
         else {
             preconditionFailure("The packaged official accessibility baseline must decode at runtime.")
