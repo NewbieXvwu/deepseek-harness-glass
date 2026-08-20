@@ -80,7 +80,9 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.selectedSessionID, "same-session")
         XCTAssertTrue(store.items.isEmpty)
         XCTAssertNil(store.modelDirectory)
-        XCTAssertNil(store.extensionState)
+        XCTAssertNil(store.extensionState?.modelDirectory)
+        XCTAssertTrue(store.extensionState?.queuedMessages.isEmpty == true)
+        XCTAssertTrue(store.extensionState?.backgroundJobs.isEmpty == true)
     }
 
     func testCancelledRecoveryCannotReviveDisconnectedSession() async {
@@ -438,12 +440,15 @@ final class NativeSessionStoreTests: XCTestCase {
             queuedItem(id: "steering", messageID: "steer-me", placement: "steering", content: [.object(["type": .string("text"), "text": .string("retire me")])]),
         ]), sessionID: "snapshot-tooling")
 
-        store.applyMuxFrame(eventFrame(sessionID: "snapshot-tooling", seq: 500, messageID: "steer-me", text: "admitted steering"), sessionID: "snapshot-tooling")
+        // `loadSnapshotToolingFixture` ends at sequence 104. Use the next
+        // contiguous Host event so this test exercises steering retirement,
+        // rather than correctly triggering the T6.7 gap-recovery fence.
+        store.applyMuxFrame(eventFrame(sessionID: "snapshot-tooling", seq: 105, messageID: "steer-me", text: "admitted steering"), sessionID: "snapshot-tooling")
 
         XCTAssertEqual(store.queuedMessages.map(\.id), ["queued"])
         XCTAssertEqual(store.queuedMessages.first?.messageID, "ordinary")
         XCTAssertEqual(store.items.last?.text, "admitted steering")
-        XCTAssertEqual(store.items.last?.time, 500)
+        XCTAssertEqual(store.items.last?.time, 105)
     }
 
     func testQuestionRequestPreservesOfficialPlanReviewIntentAndRejectsUnknownIntent() {
