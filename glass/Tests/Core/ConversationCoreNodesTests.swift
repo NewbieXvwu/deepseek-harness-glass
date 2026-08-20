@@ -240,6 +240,54 @@ final class ConversationCoreNodesTests: XCTestCase {
         XCTAssertEqual(reducer.rawWindow().map(\.event.seq), Array(1...9))
     }
 
+    func testWorkflowRunFoldsOfficialDurableEventsWithExactPhaseIdentityAndTerminalStatuses() {
+        let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
+        let entries = [
+            event(seq: 100, type: "tool-workflow/run-start", data: ["runId": .string("run-1"), "name": .string("release")]),
+            event(seq: 101, type: "tool-workflow/agent-start", data: ["runId": .string("run-1"), "seq": .number(1), "label": .string("plan"), "childId": .string("child-1")]),
+            event(seq: 102, type: "tool-workflow/agent-start", data: ["runId": .string("run-1"), "seq": .number(2), "label": .string(""), "phase": .string(""), "childId": .string("child-2")]),
+            event(seq: 103, type: "tool-workflow/agent-start", data: ["runId": .string("run-1"), "seq": .number(3), "label": .string("ship"), "phase": .string("deliver"), "childId": .string("child-3")]),
+            event(seq: 104, type: "tool-workflow/agent-end", data: ["runId": .string("run-1"), "seq": .number(1), "outcome": .string("completed")]),
+            event(seq: 105, type: "tool-workflow/agent-end", data: ["runId": .string("run-1"), "seq": .number(2), "outcome": .string("failed")]),
+            event(seq: 106, type: "tool-workflow/agent-end", data: ["runId": .string("run-1"), "seq": .number(3), "outcome": .string("cancelled")]),
+            event(seq: 107, type: "tool-workflow/run-end", data: ["runId": .string("run-1"), "stopReason": .string("error")]),
+        ]
+
+        XCTAssertEqual(reducer.replaceWindow(entries.map { .init(event: $0) }, hasMore: false), .immediate)
+        let workflow = tryUnwrap(reducer.snapshot(target: "chat").first(where: { $0.kind == "workflow-run" })?.data as? CoreWorkflowRunNode)
+        XCTAssertEqual(workflow.name, "release")
+        XCTAssertEqual(workflow.status, .failed)
+        XCTAssertEqual(workflow.phases.map(\.key), ["missing", "value:0:", "value:7:deliver"])
+        XCTAssertEqual(workflow.phases.flatMap(\.members).map(\.status), [.completed, .failed, .cancelled])
+        XCTAssertEqual(workflow.phases.flatMap(\.members).map(\.childID), ["child-1", "child-2", "child-3"])
+        XCTAssertEqual(workflowPhaseKey(nil), "missing")
+        XCTAssertEqual(workflowPhaseKey(""), "value:0:")
+        XCTAssertEqual(workflowPhaseKey("deliver"), "value:7:deliver")
+        XCTAssertEqual(workflowPhaseKey("🚀"), "value:2:🚀", "matches JavaScript UTF-16 String.length")
+    }
+
+    func testWorkflowRunRejectsMalformedUpdatesAndProjectsInterruptedAtClosedLocation() {
+        let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
+        let entries = [
+            event(seq: 200, type: "turn/start", data: ["turn": .number(7)]),
+            event(seq: 201, type: "step/start", data: ["turn": .number(7), "step": .number(1)]),
+            event(seq: 202, type: "tool-workflow/run-start", data: ["runId": .string("run-2"), "name": .string("" )]),
+            event(seq: 203, type: "tool-workflow/agent-start", data: ["runId": .string("run-2"), "seq": .number(1), "label": .string("inspect"), "childId": .string("child-4")]),
+            // Unknown outcome and a duplicate member sequence must not mutate the
+            // typed renderer state or create phantom rows.
+            event(seq: 204, type: "tool-workflow/agent-end", data: ["runId": .string("run-2"), "seq": .number(1), "outcome": .string("future-outcome")]),
+            event(seq: 205, type: "tool-workflow/agent-start", data: ["runId": .string("run-2"), "seq": .number(1), "label": .string("duplicate"), "childId": .string("child-5")]),
+            event(seq: 206, type: "step/end", data: ["turn": .number(7), "step": .number(1)]),
+        ]
+
+        for entry in entries { _ = reducer.append(.init(event: entry)) }
+        let workflow = tryUnwrap(reducer.snapshot(target: "chat").first(where: { $0.kind == "workflow-run" })?.data as? CoreWorkflowRunNode)
+        XCTAssertEqual(workflow.name, "")
+        XCTAssertEqual(workflow.status, .interrupted)
+        XCTAssertEqual(workflow.phases.flatMap(\.members).count, 1)
+        XCTAssertEqual(workflow.phases.flatMap(\.members).first?.status, .interrupted)
+    }
+
     private func text(_ value: String) -> JSONValue {
         .object(["type": .string("text"), "text": .string(value)])
     }
