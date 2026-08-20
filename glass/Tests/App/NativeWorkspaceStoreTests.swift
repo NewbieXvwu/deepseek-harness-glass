@@ -51,6 +51,23 @@ final class NativeWorkspaceStoreTests: XCTestCase {
         XCTAssertEqual(NativeWorkspaceStore.recentWorkspaceID(in: emptyOnly), "newer")
     }
 
+    func testRailSearchArmsWideInputAndFocusesOnlyAfterExpansionSettles() {
+        let armed = NativeWorkspaceBrowserSearchOnExpand.armedState()
+        XCTAssertEqual(armed, .init(searchExpanded: true, awaitsWideFocus: true))
+        XCTAssertFalse(NativeWorkspaceBrowserSearchOnExpand.shouldFocus(
+            collapsed: true,
+            awaitsWideFocus: armed.awaitsWideFocus
+        ))
+        XCTAssertTrue(NativeWorkspaceBrowserSearchOnExpand.shouldFocus(
+            collapsed: false,
+            awaitsWideFocus: armed.awaitsWideFocus
+        ))
+        XCTAssertEqual(
+            NativeWorkspaceBrowserSearchOnExpand.settledState(searchExpanded: armed.searchExpanded),
+            .init(searchExpanded: true, awaitsWideFocus: false)
+        )
+    }
+
     func testSearchWithoutVerifiedHostDoesNotInventPrivateResults() {
         let store = NativeWorkspaceStore()
         store.searchQuery = "host-authoritative"

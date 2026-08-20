@@ -335,7 +335,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 - [ ] **T7.3：实现 sidebar 搜索与行操作。** 行为、可见性、快捷键、空状态、结果排序和文案必须以锁定官方 UI 为准。
   - 依赖：T7.2、T2.5。
   - 验收：每个官方测试场景可复现，搜索不创建未记录的原生私有索引。
-  - 进度：`NativeWorkspaceStoreTests` 已覆盖无已验证 Host 时搜索只能进入空 remote-search failed 状态（无 items、无 hasMore），禁止从本地 snapshot 生成私有内容索引；当前仍须以 RC8 official/native search、rename、delete 浅/深色配对、ARIA/geometry、人工分类与当前 SHA macOS 工件闭环，故保持未勾选。
+  - 进度：`NativeWorkspaceStoreTests` 已覆盖无已验证 Host 时搜索只能进入空 remote-search failed 状态（无 items、无 hasMore），禁止从本地 snapshot 生成私有内容索引；并实现/测试 RC8 `WorkspaceBrowser.searchOnExpand` 合同：rail 搜索先武装 expanded + wide-focus、请求 sidebar 展开，输入框挂载后在 300ms slide settle 时聚焦，若仍为 rail 则不聚焦。当前仍须以 RC8 official/native search、rename、delete 浅/深色配对、ARIA/geometry、人工分类与当前 SHA macOS 工件闭环，故保持未勾选。
 
 - [ ] **T7.4：实现收缩 rail。** 用官方尺寸和 motion sequence 完成 wide ↔ rail 切换；减弱动态效果时使用静态/简化过渡。
   - 依赖：T2.4、T5.2、T5.6。

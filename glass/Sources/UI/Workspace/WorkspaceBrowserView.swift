@@ -6,6 +6,28 @@ import GlassPortableCore
 @testable import GlassCore
 @testable import GlassSpec
 #endif
+/// Pure local-state contract for the rail's search gesture. The Host owns the
+/// query results; this only preserves RC8's UI transition across the sidebar
+/// width change.
+enum NativeWorkspaceBrowserSearchOnExpand {
+    struct State: Equatable {
+        let searchExpanded: Bool
+        let awaitsWideFocus: Bool
+    }
+
+    static func armedState() -> State {
+        State(searchExpanded: true, awaitsWideFocus: true)
+    }
+
+    static func shouldFocus(collapsed: Bool, awaitsWideFocus: Bool) -> Bool {
+        !collapsed && awaitsWideFocus
+    }
+
+    static func settledState(searchExpanded: Bool) -> State {
+        State(searchExpanded: searchExpanded, awaitsWideFocus: false)
+    }
+}
+
 /// Native rendering of the official `WorkspaceBrowser` hierarchy. Host state is
 /// injected from `NativeWorkspaceStore`; this view holds only browser-local
 /// expansion and search-input animation state.
@@ -79,6 +101,11 @@ struct WorkspaceBrowserView: View {
     }
 
     @State private var searchExpanded = false
+    /// Source: RC8 `WorkspaceBrowser.searchOnExpand`. A rail search arms the
+    /// wide input before the shell flips, then focuses only after the 300ms
+    /// column slide so focus-induced layout does not interrupt the transition.
+    @State private var searchOnExpand = false
+    @FocusState private var searchInputFocused: Bool
     @State private var expandedWorkspaceIDs: Set<String>
     @State private var workspaceRenameTarget: RenameTarget?
     @State private var sessionRenameTarget: RenameTarget?
@@ -145,9 +172,10 @@ struct WorkspaceBrowserView: View {
     }
 
     var body: some View {
+        Group {
         if collapsed {
             WorkspaceBrowserRail(
-                requestSidebarExpansion: requestSidebarExpansion,
+                requestSidebarExpansion: openSearchFromRail,
                 addWorkspace: actions.addWorkspace
             )
         } else {
@@ -220,6 +248,21 @@ struct WorkspaceBrowserView: View {
                     confirm: { commitWorkspaceDelete(target) }
                 )
             }
+        }
+        }
+        .task(id: "\(collapsed)|\(searchOnExpand)") {
+            guard NativeWorkspaceBrowserSearchOnExpand.shouldFocus(
+                collapsed: collapsed,
+                awaitsWideFocus: searchOnExpand
+            ) else { return }
+            // Source: RC8 `WorkspaceBrowser.EXPAND_SLIDE_MS`. SwiftUI cancels
+            // this task if the user recollapses before the slide settles.
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
+            searchInputFocused = true
+            searchOnExpand = NativeWorkspaceBrowserSearchOnExpand.settledState(
+                searchExpanded: searchExpanded
+            ).awaitsWideFocus
         }
     }
 
@@ -305,6 +348,7 @@ struct WorkspaceBrowserView: View {
                     .textFieldStyle(.plain)
                     .font(OfficialUISpec.Typography.xs13)
                     .foregroundStyle(OfficialUISpec.Token.primary)
+                    .focused($searchInputFocused)
                     .accessibilityLabel(OfficialUISpec.Text.searchSessionsAccessibility)
 
                 if !store.searchQuery.isEmpty {
@@ -857,11 +901,26 @@ struct WorkspaceBrowserView: View {
         return true
     }
 
+    private func openSearchFromRail() {
+        // Source: RC8 `WorkspaceBrowser`: set both local flags before the
+        // owner transition. The mounted wide browser therefore inherits an
+        // expanded search instead of presenting a transient rail-only action.
+        let state = NativeWorkspaceBrowserSearchOnExpand.armedState()
+        searchExpanded = state.searchExpanded
+        searchOnExpand = state.awaitsWideFocus
+        requestSidebarExpansion()
+    }
+
     private func toggleSearch() {
         withAnimation(.easeInOut(duration: 0.18)) {
             searchExpanded.toggle()
         }
-        if !searchExpanded { store.searchQuery = "" }
+        if searchExpanded {
+            searchInputFocused = true
+        } else {
+            searchInputFocused = false
+            store.searchQuery = ""
+        }
     }
 
     private func toggleWorkspace(_ workspaceID: String) {
