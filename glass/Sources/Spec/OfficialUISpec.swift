@@ -252,6 +252,9 @@ enum OfficialUISpec {
         static let workflowFailed = "Failed"
         static let workflowCancelled = "Cancelled"
         static let workflowInterrupted = "Interrupted"
+        // Source: packages/client/ui-conversation/src/client/locales.ts:309-310 (en)
+        static let maxTokensTitle = "Output token limit reached"
+        static let maxTokensHint = "The reply was cut off; earlier output is preserved in the conversation. Send \"continue\" to let the model resume."
         static let producedFilesMoreOne = "+ 1 file"
         static let producedFilesMoreTemplate = "+ {count} files"
         static let producedFilesOpenTemplate = "Open {name}"

@@ -245,7 +245,7 @@ private struct NativeTranscriptScrollView: View {
     private var timeline: [TimelineItem] {
         let visibleMessages = chatNodes.compactMap { node -> TimelineItem? in
             guard node.visibility != .hidden,
-                  node.data is CoreUserMessageNode || node.data is CoreAssistantNode || node.data is CoreWorkflowRunNode
+                  node.data is CoreUserMessageNode || node.data is CoreAssistantNode || node.data is CoreWorkflowRunNode || node.data is CoreTurnMaxTokensNode
             else { return nil }
             return .chat(node)
         }
@@ -361,6 +361,8 @@ private struct NativeConversationNodeRow: View {
                 assistantRow(assistant)
             } else if let workflow = node.data as? CoreWorkflowRunNode {
                 NativeWorkflowRunPanel(workflow: workflow)
+            } else if node.data is CoreTurnMaxTokensNode {
+                NativeTurnMaxTokensNotice()
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
