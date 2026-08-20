@@ -131,7 +131,7 @@ struct NativeQueueDock: View {
                     .truncationMode(.tail)
             }
             if let text = NativeQueueDockPresentation.failureText(failure, rowID: row.id) {
-                Text(text).font(OfficialUISpec.Typography.xxxs12).foregroundStyle(OfficialUISpec.Token.errorPrimary).lineLimit(1).truncationMode(.tail).accessibilityLabel(text)
+                Text(text).font(OfficialUISpec.Typography.xxs12).foregroundStyle(OfficialUISpec.Token.errorPrimary).lineLimit(1).truncationMode(.tail).accessibilityLabel(text)
             }
             Spacer(minLength: 0)
             if isMutable { actionControls(row) }

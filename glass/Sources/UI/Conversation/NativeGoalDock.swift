@@ -83,7 +83,7 @@ struct NativeGoalDock: View {
 
             if let failureText = NativeGoalDockPresentation.failureText(failure) {
                 Text(failureText)
-                    .font(OfficialUISpec.Typography.xxxs12)
+                    .font(OfficialUISpec.Typography.xxs12)
                     .foregroundStyle(OfficialUISpec.Token.errorPrimary)
                     .lineLimit(1)
                     .truncationMode(.tail)
@@ -127,7 +127,7 @@ struct NativeGoalDock: View {
 
             if let failureText = NativeGoalDockPresentation.failureText(failure) {
                 Text(failureText)
-                    .font(OfficialUISpec.Typography.xxxs12)
+                    .font(OfficialUISpec.Typography.xxs12)
                     .foregroundStyle(OfficialUISpec.Token.errorPrimary)
                     .lineLimit(1)
                     .truncationMode(.tail)
