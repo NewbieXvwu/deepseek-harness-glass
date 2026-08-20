@@ -2,6 +2,7 @@ import AppKit
 import XCTest
 
 @testable import DeepSeekHarnessGlassApp
+@testable import GlassUI
 
 @MainActor
 final class WindowCoordinatorTests: XCTestCase {
