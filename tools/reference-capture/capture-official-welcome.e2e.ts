@@ -85,10 +85,19 @@ async function revealAndClickRowAction(row: Locator, actionName: string): Promis
 
 async function openWorkspaceManagementDialog(page: CapturePage, kind: 'workspace-rename' | 'session-rename' | 'workspace-delete'): Promise<string> {
   if (kind === 'session-rename') {
-    const action = page.locator('button[aria-label^="Session actions for "]').first()
+    // The persisted seed is grouped under Ungrouped. Match the official
+    // workspace-management exercise: converge on expansion before locating the
+    // child row, because collapsed descendants deliberately have no DOM action.
+    const ungroupedRow = page.getByText('Ungrouped', { exact: true }).locator('..').locator('..')
+    if (await ungroupedRow.getAttribute('aria-expanded') !== 'true') {
+      await page.getByText('Ungrouped', { exact: true }).click()
+    }
+    const groupSection = ungroupedRow.locator('..')
+    const row = groupSection.locator('[role="treeitem"]').nth(1)
+    await row.waitFor({ timeout: 30_000 })
+    const action = row.locator('button[aria-label^="Session actions for "]')
     const actionName = await action.getAttribute('aria-label')
     if (actionName === null) throw new Error('session fixture has no row action')
-    const row = action.locator('xpath=ancestor::*[@role="treeitem"][1]')
     await revealAndClickRowAction(row, actionName)
     await page.getByRole('menuitem', { name: 'Rename', exact: true }).click()
     return 'Rename session'
