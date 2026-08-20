@@ -18,6 +18,9 @@ final class ConversationNodeReducer {
         var state: Any?
         var matches: [ConversationMatch] = []
         var current: [String: ConversationViewNode?] = [:]
+        /// Engine-issued `locationDataByKey` keys for this context, tracked so an
+        /// incremental append can retire facts that an update invalidates.
+        var locationKeys: Set<String> = []
 
         init(definition: AnyConversationNodeDefinition, id: String) {
             self.definition = definition
@@ -48,6 +51,13 @@ final class ConversationNodeReducer {
     private var hasMoreHistory = false
     private var nodesByTarget: [String: [ConversationViewNode]] = [:]
     private var locationDataByKey: [String: ConversationLocationData] = [:]
+    /// Highest resident raw sequence. Kept as an O(1) append guard so a 10k
+    /// streaming chunk run never rescans the dictionary per event.
+    private var latestSeq: Int?
+    /// Engine-owned location index over the resident raw window. Live `append`
+    /// events extend it incrementally instead of rescanning the whole window,
+    /// which keeps streaming cost linear in the number of chunks.
+    private var timeline = ConversationTimeline(entries: [])
 
     init(
         definitions: [AnyConversationNodeDefinition],
@@ -75,15 +85,30 @@ final class ConversationNodeReducer {
 
     /// Appends one verified live tail event. Duplicate deliveries are idempotent;
     /// a gap or stale nonduplicate event is a pager/reconnect repair condition.
+    /// Appends are incremental: only the accepted event's contexts are accepted
+    /// and re-materialized instead of replaying the whole raw window, which keeps
+    /// the streaming path O(1) per event instead of O(n).
     @discardableResult
     func append(_ input: ConversationEventInput) -> ConversationPublication {
         let seq = input.event.seq
         if inputsBySeq[seq] != nil { return .none }
-        if let tail = inputsBySeq.keys.max(), seq <= tail {
+        if let tail = latestSeq, seq <= tail {
             preconditionFailure("conversation reducer received non-appended live seq \(seq) after \(tail)")
         }
         inputsBySeq[seq] = input
-        rebuild()
+        latestSeq = seq
+        timeline.append(input)
+        if input.event.affectsLocationFacts {
+            // Boundary evidence changes engine-owned turn/step facts. Definitions
+            // that derive node data or location data from those facts must all be
+            // replayed, exactly like the full-window rebuild path, so a streaming
+            // reader never sees a stale status. Boundary events are a small
+            // fraction of a live stream, so the amortized cost stays linear.
+            rebuild()
+        } else {
+            let affected = accept(input, timeline: timeline)
+            materializeAppended(affected)
+        }
         return publication(for: input)
     }
 
@@ -137,23 +162,26 @@ final class ConversationNodeReducer {
     private func rebuild() {
         contexts.removeAll(keepingCapacity: true)
         nodesByTarget.removeAll(keepingCapacity: true)
-        let timeline = ConversationTimeline(entries: sortedInputs())
+        latestSeq = inputsBySeq.keys.max()
+        timeline = ConversationTimeline(entries: sortedInputs())
         for input in sortedInputs() {
-            accept(input, timeline: timeline)
+            _ = accept(input, timeline: timeline)
         }
         materialize()
     }
 
-    private func accept(_ input: ConversationEventInput, timeline: ConversationTimeline) {
+    private func accept(_ input: ConversationEventInput, timeline: ConversationTimeline) -> Set<String> {
         var matchedTargets = Set<String>()
+        var affected = Set<String>()
         for definition in definitions {
             guard let result = definition.match(input.event) else { continue }
             if let target = definition.target { matchedTargets.insert(target) }
-            accept(definition: definition, result: result, input: input, timeline: timeline)
+            affected.insert(accept(definition: definition, result: result, input: input, timeline: timeline))
         }
         if let fallback, let target = fallback.target, !matchedTargets.contains(target), let result = fallback.match(input.event) {
-            accept(definition: fallback, result: result, input: input, timeline: timeline)
+            affected.insert(accept(definition: fallback, result: result, input: input, timeline: timeline))
         }
+        return affected
     }
 
     private func accept(
@@ -161,7 +189,7 @@ final class ConversationNodeReducer {
         result: ConversationMatchResult,
         input: ConversationEventInput,
         timeline: ConversationTimeline
-    ) {
+    ) -> String {
         let key = conversationContextKey(kind: definition.kind, id: result.id)
         let context: Context
         if let existing = contexts[key] {
@@ -189,6 +217,7 @@ final class ConversationNodeReducer {
                 context.state = definition.update(context: context.snapshot(), match: match)
             }
         }
+        return key
     }
 
     private func materialize() {
@@ -224,8 +253,80 @@ final class ConversationNodeReducer {
                 return leftAnchor < rightAnchor
             }
         }
+        for context in contexts.values {
+            context.locationKeys = Set([ConversationLocationData.Scope.turn, .step].compactMap { scope in
+                guard let data = context.definition.buildLocationData(context: context.snapshot(), scope: scope) else { return nil }
+                return locationDataKey(data)
+            })
+        }
         nodesByTarget = next
         locationDataByKey = locationData
+    }
+
+    /// Incremental counterpart of `materialize()` for one live append. Only the
+    /// contexts the event touched are re-materialized: location facts that an
+    /// update invalidated are retired, and view nodes are replaced in place with
+    /// chat anchored into the same sorted order a full rebuild would produce.
+    private func materializeAppended(_ affected: Set<String>) {
+        for key in affected {
+            guard let context = contexts[key] else { continue }
+            let snapshot = context.snapshot()
+            var nextKeys: Set<String> = []
+            for scope in [ConversationLocationData.Scope.turn, .step] {
+                guard let data = context.definition.buildLocationData(context: snapshot, scope: scope) else { continue }
+                let dataKey = locationDataKey(data)
+                locationDataByKey[dataKey] = data
+                nextKeys.insert(dataKey)
+            }
+            for stale in context.locationKeys.subtracting(nextKeys) {
+                locationDataByKey.removeValue(forKey: stale)
+            }
+            context.locationKeys = nextKeys
+            guard let target = context.definition.target else { continue }
+            guard let node = context.definition.buildViewNode(context: snapshot) else { continue }
+            precondition(node.key == context.key,
+                         "conversation Definition \(context.kind) produced unstable key \(node.key), expected \(context.key)")
+            precondition(node.target == target,
+                         "conversation Definition \(context.kind) produced \(node.target), expected \(target)")
+            let previous = context.current[target] ?? nil
+            context.current[target] = node
+            if target == "chat" {
+                insertChatNode(node, replacing: previous)
+            } else if previous == nil {
+                nodesByTarget[target, default: []].append(node)
+            } else if let index = nodesByTarget[target]?.firstIndex(where: { $0.key == node.key }) {
+                nodesByTarget[target]?[index] = node
+            }
+        }
+    }
+
+    /// Anchors a chat node into binary-sorted position while replacing a
+    /// previous snapshot of the same context, mirroring the full-rebuild order:
+    /// ascending anchor, `key` as the deterministic tie-break.
+    private func insertChatNode(_ node: ConversationViewNode, replacing previous: ConversationViewNode?) {
+        var nodes = nodesByTarget["chat"] ?? []
+        if let previous, let index = nodes.firstIndex(where: { $0.key == previous.key }) {
+            nodes.remove(at: index)
+        }
+        var lower = nodes.startIndex
+        var upper = nodes.endIndex
+        while lower < upper {
+            let mid = (lower + upper) / 2
+            if isOrdered(nodes[mid], before: node) {
+                lower = mid + 1
+            } else {
+                upper = mid
+            }
+        }
+        nodes.insert(node, at: lower)
+        nodesByTarget["chat"] = nodes
+    }
+
+    private func isOrdered(_ lhs: ConversationViewNode, before rhs: ConversationViewNode) -> Bool {
+        let leftAnchor = lhs.anchorSeq ?? .greatestFiniteMagnitude
+        let rightAnchor = rhs.anchorSeq ?? .greatestFiniteMagnitude
+        if leftAnchor == rightAnchor { return lhs.key < rhs.key }
+        return leftAnchor < rightAnchor
     }
 
     private func locationDataKey(_ data: ConversationLocationData) -> String {
@@ -338,46 +439,57 @@ private struct ConversationTimeline {
     /// turn/step fields, but the official assembler assigns them to the active
     /// location. Preserve that engine-owned placement separately from event data.
     private var inferredLocations: [Int: (turn: Int, step: Int?)] = [:]
+    private var activeTurn: Int?
+    private var activeStep: (turn: Int, step: Int)?
 
     init(entries: [ConversationEventInput]) {
-        var activeTurn: Int?
-        var activeStep: (turn: Int, step: Int)?
         for entry in entries {
-            let event = entry.event
-            let explicitTurn = event.data.integer(named: "turn")
-            if event.type == "turn/start", let explicitTurn {
-                activeTurn = explicitTurn
-                activeStep = nil
-            }
-            if event.type == "step/start", let explicitTurn,
-               let explicitStep = event.data.integer(named: "step") {
-                activeTurn = explicitTurn
-                activeStep = (explicitTurn, explicitStep)
-            }
-            if explicitTurn == nil, let activeTurn {
-                inferredLocations[event.seq] = activeStep?.turn == activeTurn
-                    ? (activeTurn, activeStep?.step)
-                    : (activeTurn, nil)
-            }
-            guard let turn = explicitTurn else { continue }
-            var facts = turns[turn] ?? TurnFacts(start: nil, end: nil, steps: [:])
-            if event.type == "turn/start" { facts.start = event }
-            if event.type == "turn/end" { facts.end = event }
-            if let step = event.data.integer(named: "step") {
-                var stepFacts = facts.steps[step] ?? StepFacts(start: nil, end: nil)
-                if event.type == "step/start" { stepFacts.start = event }
-                if event.type == "step/end" { stepFacts.end = event }
-                facts.steps[step] = stepFacts
-            }
-            turns[turn] = facts
-            if event.type == "step/end", let endingStep = event.data.integer(named: "step"),
-               activeStep?.turn == turn, activeStep?.step == endingStep {
-                activeStep = nil
-            }
-            if event.type == "turn/end", activeTurn == turn {
-                activeTurn = nil
-                activeStep = nil
-            }
+            scan(entry)
+        }
+    }
+
+    /// Extends the index with one live tail event. Streamed events arrive in
+    /// strictly ascending seq order, so late-extending facts (end statuses,
+    /// inferred locations) never change already-emitted lookups.
+    mutating func append(_ entry: ConversationEventInput) {
+        scan(entry)
+    }
+
+    private mutating func scan(_ entry: ConversationEventInput) {
+        let event = entry.event
+        let explicitTurn = event.data.integer(named: "turn")
+        if event.type == "turn/start", let explicitTurn {
+            activeTurn = explicitTurn
+            activeStep = nil
+        }
+        if event.type == "step/start", let explicitTurn,
+           let explicitStep = event.data.integer(named: "step") {
+            activeTurn = explicitTurn
+            activeStep = (explicitTurn, explicitStep)
+        }
+        if explicitTurn == nil, let activeTurn {
+            inferredLocations[event.seq] = activeStep?.turn == activeTurn
+                ? (activeTurn, activeStep?.step)
+                : (activeTurn, nil)
+        }
+        guard let turn = explicitTurn else { return }
+        var facts = turns[turn] ?? TurnFacts(start: nil, end: nil, steps: [:])
+        if event.type == "turn/start" { facts.start = event }
+        if event.type == "turn/end" { facts.end = event }
+        if let step = event.data.integer(named: "step") {
+            var stepFacts = facts.steps[step] ?? StepFacts(start: nil, end: nil)
+            if event.type == "step/start" { stepFacts.start = event }
+            if event.type == "step/end" { stepFacts.end = event }
+            facts.steps[step] = stepFacts
+        }
+        turns[turn] = facts
+        if event.type == "step/end", let endingStep = event.data.integer(named: "step"),
+           activeStep?.turn == turn, activeStep?.step == endingStep {
+            activeStep = nil
+        }
+        if event.type == "turn/end", activeTurn == turn {
+            activeTurn = nil
+            activeStep = nil
         }
     }
 
@@ -445,5 +557,16 @@ private extension JSONValue {
               number <= Double(Int.max)
         else { return nil }
         return Int(number)
+    }
+}
+
+private extension SessionEventDTO {
+    /// True when this event can mutate engine-owned location facts: explicit
+    /// turn/step fields, or turn/step boundary evidence the timeline scanner
+    /// folds into active-location state. Content and durable plugin events
+    /// never change facts already emitted for earlier sequences, so appends with
+    /// `false` here are safe to accept incrementally.
+    var affectsLocationFacts: Bool {
+        type.hasPrefix("turn/") || type.hasPrefix("step/") || data.integer(named: "turn") != nil
     }
 }

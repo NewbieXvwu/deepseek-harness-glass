@@ -6,6 +6,9 @@ glass/build/
 glass/release-glass/
 glass/dist/
 
+# SwiftPM build artifacts
+glass/.build/
+
 # Unrelated local folders
 mac阵列音箱/
 

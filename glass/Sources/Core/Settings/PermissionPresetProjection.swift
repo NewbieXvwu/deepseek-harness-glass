@@ -97,11 +97,29 @@ enum PermissionPresetProjection {
 
     private static func display(value: String, suppliedLabel: String) -> String {
         if value == fullAccessPreset { return "Full access" }
-        let isKebab = suppliedLabel.range(of: "^[a-z0-9]+(-[a-z0-9]+)*$", options: .regularExpression) != nil
-        guard isKebab else { return suppliedLabel }
+        guard isKebabCase(suppliedLabel) else { return suppliedLabel }
         return suppliedLabel.split(separator: "-").map {
             $0.prefix(1).uppercased() + $0.dropFirst()
         }.joined(separator: " ")
+    }
+
+    private static func isKebabCase(_ text: String) -> Bool {
+        guard !text.isEmpty else { return false }
+        var previousHyphen = false
+        for (index, scalar) in text.unicodeScalars.enumerated() {
+            let ascii = scalar.value
+            let isLower = ascii >= 97 && ascii <= 122
+            let isDigit = ascii >= 48 && ascii <= 57
+            if scalar == "-" {
+                guard !previousHyphen, index > 0, index < text.unicodeScalars.count - 1 else { return false }
+                previousHyphen = true
+            } else if isLower || isDigit {
+                previousHyphen = false
+            } else {
+                return false
+            }
+        }
+        return true
     }
 }
 
