@@ -1535,6 +1535,20 @@ final class NativeSessionStore: ObservableObject {
         appliedSequences = Set(conversationEvents.map(\.event.seq))
     }
 
+    /// Snapshot-only todo-dock fixture. It injects the same whole-list Host
+    /// projection consumed in production, never a local checklist substitute.
+    func loadSnapshotTodoFixture() {
+        loadSnapshotToolingFixture()
+        guard let sessionID = activeSessionID else { preconditionFailure("todo fixture requires an active snapshot session") }
+        projections.apply(sessionID: sessionID, key: "todos", value: .array([
+            .object(["content": .string("Inspect the project instructions"), "status": .string("completed")]),
+            .object(["content": .string("Implement the native todo dock"), "status": .string("in_progress")]),
+            .object(["content": .string("Run the paired visual review"), "status": .string("pending")]),
+        ]), seq: 105)
+        selectedToolCallID = nil
+        isRunning = false
+    }
+
     private func settleStreaming() {
         for index in items.indices where items[index].isStreaming {
             items[index].isStreaming = false

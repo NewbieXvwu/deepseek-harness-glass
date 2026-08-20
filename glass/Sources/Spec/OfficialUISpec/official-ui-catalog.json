@@ -264,6 +264,7 @@
     "icon-tool-code": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconCodeOutline16" },
     "icon-tool-others": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconSparkle16" },
     "icon-check": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconCheckOutline14" },
+    "icon-checklist": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconChecklistOutline14" },
     "icon-chevron-left": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconChevronLeftOutline14" },
     "icon-chevron-right": { "source": "packages/client/ui-primitives/src/icons/index.tsx:IconChevronRightOutline14" }
   }

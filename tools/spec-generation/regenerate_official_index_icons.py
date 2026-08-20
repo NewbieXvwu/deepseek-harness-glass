@@ -49,7 +49,7 @@ def main() -> None:
                 check=True,
             )
             target = ASSETS / f"{asset}.svg"
-            if regenerated.read_bytes() != target.read_bytes():
+            if not target.is_file() or regenerated.read_bytes() != target.read_bytes():
                 changed.append(asset)
                 if arguments.write:
                     target.write_bytes(regenerated.read_bytes())

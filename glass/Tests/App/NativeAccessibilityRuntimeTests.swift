@@ -98,6 +98,18 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         )
     }
 
+    func testTodoDockExportsCollapsedHeaderWithoutHiddenRowLabels() throws {
+        try assertAccessibleLabels(
+            in: NativeTodoDock(todos: [
+                .init(content: "Inspect source", status: .completed),
+                .init(content: "Implement view", status: .inProgress),
+            ]),
+            expected: [OfficialUISpec.Text.todoTitle],
+            expectedCounts: [OfficialUISpec.Text.todoTitle: 1],
+            forbidden: ["Inspect source", "Implement view"]
+        )
+    }
+
     func testDetailsExportsExplicitCloseName() throws {
         try assertAccessibleLabels(
             in: NativeDetailsView(sessionStore: NativeSessionStore(), close: {}),

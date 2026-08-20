@@ -229,6 +229,20 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(NativeProjectPathResolver.resolve(cwd: "/workspace/project\\\\", path: ""), "/workspace/project/")
     }
 
+    func testSnapshotTodoFixtureUsesOnlyHostWholeListProjection() {
+        let store = NativeSessionStore()
+        store.loadSnapshotTodoFixture()
+
+        XCTAssertEqual(store.selectedSessionID, "snapshot-tooling")
+        XCTAssertFalse(store.isRunning)
+        XCTAssertNil(store.selectedToolCallID)
+        XCTAssertEqual(store.extensionState?.todos, [
+            .init(content: "Inspect the project instructions", status: .completed),
+            .init(content: "Implement the native todo dock", status: .inProgress),
+            .init(content: "Run the paired visual review", status: .pending),
+        ])
+    }
+
     func testExtensionStateJoinsOnlyTypedActiveSessionAuthoritiesAndFailsClosedForMalformedTodos() {
         let store = NativeSessionStore()
         store.loadSnapshotToolingFixture()

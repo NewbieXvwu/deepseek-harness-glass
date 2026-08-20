@@ -314,7 +314,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 - [ ] **T6.6：实现扩展 nodes。** 支持 todo、goal、queue/steering、approval、user question、workflow、subagent、trajectory、deliverables、feedback、model/permission 状态和 jobs。
   - 依赖：T6.5。
   - 验收：每个 node type 有 fixture、renderer snapshot、错误/取消场景和缺失插件时的安全降级。
-  - 进度：已补入 RC8 `turn-max-tokens` Core node：只投影 `turn/end` 的 `reason.kind=max-tokens`，推导 closing step、保留 seq/time，并在本地尚未注册 `turn-tail` 时使用官方 raw end-seq fallback anchor；`ConversationCoreNodesTests` 覆盖 max-tokens 正例与 cancelled 负例。来源和已知 tail/renderer 边界见 `notes/T6.6-turn-max-tokens-node-sources.md`；这只是扩展节点族首个子项，其他 node type、fixture、renderer snapshot、取消/缺失插件降级和 macOS 视觉证据未完成，故保持未勾选。
+  - 进度：已补入 RC8 `turn-max-tokens` Core node：只投影 `turn/end` 的 `reason.kind=max-tokens`，推导 closing step、保留 seq/time，并在本地尚未注册 `turn-tail` 时使用官方 raw end-seq fallback anchor；`ConversationCoreNodesTests` 覆盖 max-tokens 正例与 cancelled 负例。并已实现第一个 Host projection renderer：`NativeTodoDock` 只读取 `extensionState.todos` whole-list，空/absent 隐藏、默认收起、按 completed/in-progress/pending 的官方非零 count summary 展示、Reduce Motion 关闭 1s spin；新增 RC8 checklist SVG catalog 资源、`todo` snapshot fixture/mode、Core/UI/AX 回归。来源见 `notes/T6.6-turn-max-tokens-node-sources.md` 和 `notes/T6.6-todo-dock-sources.md`；todo 的 official/native 浅深色成对截图、ARIA、人工分类及 macOS 当前 SHA 仍未闭环，其他 node type、fixture、renderer snapshot、取消/缺失插件降级和 macOS 视觉证据也未完成，故保持未勾选。
 
 - [ ] **T6.7：实现 reconnect/replay 算法。** 在 transport 断开、Host 重启或 session 从 cold 到 live 时，重新拉取 authority baseline，并以 raw history + projection + current session status 恢复。
   - 依赖：T6.1–T6.6。

@@ -29,6 +29,15 @@ enum OfficialUISpec {
         static let composerSeatTrailingGutter: CGFloat = 8
         static let composerControlHeight: CGFloat = 28
         static let composerCornerRadius: CGFloat = 22
+        // Source: packages/client/ui-conversation/src/client/skeleton/TodoPanel.module.css
+        static let todoDockCornerRadius: CGFloat = 12
+        static let todoDockCollapsedHeight: CGFloat = 36
+        static let todoDockHorizontalPadding: CGFloat = 12
+        static let todoDockVerticalPadding: CGFloat = 6
+        static let todoDockContentGap: CGFloat = 8
+        static let todoDockHeaderGap: CGFloat = 10
+        static let todoDockListMaximumHeight: CGFloat = 180
+        static let todoDockInset: CGFloat = 8
         static let heroGap: CGFloat = 12
         // Source: ui-conversation/chat/ChatView.module.css + MessageItem.module.css
         static let chatMessageGap: CGFloat = 16
@@ -219,6 +228,20 @@ enum OfficialUISpec {
 
         // Source: packages/client/ui-conversation/src/client/locales.ts (en)
         static let chat = "Chat"
+        // Source: packages/client/ui-conversation/src/client/locales.ts (en)
+        static let todoTitle = "To-dos"
+        static let todoProgressDoneTemplate = "{done} completed"
+        static let todoProgressActiveTemplate = "{active} in progress"
+        static let todoProgressPendingTemplate = "{pending} pending"
+        static func todoProgressDone(_ value: Int) -> String {
+            todoProgressDoneTemplate.replacingOccurrences(of: "{done}", with: String(value))
+        }
+        static func todoProgressActive(_ value: Int) -> String {
+            todoProgressActiveTemplate.replacingOccurrences(of: "{active}", with: String(value))
+        }
+        static func todoProgressPending(_ value: Int) -> String {
+            todoProgressPendingTemplate.replacingOccurrences(of: "{pending}", with: String(value))
+        }
         // Source: packages/client/locale/src/locales/en.ts
         static let copy = "Copy"
         static let copied = "Copied"

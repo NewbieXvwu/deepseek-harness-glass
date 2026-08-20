@@ -91,7 +91,7 @@ private struct NativeActiveConversationSurface: View {
                 selectView: sessionStore.selectView
             )
             activeViewBody
-            composerTakeover
+            composerDock
         }
         .background(OfficialUISpec.Token.base)
     }
@@ -110,6 +110,21 @@ private struct NativeActiveConversationSurface: View {
             view
         } else {
             transcriptBody
+        }
+    }
+
+    @ViewBuilder
+    private var composerDock: some View {
+        if sessionStore.pendingApproval == nil,
+           sessionStore.pendingQuestion == nil,
+           let todos = sessionStore.extensionState?.todos,
+           NativeTodoDockPresentation.isVisible(todos) {
+            VStack(spacing: OfficialUISpec.Layout.todoDockContentGap) {
+                NativeTodoDock(todos: todos)
+                composerTakeover
+            }
+        } else {
+            composerTakeover
         }
     }
 
