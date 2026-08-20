@@ -79,8 +79,8 @@ function registryJob(label: string) {
 describe('reference capture: official welcome and session Jobs action', () => {
   beforeAll(async () => {
     await mkdir(outputDirectory, { recursive: true })
-    // The welcome capture remains a no-model-call state. The same scaffold has
-    // the locked lifecycle replay ready for the subsequent Jobs session.
+    // Welcome remains a no-model-call state. Each Jobs theme creates its own
+    // isolated scaffold below because the Host registry is stateful.
     scaffold = await launchWebScaffold({ replayFixture: lifecycleFixture, paceMs: 100 })
     browser = await chromium.launch({ headless: true })
   }, 120_000)
@@ -111,31 +111,37 @@ describe('reference capture: official welcome and session Jobs action', () => {
   it('captures official expanded Jobs actions in light and dark mode from Host-owned whole snapshots', async () => {
     for (const colorScheme of captureColorSchemes) {
       const name = `jobs-expanded-${colorScheme}`
+      // Browser contexts isolate local storage, but a scaffold also owns the
+      // real Host workspace/session registry. Give each themed Jobs fixture a
+      // new scaffold/DSH_HOME so a captured light session cannot be
+      // auto-selected by the subsequent dark page.
+      const jobsScaffold = await launchWebScaffold({ replayFixture: lifecycleFixture, paceMs: 100 })
       const context = await browser.newContext({ viewport, locale: 'en-US', colorScheme, deviceScaleFactor: 1 })
       const page = await context.newPage()
       const consoleTripwire = watchConsole(page)
-      await page.goto(scaffold.baseUrl, { waitUntil: 'load' })
-      await page.locator('#root').waitFor({ state: 'attached', timeout: 30_000 })
-      await applyOfficialColorScheme(page, colorScheme)
-      await connectFreshWorkspace(page, scaffold.workspaceCwd)
-
-      const input = page.locator('textarea:enabled[placeholder="Describe what you want to build"]')
-      const settled = scaffold.whenTurnSettled()
-      await input.fill(recordedPrompt)
-      await input.press('Enter')
-      const sessionID = await settled
-      await page.getByText('LIGHTHOUSE', { exact: true }).waitFor({ timeout: 30_000 })
-
-      const agent = scaffold.ctx.agents.get(sessionID)
-      if (agent === undefined) throw new Error('Jobs reference capture requires the current Host agent')
-      if (scaffold.ctx.jobs === undefined) throw new Error('Jobs reference capture requires the bundled Host registry')
-      const live = registryJob('sleep 60')
-      const completed = registryJob('pnpm run build')
-      scaffold.ctx.jobs.start({ ...live.spec, owner: agent })
-      scaffold.ctx.jobs.start({ ...completed.spec, owner: agent })
-      completed.settle()
-
+      let live: ReturnType<typeof registryJob> | undefined
       try {
+        await page.goto(jobsScaffold.baseUrl, { waitUntil: 'load' })
+        await page.locator('#root').waitFor({ state: 'attached', timeout: 30_000 })
+        await applyOfficialColorScheme(page, colorScheme)
+        await connectFreshWorkspace(page, jobsScaffold.workspaceCwd)
+
+        const input = page.locator('textarea:enabled[placeholder="Describe what you want to build"]')
+        const settled = jobsScaffold.whenTurnSettled()
+        await input.fill(recordedPrompt)
+        await input.press('Enter')
+        const sessionID = await settled
+        await page.getByText('LIGHTHOUSE', { exact: true }).waitFor({ timeout: 30_000 })
+
+        const agent = jobsScaffold.ctx.agents.get(sessionID)
+        if (agent === undefined) throw new Error('Jobs reference capture requires the current Host agent')
+        if (jobsScaffold.ctx.jobs === undefined) throw new Error('Jobs reference capture requires the bundled Host registry')
+        live = registryJob('sleep 60')
+        const completed = registryJob('pnpm run build')
+        jobsScaffold.ctx.jobs.start({ ...live.spec, owner: agent })
+        jobsScaffold.ctx.jobs.start({ ...completed.spec, owner: agent })
+        completed.settle()
+
         const action = page.getByRole('button', { name: '1 background job running' })
         await action.waitFor({ timeout: 30_000 })
         await action.click()
@@ -150,8 +156,9 @@ describe('reference capture: official welcome and session Jobs action', () => {
         // The capture intentionally observes this job as live. Settle only after
         // the PNG/ARIA evidence is written so scaffold.close() never awaits an
         // artificial indefinitely-running task.
-        live.settle()
+        live?.settle()
         await context.close()
+        await jobsScaffold.close()
       }
     }
   }, 120_000)
