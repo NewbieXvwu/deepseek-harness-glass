@@ -30,6 +30,13 @@ final class HarnessHostController: ObservableObject {
     private var outputPipe: Pipe?
     private var announcedOutput = ""
     private var recoveryAttempts = 0
+    private static let announcementRescanLookbackUTF16 = 1_024
+    private static let announcementRegularExpression: NSRegularExpression = {
+        // This is compile-once state: Host stderr can arrive in many short
+        // chunks during startup, so compiling this expression per chunk causes
+        // avoidable work precisely on the readiness critical path.
+        try! NSRegularExpression(pattern: #"dsh web:\s+(https?://127\.0\.0\.1(?::\d+)?/?\S*)"#)
+    }()
     private var verificationTask: Task<Void, Never>?
     private var startupTimeoutTask: Task<Void, Never>?
     private var suppressRecoveryForTermination = false
@@ -257,27 +264,47 @@ final class HarnessHostController: ObservableObject {
 
     private func consumeHostOutput(_ text: String, build: SupportedHostBuildCatalog.Build) {
         appendLog(text)
+        let previousUTF16Length = (announcedOutput as NSString).length
         announcedOutput += text
         // Limit retained parsing data while preserving a complete startup line.
-        if announcedOutput.count > 32_768 { announcedOutput.removeFirst(announcedOutput.count - 16_384) }
-        guard case .startingOwned = state,
-              let range = announcedOutput.range(
-                of: #"dsh web:\s+(https?://127\.0\.0\.1(?::\d+)?/?\S*)"#,
-                options: .regularExpression
-              ) else { return }
-        let announcement = String(announcedOutput[range])
-        guard let rawURL = announcement.split(separator: " ").last.map(String.init),
-              let endpoint = URL(string: rawURL),
-              endpoint.scheme == "http",
-              endpoint.host == "127.0.0.1",
-              endpoint.port != nil else {
-            appendLog("[host] ignored malformed endpoint announcement")
-            return
+        let wasTrimmed: Bool
+        if announcedOutput.count > 32_768 {
+            announcedOutput.removeFirst(announcedOutput.count - 16_384)
+            wasTrimmed = true
+        } else {
+            wasTrimmed = false
         }
+        // A valid announcement may straddle two stderr chunks. Rescan only a
+        // bounded tail across the boundary; after a retention trim, the new
+        // buffer is itself the complete bounded window.
+        let searchStart = wasTrimmed
+            ? 0
+            : max(0, previousUTF16Length - Self.announcementRescanLookbackUTF16)
+        guard case .startingOwned = state,
+              let endpoint = Self.announcedEndpoint(in: announcedOutput, fromUTF16Offset: searchStart) else { return }
         startupTimeoutTask?.cancel()
         startupTimeoutTask = nil
         state = .verifying(endpoint)
         verify(endpoint: endpoint, build: build)
+    }
+
+    /// Parses only the bounded append window selected by `consumeHostOutput`.
+    /// Internal visibility permits deterministic XCTest coverage of split and
+    /// malformed announcements without introducing a mock Host text protocol.
+    static func announcedEndpoint(in output: String, fromUTF16Offset offset: Int = 0) -> URL? {
+        let nsOutput = output as NSString
+        guard offset >= 0, offset <= nsOutput.length else { return nil }
+        let range = NSRange(location: offset, length: nsOutput.length - offset)
+        guard let match = announcementRegularExpression.firstMatch(in: output, range: range),
+              match.numberOfRanges >= 2,
+              match.range(at: 1).location != NSNotFound
+        else { return nil }
+        let rawURL = nsOutput.substring(with: match.range(at: 1))
+        guard let endpoint = URL(string: rawURL),
+              endpoint.scheme == "http",
+              endpoint.host == "127.0.0.1",
+              endpoint.port != nil else { return nil }
+        return endpoint
     }
 
     private func verify(endpoint: URL, build: SupportedHostBuildCatalog.Build) {

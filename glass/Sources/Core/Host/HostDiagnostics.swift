@@ -100,20 +100,46 @@ actor HostDiagnosticRecorder {
 }
 
 enum HostLogRedactor {
-    static func redact(_ text: String) -> String {
-        var result = text
-        let patterns = [
-            #"(?i)\bauthorization\s*:\s*bearer\s+[A-Za-z0-9._~+\-/=]+"#,
-            #"(?i)\bbearer\s+[A-Za-z0-9._~+\-/=]+"#,
-            #"(?i)\b(api[_-]?key|cookie|token|secret|password)\s*[:=]\s*([^\s,;]+)"#,
-            #"(?i)(https?://)[^\s/@:]+:[^\s/@]+@"#,
-        ]
-        for pattern in patterns {
-            guard let expression = try? NSRegularExpression(pattern: pattern) else { continue }
-            let range = NSRange(result.startIndex..., in: result)
-            let template = pattern.hasPrefix("(?i)(https") ? "$1<redacted>@" : "<redacted>"
-            result = expression.stringByReplacingMatches(in: result, range: range, withTemplate: template)
+    private struct Rule {
+        let expression: NSRegularExpression
+        let replacementTemplate: String
+
+        init(pattern: String, replacementTemplate: String) {
+            self.expression = try! NSRegularExpression(pattern: pattern)
+            self.replacementTemplate = replacementTemplate
         }
-        return result
+    }
+
+    // Compile once at process initialization. Each rule owns its replacement
+    // semantics so reordering or changing a pattern cannot silently select the
+    // wrong template through pattern-string inspection.
+    private static let rules: [Rule] = [
+        .init(
+            pattern: #"(?i)\bauthorization\s*:\s*bearer\s+[A-Za-z0-9._~+\-/=]+"#,
+            replacementTemplate: "<redacted>"
+        ),
+        .init(
+            pattern: #"(?i)\bbearer\s+[A-Za-z0-9._~+\-/=]+"#,
+            replacementTemplate: "<redacted>"
+        ),
+        .init(
+            pattern: #"(?i)\b(api[_-]?key|cookie|token|secret|password)\s*[:=]\s*([^\s,;]+)"#,
+            replacementTemplate: "<redacted>"
+        ),
+        .init(
+            pattern: #"(?i)(https?://)[^\s/@:]+:[^\s/@]+@"#,
+            replacementTemplate: "$1<redacted>@"
+        ),
+    ]
+
+    static func redact(_ text: String) -> String {
+        rules.reduce(text) { result, rule in
+            let range = NSRange(result.startIndex..., in: result)
+            return rule.expression.stringByReplacingMatches(
+                in: result,
+                range: range,
+                withTemplate: rule.replacementTemplate
+            )
+        }
     }
 }
