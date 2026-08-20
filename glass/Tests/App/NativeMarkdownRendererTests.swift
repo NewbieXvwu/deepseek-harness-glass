@@ -58,6 +58,22 @@ final class NativeMarkdownRendererTests: XCTestCase {
         )
     }
 
+    func testQuoteAndListsBecomeStableNativeBlocksWithoutUnsafeLinkActivation() {
+        let blocks = NativeMarkdownDocument.parse(
+            "intro\n> quoted [safe](https://example.com)\n> `file:///private`\n- first\n- [unsafe](file:///tmp/private)\n1. ordered\n2. second\nafter"
+        )
+        XCTAssertEqual(blocks, [
+            .prose(id: 0, text: "intro"),
+            .quote(id: 1, text: "quoted [safe](https://example.com)\n`file:///private`"),
+            .list(id: 2, ordered: false, items: ["first", "[unsafe](file:///tmp/private)"]),
+            .list(id: 3, ordered: true, items: ["ordered", "second"]),
+            .prose(id: 4, text: "after"),
+        ])
+
+        let unsafeListItem = NativeMarkdownSecurityPolicy.attributedInlineMarkdown("[unsafe](file:///tmp/private)")
+        XCTAssertTrue(unsafeListItem.runs.allSatisfy { $0.link == nil })
+    }
+
     func testFencedCodeHasStableCodeBlockAndIncompleteFenceStaysLiteralProse() {
         let settled = NativeMarkdownDocument.parse("before\n```swift\nlet x = 1\n```\nafter")
         XCTAssertEqual(settled, [
