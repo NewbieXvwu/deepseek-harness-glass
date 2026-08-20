@@ -429,9 +429,9 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
   - 依赖：T11.5。
   - 验收：运行时 diagnostics 报告核心应用结构中 WebView 数量始终为 0；第三方沙箱严格限制在单卡片或独立弹窗边界内；`check-no-webview.sh`（或其后继静态 gate）必须拒绝 Core/UI/App 对 `PluginWebHost` 的 import、symbol reference 或 SwiftPM target dependency，仅允许明确登记的隔离插件路由 target 连接该微宿主。
 
-## 12. 测试、视觉回归、性能与安全
+## 12. 测试、视觉回归、性能与安全（第一性原理质量体系）
 
-原生重写必须由协议与状态机正确性驱动，而不是依赖人工肉眼检查。视觉、无障碍和性能测试同等重要，尤其是流式 Markdown、长历史、工具输出和高频 SSE。
+质量保证遵循真实运行态行为验证，坚决杜绝源码纯文本扫描等形式主义测试。核心覆盖真实协议状态机、SSE 混沌网络、千条长会话压力、真实键盘无障碍流与双轨插件沙箱隔离。
 
 - [ ] **T12.1：建立 raw-event fixture 管线。** 从官方 e2e/test fixtures 或经审计的录制会话导出 anonymized JSON，覆盖 happy path、错误、重连、并发、长会话和未知节点。
   - 依赖：T4.6、T6.4。
@@ -441,25 +441,25 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
   - 依赖：T6.5、T6.6。
   - 验收：已支持 node 类型的状态覆盖率和负面 fixture 清单可追踪；未知 event 不导致崩溃。
 
-- [ ] **T12.3：建立 transport chaos tests。** 注入迟到 response、重复 SSE frame、frame 乱序、SSE 中断、Host restart、HTTP timeout、settings conflict、cancel race。
+- [ ] **T12.3：建立 transport 混沌与重连测试 (Chaos & Resilience Tests)。** 在真实运行期注入网络抖动：模拟迟到 response、重复/乱序 SSE 帧、高频流式推送中的连续取消、Host 崩溃后热重启自愈与重连 Sequence Fence 屏障。
   - 依赖：T4.6、T6.7。
-  - 验收：状态最终收敛，且没有重复消息、重复授权、错误回滚或无限 reconnect。
+  - 验收：异步并发与重连状态最终确定性收敛，无重复消息、无幽灵会话写入、无内存句柄泄露。
 
-- [ ] **T12.4：建立官方布局 golden tests。** 按 T2.5 场景在 1280×840、1024×720、窄窗口、light/dark/system、Reduce Transparency、Increase Contrast、Reduce Motion 下捕获 Swift UI。
+- [ ] **T12.4：建立官方布局 golden tests 与双模视觉验收。** 按 T2.5 场景在 1280×840、1024×720、窄窗口、light/dark/system、Reduce Transparency、Increase Contrast、Reduce Motion 下捕获 Swift UI。
   - 依赖：T2.6、T5–T10。
-  - 验收：报告同时提供布局树差异、token 差异、截图差异和 Glass 例外说明。
+  - 验收：自动化流水线维持严格的同状态官方/原生截图比对；本地人类调试支持环境变量豁免。
 
-- [ ] **T12.5：建立 macOS 自动化 UI tests。** 覆盖键盘导航、VoiceOver labels、焦点、拖动 divider、composer、approval、settings save/discard、plugin status 和 fallback policy。
+- [ ] **T12.5：建立真实键盘流与无障碍测试 (Keyboard Flow & Accessibility)。** 覆盖全键盘（Tab、Shift+Tab、方向键、Enter、Esc、快捷键）贯穿会话选择、流式交互、模型切换、工具审批与设置保存的全流程。
   - 依赖：T5.6、T8–T11。
-  - 验收：主要路径无鼠标可完成；每个 icon-only action 有 accessibility label。
+  - 验收：核心操作路径 100% 支持无鼠标键盘盲操；VoiceOver 读屏语义完整。
 
-- [ ] **T12.6：性能基准。** 至少测量启动到 ready、首个 history tail、流式 10k chunks、1,000 条历史、长工具输出、窗口 resize、侧栏折叠和多个 custom glass controls。
+- [ ] **T12.6：长会话极限压力与性能基准 (Stress Benchmarks)。** 测量启动耗时、1,000+ 条超长会话历史极速滚动平滑度、流式 10k chunks 主线程响应、超长代码块/Markdown 排版耗时，以及双轨沙箱 50 次装卸后的内存清理。
   - 依赖：T8–T10。
-  - 验收：建立目标上限和 Instruments trace；任何 benchmark 回退需标注原因并评审。
+  - 验收：建立帧率（60fps+）与内存基准线，拖拽 resize 与长文本滚动无主线程卡顿。
 
-- [ ] **T12.7：安全审查。** 审查 loopback trust、RPC 内容类型、open path、下载、Markdown URL、附件、插件 manifest、credential 内存生命周期、日志红脱敏和 PluginWebHost navigation policy。
+- [ ] **T12.7：安全隔离与双轨沙箱审查。** 审查 loopback 信任边界、RPC 内容类型、下载路径安全、Markdown 外部链接拦截、凭据内存生命周期与 `PluginWebHost` 严格沙箱隔离（阻断外网与 file:// 读取）。
   - 依赖：T3–T4、T8.3、T10.4、T11。
-  - 验收：安全 checklist 全部通过；发现的风险不以“仅本地运行”为理由跳过。
+  - 验收：安全 checklist 全部通过，第三方 Web 插件完全限制在独立沙箱内。
 
 ## 13. 构建、签名、发布与升级治理
 
