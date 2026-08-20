@@ -55,6 +55,7 @@ struct NativeSidebarView: View {
                 actions: workspaceActions,
                 snapshotDialog: workspaceSnapshotDialog
             )
+            .frame(maxHeight: .infinity, alignment: .top)
 
             settingsButton
         }
