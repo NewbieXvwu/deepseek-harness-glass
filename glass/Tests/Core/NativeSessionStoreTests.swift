@@ -91,6 +91,51 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(NativeProjectPathResolver.resolve(cwd: "/workspace/project\\\\", path: ""), "/workspace/project/")
     }
 
+    func testExtensionStateJoinsOnlyTypedActiveSessionAuthoritiesAndFailsClosedForMalformedTodos() {
+        let store = NativeSessionStore()
+        store.loadSnapshotToolingFixture()
+        let sessionID = "snapshot-tooling"
+        store.projections.apply(sessionID: sessionID, key: "todos", value: .array([
+            .object(["content": .string("inspect result"), "status": .string("in_progress")]),
+            .object(["content": .string("ship"), "status": .string("completed")]),
+        ]), seq: 10)
+        store.projections.apply(sessionID: sessionID, key: "goal", value: .object([
+            "goal": .object([
+                "id": .string("goal-1"), "revision": .number(1), "objective": .string("Release safely"),
+                "phase": .string("active"), "maxGoalRounds": .number(4),
+            ]),
+            "roundsStarted": .number(1), "createdAt": .number(100), "updatedAt": .number(101),
+        ]), seq: 11)
+        store.applyMuxFrame(queueFrame(sessionID: sessionID, items: [
+            queuedItem(id: "q-1", messageID: "m-1", placement: "steering", content: [.object(["type": .string("text"), "text": .string("answer now")])]),
+        ]), sessionID: sessionID)
+        store.applyMuxFrame(jobsFrame(sessionID: sessionID, jobs: [job(id: "job-1", status: "running", startedAt: 10)]), sessionID: sessionID)
+        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "approval-rpc", method: "approval/requested", payload: .object([
+            "type": .string("approval/requested"), "sessionId": .string(sessionID), "approvalId": .string("approval-1"), "toolName": .string("bash"),
+        ])), sessionID: sessionID)
+        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "question-rpc", method: "question/requested", payload: .object([
+            "type": .string("question/requested"), "sessionId": .string(sessionID),
+            "questions": .array([.object(["id": .string("question-1"), "question": .string("Proceed?")])]),
+        ])), sessionID: sessionID)
+
+        let state = tryUnwrap(store.extensionState)
+        XCTAssertEqual(state.todos?.map(\.status), [.inProgress, .completed])
+        XCTAssertEqual(state.goal?.id, "goal-1")
+        XCTAssertEqual(state.goal?.phase, .active)
+        XCTAssertEqual(state.queuedMessages.map(\.id), ["q-1"])
+        XCTAssertEqual(state.backgroundJobs.map(\.id), ["job-1"])
+        XCTAssertEqual(state.pendingApproval?.rpcID, "approval-rpc")
+        XCTAssertEqual(state.pendingQuestion?.rpcID, "question-rpc")
+
+        // A later malformed whole todo projection cannot leak a partly decoded
+        // local plan into any extension renderer.
+        store.projections.apply(sessionID: sessionID, key: "todos", value: .array([
+            .object(["content": .string("duplicate"), "status": .string("pending")]),
+            .object(["content": .string("duplicate"), "status": .string("completed")]),
+        ]), seq: 12)
+        XCTAssertNil(store.extensionState?.todos)
+    }
+
     func testQueueAndJobsUseCompleteHostSnapshotsAndRejectOtherSessionFrames() {
         let store = NativeSessionStore()
         store.loadSnapshotToolingFixture()

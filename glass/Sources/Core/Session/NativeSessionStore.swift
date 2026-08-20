@@ -132,7 +132,7 @@ final class NativeSessionStore: ObservableObject {
     /// Source: `events.schema.ts:approval/requested`; rpcID is the stable
     /// answerable ServerRequest correlation identity and must be echoed on
     /// `/api/respond`, while approvalID identifies the business request.
-    struct PendingApproval: Identifiable {
+    struct PendingApproval: Identifiable, Equatable {
         let rpcID: String
         let sessionID: String
         let approvalID: String
@@ -144,7 +144,7 @@ final class NativeSessionStore: ObservableObject {
     }
 
     /// Source: `events.schema.ts:askUserQuestionItemSchema`.
-    struct PendingQuestion: Identifiable {
+    struct PendingQuestion: Identifiable, Equatable {
         struct Option: Identifiable, Equatable {
             let label: String
             let detail: String?
@@ -283,6 +283,22 @@ final class NativeSessionStore: ObservableObject {
     /// Per-session Host-computed projections. UI reads completed values only;
     /// reducer-owned event folding never substitutes for this store.
     let projections = SessionProjectionStore()
+
+    /// One typed read-only adapter over all extension surfaces attached to the
+    /// active session. Durable conversation nodes and transient mux projections
+    /// stay separated at their authority boundary; consumers never reconstruct
+    /// queue, jobs, approval, question, todo, or goal state from raw events.
+    var extensionState: CoreSessionExtensionState? {
+        guard let activeSessionID else { return nil }
+        return .init(
+            projections: projections,
+            sessionID: activeSessionID,
+            queuedMessages: queuedMessages,
+            backgroundJobs: backgroundJobs,
+            pendingApproval: pendingApproval,
+            pendingQuestion: pendingQuestion
+        )
+    }
 
     private var historyTask: Task<Void, Never>?
     private var promptTask: Task<Void, Never>?
