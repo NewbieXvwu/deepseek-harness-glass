@@ -85,6 +85,28 @@ final class NativeSessionStoreTests: XCTestCase {
         await eventually(timeout: 1) { store.subagentCatalog == nil && !store.isLoadingSubagentCatalog }
     }
 
+    func testSubagentCatalogCachesEachExpandedParentFromHost() async {
+        let rootID = "snapshot-tooling"
+        let root = SubagentListResponse(entries: [
+            .init(kind: "child", id: "child-parent", activity: "inactive", hasChildren: true, mode: "continuable", label: "Parent child", reason: nil),
+        ], parentAvailable: true)
+        let descendant = SubagentListResponse(entries: [
+            .init(kind: "child", id: "grandchild", activity: "running", hasChildren: false, mode: "one-shot", label: nil, reason: nil),
+        ], parentAvailable: true)
+        let api = RecordingSubagentCatalogAPI(catalogs: [rootID: root, "child-parent": descendant])
+        let store = NativeSessionStore()
+        store.loadSnapshotToolingFixture()
+        store.setSubagentCatalogAPIForTesting(api)
+
+        store.refreshSubagentCatalog()
+        await eventually(timeout: 1) { store.subagentCatalogs[rootID] == root }
+        store.refreshSubagentCatalog(parentSessionID: "child-parent")
+        await eventually(timeout: 1) { store.subagentCatalogs["child-parent"] == descendant }
+
+        XCTAssertEqual(api.parentIDs, [rootID, "child-parent"])
+        XCTAssertNil(store.subagentCatalogs["grandchild"], "only an explicit parent refresh may create a cached branch")
+    }
+
     func testInitialAuthorityFromReplacedEndpointCannotReviveOldColdState() async {
         let oldModelsReached = expectation(description: "old endpoint reaches delayed initial models read")
         let oldAPI = GatedInitialModelsAPI(modelsReached: oldModelsReached)
@@ -860,12 +882,14 @@ final class NativeSessionStoreTests: XCTestCase {
     @MainActor
     private final class RecordingSubagentCatalogAPI: NativeSubagentCatalogAPI {
         let catalog: SubagentListResponse?
+        let catalogs: [String: SubagentListResponse]
         let error: Error?
         let reached: XCTestExpectation?
         private(set) var parentIDs: [String] = []
 
-        init(catalog: SubagentListResponse? = nil, error: Error? = nil, reached: XCTestExpectation? = nil) {
+        init(catalog: SubagentListResponse? = nil, catalogs: [String: SubagentListResponse] = [:], error: Error? = nil, reached: XCTestExpectation? = nil) {
             self.catalog = catalog
+            self.catalogs = catalogs
             self.error = error
             self.reached = reached
         }
@@ -874,6 +898,7 @@ final class NativeSessionStoreTests: XCTestCase {
             parentIDs.append(parentSessionID)
             reached?.fulfill()
             if let error { throw error }
+            if let catalog = catalogs[parentSessionID] { return catalog }
             guard let catalog else { throw DSHTransportError.invalidEndpoint }
             return catalog
         }
