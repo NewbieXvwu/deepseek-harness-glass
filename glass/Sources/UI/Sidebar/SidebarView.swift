@@ -64,7 +64,7 @@ struct NativeSidebarView: View {
         .padding(.trailing, collapsed ? 10 : OfficialUISpec.Layout.sidebarInlinePadding)
         .padding(.top, collapsed ? 18 : 6)
         .background(Color.clear)
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: collapsed)
+        .animation(NativeSidebarCollapseAnimation.transition(reduceMotion: reduceMotion), value: collapsed)
     }
 
     private var compactHeader: some View {

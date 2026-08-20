@@ -85,6 +85,18 @@ enum NativeGlassNavigationAnimation {
     }
 }
 
+/// RC8's sidebar changes between its expanded column and the 56px rail using
+/// the established 0.3-second easing. This decision remains separate from the
+/// custom-glass control animation because the sidebar itself is AppKit-owned
+/// system navigation, but it follows the same Reduce Motion contract.
+enum NativeSidebarCollapseAnimation {
+    static func transition(reduceMotion: Bool) -> Animation? {
+        NativeGlassControlAccessibilityPolicy.permitsMorphing(reduceMotion: reduceMotion)
+            ? .easeInOut(duration: 0.3)
+            : nil
+    }
+}
+
 enum NativeGlassNavigationBackground: Equatable {
     case customMaterial
     case officialTokenFill

@@ -339,6 +339,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 - [ ] **T7.4：实现收缩 rail。** 用官方尺寸和 motion sequence 完成 wide ↔ rail 切换；减弱动态效果时使用静态/简化过渡。
   - 依赖：T2.4、T5.2、T5.6。
   - 验收：1024px 阈值前后和手动展开逻辑与官方 fixture 相符；焦点不会落入隐藏的控制。
+  - 进度：`NativeSidebarCollapseAnimation` 已从视图内联判断提取为生产决策并接入 `NativeSidebarView`；默认保留 0.3s easeInOut，Reduce Motion 明确返回 `nil` 以实现静态切换，`GlassPolicyTests` 覆盖两个分支。RC8 原始 150ms fade/rail-entry、cold-collapse 不入场与 56px rail 几何映射见 `notes/T7.4-rc8-sidebar-motion-sources.md`；完整 staged motion 的 AppKit 截图、1024px 宽度对、焦点树与 macOS 当前 SHA 证据尚未闭环，保持未勾选。
 
 ## 8. Conversation 主界面与输入闭环
 

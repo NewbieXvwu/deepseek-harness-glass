@@ -59,6 +59,11 @@ final class GlassPolicyTests: XCTestCase {
         XCTAssertNil(NativeGlassNavigationAnimation.pressedAnimation(reduceMotion: true))
     }
 
+    func testSidebarCollapseAnimationUsesStaticTransitionWhenMotionIsReduced() {
+        XCTAssertNotNil(NativeSidebarCollapseAnimation.transition(reduceMotion: false))
+        XCTAssertNil(NativeSidebarCollapseAnimation.transition(reduceMotion: true))
+    }
+
     func testNavigationBackgroundUsesOfficialFillWhenCustomGlassIsNotAccessible() {
         XCTAssertEqual(
             NativeGlassNavigationBackground.resolve(reduceTransparency: false, contrast: .standard),
