@@ -35,9 +35,38 @@ extension HostAPI: NativeHostPathAPI {}
 enum NativeProjectPathResolver {
     static func resolve(cwd: String?, path: String) -> String {
         guard !isAbsolute(path), let cwd, !cwd.isEmpty else { return path }
-        let base = cwd.replacingOccurrences(of: #"[/\\]+$"#, with: "", options: .regularExpression)
-        let relative = path.replacingOccurrences(of: #"^[/\\]+"#, with: "", options: .regularExpression)
+        let base = trimTrailingSeparators(cwd)
+        let relative = trimLeadingSeparators(path)
         return "\(base)/\(relative)"
+    }
+
+    /// Character scan equivalent of `[/\\]+$` removal: no regex re-compilation.
+    private static func trimTrailingSeparators(_ string: String) -> String {
+        var end = string.endIndex
+        while end > string.startIndex {
+            let previous = string.index(before: end)
+            switch string[previous] {
+            case "/", "\\":
+                end = previous
+            default:
+                return String(string[..<end])
+            }
+        }
+        return ""
+    }
+
+    /// Character scan equivalent of `^[/\\]+` removal: no regex re-compilation.
+    private static func trimLeadingSeparators(_ string: String) -> String {
+        var start = string.startIndex
+        while start < string.endIndex {
+            switch string[start] {
+            case "/", "\\":
+                start = string.index(after: start)
+            default:
+                return String(string[start...])
+            }
+        }
+        return ""
     }
 
     private static func isAbsolute(_ path: String) -> Bool {
