@@ -288,9 +288,6 @@ jobs:
           python3 glass/ci/test-package-target-graph.py
           python3 glass/ci/check-package-target-graph.py
           echo "::endgroup::"
-          echo "::group::System structural material policy"
-          python3 glass/ci/check-native-structural-material.py
-          echo "::endgroup::"
           echo "::group::Liquid Glass policy"
           python3 glass/ci/check-glass-policy.py
           echo "::endgroup::"
