@@ -76,10 +76,32 @@ struct CoreRetryAttempt: Equatable {
     let state: State
     /// RC8 `LlmRetryEventData` display fields. Malformed/absent optional facts
     /// fail closed to harmless zero/empty values rather than reaching SwiftUI raw.
-    let delayMilliseconds: Int = 0
-    let failureMessage: String = ""
+    let delayMilliseconds: Int
+    let failureMessage: String
     let maximumRetries: Int?
-    let unlimited: Bool = false
+    let unlimited: Bool
+
+    /// Explicit initializer avoids compiler-dependent synthesized memberwise
+    /// defaults across the Linux parser and the macOS CI compiler.
+    init(
+        seq: Int,
+        time: Double,
+        retry: Int,
+        state: State,
+        delayMilliseconds: Int = 0,
+        failureMessage: String = "",
+        maximumRetries: Int? = nil,
+        unlimited: Bool = false
+    ) {
+        self.seq = seq
+        self.time = time
+        self.retry = retry
+        self.state = state
+        self.delayMilliseconds = delayMilliseconds
+        self.failureMessage = failureMessage
+        self.maximumRetries = maximumRetries
+        self.unlimited = unlimited
+    }
 
     func withState(_ state: State) -> Self {
         .init(seq: seq, time: time, retry: retry, state: state, delayMilliseconds: delayMilliseconds, failureMessage: failureMessage, maximumRetries: maximumRetries, unlimited: unlimited)

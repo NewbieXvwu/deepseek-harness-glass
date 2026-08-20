@@ -280,6 +280,11 @@ enum OfficialUISpec {
         static func subagentRunningCount(_ count: Int) -> String {
             "\(count) subagent\(count == 1 ? "" : "s") running"
         }
+        static func subagentDetail(mode: String?, activity: String?) -> String {
+            let visibleMode = mode == "one-shot" ? subagentModeOneShot : subagentModeContinuable
+            let visibleActivity = activity == "running" ? subagentRunning : subagentInactive
+            return "\(visibleMode) · \(visibleActivity)"
+        }
         static func retryStatus(label: String, retry: Int, maximum: String, seconds: Int) -> String {
             "\(label) (\(retry)/\(maximum)) · \(seconds)s"
         }

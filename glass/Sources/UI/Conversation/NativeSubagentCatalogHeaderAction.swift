@@ -62,7 +62,7 @@ struct NativeSubagentCatalogHeaderAction: View {
                             Text(entry.label ?? entry.id).font(OfficialUISpec.Typography.xs13)
                             Spacer(minLength: 0)
                         }
-                        Text("\(entry.mode == "one-shot" ? OfficialUISpec.Text.subagentModeOneShot : OfficialUISpec.Text.subagentModeContinuable) · \(entry.activity == "running" ? OfficialUISpec.Text.subagentRunning : OfficialUISpec.Text.subagentInactive)")
+                        Text(OfficialUISpec.Text.subagentDetail(mode: entry.mode, activity: entry.activity))
                             .font(OfficialUISpec.Typography.xxxs11)
                             .foregroundStyle(OfficialUISpec.Token.caption)
                     }
