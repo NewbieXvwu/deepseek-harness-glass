@@ -89,13 +89,18 @@ async function openWorkspaceManagementDialog(page: CapturePage, kind: 'workspace
     // workspace-management exercise: converge on expansion before locating the
     // child row, because collapsed descendants deliberately have no DOM action.
     const ungroupedRow = page.getByText('Ungrouped', { exact: true }).locator('..').locator('..')
-    if (await ungroupedRow.getAttribute('aria-expanded') !== 'true') {
-      await page.getByText('Ungrouped', { exact: true }).click()
-    }
+    await expect.poll(async () => {
+      if (await ungroupedRow.getAttribute('aria-expanded') !== 'true') {
+        await page.getByText('Ungrouped', { exact: true }).click()
+        await page.waitForTimeout(50)
+      }
+      return await ungroupedRow.getAttribute('aria-expanded')
+    }, { timeout: 30_000 }).toBe('true')
     const groupSection = ungroupedRow.locator('..')
     const row = groupSection.locator('[role="treeitem"]').nth(1)
     await row.waitFor({ timeout: 30_000 })
     const action = row.locator('button[aria-label^="Session actions for "]')
+    await action.waitFor({ state: 'attached', timeout: 30_000 })
     const actionName = await action.getAttribute('aria-label')
     if (actionName === null) throw new Error('session fixture has no row action')
     await revealAndClickRowAction(row, actionName)
