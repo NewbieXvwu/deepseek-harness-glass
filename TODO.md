@@ -75,6 +75,10 @@
 
 现有项目将主要逻辑集中在 `glass/Sources/main.swift`。重写前应拆分生命周期、Host 通信、状态、界面和插件兼容层，避免将 SwiftUI、AppKit、网络、进程与业务 reducer 再次耦合在一个文件中。
 
+- [ ] **T1.4：CI 反馈链路与触发解耦。** 将文档登记（`TODO.md`、`notes`）与源码变更解耦，防止仅文档更新触发长达 5-8 分钟的 macOS 回归。分离纯 Swift 逻辑（如 DTO/Reducer）到 `GlassPortableCore`，在 Linux 运行快速验证；分离官方 WebUI 基线构建以利用精确缓存；提供 `local-visual-test.sh` 缩短 UI 调整的本地闭环。
+  - 依赖：T1.2、T2.5、T4.1。
+  - 验收：仅修改 `TODO.md` 时不再触发 `native-ui`；`portable-checks` 并行提供逻辑反馈；基线缺失能被显式捕获。
+
 - [x] **T1.1：保留现有项目的可复用运行时资产。** 列出并迁移内嵌 Node、dsh payload、构建脚本、Info.plist、图标、签名与 release workflow；保留 `DSH_HOME`、日志目录、端口复用、自动恢复、菜单栏常驻和优雅退出的意图。
   - 依赖：T0.2。
   - 验收：迁移清单将当前 `main.swift` 的每项职责标注为 `保留`、`替换` 或 `删除`；没有未分类的隐式行为。

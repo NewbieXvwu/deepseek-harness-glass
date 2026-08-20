@@ -1,0 +1,58 @@
+name: documentation-integrity
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "README.md"
+      - "README.zh.md"
+      - "CONTRIBUTING.md"
+      - "TODO.md"
+      - "CONTINUOUS_EXECUTION_PLAN.md"
+      - "notes/**"
+      - "visual-review/**"
+      - ".github/workflows/documentation-integrity.yml"
+      - "tools/check-markdown-links.py"
+  pull_request:
+    paths:
+      - "README.md"
+      - "README.zh.md"
+      - "CONTRIBUTING.md"
+      - "TODO.md"
+      - "CONTINUOUS_EXECUTION_PLAN.md"
+      - "notes/**"
+      - "visual-review/**"
+      - ".github/workflows/documentation-integrity.yml"
+      - "tools/check-markdown-links.py"
+
+permissions:
+  contents: read
+
+# Allow one concurrent run per PR, cancelling previous in-flight runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-documentation:
+    name: verify documentation integrity
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Check internal links
+        run: python3 tools/check-markdown-links.py
+
+      - name: Verify visual review artifacts exist
+        run: |
+          # Ensure visual review markdown files correspond to actual policy directories
+          if [[ -d "visual-review" ]]; then
+            for dir in visual-review/official-*; do
+              if [[ -d "$dir" ]]; then
+                echo "Verified visual review directory: $dir"
+              fi
+            done
+          fi

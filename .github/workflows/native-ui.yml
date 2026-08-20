@@ -3,45 +3,27 @@ name: native-ui
 on:
   push:
     branches: [main]
-    paths:
-      - "glass/Sources/**"
-      - "glass/Tests/**"
-      - "glass/assemble.sh"
-      - "glass/Info.plist"
-      - "glass/Package.swift"
-      - "glass/assets/**"
-      - "glass/scripts/**"
-      - "glass/ci/**"
-      - "glass/Sources/Spec/SupportedHostBuilds.json"
-      - "tools/reference-capture/**"
-      - "tools/spec-generation/**"
-      - "visual-review/**"
-      - ".github/workflows/native-ui.yml"
+    paths-ignore:
       - "README.md"
       - "README.zh.md"
       - "CONTRIBUTING.md"
       - "TODO.md"
+      - "CONTINUOUS_EXECUTION_PLAN.md"
       - "notes/**"
+      - "visual-review/**"
+      - ".github/workflows/documentation-integrity.yml"
+      - "tools/check-markdown-links.py"
   pull_request:
-    paths:
-      - "glass/Sources/**"
-      - "glass/Tests/**"
-      - "glass/assemble.sh"
-      - "glass/Info.plist"
-      - "glass/Package.swift"
-      - "glass/assets/**"
-      - "glass/scripts/**"
-      - "glass/ci/**"
-      - "glass/Sources/Spec/SupportedHostBuilds.json"
-      - "tools/reference-capture/**"
-      - "tools/spec-generation/**"
-      - "visual-review/**"
-      - ".github/workflows/native-ui.yml"
+    paths-ignore:
       - "README.md"
       - "README.zh.md"
       - "CONTRIBUTING.md"
       - "TODO.md"
+      - "CONTINUOUS_EXECUTION_PLAN.md"
       - "notes/**"
+      - "visual-review/**"
+      - ".github/workflows/documentation-integrity.yml"
+      - "tools/check-markdown-links.py"
   workflow_dispatch:
 
 permissions:
@@ -50,6 +32,11 @@ permissions:
 env:
   OFFICIAL_COMMIT: 141eb6fef83422698aef7a981029e843e8161534
   DSH_NODE_VERSION: 24.19.0
+
+# Allow one concurrent run per PR, cancelling previous in-flight runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-and-snapshot:
@@ -119,20 +106,38 @@ jobs:
           test -x glass/build/node-runtime/bin/pnpm
           echo "NODE24_BIN=$GITHUB_WORKSPACE/glass/build/node-runtime/bin" >> "$GITHUB_ENV"
 
-      # The official source is pinned to OFFICIAL_COMMIT, so its rendered
-      # baseline is a pure function of that commit, the capture script, and
-      # the runner image. On a cache hit the whole pnpm install + build:lib +
-      # Vite build + Chromium download + capture is skipped.
-      - name: Restore official WebUI baseline
+      # Baselines are prepared by prepare-official-baseline.yml when their
+      # inputs change. Normal native validation consumes the exact cache and
+      # never rebuilds pnpm/Playwright on its critical path.
+      - name: Restore prepared official WebUI baseline
         id: official-baseline-cache
         uses: actions/cache/restore@v5
         with:
           path: artifacts/official-webui
           key: official-webui-baseline-${{ env.OFFICIAL_COMMIT }}-${{ runner.os }}-${{ env.IMAGE_VERSION }}-${{ hashFiles('tools/reference-capture/capture-official-welcome.e2e.ts') }}
 
-      # Cold-path dependency caches: they only matter when the baseline itself
-      # missed (commit bump, script change, image roll) and the official tree
-      # has to be rebuilt.
+      # A cache miss is expected only when baseline inputs change. The dedicated
+      # prepare workflow pre-warms main; this fallback keeps PR validation sound.
+      - name: Build and capture official WebUI baseline on cache miss
+        if: steps.official-baseline-cache.outputs.cache-hit != 'true'
+        run: |
+          export PATH="$NODE24_BIN:$PATH"
+          cd .reference/deepseek-harness
+          NODE_OPTIONS="--max-old-space-size=8192" corepack pnpm run build
+          test -s apps/web/dist/index.html
+          cp "$GITHUB_WORKSPACE/tools/reference-capture/capture-official-welcome.e2e.ts" apps/web/tests/
+          corepack pnpm --filter @deepseek-ai/dsh-web-frontend exec playwright install chromium
+          DSH_REFERENCE_SCREENSHOT_DIR="$GITHUB_WORKSPACE/artifacts/official-webui" \
+            corepack pnpm exec vitest run --config vitest.web.config.ts apps/web/tests/capture-official-welcome.e2e.ts
+
+      - name: Save fallback official WebUI baseline
+        if: steps.official-baseline-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: artifacts/official-webui
+          key: ${{ steps.official-baseline-cache.outputs.cache-primary-key }}
+
+      # Dependency caches only support the specification gates below.
       - name: Restore official build dependency caches
         uses: actions/cache@v5
         with:
@@ -151,37 +156,6 @@ jobs:
           cd .reference/deepseek-harness
           corepack pnpm install --frozen-lockfile
           test -f node_modules/tsx/dist/cli.mjs
-
-      - name: Build and capture locked official WebUI baseline
-        if: steps.official-baseline-cache.outputs.cache-hit != 'true'
-        run: |
-          export PATH="$NODE24_BIN:$PATH"
-          cd .reference/deepseek-harness
-          # The locked upstream web scaffold documents the root build as the
-          # supported precondition for apps/web/dist. Keep that complete build
-          # graph intact instead of reimplementing its Host/Client/Web order in
-          # this workflow, which can diverge on a cold cache path.
-          NODE_OPTIONS="--max-old-space-size=8192" corepack pnpm run build
-          test -s apps/web/dist/index.html
-          # The capture is a project-local fixture for our visual baseline. Do
-          # not add it before the upstream TypeScript build: apps/web's locked
-          # aggregate includes tests and this e2e harness intentionally spans
-          # both Host and Client planes.
-          cp "$GITHUB_WORKSPACE/tools/reference-capture/capture-official-welcome.e2e.ts" apps/web/tests/
-          test -f apps/web/tests/capture-official-welcome.e2e.ts
-          corepack pnpm --filter @deepseek-ai/dsh-web-frontend exec playwright install chromium
-          DSH_REFERENCE_SCREENSHOT_DIR="$GITHUB_WORKSPACE/artifacts/official-webui" \
-            corepack pnpm exec vitest run --config vitest.web.config.ts apps/web/tests/capture-official-welcome.e2e.ts
-
-      # Save immediately after capture: the baseline is the most expensive
-      # artifact in this job, and a plain cache action would only save it if
-      # every later step also succeeded.
-      - name: Save official WebUI baseline
-        if: steps.official-baseline-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5
-        with:
-          path: artifacts/official-webui
-          key: ${{ steps.official-baseline-cache.outputs.cache-primary-key }}
 
       - name: Verify official baseline artifacts
         run: |
@@ -286,6 +260,20 @@ jobs:
           ./glass/ci/check-official-spec.py
           echo "::endgroup::"
 
+      # Fail Fast: Run Swift compilation and tests before assembling the app
+      - name: Independently compile declared SwiftPM targets
+        run: |
+          cd glass
+          swift build --configuration release
+
+      - name: Run all XCTest suites
+        env:
+          DSH_GLASS_HOST_NODE: ${{ github.workspace }}/glass/build/node/node
+          DSH_GLASS_HOST_ENTRY: ${{ github.workspace }}/glass/build/backend/node_modules/@deepseek-ai/dsh/lib/bin.js
+        run: |
+          cd glass
+          swift test
+
       - name: Run native architecture gates
         run: |
           set -euo pipefail
@@ -296,22 +284,6 @@ jobs:
           python3 glass/ci/test-package-target-graph.py
           python3 glass/ci/check-package-target-graph.py
           echo "::endgroup::"
-
-      - name: Independently compile declared SwiftPM targets
-        run: |
-          cd glass
-          swift build --configuration release
-
-      # One invocation shares a single SwiftPM test build and reports every
-      # failing suite at once; the previous 13 per-suite filter steps paid
-      # process startup each time without adding any isolation.
-      - name: Run all XCTest suites
-        env:
-          DSH_GLASS_HOST_NODE: ${{ github.workspace }}/glass/build/node/node
-          DSH_GLASS_HOST_ENTRY: ${{ github.workspace }}/glass/build/backend/node_modules/@deepseek-ai/dsh/lib/bin.js
-        run: |
-          cd glass
-          swift test
 
       - name: Assemble native macOS app
         run: |

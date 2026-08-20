@@ -1,6 +1,6 @@
 import XCTest
 
-@testable import GlassCore
+@testable import GlassPortableCore
 
 final class HostPathDisplayTests: XCTestCase {
     func testAbbreviatesPOSIXHomeAndDescendants() {

@@ -1,8 +1,5 @@
 import Foundation
 
-#if DEEPSEEK_HARNESS_PACKAGE
-@testable import GlassSpec
-#endif
 /// JSON-safe value used only at the transport boundary. Feature modules must
 /// decode from this value through typed DTO adapters rather than handling raw
 /// dictionaries or URL payloads directly.

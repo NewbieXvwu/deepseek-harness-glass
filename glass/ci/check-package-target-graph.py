@@ -20,8 +20,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 EXPECTED: dict[str, tuple[str, set[str]]] = {
     "GlassSpec": ("Sources/Spec", set()),
+    "GlassPortableCore": ("Sources/PortableCore", set()),
     "GlassCore": ("Sources/Core", {"GlassSpec"}),
-    "GlassUI": ("Sources/UI", {"GlassCore", "GlassSpec"}),
+    "GlassUI": ("Sources/UI", {"GlassCore", "GlassSpec", "GlassPortableCore"}),
     "GlassSnapshot": ("Sources/Snapshot", {"GlassCore", "GlassSpec", "GlassUI"}),
     "DeepSeekHarnessGlassApp": ("Sources/App", {"GlassCore", "GlassSpec", "GlassUI", "GlassSnapshot"}),
 }

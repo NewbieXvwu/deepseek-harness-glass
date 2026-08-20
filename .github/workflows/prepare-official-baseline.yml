@@ -1,0 +1,124 @@
+name: prepare-official-baseline
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "tools/reference-capture/**"
+      - ".github/workflows/prepare-official-baseline.yml"
+      - ".github/workflows/native-ui.yml"
+  pull_request:
+    paths:
+      - "tools/reference-capture/**"
+      - ".github/workflows/prepare-official-baseline.yml"
+      - ".github/workflows/native-ui.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  OFFICIAL_COMMIT: 141eb6fef83422698aef7a981029e843e8161534
+  DSH_NODE_VERSION: 24.19.0
+
+jobs:
+  build-and-capture:
+    name: build and capture official baseline
+    runs-on: macos-26
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Record macOS image version
+        run: echo "IMAGE_VERSION=${ImageVersion:-unknown}" >> "$GITHUB_ENV"
+
+      - name: Checkout locked official DeepSeek Harness source
+        uses: actions/checkout@v5
+        with:
+          repository: deepseek-ai/deepseek-harness
+          ref: ${{ env.OFFICIAL_COMMIT }}
+          path: .reference/deepseek-harness
+
+      - name: Restore official WebUI baseline
+        id: official-baseline-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: artifacts/official-webui
+          key: official-webui-baseline-${{ env.OFFICIAL_COMMIT }}-${{ runner.os }}-${{ env.IMAGE_VERSION }}-${{ hashFiles('tools/reference-capture/capture-official-welcome.e2e.ts') }}
+
+      - name: Restore bundled Node runtime
+        if: steps.official-baseline-cache.outputs.cache-hit != 'true'
+        id: node-runtime-cache
+        uses: actions/cache@v5
+        with:
+          path: |
+            glass/build/node
+            glass/build/node-runtime
+          key: node-runtime-v2-${{ env.DSH_NODE_VERSION }}-darwin-arm64
+
+      - name: Download bundled Node runtime
+        if: steps.official-baseline-cache.outputs.cache-hit != 'true' && steps.node-runtime-cache.outputs.cache-hit != 'true'
+        run: |
+          NODE_DIST="https://nodejs.org/dist"
+          NODE_TARBALL="node-v${DSH_NODE_VERSION}-darwin-arm64.tar.gz"
+          curl -fsSL "${NODE_DIST}/v${DSH_NODE_VERSION}/${NODE_TARBALL}" -o /tmp/node.tgz
+          tar -xzf /tmp/node.tgz -C /tmp
+          mkdir -p glass/build
+          rm -rf glass/build/node-runtime
+          mv "/tmp/node-v${DSH_NODE_VERSION}-darwin-arm64" glass/build/node-runtime
+          mkdir -p glass/build/node
+          cp glass/build/node-runtime/bin/node glass/build/node/node
+
+      - name: Activate bundled Node runtime
+        if: steps.official-baseline-cache.outputs.cache-hit != 'true'
+        run: |
+          chmod +x glass/build/node/node glass/build/node-runtime/bin/node
+          glass/build/node-runtime/bin/corepack enable --install-directory "$GITHUB_WORKSPACE/glass/build/node-runtime/bin"
+          echo "NODE24_BIN=$GITHUB_WORKSPACE/glass/build/node-runtime/bin" >> "$GITHUB_ENV"
+
+      - name: Restore official build dependency caches
+        if: steps.official-baseline-cache.outputs.cache-hit != 'true'
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/Library/pnpm/store
+            ~/Library/Caches/ms-playwright
+          key: official-webui-deps-${{ env.OFFICIAL_COMMIT }}-${{ hashFiles('.reference/deepseek-harness/pnpm-lock.yaml', '.reference/deepseek-harness/apps/web/package.json') }}
+
+      - name: Install locked official source toolchain
+        if: steps.official-baseline-cache.outputs.cache-hit != 'true'
+        run: |
+          export PATH="$NODE24_BIN:$PATH"
+          cd .reference/deepseek-harness
+          corepack pnpm install --frozen-lockfile
+
+      - name: Build and capture locked official WebUI baseline
+        if: steps.official-baseline-cache.outputs.cache-hit != 'true'
+        run: |
+          export PATH="$NODE24_BIN:$PATH"
+          cd .reference/deepseek-harness
+          NODE_OPTIONS="--max-old-space-size=8192" corepack pnpm run build
+          cp "$GITHUB_WORKSPACE/tools/reference-capture/capture-official-welcome.e2e.ts" apps/web/tests/
+          corepack pnpm --filter @deepseek-ai/dsh-web-frontend exec playwright install chromium
+          DSH_REFERENCE_SCREENSHOT_DIR="$GITHUB_WORKSPACE/artifacts/official-webui" \
+            corepack pnpm exec vitest run --config vitest.web.config.ts apps/web/tests/capture-official-welcome.e2e.ts
+
+      - name: Save official WebUI baseline
+        if: steps.official-baseline-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: artifacts/official-webui
+          key: ${{ steps.official-baseline-cache.outputs.cache-primary-key }}
+
+      - name: Upload official baseline artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: official-webui-baseline-${{ env.OFFICIAL_COMMIT }}
+          path: artifacts/official-webui/
+          retention-days: 14
