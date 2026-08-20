@@ -18,7 +18,7 @@ enum NativeQueueDockPresentation {
 
     static func failureText(_ failure: NativeSessionStore.QueueActionFailure?, rowID: String) -> String? {
         guard let failure, failure.itemID == rowID else { return nil }
-        switch failure.kind {
+        return switch failure.kind {
         case .edit: OfficialUISpec.Text.queueEditFailure
         case .remove: OfficialUISpec.Text.queueRemoveFailure
         case .steer: OfficialUISpec.Text.queueSteerFailure
