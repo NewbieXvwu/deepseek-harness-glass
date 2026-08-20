@@ -51,7 +51,7 @@ private struct WorkflowRunDefinition: ConversationNodeDefinition {
         case cancelled
     }
 
-    struct MemberState {
+    private struct MemberState {
         let seq: Int
         let label: String
         let phase: String?
@@ -59,7 +59,7 @@ private struct WorkflowRunDefinition: ConversationNodeDefinition {
         let outcome: AgentOutcome?
     }
 
-    struct State {
+    private struct State {
         let name: String
         let stopReason: StopReason?
         let members: [MemberState]
