@@ -77,6 +77,14 @@ enum NativeGlassControlAccessibilityPolicy {
 /// The navigation style consumes this production decision directly. Keeping the
 /// material-versus-token fallback outside the view builder makes both the
 /// accessibility contract and its negative branch independently testable.
+enum NativeGlassNavigationAnimation {
+    static func pressedAnimation(reduceMotion: Bool) -> Animation? {
+        NativeGlassControlAccessibilityPolicy.permitsMorphing(reduceMotion: reduceMotion)
+            ? .easeInOut(duration: 0.16)
+            : nil
+    }
+}
+
 enum NativeGlassNavigationBackground: Equatable {
     case customMaterial
     case officialTokenFill

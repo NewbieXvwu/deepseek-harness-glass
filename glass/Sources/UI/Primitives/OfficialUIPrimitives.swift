@@ -132,7 +132,7 @@ struct NativeGlassNavigationButtonStyle: ButtonStyle {
                 in: Circle(),
                 isEnabled: permitsCustomGlass
             )
-            .animation(reduceMotion ? nil : .easeInOut(duration: 0.16), value: configuration.isPressed)
+            .animation(NativeGlassNavigationAnimation.pressedAnimation(reduceMotion: reduceMotion), value: configuration.isPressed)
             .opacity(configuration.isPressed ? 0.82 : 1)
     }
 }
