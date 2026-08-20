@@ -198,6 +198,12 @@ struct HostAPI: Sendable {
     init(client: DSHAPIClient) { self.client = client }
 
     func describe() async throws -> HostDescribeResponse { try await client.hostDescribe() }
+
+    /// The Host owns the actual filesystem/desktop action. Consumers receive
+    /// only this typed intent and never a local file URL opener.
+    func openPath(_ path: String) async throws -> HostOpenPathResponse {
+        try await client.hostOpenPath(path: path)
+    }
 }
 
 // MARK: - ServerRequest response DTOs

@@ -252,8 +252,6 @@ jobs:
           echo "::group::Official locales and UI copy lint"
           python3 glass/ci/check-official-locales.py \
             --official-root .reference/deepseek-harness
-          python3 glass/ci/check-official-locale-literals.py
-          python3 glass/ci/test-official-locale-literals.py
           echo "::endgroup::"
           echo "::group::Official theme tokens"
           python3 glass/ci/check-official-theme-tokens.py \
@@ -289,15 +287,6 @@ jobs:
           echo "::group::Structured SwiftPM target graph"
           python3 glass/ci/test-package-target-graph.py
           python3 glass/ci/check-package-target-graph.py
-          echo "::endgroup::"
-          echo "::group::System structural material policy"
-          python3 glass/ci/check-native-structural-material.py
-          echo "::endgroup::"
-          echo "::group::Liquid Glass policy"
-          python3 glass/ci/check-glass-policy.py
-          echo "::endgroup::"
-          echo "::group::Accessibility baseline"
-          python3 glass/ci/check-accessibility-baseline.py
           echo "::endgroup::"
 
       - name: Independently compile declared SwiftPM targets

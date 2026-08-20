@@ -15,7 +15,7 @@ let package = Package(
         .target(
             name: "GlassSpec",
             path: "Sources/Spec",
-            resources: [.process("Fixtures")],
+            resources: [.process("Fixtures"), .process("Locales")],
             swiftSettings: [.define("DEEPSEEK_HARNESS_PACKAGE"), .unsafeFlags(["-enable-testing"])]
         ),
         .target(

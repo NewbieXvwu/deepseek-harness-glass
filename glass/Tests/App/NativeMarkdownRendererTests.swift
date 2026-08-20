@@ -12,6 +12,17 @@ final class NativeMarkdownRendererTests: XCTestCase {
         }
     }
 
+    func testExternalURLRouterOpensOnlyHTTPDestinations() {
+        var opened: [URL] = []
+        XCTAssertTrue(NativeMarkdownSecurityPolicy.openExternal(URL(string: "https://example.com/safe")!) { opened.append($0) })
+        XCTAssertEqual(opened.map(\.absoluteString), ["https://example.com/safe"])
+
+        for unsafe in ["file:///tmp/private", "data:text/html,boom", "javascript:alert(1)"] {
+            XCTAssertFalse(NativeMarkdownSecurityPolicy.openExternal(URL(string: unsafe)!) { opened.append($0) })
+        }
+        XCTAssertEqual(opened.map(\.absoluteString), ["https://example.com/safe"])
+    }
+
     func testSanitizerRemovesExecutableHTMLAndMakesUnsafeLinksInert() {
         let input = "<script>alert('x')</script><img src=x onerror=alert(1)> [local](file:///tmp/secret) [safe](https://example.com)"
         let sanitized = NativeMarkdownSecurityPolicy.sanitizedInlineMarkdown(input)
@@ -45,6 +56,22 @@ final class NativeMarkdownRendererTests: XCTestCase {
             NativeCodeHighlighter.fragments(code: "<script>alert(1)</script>", language: "untrusted"),
             [.init(text: "<script>alert(1)</script>", kind: .plain)]
         )
+    }
+
+    func testQuoteAndListsBecomeStableNativeBlocksWithoutUnsafeLinkActivation() {
+        let blocks = NativeMarkdownDocument.parse(
+            "intro\n> quoted [safe](https://example.com)\n> `file:///private`\n- first\n- [unsafe](file:///tmp/private)\n1. ordered\n2. second\nafter"
+        )
+        XCTAssertEqual(blocks, [
+            .prose(id: 0, text: "intro"),
+            .quote(id: 1, text: "quoted [safe](https://example.com)\n`file:///private`"),
+            .list(id: 2, ordered: false, items: ["first", "[unsafe](file:///tmp/private)"]),
+            .list(id: 3, ordered: true, items: ["ordered", "second"]),
+            .prose(id: 4, text: "after"),
+        ])
+
+        let unsafeListItem = NativeMarkdownSecurityPolicy.attributedInlineMarkdown("[unsafe](file:///tmp/private)")
+        XCTAssertTrue(unsafeListItem.runs.allSatisfy { $0.link == nil })
     }
 
     func testFencedCodeHasStableCodeBlockAndIncompleteFenceStaysLiteralProse() {

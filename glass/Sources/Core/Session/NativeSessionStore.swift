@@ -21,6 +21,35 @@ protocol NativeSessionAPI: Sendable {
 
 extension SessionsAPI: NativeSessionAPI {}
 
+/// Typed desktop-action boundary for settled Markdown file mentions. The Host
+/// keeps both path opening authority and loopback/build-trust enforcement.
+@MainActor
+protocol NativeHostPathAPI: Sendable {
+    func openPath(_ path: String) async throws -> HostOpenPathResponse
+}
+
+extension HostAPI: NativeHostPathAPI {}
+
+/// Source: RC8 `resolveWorkspacePath`. This only constructs the Host-facing
+/// spelling; it neither touches the local filesystem nor interprets a URL.
+enum NativeProjectPathResolver {
+    static func resolve(cwd: String?, path: String) -> String {
+        guard !isAbsolute(path), let cwd, !cwd.isEmpty else { return path }
+        let base = cwd.replacingOccurrences(of: #"[/\\]+$"#, with: "", options: .regularExpression)
+        let relative = path.replacingOccurrences(of: #"^[/\\]+"#, with: "", options: .regularExpression)
+        return "\(base)/\(relative)"
+    }
+
+    private static func isAbsolute(_ path: String) -> Bool {
+        if path.hasPrefix("/") || path.hasPrefix("\\\\") { return true }
+        let scalars = Array(path.unicodeScalars)
+        return scalars.count >= 3
+            && CharacterSet.letters.contains(scalars[0])
+            && scalars[1].value == 58
+            && (scalars[2].value == 47 || scalars[2].value == 92)
+    }
+}
+
 /// Host-authoritative transcript state for the active native conversation.
 ///
 /// Sources: `sessions.schema.ts:sessionHistoryValueSchema`,
@@ -243,6 +272,8 @@ final class NativeSessionStore: ObservableObject {
     private var streamTask: Task<Void, Never>?
     private var endpoint: URL?
     private var api: (any NativeSessionAPI)?
+    private var hostPathAPI: (any NativeHostPathAPI)?
+    private var activeSessionCWD: String?
     private var activeSessionID: String?
     private var residentStates: [String: ResidentSessionState] = [:]
     private var appliedSequences: Set<Int> = []
@@ -325,7 +356,13 @@ final class NativeSessionStore: ObservableObject {
     /// Opens one selected Host session. Re-selecting a resident session restores
     /// its visible window synchronously, then refreshes the Host authority in the
     /// background; a cold session alone enters the blocking history phase.
-    func open(sessionID: String, using api: any NativeSessionAPI, endpoint: URL) {
+    func open(
+        sessionID: String,
+        using api: any NativeSessionAPI,
+        endpoint: URL,
+        hostPathAPI: (any NativeHostPathAPI)? = nil,
+        sessionCWD: String? = nil
+    ) {
         guard activeSessionID != sessionID || self.endpoint != endpoint else { return }
         preserveActiveState()
         historyTask?.cancel()
@@ -334,6 +371,8 @@ final class NativeSessionStore: ObservableObject {
         cancelTask?.cancel()
         streamTask?.cancel()
         self.api = api
+        self.hostPathAPI = hostPathAPI
+        self.activeSessionCWD = sessionCWD
         self.endpoint = endpoint
         activeSessionID = sessionID
         let restoredResident = restoreResidentState(for: sessionID)
@@ -400,6 +439,8 @@ final class NativeSessionStore: ObservableObject {
         streamTask = nil
         endpoint = nil
         api = nil
+        hostPathAPI = nil
+        activeSessionCWD = nil
         activeSessionID = nil
         phase = .idle
         items = []
@@ -446,6 +487,33 @@ final class NativeSessionStore: ObservableObject {
 
     func removePendingImage(_ id: UUID) {
         pendingImages.removeAll { $0.id == id }
+    }
+
+    /// RC8 file mentions are owner-resolved vocabulary, never arbitrary Markdown
+    /// destinations. This method is intentionally inert until the caller passes
+    /// an already-recognized path token from that Host-backed vocabulary.
+    func openKnownProjectPath(_ path: String) {
+        guard let hostPathAPI,
+              let sessionID = activeSessionID,
+              Self.isProjectPathToken(path)
+        else { return }
+        let resolved = NativeProjectPathResolver.resolve(cwd: activeSessionCWD, path: path)
+        Task { [weak self] in
+            do {
+                let response = try await hostPathAPI.openPath(resolved)
+                guard response.opened, self?.activeSessionID == sessionID else { return }
+            } catch {
+                // RC8 chat rows intentionally keep Host desktop-open failure
+                // silent; no local path or transport-private error leaks into
+                // untrusted assistant Markdown.
+            }
+        }
+    }
+
+    private static func isProjectPathToken(_ path: String) -> Bool {
+        let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed == path else { return false }
+        return URLComponents(string: trimmed)?.scheme == nil
     }
 
     /// Source: `sessions.schema.ts:sessionPromptRequestSchema`. The native

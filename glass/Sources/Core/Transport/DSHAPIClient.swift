@@ -55,6 +55,12 @@ struct DSHAPIClient: Sendable {
         try await call("host.describe", payload: EmptyPayload())
     }
 
+    /// Source: `host.openPath` in the locked RC8 Host API. The Host—not the
+    /// native UI—owns filesystem resolution and desktop opening authority.
+    func hostOpenPath(path: String) async throws -> HostOpenPathResponse {
+        try await call("host.openPath", payload: HostOpenPathRequest(path: path))
+    }
+
     func sessionList() async throws -> SessionListResponse {
         try await call("session.list", payload: EmptyPayload())
     }
@@ -197,6 +203,16 @@ struct DSHAPIClient: Sendable {
 }
 
 struct EmptyPayload: Codable, Sendable {}
+
+/// Source: locked RC8 `host.openPath` request payload.
+struct HostOpenPathRequest: Codable, Sendable {
+    let path: String
+}
+
+/// Source: locked RC8 `host.openPath` success value.
+struct HostOpenPathResponse: Decodable, Sendable {
+    let opened: Bool
+}
 
 /// Source: `sessions.schema.ts:sessionHistoryRequestSchema`.
 struct SessionHistoryRequest: Codable, Sendable {

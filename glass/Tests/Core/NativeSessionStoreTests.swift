@@ -23,6 +23,71 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.draft, "do not bypass the typed facade", "a rejected typed facade call must retain the draft for retry")
     }
 
+    func testCancelIntentUsesTypedFacadeOnlyForHostRunningTurn() async {
+        let cancelReachedFacade = expectation(description: "typed cancel facade receives running turn intent")
+        let api = RejectingSessionAPI(promptReachedFacade: nil, cancelReachedFacade: cancelReachedFacade)
+        let store = NativeSessionStore()
+        let sessionID = "cancel-session"
+        store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+
+        store.cancelRunningTurn()
+        XCTAssertTrue(api.cancelledSessionIDs.isEmpty, "idle composer must not manufacture a cancel RPC")
+
+        store.applyMuxFrame(sessionEventFrame(
+            sessionID: sessionID,
+            seq: 1,
+            type: "turn/start",
+            data: .object(["turn": .number(1)])
+        ), sessionID: sessionID)
+        XCTAssertTrue(store.isRunning)
+
+        store.cancelRunningTurn()
+        await fulfillment(of: [cancelReachedFacade], timeout: 1)
+        XCTAssertEqual(api.cancelledSessionIDs, [sessionID])
+        XCTAssertTrue(store.isRunning, "carrier receipt cannot optimistically settle a Host-owned running turn")
+    }
+
+    func testAcceptedPromptClearsDraftOnlyAfterTypedHostFacadeAcceptance() async {
+        let promptReachedFacade = expectation(description: "typed prompt facade returns Host acceptance")
+        let api = AcceptingSessionAPI(promptReachedFacade: promptReachedFacade)
+        let store = NativeSessionStore()
+        let sessionID = "accepted-prompt-session"
+        store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+        store.draft = "preserve until the Host accepts"
+
+        store.submitDraft()
+        XCTAssertEqual(store.draft, "preserve until the Host accepts")
+        await fulfillment(of: [promptReachedFacade], timeout: 1)
+        await eventually(timeout: 1) { store.draft.isEmpty }
+        XCTAssertEqual(api.promptSessionIDs, [sessionID])
+    }
+
+    func testKnownProjectPathUsesHostFacadeAfterSessionCWDResolutionAndRejectsURLs() async {
+        let opened = expectation(description: "recognized project token reaches typed Host facade")
+        let hostPathAPI = RecordingHostPathAPI(opened: opened)
+        let store = NativeSessionStore()
+        store.open(
+            sessionID: "path-session",
+            using: RejectingSessionAPI(promptReachedFacade: nil),
+            endpoint: URL(string: "http://127.0.0.1:1")!,
+            hostPathAPI: hostPathAPI,
+            sessionCWD: "/workspace/project"
+        )
+
+        store.openKnownProjectPath("src/main.swift")
+        await fulfillment(of: [opened], timeout: 1)
+        XCTAssertEqual(hostPathAPI.paths, ["/workspace/project/src/main.swift"])
+
+        store.openKnownProjectPath("file:///etc/passwd")
+        store.openKnownProjectPath("https://example.invalid/a.swift")
+        store.openKnownProjectPath(" ")
+        try? await Task.sleep(for: .milliseconds(30))
+        XCTAssertEqual(hostPathAPI.paths, ["/workspace/project/src/main.swift"])
+
+        XCTAssertEqual(NativeProjectPathResolver.resolve(cwd: "/workspace/project/", path: "/tmp/absolute.txt"), "/tmp/absolute.txt")
+        XCTAssertEqual(NativeProjectPathResolver.resolve(cwd: "/workspace/project", path: "C:\\code\\main.swift"), "C:\\code\\main.swift")
+    }
+
     func testQueueAndJobsUseCompleteHostSnapshotsAndRejectOtherSessionFrames() {
         let store = NativeSessionStore()
         store.loadSnapshotToolingFixture()
@@ -240,6 +305,37 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(SessionJobsPresentation.elapsedMilliseconds(for: jobs[0], now: 100), 10)
     }
 
+    private func eventually(timeout: TimeInterval, condition: @escaping @MainActor () -> Bool) async {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if condition() { return }
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        XCTFail("condition was not met before timeout")
+    }
+
+    @MainActor
+    private final class AcceptingSessionAPI: NativeSessionAPI {
+        let promptReachedFacade: XCTestExpectation
+        private(set) var promptSessionIDs: [String] = []
+
+        init(promptReachedFacade: XCTestExpectation) {
+            self.promptReachedFacade = promptReachedFacade
+        }
+
+        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse { throw DSHTransportError.invalidEndpoint }
+        func models(sessionID _: String) async throws -> SessionModelsResponse { throw DSHTransportError.invalidEndpoint }
+        func prompt(sessionID: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse {
+            promptSessionIDs.append(sessionID)
+            promptReachedFacade.fulfill()
+            return SessionPromptResponse(accepted: true)
+        }
+        func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
+        func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+        func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+        func cancelQuestion(rpcID _: String) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+    }
+
     @MainActor
     private final class RejectingSessionAPI: NativeSessionAPI {
         struct Prompt {
@@ -247,11 +343,14 @@ final class NativeSessionStoreTests: XCTestCase {
             let content: [SessionPromptContent]
         }
 
-        let promptReachedFacade: XCTestExpectation
+        let promptReachedFacade: XCTestExpectation?
+        let cancelReachedFacade: XCTestExpectation?
         private(set) var prompts: [Prompt] = []
+        private(set) var cancelledSessionIDs: [String] = []
 
-        init(promptReachedFacade: XCTestExpectation) {
+        init(promptReachedFacade: XCTestExpectation?, cancelReachedFacade: XCTestExpectation? = nil) {
             self.promptReachedFacade = promptReachedFacade
+            self.cancelReachedFacade = cancelReachedFacade
         }
 
         func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
@@ -260,11 +359,13 @@ final class NativeSessionStoreTests: XCTestCase {
 
         func prompt(sessionID: String, content: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse {
             prompts.append(.init(sessionID: sessionID, content: content))
-            promptReachedFacade.fulfill()
+            promptReachedFacade?.fulfill()
             throw DSHTransportError.invalidEndpoint
         }
 
-        func cancel(sessionID _: String) async throws -> SessionCancelResponse {
+        func cancel(sessionID: String) async throws -> SessionCancelResponse {
+            cancelledSessionIDs.append(sessionID)
+            cancelReachedFacade?.fulfill()
             throw DSHTransportError.invalidEndpoint
         }
 
@@ -282,6 +383,22 @@ final class NativeSessionStoreTests: XCTestCase {
 
         func cancelQuestion(rpcID _: String) async throws -> RPCReceipt {
             throw DSHTransportError.invalidEndpoint
+        }
+    }
+
+    @MainActor
+    private final class RecordingHostPathAPI: NativeHostPathAPI {
+        let opened: XCTestExpectation
+        private(set) var paths: [String] = []
+
+        init(opened: XCTestExpectation) {
+            self.opened = opened
+        }
+
+        func openPath(_ path: String) async throws -> HostOpenPathResponse {
+            paths.append(path)
+            opened.fulfill()
+            return HostOpenPathResponse(opened: true)
         }
     }
 

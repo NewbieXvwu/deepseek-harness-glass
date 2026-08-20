@@ -47,6 +47,13 @@ enum NativeMarkdownSecurityPolicy {
         return result
     }
 
+    @discardableResult
+    static func openExternal(_ candidate: URL, opener: (URL) -> Void) -> Bool {
+        guard let permitted = externalURL(from: candidate.absoluteString) else { return false }
+        opener(permitted)
+        return true
+    }
+
     static func attributedInlineMarkdown(_ source: String) -> AttributedString {
         let safe = sanitizedInlineMarkdown(source)
         var options = AttributedString.MarkdownParsingOptions()
@@ -66,11 +73,13 @@ enum NativeMarkdownSecurityPolicy {
 enum NativeMarkdownDocument {
     enum Block: Identifiable, Equatable {
         case prose(id: Int, text: String)
+        case quote(id: Int, text: String)
+        case list(id: Int, ordered: Bool, items: [String])
         case code(id: Int, language: String?, code: String)
 
         var id: Int {
             switch self {
-            case let .prose(id, _), let .code(id, _, _): id
+            case let .prose(id, _), let .quote(id, _), let .list(id, _, _), let .code(id, _, _): id
             }
         }
     }
@@ -82,6 +91,8 @@ enum NativeMarkdownDocument {
         var language: String?
         var inFence = false
         var nextID = 0
+        let lines = source.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        var index = 0
 
         func appendProse() {
             guard !prose.isEmpty else { return }
@@ -97,7 +108,8 @@ enum NativeMarkdownDocument {
             language = nil
         }
 
-        for line in source.split(separator: "\n", omittingEmptySubsequences: false).map(String.init) {
+        while index < lines.count {
+            let line = lines[index]
             if line.hasPrefix("```") {
                 if inFence {
                     appendCode()
@@ -108,19 +120,59 @@ enum NativeMarkdownDocument {
                     language = hint.isEmpty ? nil : hint
                     inFence = true
                 }
+                index += 1
                 continue
             }
-            if inFence { code.append(line) } else { prose.append(line) }
+            if inFence {
+                code.append(line)
+                index += 1
+                continue
+            }
+            if line == ">" || line.hasPrefix("> ") {
+                appendProse()
+                var quote: [String] = []
+                while index < lines.count, lines[index] == ">" || lines[index].hasPrefix("> ") {
+                    quote.append(lines[index] == ">" ? "" : String(lines[index].dropFirst(2)))
+                    index += 1
+                }
+                blocks.append(.quote(id: nextID, text: quote.joined(separator: "\n")))
+                nextID += 1
+                continue
+            }
+            if let firstMarker = listMarker(in: line) {
+                appendProse()
+                var items: [String] = []
+                let ordered = firstMarker.ordered
+                while index < lines.count, let marker = listMarker(in: lines[index]), marker.ordered == ordered {
+                    items.append(marker.text)
+                    index += 1
+                }
+                blocks.append(.list(id: nextID, ordered: ordered, items: items))
+                nextID += 1
+                continue
+            }
+            prose.append(line)
+            index += 1
         }
         if inFence {
             // An incomplete streaming fence remains literal prose until its
             // closing delimiter arrives, matching RC8's conservative tail rule.
             prose.append("```\(language ?? "")")
             prose.append(contentsOf: code)
-            language = nil
         }
         appendProse()
         return blocks
+    }
+
+    private static func listMarker(in line: String) -> (ordered: Bool, text: String)? {
+        for prefix in ["- ", "* ", "+ "] where line.hasPrefix(prefix) {
+            return (false, String(line.dropFirst(prefix.count)))
+        }
+        let digits = line.prefix(while: { $0.isNumber })
+        guard !digits.isEmpty else { return nil }
+        let rest = line.dropFirst(digits.count)
+        guard rest.hasPrefix(". ") else { return nil }
+        return (true, String(rest.dropFirst(2)))
     }
 }
 
@@ -199,7 +251,7 @@ enum NativeCodeHighlighter {
     }
 
     static func text(code: String, language: String?) -> Text {
-        fragments(code: code, language: language).reduce(Text(verbatim: "")) { result, fragment in
+        fragments(code: code, language: language).reduce(Text(String())) { result, fragment in
             let color: Color
             switch fragment.kind {
             case .plain: color = OfficialUISpec.Token.primary
@@ -226,6 +278,10 @@ struct NativeMarkdownText: View {
                 switch block {
                 case let .prose(_, text):
                     NativeMarkdownProse(text: text)
+                case let .quote(_, text):
+                    NativeMarkdownQuote(text: text)
+                case let .list(_, ordered, items):
+                    NativeMarkdownList(ordered: ordered, items: items)
                 case let .code(_, language, code):
                     NativeMarkdownCodeBlock(code: code, language: language)
                 }
@@ -233,6 +289,11 @@ struct NativeMarkdownText: View {
         }
         .accessibilityLabel(NativeMarkdownSecurityPolicy.sanitizedInlineMarkdown(markdown))
         .accessibilityValue(streaming ? OfficialUISpec.Text.running : "")
+        .environment(\.openURL, OpenURLAction { candidate in
+            NativeMarkdownSecurityPolicy.openExternal(candidate) { permitted in
+                NSWorkspace.shared.open(permitted)
+            } ? .handled : .discarded
+        })
     }
 }
 
@@ -250,6 +311,49 @@ private struct NativeMarkdownProse: View {
 
     private var attributed: AttributedString {
         NativeMarkdownSecurityPolicy.attributedInlineMarkdown(text)
+    }
+}
+
+private struct NativeMarkdownQuote: View {
+    let text: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: OfficialUISpec.Spacing.p8) {
+            RoundedRectangle(cornerRadius: 1, style: .continuous)
+                .fill(OfficialUISpec.Token.caption)
+                .frame(width: 2)
+            Text(NativeMarkdownSecurityPolicy.attributedInlineMarkdown(text))
+                .font(OfficialUISpec.Typography.base16)
+                .foregroundStyle(OfficialUISpec.Token.secondary)
+                .textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct NativeMarkdownList: View {
+    let ordered: Bool
+    let items: [String]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p4) {
+            ForEach(Array(items.enumerated()), id: \.offset) { offset, item in
+                HStack(alignment: .firstTextBaseline, spacing: OfficialUISpec.Spacing.p8) {
+                    Text(ordered ? "\(offset + 1)." : "•")
+                        .font(OfficialUISpec.Typography.base16)
+                        .foregroundStyle(OfficialUISpec.Token.secondary)
+                        .frame(minWidth: ordered ? 22 : 12, alignment: .trailing)
+                    Text(NativeMarkdownSecurityPolicy.attributedInlineMarkdown(item))
+                        .font(OfficialUISpec.Typography.base16)
+                        .foregroundStyle(OfficialUISpec.Token.primary)
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
