@@ -88,6 +88,26 @@ final class RPCDTOFixtureTests: XCTestCase {
         XCTAssertFalse(sessionCreate.sessionId.isEmpty)
     }
 
+    func testWorkspaceOrderingDTOsRetainRC8AnchorsAndResponses() throws {
+        let encoder = JSONEncoder()
+        let decoder = JSONDecoder()
+
+        let appendWorkspace = try encoder.encode(WorkspaceInsertBeforeRequest(workspaceId: "workspace-a", beforeWorkspaceId: nil))
+        let anchoredWorkspace = try encoder.encode(WorkspaceInsertBeforeRequest(workspaceId: "workspace-a", beforeWorkspaceId: "workspace-b"))
+        XCTAssertEqual(try canonicalJSON(appendWorkspace), Data("{\"workspaceId\":\"workspace-a\"}".utf8))
+        XCTAssertEqual(try canonicalJSON(anchoredWorkspace), Data("{\"beforeWorkspaceId\":\"workspace-b\",\"workspaceId\":\"workspace-a\"}".utf8))
+
+        let appendSession = try encoder.encode(WorkspaceInsertSessionBeforeRequest(workspaceId: "workspace-a", sessionId: "session-a", beforeSessionId: nil))
+        let anchoredSession = try encoder.encode(WorkspaceInsertSessionBeforeRequest(workspaceId: "workspace-a", sessionId: "session-a", beforeSessionId: "session-b"))
+        XCTAssertEqual(try canonicalJSON(appendSession), Data("{\"sessionId\":\"session-a\",\"workspaceId\":\"workspace-a\"}".utf8))
+        XCTAssertEqual(try canonicalJSON(anchoredSession), Data("{\"beforeSessionId\":\"session-b\",\"sessionId\":\"session-a\",\"workspaceId\":\"workspace-a\"}".utf8))
+
+        let order = try decoder.decode(WorkspaceInsertBeforeResponse.self, from: Data("{\"workspaceIds\":[\"workspace-b\",\"workspace-a\"]}".utf8))
+        XCTAssertEqual(order.workspaceIds, ["workspace-b", "workspace-a"])
+        let moved = try decoder.decode(WorkspaceInsertSessionBeforeResponse.self, from: Data("{\"workspace\":{\"workspaceId\":\"workspace-a\",\"path\":\"/repo\",\"title\":\"repo\",\"sessionIds\":[\"session-b\",\"session-a\"],\"createdAt\":\"2026-01-01T00:00:00.000Z\",\"updatedAt\":\"2026-01-01T00:00:01.000Z\"}}".utf8))
+        XCTAssertEqual(moved.workspace.sessionIds, ["session-b", "session-a"])
+    }
+
     func testRecordedBusinessFailuresDecodeIntoClosedRPCBusinessErrorDTO() throws {
         let fixture = try OfficialRPCFixtureCatalog.load()
         let expectedBusinessFailures: Set<String> = [
