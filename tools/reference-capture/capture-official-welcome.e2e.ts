@@ -45,6 +45,15 @@ async function writeCaptureMetadata(
       text: (root.textContent ?? '').replace(/\s+/g, ' ').trim(),
       viewport: { width: window.innerWidth, height: window.innerHeight, devicePixelRatio: window.devicePixelRatio },
       title: document.title,
+      activeElement: (() => {
+        const active = document.activeElement as HTMLElement | null
+        return active === null ? null : {
+          tagName: active.tagName,
+          role: active.getAttribute('role'),
+          ariaLabel: active.getAttribute('aria-label'),
+          text: (active.textContent ?? '').replace(/\s+/g, ' ').trim(),
+        }
+      })(),
     }
   })
   const ariaSnapshot = await page.locator('body').ariaSnapshot()
