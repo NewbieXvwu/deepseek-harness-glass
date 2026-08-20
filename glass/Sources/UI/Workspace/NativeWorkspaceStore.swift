@@ -230,6 +230,27 @@ final class NativeWorkspaceStore: ObservableObject {
         }
     }
 
+    /// Source: RC8 `workspaces/service.ts:recentWorkspace`. This is a pure
+    /// projection over the current Host baselines: a workspace with the most
+    /// recently updated accounted session wins; an empty account falls back to
+    /// its creation instant; equal timestamps intentionally retain Host list
+    /// order by updating only on a strict improvement.
+    static func recentWorkspaceID(in snapshot: Snapshot) -> String? {
+        let sessionsByID = Dictionary(uniqueKeysWithValues: snapshot.sessions.map { ($0.sessionId, $0) })
+        var selected: String?
+        var selectedTime = -Double.infinity
+        for workspace in snapshot.workspaces {
+            let sessionTime = workspace.sessionIds.compactMap { sessionsByID[$0]?.updatedAt }.max()
+            let creationTime = ISO8601DateFormatter().date(from: workspace.createdAt)?.timeIntervalSince1970 ?? -Double.infinity
+            let candidateTime = sessionTime ?? creationTime
+            if selected == nil || candidateTime > selectedTime {
+                selected = workspace.workspaceId
+                selectedTime = candidateTime
+            }
+        }
+        return selected
+    }
+
     func select(sessionID: String?, workspaceID: String?) {
         snapshot = Snapshot(
             workspaces: snapshot.workspaces,
