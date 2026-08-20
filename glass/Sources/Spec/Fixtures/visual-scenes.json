@@ -80,6 +80,17 @@
       "allowedDifferenceClasses": ["font-rendering", "system-glass"]
     },
     {
+      "id": "workspace-search-dark",
+      "surface": "workspace.session-search",
+      "state": "fixture-query-waterfall-seeded-history",
+      "colorScheme": "dark",
+      "viewport": { "width": 1280, "height": 1100 },
+      "officialComponents": ["WorkspaceBrowser", "SearchResults", "SearchResultItem", "ThemeRuntime"],
+      "nativeEntry": "SnapshotExporter.DSH_GLASS_SNAPSHOT_MODE=workspace-search + DSH_GLASS_SNAPSHOT_COLOR_SCHEME=dark",
+      "requiredEvidence": ["source-map", "official-screenshot", "native-screenshot", "paired-viewport", "difference-ledger", "post-fix-recapture", "layout-rectangles", "accessibility", "keyboard-focus", "rpc-fixture"],
+      "allowedDifferenceClasses": ["font-rendering", "system-glass"]
+    },
+    {
       "id": "workspace-rename-light",
       "surface": "workspace.rename-dialog",
       "state": "fixture-workspace-rename-open",

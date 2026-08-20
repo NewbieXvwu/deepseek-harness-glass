@@ -1,14 +1,15 @@
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { chromium, type Locator, type Page } from 'playwright'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { launchWebScaffold, watchConsole, type WebScaffold } from './scaffold.ts'
+import { launchWebScaffold, seedSession, watchConsole, type WebScaffold } from './scaffold.ts'
 import { connectFreshWorkspace, REPO_ROOT } from './support.ts'
 
 const outputDirectory = resolve(process.env.DSH_REFERENCE_SCREENSHOT_DIR ?? '.artifacts/reference-webui')
 const viewport = { width: 1280, height: 840 }
 const railViewport = { width: 1023, height: 840 }
 const lifecycleFixture = join(REPO_ROOT, 'apps/web/tests/snapshots/lifecycle-chrome/session.jsonl')
+const workspaceSearchFixture = join(REPO_ROOT, 'apps/web/tests/snapshots/navigation-panes/seed.jsonl')
 const recordedPrompt = 'Reply with the single word LIGHTHOUSE and stop.'
 const captureColorSchemes = ['light', 'dark'] as const
 type CaptureColorScheme = typeof captureColorSchemes[number]
@@ -164,6 +165,42 @@ describe('reference capture: official welcome and session Jobs action', () => {
       await context.close()
     }
   }, 120_000)
+
+  it('captures official workspace search results in light and dark mode from a seeded Host history', async () => {
+    for (const colorScheme of captureColorSchemes) {
+      const name = `workspace-search-${colorScheme}`
+      const searchScaffold = await launchWebScaffold()
+      const context = await browser.newContext({ viewport: { width: 1280, height: 1100 }, locale: 'en-US', colorScheme, deviceScaleFactor: 1 })
+      const page = await context.newPage()
+      const consoleTripwire = watchConsole(page)
+      try {
+        const sessionCwd = join(searchScaffold.workspaceCwd, 'workspace')
+        await mkdir(sessionCwd, { recursive: true })
+        await writeFile(join(sessionCwd, 'nav-a.md'), '# alpha nav\n')
+        await writeFile(join(sessionCwd, 'nav-b.md'), '# beta nav\n')
+        await seedSession(searchScaffold, await readFile(workspaceSearchFixture, 'utf8'), 'navigation-panes-web-e2e')
+        await page.goto(searchScaffold.baseUrl, { waitUntil: 'load' })
+        await page.locator('#root').waitFor({ state: 'attached', timeout: 30_000 })
+        await applyOfficialColorScheme(page, colorScheme)
+        await page.getByText('Ungrouped', { exact: true }).waitFor({ timeout: 30_000 })
+        const searchButton = page.getByRole('button', { name: 'Search sessions' })
+        if (await searchButton.getAttribute('aria-expanded') !== 'true') await searchButton.click()
+        const search = page.getByPlaceholder('Search sessions', { exact: false })
+        await search.fill('WATERFALL')
+        const resultTree = page.getByRole('tree', { name: 'Search results' })
+        const result = resultTree.getByRole('treeitem')
+        await result.waitFor({ timeout: 30_000 })
+        await page.getByText('WATERFALL', { exact: false }).waitFor({ timeout: 30_000 })
+        await page.screenshot({ path: join(outputDirectory, `${name}.png`) })
+        await writeCaptureMetadata(page, name, colorScheme, { width: 1280, height: 1100 }, consoleTripwire.warnings, consoleTripwire.pageErrors)
+        expect(consoleTripwire.warnings).toEqual([])
+        expect(consoleTripwire.pageErrors).toEqual([])
+      } finally {
+        await context.close()
+        await searchScaffold.close()
+      }
+    }
+  }, 180_000)
 
   it('captures official workspace management dialogs in light and dark mode through real row actions', async () => {
     const kinds = ['workspace-rename', 'session-rename', 'workspace-delete'] as const

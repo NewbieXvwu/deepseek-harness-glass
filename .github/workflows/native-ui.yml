@@ -197,7 +197,7 @@ jobs:
           test -s "artifacts/official-webui/sidebar-rail-narrow-light.json"
           test -s "artifacts/official-webui/sidebar-rail-narrow-dark.png"
           test -s "artifacts/official-webui/sidebar-rail-narrow-dark.json"
-          for scene in workspace-rename-light workspace-rename-dark session-rename-light session-rename-dark workspace-delete-light workspace-delete-dark; do
+          for scene in workspace-search-light workspace-search-dark workspace-rename-light workspace-rename-dark session-rename-light session-rename-dark workspace-delete-light workspace-delete-dark; do
             test -s "artifacts/official-webui/${scene}.png"
             test -s "artifacts/official-webui/${scene}.json"
           done
@@ -362,6 +362,7 @@ jobs:
           test -s "$snapshot_dir/approval-panel-light.png"
           test -s "$snapshot_dir/question-composer-light.png"
           test -s "$snapshot_dir/workspace-search-official-viewport.png"
+          test -s "$snapshot_dir/workspace-search-official-viewport-dark.png"
           test -s "$snapshot_dir/workspace-rename-official-viewport.png"
           test -s "$snapshot_dir/session-rename-official-viewport.png"
           test -s "$snapshot_dir/workspace-delete-official-viewport.png"
@@ -443,8 +444,10 @@ jobs:
             --column-fixtures glass/Sources/Spec/Fixtures/official-column-layout-fixtures.json
           test -s artifacts/visual-diff/jobs-expanded-dark-comparison.png
           test -s artifacts/visual-diff/jobs-expanded-dark-report.json
-          for scene in workspace-rename-light workspace-rename-dark session-rename-light session-rename-dark workspace-delete-light workspace-delete-dark; do
+          for scene in workspace-search-light workspace-search-dark workspace-rename-light workspace-rename-dark session-rename-light session-rename-dark workspace-delete-light workspace-delete-dark; do
             case "$scene" in
+              workspace-search-light) native="workspace-search-official-viewport.png" ;;
+              workspace-search-dark) native="workspace-search-official-viewport-dark.png" ;;
               workspace-rename-light) native="workspace-rename-official-viewport.png" ;;
               workspace-rename-dark) native="workspace-rename-official-viewport-dark.png" ;;
               session-rename-light) native="session-rename-official-viewport.png" ;;
