@@ -331,6 +331,12 @@ final class NativeSessionStore: ObservableObject {
         let pendingApproval: PendingApproval?
         let pendingQuestion: PendingQuestion?
         let lastError: DSHTransportError?
+        /// Resident copies preserve the exact target-scoped keyed projection
+        /// exposed before a temporary session switch. `conversationWindow`
+        /// remains alongside them so a restored reducer can accept later Host
+        /// history/mux inputs without replaying a UI-owned timeline.
+        let chatNodes: [ConversationViewNode]
+        let trajectoryNodes: [ConversationViewNode]
         let appliedSequences: Set<Int>
         let conversationWindow: [ConversationEventInput]
         let conversationHasMoreHistory: Bool
@@ -492,6 +498,8 @@ final class NativeSessionStore: ObservableObject {
             pendingApproval: pendingApproval,
             pendingQuestion: pendingQuestion,
             lastError: lastError,
+            chatNodes: chatNodes,
+            trajectoryNodes: trajectoryNodes,
             appliedSequences: appliedSequences,
             conversationWindow: conversationReducer.rawWindow(),
             conversationHasMoreHistory: conversationReducer.currentHasMoreHistory()
@@ -522,6 +530,11 @@ final class NativeSessionStore: ObservableObject {
         lastError = state.lastError
         appliedSequences = state.appliedSequences
         replaceConversationWindow(state.conversationWindow, hasMore: state.conversationHasMoreHistory)
+        // The reducer window is restored first for future Host input, then its
+        // exact resident target snapshots are reinstated for immediate native
+        // tab presentation. Both targets are snapshot-only UI projections.
+        chatNodes = state.chatNodes
+        trajectoryNodes = state.trajectoryNodes
         return true
     }
 
