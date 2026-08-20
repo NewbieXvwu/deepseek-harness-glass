@@ -119,7 +119,8 @@
     "sidebarLogoRowHeight": { "value": 60, "source": "packages/client/ui-sidebar/src/client/SidebarRoot.module.css:.logoRow height" },
     "sidebarBrandMarkSize": { "value": 24, "source": "packages/client/ui-sidebar/src/client/SidebarRoot.module.css:.brandIdentity/.brandMark" },
     "sidebarBuildBadgeHeight": { "value": 16, "source": "packages/client/ui-sidebar/src/client/SidebarRoot.module.css:.buildRevision height" },
-    "sidebarNewSessionHeight": { "value": 38, "source": "packages/client/ui-sidebar/src/client/SidebarRoot.module.css:.newSession height" }
+    "sidebarNewSessionHeight": { "value": 38, "source": "packages/client/ui-sidebar/src/client/SidebarRoot.module.css:.newSession height" },
+    "sidebarNativeExpandedLeadingInset": { "value": 5, "source": "RC8 WindowServer paired measurement: SidebarRoot CSS 12px root inset minus macOS NSSplitViewItem.sidebar 7px leading composition inset" }
   },
   "text": {
     "newSession": { "value": "New Session", "source": "packages/client/ui-sidebar/src/client/locales.ts" },

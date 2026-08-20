@@ -18,6 +18,7 @@ final class OfficialUISpecBuildTests: XCTestCase {
         XCTAssertEqual(OfficialUISpec.Layout.sidebarBrandMarkSize, 24)
         XCTAssertEqual(OfficialUISpec.Layout.sidebarBuildBadgeHeight, 16)
         XCTAssertEqual(OfficialUISpec.Layout.sidebarNewSessionHeight, 38)
+        XCTAssertEqual(OfficialUISpec.Layout.sidebarNativeExpandedLeadingInset, 5)
         XCTAssertFalse(OfficialUISpec.Build.uiSpecRevision.isEmpty)
     }
 

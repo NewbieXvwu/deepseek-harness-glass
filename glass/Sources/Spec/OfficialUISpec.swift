@@ -44,6 +44,8 @@ enum OfficialUISpec {
         static let sidebarBrandMarkSize: CGFloat = 24
         static let sidebarBuildBadgeHeight: CGFloat = 16
         static let sidebarNewSessionHeight: CGFloat = 38
+        /// RC8 WindowServer paired measurement for NSSplitViewItem.sidebar.
+        static let sidebarNativeExpandedLeadingInset: CGFloat = 5
 
         // Source: packages/client/ui-workspace/src/client/WorkspaceBrowser.module.css
         static let workspaceSectionHeaderHeight: CGFloat = 36
