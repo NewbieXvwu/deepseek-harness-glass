@@ -37,6 +37,28 @@ final class NativeConversationHeaderTests: XCTestCase {
         XCTAssertEqual(registry.registeredTabs.map(\.id), ["chat"])
     }
 
+    func testShellRegistersNativeTrajectoryTabWithTypedRenderer() {
+        let sessionStore = NativeSessionStore()
+        sessionStore.loadSnapshotToolingFixture()
+        let presentation = NativeShellPresentation(mode: .conversation, sessionStore: sessionStore)
+        let context = NativeConversationContributionContext(
+            sessionID: sessionStore.selectedSessionID,
+            sessionSnapshot: .empty,
+            sessionStore: sessionStore
+        )
+
+        XCTAssertEqual(
+            presentation.conversationViewRegistry.registeredTabs.map(\.id),
+            [NativeConversationViewRegistry.chatID, "trajectory"]
+        )
+        XCTAssertEqual(
+            presentation.conversationViewRegistry.registeredTabs.map(\.label),
+            [OfficialUISpec.Text.chat, OfficialUISpec.Text.trajectory]
+        )
+        XCTAssertEqual(presentation.conversationViewRegistry.resolve(selectedID: "trajectory")?.id, "trajectory")
+        XCTAssertNotNil(presentation.conversationViewRegistry.render(selectedID: "trajectory", context: context))
+    }
+
     func testHeaderContributionSlotsRemainSeparateAndDisposeByNonce() throws {
         let registry = NativeConversationHeaderContributionRegistry()
         let action = try registry.register(slot: .actions, id: "action", order: 1) { _ in AnyView(EmptyView()) }

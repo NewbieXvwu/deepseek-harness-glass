@@ -112,6 +112,20 @@ final class NativeShellPresentation: ObservableObject {
         self.jobsPopoverInitiallyOpen = jobsPopoverInitiallyOpen
         self.jobsSnapshotLanguageCode = jobsSnapshotLanguageCode
         self.detailsVisible = self.sessionStore.selectedToolCallID != nil
+        do {
+            // Source: RC8 `ui-trajectory/src/client/index.ts`: the trajectory
+            // contribution is a real `conversation.view` tab, ordered after
+            // Chat and backed by its target-specific inspection snapshot.
+            try conversationViewRegistry.register(
+                id: "trajectory",
+                order: 10,
+                label: OfficialUISpec.Text.trajectory
+            ) { context in
+                AnyView(NativeTrajectoryView(sessionStore: context.sessionStore))
+            }
+        } catch {
+            assertionFailure("Built-in trajectory view registration must be unique: \(error)")
+        }
         switch workspaceSnapshotDialog {
         case .none:
             workspaceManagementDialog = nil

@@ -238,6 +238,8 @@ enum OfficialUISpec {
 
         // Source: packages/client/ui-conversation/src/client/locales.ts (en)
         static let chat = "Chat"
+        // Source: packages/client/ui-trajectory/src/client/locales.ts:50 (en)
+        static let trajectory = "Trajectory"
         // Source: packages/client/ui-conversation/src/client/locales.ts (en)
         static let todoTitle = "To-dos"
         static let todoProgressDoneTemplate = "{done} completed"
