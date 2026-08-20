@@ -82,19 +82,19 @@ final class HarnessHostControllerTests: XCTestCase {
 
     private static let fixedCatalog = SupportedHostBuildCatalog(
         schemaVersion: 1,
-        defaultBuildId: "dsh-0.1.0-rc.7-official-99f6f02",
+        defaultBuildId: "dsh-0.1.0-rc.8-official-141eb6f",
         builds: [SupportedHostBuildCatalog.Build(
-            id: "dsh-0.1.0-rc.7-official-99f6f02",
-            officialSourceCommit: "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca",
-            dshPackageVersion: "0.1.0-rc.7",
-            webFrontendPackageVersion: "0.1.0-rc.7",
+            id: "dsh-0.1.0-rc.8-official-141eb6f",
+            officialSourceCommit: "141eb6fef83422698aef7a981029e843e8161534",
+            dshPackageVersion: "0.1.0-rc.8",
+            webFrontendPackageVersion: "0.1.0-rc.8",
             nodeRuntimeVersion: "24.19.0",
             minimumAppVersion: "0.4.0",
             minimumMacOS: "26.0",
             ciRunner: "macos-26",
             minimumXcodeMajor: 26,
-            protocolFixtureRevision: "official-99f6f02-web-ui-r1",
-            uiSpecRevision: "official-99f6f02-ui-spec-r1",
+            protocolFixtureRevision: "official-141eb6f-web-ui-r1",
+            uiSpecRevision: "official-141eb6f-ui-spec-r1",
             supportedArchitectures: ["arm64"],
             verifiedAt: "2026-08-18",
             verificationState: "verified"
@@ -125,7 +125,7 @@ extension HarnessHostControllerTests {
             defaultBuildId: "unknown-dsh-build",
             builds: [SupportedHostBuildCatalog.Build(
                 id: "unknown-dsh-build",
-                officialSourceCommit: "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca",
+                officialSourceCommit: "141eb6fef83422698aef7a981029e843e8161534",
                 dshPackageVersion: "0.0.0-unreviewed",
                 webFrontendPackageVersion: "0.0.0-unreviewed",
                 nodeRuntimeVersion: "24.19.0",
@@ -234,7 +234,7 @@ extension HarnessHostControllerTests {
         XCTAssertEqual(snapshot.ownedProcessID, 4321)
         XCTAssertEqual(snapshot.ownership, "owned")
         XCTAssertEqual(snapshot.lastSSEAt, sseTime)
-        XCTAssertEqual(snapshot.protocolFixtureRevision, "official-99f6f02-web-ui-r1")
+        XCTAssertEqual(snapshot.protocolFixtureRevision, "official-141eb6f-web-ui-r1")
         XCTAssertEqual(snapshot.pluginCompatibility, "pinned-compatible")
         let copy = snapshot.copyableText()
         for required in ["hostBuild=", "port=", "dshHome=", "ownership=", "pid=", "lastSSEAt=", "lastRPCError=", "protocolFixtureRevision=", "pluginCompatibility=", "lifecycle="] {
@@ -244,5 +244,50 @@ extension HarnessHostControllerTests {
             XCTAssertFalse(copy.contains(secret), "diagnostic copy must redact \(secret)")
         }
         XCTAssertTrue(copy.contains("<redacted>"))
+    }
+}
+
+
+extension HarnessHostControllerTests {
+    func testPlannedBuildFailsClosedBeforeReadingPayloadMetadata() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("dsh-glass-planned-build-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let node = root.appendingPathComponent("node")
+        FileManager.default.createFile(atPath: node.path, contents: Data("#!/bin/sh\n".utf8))
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: node.path)
+        let entry = root.appendingPathComponent("payload/node_modules/@deepseek-ai/dsh/lib/cli.js")
+        try FileManager.default.createDirectory(at: entry.deletingLastPathComponent(), withIntermediateDirectories: true)
+        FileManager.default.createFile(atPath: entry.path, contents: Data())
+
+        let build = SupportedHostBuildCatalog.Build(
+            id: "planned-rc8",
+            officialSourceCommit: "141eb6fef83422698aef7a981029e843e8161534",
+            dshPackageVersion: "0.1.0-rc.8",
+            webFrontendPackageVersion: "0.1.0-rc.8",
+            nodeRuntimeVersion: "24.19.0",
+            minimumAppVersion: "0.4.0",
+            minimumMacOS: "26.0",
+            ciRunner: "macos-26",
+            minimumXcodeMajor: 26,
+            protocolFixtureRevision: "official-141eb6f-web-ui-r1",
+            uiSpecRevision: "official-141eb6f-ui-spec-r1",
+            supportedArchitectures: ["arm64"],
+            verifiedAt: nil,
+            verificationState: "planned"
+        )
+        let runtime = HostRuntimeConfiguration(
+            nodeExecutable: node,
+            dshEntrypoint: entry,
+            homeDirectory: root.appendingPathComponent("dsh", isDirectory: true),
+            logFile: root.appendingPathComponent("host.log")
+        )
+        let catalog = SupportedHostBuildCatalog(schemaVersion: 1, defaultBuildId: build.id, builds: [build])
+
+        XCTAssertEqual(
+            HostBuildVerifier(catalog: catalog).verify(runtime: runtime),
+            .unverified(reason: "Bundled Host build is awaiting the required macOS CI verification.")
+        )
     }
 }

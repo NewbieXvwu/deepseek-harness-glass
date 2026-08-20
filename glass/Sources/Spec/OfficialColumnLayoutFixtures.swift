@@ -28,7 +28,7 @@ struct OfficialColumnLayoutFixtureCatalog: Decodable {
         let details: CGFloat
     }
 
-    static let lockedSourceCommit = "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+    static let lockedSourceCommit = "141eb6fef83422698aef7a981029e843e8161534"
     static let lockedSourcePath = "packages/client/ui-layout/src/client/columns.ts"
     static let lockedSourceSHA256 = "c2f002126fc671aeaad058eae310d265f7b1f9b77223686c0fe4619cda4e71e2"
 

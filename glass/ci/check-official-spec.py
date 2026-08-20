@@ -22,7 +22,7 @@ CATALOG_PATH = ROOT / "Sources/Spec/OfficialUISpec/official-ui-catalog.json"
 SCENES_PATH = ROOT / "Sources/Spec/Fixtures/visual-scenes.json"
 ASSET_DIR = ROOT / "assets"
 UI_ROOT = ROOT / "Sources/UI"
-LOCKED_COMMIT = "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+LOCKED_COMMIT = "141eb6fef83422698aef7a981029e843e8161534"
 
 
 def fail(message: str) -> None:

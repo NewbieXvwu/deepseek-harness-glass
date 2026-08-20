@@ -6,6 +6,8 @@ import SwiftUI
 #endif
 struct NativeSidebarView: View {
     let workspaceStore: NativeWorkspaceStore
+    /// Source: RC8 `host.describe.home`; absent until the verified Host answers.
+    let hostHome: String?
     let collapsed: Bool
     let setCollapsed: (Bool) -> Void
     let workspaceActions: WorkspaceBrowserView.Actions
@@ -27,6 +29,7 @@ struct NativeSidebarView: View {
 
             WorkspaceBrowserView(
                 store: workspaceStore,
+                hostHome: hostHome,
                 collapsed: collapsed,
                 requestSidebarExpansion: { setCollapsed(false) },
                 actions: workspaceActions,

@@ -46,7 +46,7 @@ permissions:
   contents: read
 
 env:
-  OFFICIAL_COMMIT: 99f6f02fecdb7dff40c3fbc9470f5907c29f74ca
+  OFFICIAL_COMMIT: 141eb6fef83422698aef7a981029e843e8161534
   DSH_NODE_VERSION: 24.19.0
 
 jobs:

@@ -37,7 +37,7 @@ struct HostBuildVerifier: Sendable {
         let version: String
     }
 
-    private static let lockedOfficialSourceCommit = "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+    private static let lockedOfficialSourceCommit = "141eb6fef83422698aef7a981029e843e8161534"
     private let catalog: SupportedHostBuildCatalog
 
     init(catalog: SupportedHostBuildCatalog) {
@@ -63,6 +63,9 @@ struct HostBuildVerifier: Sendable {
         }
         guard build.officialSourceCommit == Self.lockedOfficialSourceCommit else {
             return .unverified(reason: "Bundled Host catalog does not match the locked official source commit.")
+        }
+        guard build.verificationState == "verified" else {
+            return .unverified(reason: "Bundled Host build is awaiting the required macOS CI verification.")
         }
         guard !build.dshPackageVersion.isEmpty,
               !build.webFrontendPackageVersion.isEmpty,

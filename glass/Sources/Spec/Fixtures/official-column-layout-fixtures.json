@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca",
+  "sourceCommit": "141eb6fef83422698aef7a981029e843e8161534",
   "source": {
     "path": "packages/client/ui-layout/src/client/columns.ts",
     "sha256": "c2f002126fc671aeaad058eae310d265f7b1f9b77223686c0fe4619cda4e71e2"

@@ -14,9 +14,9 @@ from typing import Iterable
 
 GENERATOR_NAME = "generate_official_ui_spec_build.py"
 GENERATOR_VERSION = "1.0.0"
-EXPECTED_COMMIT = "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
-HOST_BUILD_ID = "dsh-0.1.0-rc.7-official-99f6f02"
-UI_SPEC_REVISION = "official-99f6f02-ui-spec-r1"
+EXPECTED_COMMIT = "141eb6fef83422698aef7a981029e843e8161534"
+HOST_BUILD_ID = "dsh-0.1.0-rc.8-official-141eb6f"
+UI_SPEC_REVISION = "official-141eb6f-ui-spec-r1"
 
 
 def arguments() -> argparse.Namespace:

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "officialSourceCommit": "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca",
+  "officialSourceCommit": "141eb6fef83422698aef7a981029e843e8161534",
   "captureContract": {
     "runner": "Playwright Chromium through the locked apps/web scaffold",
     "logicalViewport": { "width": 1280, "height": 840 },
@@ -34,8 +34,8 @@
     },
     {
       "id": "welcome-no-workspace-light",
-      "officialTest": "apps/web/tests/capture-official-welcome.e2e.ts",
-      "sourceLines": "13-56",
+      "officialTest": "apps/web/tests/startup-auto-selection.e2e.ts",
+      "sourceLines": "71-101,155-155",
       "hostFixture": { "kind": "fresh-scaffold", "workspace": "none" },
       "viewport": { "width": 1280, "height": 840 },
       "colorScheme": "light",
@@ -49,8 +49,8 @@
     },
     {
       "id": "jobs-expanded-light",
-      "officialTest": "apps/web/tests/capture-official-welcome.e2e.ts",
-      "sourceLines": "70-104",
+      "officialTest": "apps/web/tests/background-job-list.e2e.ts",
+      "sourceLines": "1-130",
       "hostFixture": { "kind": "replay-plus-live-host-registry", "replayFixture": "apps/web/tests/snapshots/lifecycle-chrome/session.jsonl", "workspace": "connectFreshWorkspace then owner-scoped ctx.jobs.start running + completed" },
       "viewport": { "width": 1280, "height": 840 },
       "colorScheme": "light",

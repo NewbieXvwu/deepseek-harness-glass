@@ -1,6 +1,6 @@
 # 官方 WebUI 严格复刻视觉测试计划
 
-本计划定义 DeepSeek Harness Glass 对锁定官方 WebUI `deepseek-ai/deepseek-harness@99f6f02fecdb7dff40c3fbc9470f5907c29f74ca` 的**可判定复刻标准**。它将产品行为拆为必须严格相同的文本、布局、状态和交互，以及必须使用系统原生 API 但不伪造 CSS 光学细节的材质渲染两类。官方 WebUI 的布局参数、Host 协议和原生 Liquid Glass 边界来自锁定源码与 Apple 文档。[1] [2] [3] [4]
+本计划定义 DeepSeek Harness Glass 对锁定官方 WebUI `deepseek-ai/deepseek-harness@141eb6fef83422698aef7a981029e843e8161534` 的**可判定复刻标准**。它将产品行为拆为必须严格相同的文本、布局、状态和交互，以及必须使用系统原生 API 但不伪造 CSS 光学细节的材质渲染两类。官方 WebUI 的布局参数、Host 协议和原生 Liquid Glass 边界来自锁定源码与 Apple 文档。[1] [2] [3] [4]
 
 > **核心规则：** 生成截图、拥有低差异值或通过 report-only CI 绝不等于视觉验收。只有场景在 `visual-validation-policy.json` 变为 `enforce`、所有阈值通过，并附上本计划要求的人工分类记录后，相关 UI TODO 才能勾选。
 
@@ -66,11 +66,11 @@ CI 自检 `glass/ci/test_visual_policy.py` 会在合成的同尺寸图片上证�
 
 ## 5. 当前 welcome 状态
 
-`welcome-no-workspace-light` 已通过 [run 32156374393](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32156374393) 从锁定官方源码和原生 app 获取同状态 1280×840 工件。报告显示 `materiallyChangedRatio = 0.02211961`、`meanAbsoluteChannelDifference = 2.629437`，超过本计划默认严格上限。因此该场景保留 `report-only`，其差异必须修复并重新评审后才可改为 `enforce`。已有观察和初步分类记录在 [`visual-review/official-99f6f02/welcome-no-workspace-light.md`](../visual-review/official-99f6f02/welcome-no-workspace-light.md)。
+`welcome-no-workspace-light` 的 RC7 配对工件位于 [`visual-review/official-99f6f02/welcome-no-workspace-light.md`](../visual-review/official-99f6f02/welcome-no-workspace-light.md)，仅作为历史偏差分类记录，**不得**作为 RC8 验收证据。RC8 升级后，该场景及所有受影响场景均保持 `report-only`，直到 macOS-26 CI 使用锁定 RC8 WebUI 与同一原生状态重新生成官方 PNG/JSON、原生 PNG、差异报告与人工分类。未经这一完整配对流程，任何旧指标、截图或 review 均不可改为 `enforce`。
 
 ## References
 
-[1] [DeepSeek Harness locked official source](https://github.com/deepseek-ai/deepseek-harness/tree/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca)  
-[2] [Official layout column policy](https://github.com/deepseek-ai/deepseek-harness/blob/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca/packages/client/ui-layout/src/client/columns.ts)  
-[3] [Apple: Adopting Liquid Glass](https://developer.apple.com/documentation/technologyoverviews/adopting-liquid-glass)  
-[4] [Apple: Applying Liquid Glass to custom views](https://developer.apple.com/documentation/swiftui/applying-liquid-glass-to-custom-views)  
+[1] [DeepSeek Harness locked RC8 official source](https://github.com/deepseek-ai/deepseek-harness/tree/141eb6fef83422698aef7a981029e843e8161534)
+[2] [Official RC8 layout column policy](https://github.com/deepseek-ai/deepseek-harness/blob/141eb6fef83422698aef7a981029e843e8161534/packages/client/ui-layout/src/client/columns.ts)
+[3] [Apple: Adopting Liquid Glass](https://developer.apple.com/documentation/technologyoverviews/adopting-liquid-glass)
+[4] [Apple: Applying Liquid Glass to custom views](https://developer.apple.com/documentation/swiftui/applying-liquid-glass-to-custom-views)

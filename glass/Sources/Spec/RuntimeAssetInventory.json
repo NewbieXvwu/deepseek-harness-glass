@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "supportBuild": "dsh-0.1.0-rc.7-official-99f6f02",
+  "supportBuild": "dsh-0.1.0-rc.8-official-141eb6f",
   "assets": [
     {
       "id": "legacy-app-entry",
@@ -61,7 +61,7 @@
     {
       "id": "bundled-node-and-payload",
       "source": "glass/assemble.sh and glass/ci/dsh-backend-payload/package-lock.json",
-      "responsibility": "Bundle Node 24.19.0 and exact rc.7 DSH/WebUI packages in the app.",
+      "responsibility": "Bundle Node 24.19.0 and exact rc.8 DSH/WebUI packages in the app.",
       "decision": "preserved",
       "destination": "glass/assemble.sh, SupportedHostBuilds.json and BuildManifest.json",
       "verification": "check-supported-host-build.py validates catalog, lockfile, package manifests, Info.plist and Node binary together."
@@ -72,7 +72,7 @@
       "responsibility": "Reinstall exact payload, smoke test app-owned Host and reassemble for maintenance.",
       "decision": "preserved",
       "destination": "glass/repair-backend.sh",
-      "verification": "Defaults use exact rc.7 package versions and a temporary DSH_HOME."
+      "verification": "Defaults use exact rc.8 package versions and a temporary DSH_HOME."
     },
     {
       "id": "app-metadata-assets-signing",
@@ -96,7 +96,7 @@
       "responsibility": "Build a DMG from the same exact bundled payload.",
       "decision": "migrated",
       "destination": ".github/workflows/release.yml",
-      "verification": "Release workflow pins rc.7; signing/notarization remain explicit later release-governance work."
+      "verification": "Release workflow pins rc.8; signing/notarization remain explicit later release-governance work."
     },
     {
       "id": "webview-shell",

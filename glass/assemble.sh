@@ -32,15 +32,15 @@ cp Info.plist "$STAGE/Contents/Info.plist"
 cp Sources/Spec/SupportedHostBuilds.json "$STAGE/Contents/Resources/SupportedHostBuilds.json"
 cp Sources/Spec/Fixtures/official-column-layout-fixtures.json "$STAGE/Contents/Resources/official-column-layout-fixtures.json"
 cp Sources/Core/Resources/official-host-rpc-fixtures.json "$STAGE/Contents/Resources/official-host-rpc-fixtures.json"
-OFFICIAL_SOURCE_COMMIT="99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"
+OFFICIAL_SOURCE_COMMIT="141eb6fef83422698aef7a981029e843e8161534"
 APP_SOURCE_REVISION="$(git -C .. rev-parse HEAD 2>/dev/null || echo unknown)"
 cat > "$STAGE/Contents/Resources/BuildManifest.json" <<EOF
 {
   "schemaVersion": 1,
   "appSourceRevision": "$APP_SOURCE_REVISION",
   "officialSourceCommit": "$OFFICIAL_SOURCE_COMMIT",
-  "dshPackageVersion": "0.1.0-rc.7",
-  "webFrontendPackageVersion": "0.1.0-rc.7",
+  "dshPackageVersion": "0.1.0-rc.8",
+  "webFrontendPackageVersion": "0.1.0-rc.8",
   "nodeRuntimeVersion": "24.19.0",
   "minimumMacOS": "26.0",
   "supportedArchitectures": ["arm64"]

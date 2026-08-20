@@ -16,6 +16,9 @@ final class NativeShellPresentation: ObservableObject {
     @Published var detailsPreference: CGFloat = OfficialUISpec.Layout.detailsDefault
     @Published var manuallyCollapsed = false
     @Published var detailsVisible = false
+    /// Host-owned RC8 display context. It is fetched only after the endpoint has
+    /// passed the build-trust gate and cleared on disconnect/restart.
+    @Published private(set) var hostDescription: HostDescribeResponse?
 
     enum WorkspaceManagementDialog: Equatable {
         case workspaceRename(workspaceID: String, title: String)
@@ -80,6 +83,19 @@ final class NativeShellPresentation: ObservableObject {
         )
         self.apis = apis
         observedEndpoint = connection.endpoint
+        Task { [weak self] in
+            do {
+                let description = try await apis.host.describe()
+                guard !Task.isCancelled, self?.observedEndpoint == connection.endpoint else { return }
+                self?.hostDescription = description
+            } catch {
+                // The endpoint has passed its transport-level verification. A
+                // later description refresh is permitted; absence only disables
+                // display abbreviation and never invents a local home path.
+                guard self?.observedEndpoint == connection.endpoint else { return }
+                self?.hostDescription = nil
+            }
+        }
         workspaceStore.refresh(using: apis)
         workspaceStore.observeHostEvents(at: connection.endpoint, using: apis, diagnostics: connection.diagnostics)
         if let selectedSessionID {
@@ -90,6 +106,7 @@ final class NativeShellPresentation: ObservableObject {
     func disconnectHost() {
         apis = nil
         observedEndpoint = nil
+        hostDescription = nil
         workspaceStore.detachHost()
         sessionStore.disconnect()
         mode = .welcome
@@ -306,6 +323,7 @@ final class NativeShellController: NativeSplitViewController {
     ) -> NativeSidebarView {
         NativeSidebarView(
             workspaceStore: presentation.workspaceStore,
+            hostHome: presentation.hostDescription?.home,
             collapsed: collapsed,
             setCollapsed: { presentation.manuallyCollapsed = $0 },
             workspaceActions: WorkspaceBrowserView.Actions(

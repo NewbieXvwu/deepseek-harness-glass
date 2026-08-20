@@ -9,6 +9,8 @@ import SwiftUI
 /// expansion and search-input animation state.
 struct WorkspaceBrowserView: View {
     @ObservedObject var store: NativeWorkspaceStore
+    /// Source: RC8 `host.describe.home`; used only for official display-path abbreviation.
+    let hostHome: String?
     let collapsed: Bool
     let requestSidebarExpansion: () -> Void
     let actions: Actions
@@ -64,12 +66,14 @@ struct WorkspaceBrowserView: View {
 
     init(
         store: NativeWorkspaceStore,
+        hostHome: String? = nil,
         collapsed: Bool,
         requestSidebarExpansion: @escaping () -> Void,
         actions: Actions,
         snapshotDialog: SnapshotDialog = .none
     ) {
         self.store = store
+        self.hostHome = hostHome
         self.collapsed = collapsed
         self.requestSidebarExpansion = requestSidebarExpansion
         self.actions = actions
@@ -275,6 +279,7 @@ struct WorkspaceBrowserView: View {
                 let sessions = snapshot.sessions(in: workspace)
                 NativeWorkspaceGroupView(
                     workspace: workspace,
+                    hostHome: hostHome,
                     sessions: sessions,
                     selectedSessionID: snapshot.selectedSessionID,
                     expanded: expandedWorkspaceIDs.contains(workspace.workspaceId),
@@ -287,6 +292,7 @@ struct WorkspaceBrowserView: View {
 
             if !snapshot.ungroupedSessions.isEmpty {
                 NativeUngroupedWorkspaceGroupView(
+                    hostHome: hostHome,
                     sessions: snapshot.ungroupedSessions,
                     selectedSessionID: snapshot.selectedSessionID,
                     expanded: expandedWorkspaceIDs.contains(ungroupedWorkspaceKey),
@@ -683,6 +689,7 @@ private struct WorkspaceBrowserRail: View {
 
 private struct NativeWorkspaceGroupView: View {
     let workspace: WorkspaceSummaryDTO
+    let hostHome: String?
     let sessions: [SessionSummaryDTO]
     let selectedSessionID: String?
     let expanded: Bool
@@ -695,6 +702,8 @@ private struct NativeWorkspaceGroupView: View {
         VStack(spacing: OfficialUISpec.Layout.workspaceListRowGap) {
             NativeWorkspaceRow(
                 title: workspace.title,
+                path: workspace.path,
+                home: hostHome,
                 expanded: expanded,
                 onToggle: onToggle,
                 onCreateSession: onCreateSession,
@@ -717,6 +726,7 @@ private struct NativeWorkspaceGroupView: View {
 }
 
 private struct NativeUngroupedWorkspaceGroupView: View {
+    let hostHome: String?
     let sessions: [SessionSummaryDTO]
     let selectedSessionID: String?
     let expanded: Bool
@@ -728,6 +738,8 @@ private struct NativeUngroupedWorkspaceGroupView: View {
         VStack(spacing: OfficialUISpec.Layout.workspaceListRowGap) {
             NativeWorkspaceRow(
                 title: OfficialUISpec.Text.ungrouped,
+                path: nil,
+                home: hostHome,
                 expanded: expanded,
                 onToggle: onToggle,
                 onCreateSession: {},
@@ -750,11 +762,18 @@ private struct NativeUngroupedWorkspaceGroupView: View {
 
 private struct NativeWorkspaceRow: View {
     let title: String
+    /// The full Host path stays authoritative; only hover display is abbreviated.
+    let path: String?
+    let home: String?
     let expanded: Bool
     let onToggle: () -> Void
     let onCreateSession: () -> Void
     let actions: WorkspaceBrowserView.Actions
     let workspaceID: String?
+
+    private var hoverPath: String? {
+        path.map { HostPathDisplay.abbreviateHomePath($0, home: home) }
+    }
 
     var body: some View {
         HStack(spacing: OfficialUISpec.Spacing.p6) {
@@ -795,6 +814,7 @@ private struct NativeWorkspaceRow: View {
         .frame(height: OfficialUISpec.Geometry.px34)
         .padding(.horizontal, OfficialUISpec.Spacing.p8)
         .background(Color.clear, in: RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r8, style: .continuous))
+        .help(hoverPath ?? "")
     }
 }
 

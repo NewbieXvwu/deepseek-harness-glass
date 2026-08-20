@@ -7,10 +7,10 @@
 | 项目 | 已核验事实 | 来源 |
 |---|---|---|
 | 官方仓库 | `deepseek-ai/deepseek-harness` | [官方 GitHub 仓库](https://github.com/deepseek-ai/deepseek-harness) |
-| 锁定源码 | `99f6f02fecdb7dff40c3fbc9470f5907c29f74ca`，官方 tag `dsh-v0.1.0-rc.7` | [锁定 commit](https://github.com/deepseek-ai/deepseek-harness/tree/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca) |
-| 包版本 | 锁定源码根 `package.json` 与 `apps/web/package.json` 均为 `0.1.0-rc.7` | [Web frontend package](https://github.com/deepseek-ai/deepseek-harness/blob/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca/apps/web/package.json) |
-| 官方三栏规格 | sidebar 默认 280、范围 264–420、rail 56、breakpoint 1024、中心最小 640、details 默认 360、范围 300–520；让步顺序为先压缩 details、再关闭 details、最后让中心列吸收不足。 | [官方 `columns.ts`](https://github.com/deepseek-ai/deepseek-harness/blob/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca/packages/client/ui-layout/src/client/columns.ts) |
-| Host wire contract | HTTP POST 的 `rpcId` 必须由 response 回显；SSE 承载 Host initiated request；业务错误属于 RPC result branch。 | [官方 API proxy README](https://github.com/deepseek-ai/deepseek-harness/blob/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca/packages/host/apiproxy/README.md) |
+| 锁定源码 | `141eb6fef83422698aef7a981029e843e8161534`，官方 tag `dsh-v0.1.0-rc.8` | [锁定 commit](https://github.com/deepseek-ai/deepseek-harness/tree/141eb6fef83422698aef7a981029e843e8161534) |
+| 包版本 | 锁定源码根 `package.json` 与 `apps/web/package.json` 均为 `0.1.0-rc.8` | [Web frontend package](https://github.com/deepseek-ai/deepseek-harness/blob/141eb6fef83422698aef7a981029e843e8161534/apps/web/package.json) |
+| 官方三栏规格 | sidebar 默认 280、范围 264–420、rail 56、breakpoint 1024、中心最小 640、details 默认 360、范围 300–520；让步顺序为先压缩 details、再关闭 details、最后让中心列吸收不足。 | [官方 `columns.ts`](https://github.com/deepseek-ai/deepseek-harness/blob/141eb6fef83422698aef7a981029e843e8161534/packages/client/ui-layout/src/client/columns.ts) |
+| Host wire contract | HTTP POST 的 `rpcId` 必须由 response 回显；SSE 承载 Host initiated request；业务错误属于 RPC result branch。 | [官方 API proxy README](https://github.com/deepseek-ai/deepseek-harness/blob/141eb6fef83422698aef7a981029e843e8161534/packages/host/apiproxy/README.md) |
 | 原生材质边界 | Apple 建议优先使用标准 SwiftUI/AppKit 导航、split view、toolbar、sheet、popover 与控制；自定义 Liquid Glass 应节制，并测试透明度、对比度和动态效果偏好。 | [Apple: Adopting Liquid Glass](https://developer.apple.com/documentation/technologyoverviews/adopting-liquid-glass) [Apple: Applying Liquid Glass to custom views](https://developer.apple.com/documentation/swiftui/applying-liquid-glass-to-custom-views) |
 
 ## 本地官方参考环境
@@ -35,4 +35,4 @@ GitHub Actions `native-ui` [run 32155838142](https://github.com/NewbieXvwu/deeps
 
 ## 支持基线结论
 
-在旧项目配置中，官方 commit `99f6f02` 与 payload `0.1.0-rc.6` 不一致。已通过官方源码 tag、npm 公共元数据、锁定源码的 `package.json` 和当前 Actions 构建确认，应以 **`dsh 0.1.0-rc.7`、`dsh-web-frontend 0.1.0-rc.7`、Node `24.19.0` 和 commit `99f6f02`** 作为同一支持基线。后续 Host 升级必须同时更新来源、DTO/fixture/spec、视觉证据和支持矩阵，不得单独移动其中任一版本。
+官方 RC8 tag `dsh-v0.1.0-rc.8` 指向 `141eb6fef83422698aef7a981029e843e8161534`；锁定源码根包和 Web frontend 包均为 `0.1.0-rc.8`。根包声明的 Node 要求为 `^22.19.0 || >=24.0.0`，项目继续锁定 Node `24.19.0`。因此当前唯一支持基线为 **`dsh 0.1.0-rc.8`、`dsh-web-frontend 0.1.0-rc.8`、Node `24.19.0` 和 commit `141eb6f`**。后续 Host 升级必须同时更新来源、DTO/fixture/spec、视觉证据和支持矩阵，不得单独移动其中任一版本。

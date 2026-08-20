@@ -31,7 +31,7 @@ def main() -> None:
     document = json.loads(INVENTORY_PATH.read_text(encoding="utf-8"))
     if document.get("schemaVersion") != 1:
         raise SystemExit("runtime asset inventory schemaVersion must be 1")
-    if document.get("supportBuild") != "dsh-0.1.0-rc.7-official-99f6f02":
+    if document.get("supportBuild") != "dsh-0.1.0-rc.8-official-141eb6f":
         raise SystemExit("runtime asset inventory must name the verified fixed Host build")
     assets = document.get("assets")
     if not isinstance(assets, list):
