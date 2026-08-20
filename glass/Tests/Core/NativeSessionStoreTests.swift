@@ -76,6 +76,7 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertTrue(directory.contains(provider: "provider-a", model: "model-a"))
         XCTAssertFalse(directory.contains(provider: "failed-provider", model: "invented"))
         XCTAssertEqual(directory.failures.map(\.id), ["failed-provider"])
+        XCTAssertEqual(store.extensionState?.modelDirectory, directory)
 
         store.open(
             sessionID: "cold-session",
@@ -83,6 +84,7 @@ final class NativeSessionStoreTests: XCTestCase {
             endpoint: URL(string: "http://127.0.0.1:1")!
         )
         XCTAssertNil(store.modelDirectory)
+        XCTAssertNil(store.extensionState?.modelDirectory)
     }
 
     func testKnownProjectPathUsesHostFacadeAfterSessionCWDResolutionAndRejectsURLs() async {

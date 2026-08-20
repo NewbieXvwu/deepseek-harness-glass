@@ -20,6 +20,9 @@ struct CoreSessionExtensionState: Equatable {
     /// `null` no-valid-descriptor sentinel; timing remains independently optional.
     let subagentIdentity: CoreSubagentIdentityProjection
     let subagentTiming: CoreSubagentTimingProjection?
+    /// Per-session Host model catalog; nil is an unloaded/unsupported directory,
+    /// never a locally invented fallback route.
+    let modelDirectory: CoreSessionModelDirectory?
     /// Complete transient Host snapshot. Empty means the Host explicitly has no
     /// queued/steering/context rows for the current subscription generation.
     let queuedMessages: [NativeSessionStore.QueuedMessage]
@@ -35,6 +38,7 @@ struct CoreSessionExtensionState: Equatable {
     init(
         projections: SessionProjectionStore,
         sessionID: String,
+        modelDirectory: CoreSessionModelDirectory?,
         queuedMessages: [NativeSessionStore.QueuedMessage],
         backgroundJobs: [NativeSessionStore.BackgroundJob],
         pendingApproval: NativeSessionStore.PendingApproval?,
@@ -44,6 +48,7 @@ struct CoreSessionExtensionState: Equatable {
         goal = SessionGoalProjectionReader.value(from: projections, sessionID: sessionID)
         subagentIdentity = SessionSubagentProjectionReader.identity(from: projections, sessionID: sessionID)
         subagentTiming = SessionSubagentProjectionReader.timing(from: projections, sessionID: sessionID)
+        self.modelDirectory = modelDirectory
         self.queuedMessages = queuedMessages
         self.backgroundJobs = backgroundJobs
         self.pendingApproval = pendingApproval

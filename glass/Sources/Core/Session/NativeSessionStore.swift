@@ -306,6 +306,7 @@ final class NativeSessionStore: ObservableObject {
         return .init(
             projections: projections,
             sessionID: activeSessionID,
+            modelDirectory: modelDirectory,
             queuedMessages: queuedMessages,
             backgroundJobs: backgroundJobs,
             pendingApproval: pendingApproval,
