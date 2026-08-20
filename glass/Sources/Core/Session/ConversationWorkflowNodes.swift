@@ -38,20 +38,20 @@ struct CoreWorkflowRunNode: Equatable {
 /// Durable official `tool-workflow/*` event family. The node is keyed by runId,
 /// records only members that actually started, and preserves the exact absent
 /// (`nil`) versus empty-string phase identity required by the official panel.
-private struct WorkflowRunDefinition: ConversationNodeDefinition {
-    private enum StopReason: String {
+struct WorkflowRunDefinition: ConversationNodeDefinition {
+    enum StopReason: String {
         case completed
         case cancelled
         case error
     }
 
-    private enum AgentOutcome: String {
+    enum AgentOutcome: String {
         case completed
         case failed
         case cancelled
     }
 
-    private struct MemberState {
+    struct MemberState {
         let seq: Int
         let label: String
         let phase: String?
@@ -59,7 +59,7 @@ private struct WorkflowRunDefinition: ConversationNodeDefinition {
         let outcome: AgentOutcome?
     }
 
-    private struct State {
+    struct State {
         let name: String
         let stopReason: StopReason?
         let members: [MemberState]
