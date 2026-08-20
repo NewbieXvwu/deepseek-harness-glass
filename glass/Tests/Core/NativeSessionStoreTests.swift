@@ -134,6 +134,21 @@ final class NativeSessionStoreTests: XCTestCase {
             .object(["content": .string("duplicate"), "status": .string("completed")]),
         ]), seq: 12)
         XCTAssertNil(store.extensionState?.todos)
+
+        // Changing the active Host session must never reuse extension state from
+        // a resident predecessor while the new authority baseline is loading.
+        store.open(
+            sessionID: "fresh-session",
+            using: RejectingSessionAPI(promptReachedFacade: nil),
+            endpoint: URL(string: "http://127.0.0.1:1")!
+        )
+        let freshState = tryUnwrap(store.extensionState)
+        XCTAssertNil(freshState.todos)
+        XCTAssertNil(freshState.goal)
+        XCTAssertTrue(freshState.queuedMessages.isEmpty)
+        XCTAssertTrue(freshState.backgroundJobs.isEmpty)
+        XCTAssertNil(freshState.pendingApproval)
+        XCTAssertNil(freshState.pendingQuestion)
     }
 
     func testQueueAndJobsUseCompleteHostSnapshotsAndRejectOtherSessionFrames() {
