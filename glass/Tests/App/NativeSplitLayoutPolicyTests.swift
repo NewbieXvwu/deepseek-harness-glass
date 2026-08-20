@@ -73,4 +73,34 @@ final class NativeSplitLayoutPolicyTests: XCTestCase {
         XCTAssertEqual(layout.details, 0)
         XCTAssertEqual(layout.center, 844)
     }
+
+    func testNarrowSidebarManualExpandDoesNotRewriteWidePreference() {
+        var state = NativeSidebarLayoutState()
+        XCTAssertFalse(state.isCollapsed)
+
+        state.setNarrow(true)
+        XCTAssertTrue(state.isCollapsed, "RC8 narrows to a 56px rail by default")
+        XCTAssertFalse(state.narrowExpanded)
+
+        state.setCollapsed(false)
+        XCTAssertFalse(state.isCollapsed, "open in a narrow viewport must use the transient override")
+        XCTAssertTrue(state.narrowExpanded)
+
+        state.setNarrow(false)
+        XCTAssertFalse(state.isCollapsed, "re-widening restores the untouched wide preference")
+        XCTAssertFalse(state.narrowExpanded, "the narrow-only override must reset at the breakpoint")
+    }
+
+    func testWideCollapsedPreferenceSurvivesNarrowManualExpansion() {
+        var state = NativeSidebarLayoutState()
+        state.setCollapsed(true)
+        XCTAssertTrue(state.isCollapsed)
+
+        state.setNarrow(true)
+        state.setCollapsed(false)
+        XCTAssertFalse(state.isCollapsed, "narrow expansion must not mutate the wide collapsed preference")
+
+        state.setNarrow(false)
+        XCTAssertTrue(state.isCollapsed, "the prior wide collapsed preference returns after re-widening")
+    }
 }

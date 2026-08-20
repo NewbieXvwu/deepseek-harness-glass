@@ -6,6 +6,34 @@ import SwiftUI
 @testable import GlassCore
 @testable import GlassSpec
 #endif
+/// Source: RC8 `packages/client/ui-layout/src/client/stores.ts` (`LayoutState`,
+/// `toggleSidebar`, and `setNarrow`). A narrow viewport derives a collapsed
+/// rail by default. Its manual re-expansion is an override only: it never
+/// rewrites the wide-window collapsed preference or dragged width.
+struct NativeSidebarLayoutState: Equatable {
+    private(set) var isNarrow = false
+    private(set) var narrowExpanded = false
+    private(set) var widePreferenceCollapsed = false
+
+    var isCollapsed: Bool {
+        isNarrow ? !narrowExpanded : widePreferenceCollapsed
+    }
+
+    mutating func setNarrow(_ isNarrow: Bool) {
+        guard self.isNarrow != isNarrow else { return }
+        self.isNarrow = isNarrow
+        narrowExpanded = false
+    }
+
+    mutating func setCollapsed(_ collapsed: Bool) {
+        if isNarrow {
+            narrowExpanded = !collapsed
+        } else {
+            widePreferenceCollapsed = collapsed
+        }
+    }
+}
+
 /// Main-actor presentation ownership for the native shell. It deliberately
 /// holds only window-local presentation state; Host workspace/session truth
 /// stays in `NativeWorkspaceStore`.
@@ -14,7 +42,7 @@ final class NativeShellPresentation: ObservableObject {
     @Published var mode: NativeAppShell.PresentationMode
     @Published var sidebarPreference: CGFloat = OfficialUISpec.Layout.sidebarDefault
     @Published var detailsPreference: CGFloat = OfficialUISpec.Layout.detailsDefault
-    @Published var manuallyCollapsed = false
+    @Published private(set) var sidebarLayout = NativeSidebarLayoutState()
     @Published var detailsVisible = false
     /// Host-owned RC8 display context. It is fetched only after the endpoint has
     /// passed the build-trust gate and cleared on disconnect/restart.
@@ -124,6 +152,20 @@ final class NativeShellPresentation: ObservableObject {
                 sessionCWD: sessionCWD(for: selectedSessionID)
             )
         }
+    }
+
+    func setSidebarViewportNarrow(_ isNarrow: Bool) {
+        var updated = sidebarLayout
+        updated.setNarrow(isNarrow)
+        guard updated != sidebarLayout else { return }
+        sidebarLayout = updated
+    }
+
+    func setSidebarCollapsed(_ collapsed: Bool) {
+        var updated = sidebarLayout
+        updated.setCollapsed(collapsed)
+        guard updated != sidebarLayout else { return }
+        sidebarLayout = updated
     }
 
     func disconnectHost() {
@@ -353,7 +395,7 @@ final class NativeShellController: NativeSplitViewController {
     init(presentation: NativeShellPresentation) {
         self.presentation = presentation
         super.init(
-            sidebar: Self.sidebar(for: presentation, collapsed: presentation.manuallyCollapsed),
+            sidebar: Self.sidebar(for: presentation, collapsed: presentation.sidebarLayout.isCollapsed),
             conversation: NativeConversationColumn(
                 mode: presentation.mode,
                 selectedWorkspaceTitle: Self.selectedWorkspaceTitle(for: presentation),
@@ -370,7 +412,7 @@ final class NativeShellController: NativeSplitViewController {
             details: Self.details(for: presentation),
             sidebarPreference: presentation.sidebarPreference,
             detailsPreference: presentation.detailsPreference,
-            sidebarCollapsed: presentation.manuallyCollapsed,
+            sidebarCollapsed: presentation.sidebarLayout.isCollapsed,
             detailsVisible: presentation.detailsVisible && presentation.mode != .welcome,
             sidebarPreferenceChanged: { width in
                 guard abs(presentation.sidebarPreference - width) > 0.5 else { return }
@@ -391,9 +433,9 @@ final class NativeShellController: NativeSplitViewController {
 
     override func viewDidLayout() {
         super.viewDidLayout()
-        let automaticRail = view.bounds.width < OfficialUISpec.Layout.sidebarAutoCollapse
-        let expectedRail = automaticRail || presentation.manuallyCollapsed
-        if expectedRail != renderedSidebarCollapsed {
+        let isNarrow = view.bounds.width < OfficialUISpec.Layout.sidebarAutoCollapse
+        presentation.setSidebarViewportNarrow(isNarrow)
+        if presentation.sidebarLayout.isCollapsed != renderedSidebarCollapsed {
             renderPresentation()
         }
     }
@@ -419,8 +461,9 @@ final class NativeShellController: NativeSplitViewController {
     }
 
     private func renderPresentation() {
-        let automaticRail = isViewLoaded && view.bounds.width < OfficialUISpec.Layout.sidebarAutoCollapse
-        let collapsed = automaticRail || presentation.manuallyCollapsed
+        let isNarrow = isViewLoaded && view.bounds.width < OfficialUISpec.Layout.sidebarAutoCollapse
+        presentation.setSidebarViewportNarrow(isNarrow)
+        let collapsed = presentation.sidebarLayout.isCollapsed
         update(
             sidebar: Self.sidebar(for: presentation, collapsed: collapsed),
             conversation: NativeConversationColumn(
@@ -469,7 +512,7 @@ final class NativeShellController: NativeSplitViewController {
             workspaceStore: presentation.workspaceStore,
             hostHome: presentation.hostDescription?.home,
             collapsed: collapsed,
-            setCollapsed: { presentation.manuallyCollapsed = $0 },
+            setCollapsed: { presentation.setSidebarCollapsed($0) },
             workspaceActions: WorkspaceBrowserView.Actions(
                 addWorkspace: { presentation.addWorkspace() },
                 createSession: { presentation.createSession(in: $0) },
