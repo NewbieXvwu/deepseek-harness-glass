@@ -328,8 +328,10 @@ final class NativeShellController: NativeSplitViewController {
                 sessionStore: presentation.sessionStore,
                 jobsPopoverInitiallyOpen: presentation.jobsPopoverInitiallyOpen,
                 jobsLanguageCode: presentation.jobsSnapshotLanguageCode,
-                openSession: { sessionID in
-                    presentation.selectSession(sessionID, workspaceID: Self.workspaceID(for: sessionID, in: presentation))
+                openSession: { [weak self] sessionID in
+                    guard let self else { return }
+                    let current = self.presentation
+                    current.selectSession(sessionID, workspaceID: Self.workspaceID(for: sessionID, in: current))
                 }
             ),
             details: Self.details(for: presentation),
