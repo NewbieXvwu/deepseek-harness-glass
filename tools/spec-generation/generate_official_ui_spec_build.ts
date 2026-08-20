@@ -36,27 +36,41 @@ function readdirRecursive(directory: string): string[] {
   return result;
 }
 
-function glob(root: string, pattern: string): string[] {
-  // Supports the small pinned upstream subset: `**/name.ts`, `dir/*.ts`.
-  const starDirectory = pattern.split("/**/")[0];
-  const leaf = pattern.split("/**/").pop() ?? pattern;
-  const base = join(root, starDirectory);
-  const matches: string[] = [];
-  try {
-    for (const path of readdirRecursive(base)) {
-      const relativePath = relative(root, path).replaceAll("\\", "/");
-      if (leaf.includes("*")) {
-        const prefix = leaf.split("*")[0];
-        const suffix = leaf.split("*").pop() ?? "";
-        if (relativePath.startsWith(prefix) && relativePath.endsWith(suffix)) matches.push(path);
-      } else if (relativePath.endsWith(`/${leaf}`) || relativePath === leaf) {
-        matches.push(path);
-      }
+function globExpression(pattern: string): RegExp {
+  // This generator needs only deterministic path globs, but they must match
+  // against paths relative to the official root. In particular `**/` permits
+  // zero directories while `*` never crosses a path separator.
+  let expression = "^";
+  for (let index = 0; index < pattern.length;) {
+    if (pattern.startsWith("**/", index)) {
+      expression += "(?:.*/)?";
+      index += 3;
+    } else if (pattern.startsWith("**", index)) {
+      expression += ".*";
+      index += 2;
+    } else if (pattern[index] === "*") {
+      expression += "[^/]*";
+      index += 1;
+    } else {
+      const character = pattern[index];
+      expression += /[|\\{}()[\]^$+?.]/.test(character) ? `\\${character}` : character;
+      index += 1;
     }
+  }
+  return new RegExp(`${expression}$`);
+}
+
+function glob(root: string, pattern: string): string[] {
+  const matcher = globExpression(pattern);
+  try {
+    return readdirRecursive(root).filter((path) => {
+      const relativePath = relative(root, path).replaceAll("\\", "/");
+      return matcher.test(relativePath);
+    }).sort();
   } catch {
     // Directory absent for this pattern; the caller fails on missing inputs.
+    return [];
   }
-  return matches.sort();
 }
 
 function sourcePaths(root: string): Record<string, string[]> {

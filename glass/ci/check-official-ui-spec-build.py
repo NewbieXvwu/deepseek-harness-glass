@@ -36,6 +36,11 @@ def arguments() -> argparse.Namespace:
 
 def main() -> None:
     args = arguments()
+    # The TypeScript generator runs from its own tool directory so bare
+    # `typescript` resolves from its package-local install. Resolve the caller
+    # supplied official root first; otherwise a workflow-relative `.reference`
+    # path is accidentally re-based under `tools/spec-generation`.
+    official_root = args.official_root.resolve()
     metadata_path = args.metadata
     swift_build_path = args.swift_build
     host_catalog_path = args.host_catalog
@@ -81,7 +86,7 @@ def main() -> None:
         regenerated_swift = temporary_root / "OfficialUISpecBuild.swift"
         subprocess.run([
             args.node, "--experimental-strip-types", str(GENERATOR),
-            "--official-root", str(args.official_root),
+            "--official-root", str(official_root),
             "--json-output", str(regenerated_json),
             "--swift-output", str(regenerated_swift),
         ], check=True, cwd=GENERATOR_DIR)

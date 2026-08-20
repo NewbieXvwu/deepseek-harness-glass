@@ -63,7 +63,7 @@ function localeFiles(root: string): LocaleFile[] {
     }
   }
   if (candidates.length === 0) throw new Error(`no locale source files found under ${root}`);
-  return candidates.map((path) => {
+  return candidates.sort().map((path) => {
     const relativePath = relative(root, path).replaceAll("\\", "/");
     const match = /^packages\/client\/([^/]+)\/src\/client\/(?:locales|locale)\.ts$/.exec(relativePath);
     let namespace: string;
@@ -113,6 +113,13 @@ function interpolationParameters(value: string): string[] {
   return [...parameters].sort();
 }
 
+function propertyAccessKey(node: ts.Expression): string | undefined {
+  if (ts.isIdentifier(node)) return node.text;
+  if (!ts.isPropertyAccessExpression(node)) return undefined;
+  const base = propertyAccessKey(node.expression);
+  return base === undefined ? undefined : `${base}.${node.name.text}`;
+}
+
 /** Evaluate a locale value node to its static string against known constants. */
 function evalString(
   node: ts.Node,
@@ -146,6 +153,14 @@ function evalString(
     if (resolved === undefined) throw new Error(`unresolved locale string constant: ${node.text} (${filePath})`);
     return resolved;
   }
+  if (ts.isPropertyAccessExpression(node)) {
+    const key = propertyAccessKey(node);
+    const resolved = key === undefined ? undefined : constants.get(key);
+    if (resolved === undefined) {
+      throw new Error(`unresolved locale property access: ${node.getText()} (${filePath})`);
+    }
+    return resolved;
+  }
   throw new Error(`unsupported locale value at ${filePath}: ${ts.SyntaxKind[node.kind]}`);
 }
 
@@ -154,6 +169,19 @@ function propertyKey(property: ts.PropertyAssignment): string | null {
   const name = property.name;
   if (ts.isIdentifier(name) || ts.isStringLiteral(name)) return name.text;
   return null;
+}
+
+function unwrappedObjectLiteral(expression: ts.Expression | undefined): ts.ObjectLiteralExpression | undefined {
+  var current = expression;
+  while (current !== undefined && (
+    ts.isAsExpression(current)
+    || ts.isSatisfiesExpression(current)
+    || ts.isTypeAssertionExpression(current)
+    || ts.isParenthesizedExpression(current)
+  )) {
+    current = current.expression;
+  }
+  return current !== undefined && ts.isObjectLiteralExpression(current) ? current : undefined;
 }
 
 /** WELCOME_NOTICE_COPY en/zh facts from the pinned onboarding copy module. */
@@ -166,13 +194,15 @@ function onboardingCopyConstants(root: string): Map<string, string> {
     if (!ts.isVariableStatement(node)) return;
     for (const declaration of node.declarationList.declarations) {
       if (!ts.isIdentifier(declaration.name) || declaration.name.text !== "WELCOME_NOTICE_COPY") continue;
-      if (!ts.isObjectLiteralExpression(declaration.initializer)) continue;
-      for (const languageProperty of declaration.initializer.properties) {
+      const notice = unwrappedObjectLiteral(declaration.initializer);
+      if (notice === undefined) continue;
+      for (const languageProperty of notice.properties) {
         if (!ts.isPropertyAssignment(languageProperty)) continue;
         const language = propertyKey(languageProperty);
         if (language !== "en" && language !== "zh") continue;
-        if (!ts.isObjectLiteralExpression(languageProperty.initializer)) continue;
-        for (const field of languageProperty.initializer.properties) {
+        const languageObject = unwrappedObjectLiteral(languageProperty.initializer);
+        if (languageObject === undefined) continue;
+        for (const field of languageObject.properties) {
           if (!ts.isPropertyAssignment(field)) continue;
           const fieldName = propertyKey(field);
           if (!fieldName || !["title", "body", "continueLabel"].includes(fieldName)) continue;
@@ -244,9 +274,11 @@ function parseFile(file: LocaleFile, onboardingConstants: Map<string, string>, c
     for (const declaration of node.declarationList.declarations) {
       if (!ts.isIdentifier(declaration.name)) continue;
       const name = declaration.name.text;
-      if ((name !== "en" && name !== "zh") || !ts.isObjectLiteralExpression(declaration.initializer)) continue;
+      if (name !== "en" && name !== "zh") continue;
+      const dictionary = unwrappedObjectLiteral(declaration.initializer);
+      if (dictionary === undefined) continue;
       const exportStartedAtLine = lineOf(node);
-      for (const property of declaration.initializer.properties) {
+      for (const property of dictionary.properties) {
         if (!ts.isPropertyAssignment(property)) {
           throw new Error(`unsupported locale property at ${file.path}:${lineOf(property)}`);
         }
@@ -343,10 +375,14 @@ function main(): void {
   const entries: LocaleEntry[] = [];
   for (const file of files) entries.push(...parseFile(file, onboardingConstants, commit));
   if (entries.length === 0) throw new Error("no locale entries found");
+  const compareCodePoints = (left: string, right: string): number =>
+    left < right ? -1 : left > right ? 1 : 0;
+  // Keep the Python generator's code-point ordering rather than locale-aware
+  // collation, which changes both byte output and revision hashes by runtime.
   entries.sort((a, b) =>
-    a.namespace.localeCompare(b.namespace) ||
-    a.key.localeCompare(b.key) ||
-    a.language.localeCompare(b.language)
+    compareCodePoints(a.namespace, b.namespace)
+    || compareCodePoints(a.key, b.key)
+    || compareCodePoints(a.language, b.language)
   );
   const unique = new Set(entries.map((entry) => `${entry.id}\u0000${entry.language}`));
   if (unique.size !== entries.length) throw new Error("duplicate namespace/key/language locale entry");
@@ -368,7 +404,10 @@ function main(): void {
   }
 
   const localeRevision = revision(entries);
-  const sourceInput = sourceInputRevision(root, [...files.map((file) => file.path), join(root, ONBOARDING_COPY_RELATIVE)]);
+  const sourceInput = sourceInputRevision(
+    root,
+    [...files.map((file) => file.path), join(root, ONBOARDING_COPY_RELATIVE)].sort()
+  );
   const metadata = {
     schemaVersion: 1,
     sourceCommit: commit,

@@ -30,6 +30,10 @@ def arguments() -> argparse.Namespace:
 
 def main() -> None:
     args = arguments()
+    # The generator is deliberately executed from its package-local dependency
+    # directory. Preserve the workflow caller's official-root semantics by
+    # resolving it before that cwd switch.
+    official_root = args.official_root.resolve()
     catalog = json.loads(CATALOG.read_text(encoding="utf-8"))
     if catalog.get("schemaVersion") != 1 or catalog.get("sourceCommit") != EXPECTED_COMMIT:
         raise SystemExit("official locale catalog has an invalid schema or source commit")
@@ -80,7 +84,7 @@ def main() -> None:
         regenerated_swift = temporary_root / "OfficialLocaleCatalog.swift"
         subprocess.run([
             args.node, "--experimental-strip-types", str(GENERATOR),
-            "--official-root", str(args.official_root),
+            "--official-root", str(official_root),
             "--json-output", str(regenerated_json),
             "--swift-output", str(regenerated_swift),
         ], check=True, cwd=GENERATOR_DIR)
