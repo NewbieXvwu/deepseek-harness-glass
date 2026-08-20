@@ -306,11 +306,32 @@ private struct ConversationTimeline {
     }
 
     private var turns: [Int: TurnFacts] = [:]
+    /// Durable plugin events (for example `tool-workflow/*`) do not repeat
+    /// turn/step fields, but the official assembler assigns them to the active
+    /// location. Preserve that engine-owned placement separately from event data.
+    private var inferredLocations: [Int: (turn: Int, step: Int?)] = [:]
 
     init(entries: [ConversationEventInput]) {
+        var activeTurn: Int?
+        var activeStep: (turn: Int, step: Int)?
         for entry in entries {
             let event = entry.event
-            guard let turn = event.data.integer(named: "turn") else { continue }
+            let explicitTurn = event.data.integer(named: "turn")
+            if event.type == "turn/start", let explicitTurn {
+                activeTurn = explicitTurn
+                activeStep = nil
+            }
+            if event.type == "step/start", let explicitTurn,
+               let explicitStep = event.data.integer(named: "step") {
+                activeTurn = explicitTurn
+                activeStep = (explicitTurn, explicitStep)
+            }
+            if explicitTurn == nil, let activeTurn {
+                inferredLocations[event.seq] = activeStep?.turn == activeTurn
+                    ? (activeTurn, activeStep?.step)
+                    : (activeTurn, nil)
+            }
+            guard let turn = explicitTurn else { continue }
             var facts = turns[turn] ?? TurnFacts(start: nil, end: nil, steps: [:])
             if event.type == "turn/start" { facts.start = event }
             if event.type == "turn/end" { facts.end = event }
@@ -321,15 +342,26 @@ private struct ConversationTimeline {
                 facts.steps[step] = stepFacts
             }
             turns[turn] = facts
+            if event.type == "step/end", let endingStep = event.data.integer(named: "step"),
+               activeStep?.turn == turn, activeStep?.step == endingStep {
+                activeStep = nil
+            }
+            if event.type == "turn/end", activeTurn == turn {
+                activeTurn = nil
+                activeStep = nil
+            }
         }
     }
 
     func location(for event: SessionEventDTO) -> ConversationLocation {
-        guard let turnNumber = event.data.integer(named: "turn"), let facts = turns[turnNumber] else {
+        let inferred = inferredLocations[event.seq]
+        guard let turnNumber = event.data.integer(named: "turn") ?? inferred?.turn,
+              let facts = turns[turnNumber]
+        else {
             return .session
         }
         let turn = makeTurn(number: turnNumber, facts: facts)
-        guard let stepNumber = event.data.integer(named: "step") else { return .turn(turn) }
+        guard let stepNumber = event.data.integer(named: "step") ?? inferred?.step else { return .turn(turn) }
         let stepFacts = facts.steps[stepNumber] ?? StepFacts(start: nil, end: nil)
         let step = ConversationStepLocation(
             turn: turnNumber,
