@@ -1769,6 +1769,37 @@ final class NativeSessionStore: ObservableObject {
         appliedSequences = Set(conversationEvents.map(\.event.seq))
     }
 
+    /// Snapshot-only queue-dock fixture. It contains only `placement=queued`
+    /// Host rows, including a non-text item that verifies the official disabled
+    /// edit affordance. It never creates an action API or local queue mutation.
+    func loadSnapshotQueueFixture() {
+        loadSnapshotToolingFixture()
+        queuedMessages = [
+            QueuedMessage(
+                id: "snapshot-queue-text",
+                messageID: "snapshot-queue-message-text",
+                placement: .queued,
+                role: "user",
+                content: [.object(["type": .string("text"), "text": .string("Update the native screenshot baseline")])],
+                source: .object(["kind": .string("user")]),
+                preview: "Update the native screenshot baseline",
+                text: "Update the native screenshot baseline"
+            ),
+            QueuedMessage(
+                id: "snapshot-queue-image",
+                messageID: "snapshot-queue-message-image",
+                placement: .queued,
+                role: "user",
+                content: [.object(["type": .string("image"), "data": .string("fixture")])],
+                source: .object(["kind": .string("user")]),
+                preview: "[image]",
+                text: nil
+            ),
+        ]
+        isRunning = true
+        selectedToolCallID = nil
+    }
+
     /// Snapshot-only todo-dock fixture. It injects the same whole-list Host
     /// projection consumed in production, never a local checklist substitute.
     func loadSnapshotTodoFixture() {

@@ -253,6 +253,19 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual((store.trajectoryNodes.first?.data as? CoreUserMessageNode)?.content.compactMap(\.text).joined(), "Read the project instructions.")
     }
 
+    func testSnapshotQueueFixtureUsesOnlyQueuedHostRows() {
+        let store = NativeSessionStore()
+        store.loadSnapshotQueueFixture()
+
+        XCTAssertEqual(store.selectedSessionID, "snapshot-tooling")
+        XCTAssertTrue(store.isRunning)
+        XCTAssertNil(store.selectedToolCallID)
+        XCTAssertEqual(store.queuedMessages.map(\.id), ["snapshot-queue-text", "snapshot-queue-image"])
+        XCTAssertTrue(store.queuedMessages.allSatisfy { $0.placement == .queued })
+        XCTAssertEqual(store.queuedMessages.first?.text, "Update the native screenshot baseline")
+        XCTAssertNil(store.queuedMessages.last?.text)
+    }
+
     func testSnapshotGoalFixtureUsesCurrentHostGoalProjection() {
         let store = NativeSessionStore()
         store.loadSnapshotGoalFixture()
