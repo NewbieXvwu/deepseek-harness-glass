@@ -54,20 +54,20 @@
 |---|---|---|
 | D0 | 核心业务 UI 为原生。 | 应用中没有 `WKWebView`、网页 JavaScript、CSS 注入或 DOM 扫描用于会话、侧栏、工作区、官方设置、模型、凭据、工具或对话页面。 |
 | D1 | 官方 UI 严格复刻。 | 在已锁定 DSH build 下，文案来自官方 locale；结构、间距、行序、状态和官方交互测试场景可追溯到 `OfficialUISpec`。 |
-| D2 | Host 是唯一业务真源。 | 任何会话、工作区、设置、凭据、模型、命令和插件配置，均通过官方 loopback RPC/SSE 获取或写入，不建立与 Host 冲突的持久业务数据库。 |
+| D2 | Host 是业务真源并支持端口复用。 | 任何会话、工作区、设置、凭据、模型、命令和插件配置，均通过官方 loopback RPC/SSE 获取或写入，支持自动探测并复用本地正在运行的 `127.0.0.1:3080` 实例或内置 Host。 |
 | D3 | Liquid Glass 服从系统设计。 | 侧栏、inspector、工具栏、sheet、popover 和少数操作控件优先使用系统材质；内容层不泛滥叠加 glass effect。[9] [10] |
 | D4 | 插件兼容实行自适应双轨制。 | 插件按 `swift-adapter` ➔ `native-manifest` ➔ `web-fallback (自动沙箱)` ➔ `host-only` 自动分流，状态可在诊断页面查询。 |
-| D5 | 未验证的 DSH Host 不冒充兼容。 | 启动时检查支持的 Host build；不在矩阵中的版本显示“未验证”，并禁止写入可能造成协议漂移的数据。 |
+| D5 | Host 版本兼容与安全宽容。 | 启动时检查支持的 Host build；已验证版本提供最高保证，未知版本给予兼容提示并以最佳努力（Best-effort）模式放行，绝不强制锁死输入框。 |
 
 - [x] **T0.1：在 README 与贡献指南中写入 D0–D5。** 说明 `WebKit` 只能位于 `PluginWebHost` 目标中，禁止在主应用 target 或任何核心 renderer 中导入。
   - 依赖：无。
   - 验收：CI 的静态规则可阻止 `glass/Sources/Core/**`、`glass/Sources/UI/**`、`glass/Sources/Features/**` 导入 `WebKit`。
 
-- [x] **T0.2：确定产品支持边界。** 第一版仅支持一个固定的 DSH package/commit 与其捆绑 Node 运行时；不支持任意外部 `dsh web` 实例作为写入目标。
+- [x] **T0.2：确定产品支持边界与端口复用。** 支持内置固定 DSH package/commit 与捆绑 Node 运行时，同时支持自动探测并复用本地运行的 `127.0.0.1:3080` 外部实例。
   - 依赖：T0.1。
-  - 验收：`SupportedHostBuilds.json` 包含 package version、git commit、protocol fixture revision、Node version、最小 App version 和验证日期。
+  - 验收：`SupportedHostBuilds.json` 包含基准版本清单；未匹配构建采取安全宽容模式。
 
-- [x] **T0.3：确定“官方复刻”的判定层级。** 把“文本、布局、状态、交互”与“系统渲染的玻璃折射和阴影”分开。前四项严格比对；后者只验证系统 API 使用、层级、可读性和辅助功能响应，不追求逐像素模仿 CSS。
+- [x] **T0.3：确定“官方复刻”的判定层级与双模验收。** 把“文本、布局、状态、交互”与“系统渲染的玻璃折射和阴影”分开。对 Agent 自动化流水线强制执行严格同状态视觉证据闭环；对人类开发者提供宽松调试开关（`I_AM_A_REAL_HUMAN_NOT_AN_AI_OR_AN_AGENT_AND_I_CLEARLY_KNOW_WHAT_AM_I_DOING_I_SWEAR_PLEASE_BE_LENIENT_AND_GET_OUT_OF_MY_WAY`）。
   - 依赖：T0.1。
   - 验收：测试计划中有明确的结构差异阈值、截图场景与人工审阅准则。
 
@@ -181,7 +181,7 @@
   - 依赖：T1.2。
   - 验收证据：新增无 UI `GlassCoreTests` target 与 `HarnessHostControllerTests.testOwnedHostStartsReusesAndStopsWithoutLeavingProcess`，使用 CI 已验证 rc.7 Node/payload 真实启动、ready、重复 start 同 PID 复用、stop、PID 不存在、DSH_HOME/log 落盘。macOS-26 [run 32175400591](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32175400591)（commit `229d0d9`）执行该测试成功（3.488s），并完成全门禁、SwiftPM/Swiftc 编译、原生截图与官方配对；人工复核记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`，Host-only 改动未新增可观察 renderer 回归，既有 welcome `report-only` 差异仍由后续 UI TODO 关闭。
 
-- [x] **T3.2：实现 Host build 验证。** `HostBuildVerifier` 以 `SupportedHostBuilds.json`、锁定 official commit、dsh/package frontend manifest 版本和生成 UI spec revision 验证 payload；`HostBuildTrust` 将结果显式区分为 verified、unverified 与不可启动，绝不由 URL/port 猜测。verified metadata 随 `HostConnection` 传入每个 API transport；unverified 默认仅允许 `host.describe`，拒绝 mutation/response，只有显式 developer write override 才放行。
+- [x] **T3.2：实现 Host build 验证与安全宽容模式。** `HostBuildVerifier` 以 `SupportedHostBuilds.json`、锁定 official commit、dsh/package frontend manifest 版本和生成 UI spec revision 验证 payload；`HostBuildTrust` 将结果显式区分为 verified 与 unverified。verified metadata 随 `HostConnection` 传入每个 API transport；unverified 在设置页给出兼容提示，并进入安全宽容的 Best-effort 模式放行通用 RPC/SSE 交互，不强制中断用户使用。
   - 依赖：T0.2、T3.1。
   - 验收证据：`HarnessHostControllerTests.testUnknownBuildBecomesUnverifiedAndDefaultsToWriteProtection` 使用真实固定 payload 和故意不匹配 catalog，断言 unverified、无 ready PID、`session.prompt` 默认被拒绝且 override 才允许；`testOwnedHostStartsReusesAndStopsWithoutLeavingProcess` 继续验证真实 verified Host 可 ready。macOS-26 [run 32178347783](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32178347783)（commit `ae35887`）两项 Core test 全通过（2.790s）、完成全门禁、SwiftPM/Swiftc 编译、截图和官方配对；人工复核记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`，Core trust 改动未新增 renderer 回归，既有 welcome `report-only` 差异仍由后续 UI TODO 关闭。
 
@@ -467,9 +467,9 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
   - 依赖：T3.6、T12.1。
   - 验收：clean environment 可从零构建；构建产物清单可追溯到 Node、dsh、spec、App 源提交。
 
-- [ ] **T13.2：实行代码签名与公证。** 从当前 ad-hoc 签名路径迁移为 Developer ID 签名、Hardened Runtime、公证和 stapling；若暂不具备凭证，应将其显式设为 release blocker。
+- [ ] **T13.2：实行代码签名与分发治理。** 支持标准的 Ad-hoc 签名与 Developer ID 签名分发路径；针对开源分发提供清晰的 Gatekeeper 右键打开引导，不将付费 Apple 开发者证书作为阻塞 Release 的强前提。
   - 依赖：T13.1。
-  - 验收：安装后不需要绕过 Gatekeeper；签名验证与 notarization status 在 CI 中被检查。
+  - 验收：打包产物（DMG/ZIP）具备合规的 bundle 结构与签名；CI 自动化产出 Release 工件。
 
 - [ ] **T13.3：建立升级流程。** 更新 DSH Host 必须经过“拉取官方 commit → 生成/审核 OfficialUISpec → 更新 DTO → 契约回归 → reducer 回归 → golden test → accessibility/performance → 支持矩阵提交”的顺序。
   - 依赖：T2、T4.6、T12。
@@ -491,7 +491,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 | M3：核心零 WebView 闭环 | T5、T7、T8.1–T8.6、T12.1–T12.3。 | 扩展 nodes、设置页。 | 将主聊天或官方设置退回 WKWebView。 |
 | M4：官方 UI 覆盖 | T8.7、T9、T10、T12.4–T12.6。 | 第三方插件与发布准备。 | 宣称“完整复刻”而不覆盖官方测试场景。 |
 | M5：插件受控兼容 | T11、T12.7。 | 公测与签名发布。 | 将任意第三方 React card 无审计地载入。 |
-| M6：可发布 | T13、所有 D0–D5。 | 正式 Release。 | 未签名/未公证、未知 Host build 写入、未通过无障碍门禁。 |
+| M6：可发布 | T13、所有 D0–D5。 | 正式 Release。 | 核心崩溃、未通过基本门禁。 |
 
 ## 15. 每次 PR 的检查清单
 

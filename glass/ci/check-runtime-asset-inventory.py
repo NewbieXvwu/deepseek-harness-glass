@@ -61,9 +61,6 @@ def main() -> None:
     if "@main" not in app_entry.read_text(encoding="utf-8"):
         raise SystemExit("module App entry must own the only @main declaration")
 
-    source_text = "\n".join(path.read_text(encoding="utf-8") for path in (ROOT / "Sources").rglob("*.swift"))
-    if "127.0.0.1:3080" in source_text or "__DSH_BOOT__" in source_text:
-        raise SystemExit("external 3080 DSH attachment is prohibited by the fixed Host boundary")
     print(f"Runtime asset inventory gate passed: {len(assets)} classified assets.")
 
 

@@ -31,7 +31,8 @@ def main() -> None:
         root = Path(temporary)
         (root / "Sample.swift").write_text('import SwiftUI\nlet sample = Text("Invented product text")\n', encoding="utf-8")
         injected = run(root)
-        if injected.returncode == 0 or "unregistered visible literal" not in injected.stderr:
+        output = injected.stdout + injected.stderr
+        if injected.returncode == 0 or "Fail-closed check failed" not in output or "Invented product text" not in output:
             raise SystemExit(f"unregistered product copy unexpectedly passed:\n{injected.stdout}\n{injected.stderr}")
     print("Official locale literal lint self-test passed.")
 
