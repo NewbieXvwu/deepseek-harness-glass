@@ -51,6 +51,59 @@ final class NativeWorkspaceStoreTests: XCTestCase {
         XCTAssertEqual(NativeWorkspaceStore.recentWorkspaceID(in: emptyOnly), "newer")
     }
 
+    func testBlankSessionReuseRequiresWorkspaceMembershipCanonicalCWDAndNonArchivedState() {
+        let reusable = SessionSummaryDTO(
+            sessionId: "reusable", updatedAt: 1, running: false, blank: true,
+            pendingInteraction: nil, parentSessionId: nil, origin: nil, cwd: "/workspace-a",
+            agentPreset: nil, projections: nil
+        )
+        let archived = SessionSummaryDTO(
+            sessionId: "archived", updatedAt: 2, running: false, blank: true,
+            pendingInteraction: nil, parentSessionId: nil, origin: nil, cwd: "/workspace-a",
+            agentPreset: nil, projections: nil
+        )
+        let wrongCWD = SessionSummaryDTO(
+            sessionId: "wrong-cwd", updatedAt: 3, running: false, blank: true,
+            pendingInteraction: nil, parentSessionId: nil, origin: nil, cwd: "/elsewhere",
+            agentPreset: nil, projections: nil
+        )
+        let unaccounted = SessionSummaryDTO(
+            sessionId: "unaccounted", updatedAt: 4, running: false, blank: true,
+            pendingInteraction: nil, parentSessionId: nil, origin: nil, cwd: "/workspace-a",
+            agentPreset: nil, projections: nil
+        )
+        let snapshot = NativeWorkspaceStore.Snapshot(
+            workspaces: [
+                WorkspaceSummaryDTO(
+                    workspaceId: "workspace-a", path: "/workspace-a", title: "A",
+                    sessionIds: ["archived", "wrong-cwd", "reusable"],
+                    createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z"
+                ),
+            ],
+            sessions: [archived, wrongCWD, unaccounted, reusable],
+            archivedSessionIDs: ["archived"],
+            selectedSessionID: nil,
+            selectedWorkspaceID: nil
+        )
+
+        XCTAssertEqual(
+            NativeWorkspaceBlankSessionReuse.reusableSessionID(workspaceID: "workspace-a", in: snapshot),
+            "reusable"
+        )
+        XCTAssertNil(NativeWorkspaceBlankSessionReuse.reusableSessionID(workspaceID: "missing", in: snapshot))
+
+        let allCandidatesArchived = NativeWorkspaceStore.Snapshot(
+            workspaces: snapshot.workspaces,
+            sessions: snapshot.sessions,
+            archivedSessionIDs: ["archived", "reusable"],
+            selectedSessionID: nil,
+            selectedWorkspaceID: nil
+        )
+        XCTAssertNil(
+            NativeWorkspaceBlankSessionReuse.reusableSessionID(workspaceID: "workspace-a", in: allCandidatesArchived)
+        )
+    }
+
     func testRailSearchArmsWideInputAndFocusesOnlyAfterExpansionSettles() {
         let armed = NativeWorkspaceBrowserSearchOnExpand.armedState()
         XCTAssertEqual(armed, .init(searchExpanded: true, awaitsWideFocus: true))

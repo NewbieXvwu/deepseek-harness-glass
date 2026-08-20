@@ -34,6 +34,26 @@ struct NativeSidebarLayoutState: Equatable {
     }
 }
 
+/// RC8 `WorkspaceRuntime.connectWorkspace` only reuses a blank session from
+/// the requested workspace's canonical cwd. The pure predicate keeps this
+/// Host-authoritative condition independently testable from task coalescing.
+enum NativeWorkspaceBlankSessionReuse {
+    static func reusableSessionID(
+        workspaceID: String,
+        in snapshot: NativeWorkspaceStore.Snapshot
+    ) -> String? {
+        guard let workspace = snapshot.workspaces.first(where: { $0.workspaceId == workspaceID }) else {
+            return nil
+        }
+        return snapshot.sessions.first(where: { session in
+            session.blank
+                && session.cwd == workspace.path
+                && workspace.sessionIds.contains(session.sessionId)
+                && !snapshot.archivedSessionIDs.contains(session.sessionId)
+        })?.sessionId
+    }
+}
+
 /// Main-actor presentation ownership for the native shell. It deliberately
 /// holds only window-local presentation state; Host workspace/session truth
 /// stays in `NativeWorkspaceStore`.
@@ -285,14 +305,11 @@ final class NativeShellPresentation: ObservableObject {
             guard let workspace = self.workspaceStore.snapshot.workspaces.first(where: { $0.workspaceId == workspaceID }) else {
                 throw URLError(.fileDoesNotExist)
             }
-            let archived = self.workspaceStore.snapshot.archivedSessionIDs
-            if let reusable = self.workspaceStore.snapshot.sessions.first(where: { session in
-                session.blank
-                    && session.cwd == workspace.path
-                    && workspace.sessionIds.contains(session.sessionId)
-                    && !archived.contains(session.sessionId)
-            }) {
-                return reusable.sessionId
+            if let reusable = NativeWorkspaceBlankSessionReuse.reusableSessionID(
+                workspaceID: workspaceID,
+                in: self.workspaceStore.snapshot
+            ) {
+                return reusable
             }
             return try await apis.sessions.create(workspaceID: workspaceID).sessionId
         }

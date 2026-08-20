@@ -331,6 +331,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 - [ ] **T7.2：实现 workspace/session browser。** 支持 workspace list、create、reorder、archive、ungrouped、session list、selected/running/blank 状态和空会话复用。
   - 依赖：T4.5、T6.1、T7.1。
   - 验收：Host workspace/session change 帧到达后列表更新正确，不依赖页面刷新。
+  - 进度：从 `NativeShellPresentation.connectWorkspace` 提取并接入 `NativeWorkspaceBlankSessionReuse`；依据 RC8 `WorkspaceRuntime.connectWorkspace`，仅复用目标 workspace 显式归属、canonical cwd 匹配且未归档的 blank session，其他候选与缺失 workspace 均拒绝。`NativeWorkspaceStoreTests` 覆盖 membership/cwd/archive/missing 边界；仍需实际 Host create coalescing、archive/reorder、Host change 帧，以及无/有 workspace 视觉与 macOS 当前 SHA 证据闭环，故保持未勾选。
 
 - [ ] **T7.3：实现 sidebar 搜索与行操作。** 行为、可见性、快捷键、空状态、结果排序和文案必须以锁定官方 UI 为准。
   - 依赖：T7.2、T2.5。
