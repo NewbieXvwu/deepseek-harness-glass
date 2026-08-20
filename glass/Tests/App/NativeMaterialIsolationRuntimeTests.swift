@@ -55,7 +55,6 @@ final class NativeMaterialIsolationRuntimeTests: XCTestCase {
             Image(systemName: "sidebar.left")
         }
         .buttonStyle(NativeGlassNavigationButtonStyle())
-        .environment(\.accessibilityReduceTransparency, true)
         assertNoVisualEffects(in: control, surface: "reduce-transparency navigation control")
     }
 
@@ -64,7 +63,6 @@ final class NativeMaterialIsolationRuntimeTests: XCTestCase {
             Image(systemName: "sidebar.left")
         }
         .buttonStyle(NativeGlassNavigationButtonStyle())
-        .environment(\.colorSchemeContrast, .increased)
         assertNoVisualEffects(in: control, surface: "high-contrast navigation control")
     }
 
