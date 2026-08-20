@@ -63,6 +63,28 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(api.promptSessionIDs, [sessionID])
     }
 
+    func testSubagentCatalogPublishesOnlyHostCompleteSnapshotAndFailsClosed() async {
+        let catalog = SubagentListResponse(entries: [
+            .init(kind: "child", id: "child-a", activity: "running", hasChildren: true, mode: "continuable", label: "Investigate", reason: nil),
+            .init(kind: "diagnostic", id: "bad-a", activity: nil, hasChildren: nil, mode: nil, label: nil, reason: "corrupt"),
+        ], parentAvailable: true)
+        let reached = expectation(description: "subagent catalog reaches typed Host facade")
+        let api = RecordingSubagentCatalogAPI(catalog: catalog, reached: reached)
+        let store = NativeSessionStore()
+        store.loadSnapshotToolingFixture()
+        store.setSubagentCatalogAPIForTesting(api)
+
+        store.refreshSubagentCatalog()
+        await fulfillment(of: [reached], timeout: 1)
+        await eventually(timeout: 1) { store.subagentCatalog == catalog && !store.isLoadingSubagentCatalog }
+        XCTAssertEqual(api.parentIDs, ["snapshot-tooling"])
+        XCTAssertEqual(store.subagentCatalog?.entries.map(\.id), ["child-a", "bad-a"])
+
+        store.setSubagentCatalogAPIForTesting(RecordingSubagentCatalogAPI(error: DSHTransportError.invalidEndpoint))
+        store.refreshSubagentCatalog()
+        await eventually(timeout: 1) { store.subagentCatalog == nil && !store.isLoadingSubagentCatalog }
+    }
+
     func testInitialAuthorityFromReplacedEndpointCannotReviveOldColdState() async {
         let oldModelsReached = expectation(description: "old endpoint reaches delayed initial models read")
         let oldAPI = GatedInitialModelsAPI(modelsReached: oldModelsReached)
@@ -833,6 +855,28 @@ final class NativeSessionStoreTests: XCTestCase {
             try? await Task.sleep(for: .milliseconds(10))
         }
         XCTFail("condition was not met before timeout")
+    }
+
+    @MainActor
+    private final class RecordingSubagentCatalogAPI: NativeSubagentCatalogAPI {
+        let catalog: SubagentListResponse?
+        let error: Error?
+        let reached: XCTestExpectation?
+        private(set) var parentIDs: [String] = []
+
+        init(catalog: SubagentListResponse? = nil, error: Error? = nil, reached: XCTestExpectation? = nil) {
+            self.catalog = catalog
+            self.error = error
+            self.reached = reached
+        }
+
+        func list(parentSessionID: String) async throws -> SubagentListResponse {
+            parentIDs.append(parentSessionID)
+            reached?.fulfill()
+            if let error { throw error }
+            guard let catalog else { throw DSHTransportError.invalidEndpoint }
+            return catalog
+        }
     }
 
     @MainActor
