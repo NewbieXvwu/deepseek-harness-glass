@@ -216,7 +216,8 @@ private struct NativeActiveConversationSurface: View {
                 loadOlderHistory: sessionStore.loadOlderHistory,
                 selectToolCall: sessionStore.selectToolCall,
                 deliverablesForAssistant: sessionStore.deliverables,
-                openKnownProjectPath: sessionStore.openKnownProjectPath
+                openKnownProjectPath: sessionStore.openKnownProjectPath,
+                openSession: openSession
             )
         }
     }
@@ -252,11 +253,12 @@ private struct NativeTranscriptScrollView: View {
     let selectToolCall: (String?) -> Void
     let deliverablesForAssistant: (CoreAssistantNode) -> [String]
     let openKnownProjectPath: (String) -> Void
+    let openSession: (String) -> Void
 
     private var timeline: [TimelineItem] {
         let visibleMessages = chatNodes.compactMap { node -> TimelineItem? in
             guard node.visibility != .hidden,
-                  node.data is CoreUserMessageNode || node.data is CoreAssistantNode || node.data is CoreWorkflowRunNode || node.data is CoreTurnMaxTokensNode || node.data is CoreRetryNode || node.data is CoreTurnErrorNode
+                  node.data is CoreUserMessageNode || node.data is CoreAssistantNode || node.data is CoreWorkflowRunNode || node.data is CoreTurnMaxTokensNode || node.data is CoreRetryNode || node.data is CoreTurnErrorNode || node.data is CoreCompactionNode
             else { return nil }
             return .chat(node)
         }
@@ -326,7 +328,8 @@ private struct NativeTranscriptScrollView: View {
                             NativeConversationNodeRow(
                                 node: node,
                                 deliverablesForAssistant: deliverablesForAssistant,
-                                openKnownProjectPath: openKnownProjectPath
+                                openKnownProjectPath: openKnownProjectPath,
+                                openSession: openSession
                             )
                                 .id(node.key)
                         case let .tool(invocation):
@@ -363,6 +366,7 @@ private struct NativeConversationNodeRow: View {
     let node: ConversationViewNode
     let deliverablesForAssistant: (CoreAssistantNode) -> [String]
     let openKnownProjectPath: (String) -> Void
+    let openSession: (String) -> Void
 
     var body: some View {
         Group {
@@ -371,7 +375,7 @@ private struct NativeConversationNodeRow: View {
             } else if let assistant = node.data as? CoreAssistantNode {
                 assistantRow(assistant)
             } else if let workflow = node.data as? CoreWorkflowRunNode {
-                NativeWorkflowRunPanel(workflow: workflow)
+                NativeWorkflowRunPanel(workflow: workflow, openSession: openSession)
             } else if node.data is CoreTurnMaxTokensNode {
                 NativeTurnMaxTokensNotice()
             } else if let retry = node.data as? CoreRetryNode {

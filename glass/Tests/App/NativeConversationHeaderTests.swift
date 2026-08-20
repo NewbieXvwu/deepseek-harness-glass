@@ -59,6 +59,26 @@ final class NativeConversationHeaderTests: XCTestCase {
         XCTAssertNotNil(presentation.conversationViewRegistry.render(selectedID: "trajectory", context: context))
     }
 
+    func testWorkflowNavigationAndDisclosureFailClosedToTypedRunningChildren() {
+        let running = CoreWorkflowRunNode.Member(seq: 1, label: "Active child", phase: "Plan", childID: "child-running", status: .running)
+        let finished = CoreWorkflowRunNode.Member(seq: 2, label: "Finished child", phase: "Plan", childID: "child-finished", status: .completed)
+        let malformed = CoreWorkflowRunNode.Member(seq: 3, label: "Missing id", phase: "Review", childID: "", status: .running)
+        let workflow = CoreWorkflowRunNode(
+            name: "Workflow",
+            status: .running,
+            phases: [
+                .init(key: "plan", phase: "Plan", members: [running, finished]),
+                .init(key: "review", phase: "Review", members: [malformed]),
+            ]
+        )
+
+        XCTAssertTrue(NativeWorkflowRunPresentation.isNavigable(running))
+        XCTAssertFalse(NativeWorkflowRunPresentation.isNavigable(finished))
+        XCTAssertFalse(NativeWorkflowRunPresentation.isNavigable(malformed))
+        XCTAssertEqual(NativeWorkflowRunPresentation.runningPhaseKeys(workflow), ["plan", "review"])
+        XCTAssertEqual(OfficialUISpec.Text.workflowMemberCount(2), "2 members")
+    }
+
     func testHeaderContributionSlotsRemainSeparateAndDisposeByNonce() throws {
         let registry = NativeConversationHeaderContributionRegistry()
         let action = try registry.register(slot: .actions, id: "action", order: 1) { _ in AnyView(EmptyView()) }

@@ -255,6 +255,12 @@ enum OfficialUISpec {
         static let producedFiles = "Produced"
         // Source: packages/client/ui-workflow-run/src/client/locales.ts:29-47 (en)
         static let workflowNoMembers = "No members started"
+        static let workflowMembersOne = "{count} member"
+        static let workflowMembersOther = "{count} members"
+        static func workflowMemberCount(_ count: Int) -> String {
+            (count == 1 ? workflowMembersOne : workflowMembersOther)
+                .replacingOccurrences(of: "{count}", with: String(count))
+        }
         static let workflowUnphased = "Unphased"
         static let workflowEmptyPhase = "Empty phase name"
         static let workflowEmptyMember = "Empty member name"
