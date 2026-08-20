@@ -62,6 +62,26 @@ final class NativeSplitLayoutPolicyTests: XCTestCase {
         )
     }
 
+    func testConcessionTemporarilyCollapsesDetailsWithoutForgettingPreference() {
+        let sidebar = OfficialUISpec.Layout.sidebarDefault
+        let preference = OfficialUISpec.Layout.detailsMaximum
+        let constrained = OfficialColumnLayout.resolve(
+            viewport: 1000,
+            sidebarPreference: sidebar,
+            detailsPreference: preference
+        )
+        XCTAssertEqual(constrained.details, 0)
+        XCTAssertEqual(constrained.center, 720)
+
+        let rewidened = OfficialColumnLayout.resolve(
+            viewport: 1440,
+            sidebarPreference: sidebar,
+            detailsPreference: preference
+        )
+        XCTAssertEqual(rewidened.details, preference)
+        XCTAssertEqual(rewidened.center, OfficialUISpec.Layout.centerMinimum)
+    }
+
     func testNarrowViewportUsesTheOfficialFiftySixPointRail() {
         XCTAssertLessThan(1023, OfficialUISpec.Layout.sidebarAutoCollapse)
         let layout = OfficialColumnLayout.resolve(
