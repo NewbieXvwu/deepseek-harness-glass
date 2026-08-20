@@ -28,8 +28,8 @@ struct NativeConversationColumn: View {
         jobsPopoverInitiallyOpen: Bool,
         jobsLanguageCode: String?,
         openSession: @escaping (String) -> Void,
-        viewRegistry: NativeConversationViewRegistry = NativeConversationViewRegistry(),
-        headerContributions: NativeConversationHeaderContributionRegistry = NativeConversationHeaderContributionRegistry()
+        viewRegistry: NativeConversationViewRegistry,
+        headerContributions: NativeConversationHeaderContributionRegistry
     ) {
         self.mode = mode
         self.selectedWorkspaceTitle = selectedWorkspaceTitle

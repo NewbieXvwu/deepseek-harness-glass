@@ -63,7 +63,9 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
                 sessionStore: NativeSessionStore(),
                 jobsPopoverInitiallyOpen: false,
                 jobsLanguageCode: nil,
-                openSession: { _ in }
+                openSession: { _ in },
+                viewRegistry: NativeConversationViewRegistry(),
+                headerContributions: NativeConversationHeaderContributionRegistry()
             ),
             expected: expected
         )
