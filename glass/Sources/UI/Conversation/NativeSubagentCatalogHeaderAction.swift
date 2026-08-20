@@ -19,7 +19,9 @@ struct NativeSubagentCatalogHeaderAction: View {
     private var rootChildren: [SubagentListEntryDTO] { rootCatalog?.entries.filter { $0.kind == "child" } ?? [] }
     private var rootDiagnostics: [SubagentListEntryDTO] { rootCatalog?.entries.filter { $0.kind == "diagnostic" } ?? [] }
     private var runningCount: Int { rootChildren.filter { $0.activity == "running" }.count }
-    private var visible: Bool { !rootChildren.isEmpty || !rootDiagnostics.isEmpty }
+    private var visible: Bool {
+        !rootChildren.isEmpty || !rootDiagnostics.isEmpty || (rootID.map(sessionStore.failedSubagentCatalogIDs.contains) ?? false)
+    }
 
     var body: some View {
         Group {
@@ -56,6 +58,7 @@ struct NativeSubagentCatalogHeaderAction: View {
                 .foregroundStyle(OfficialUISpec.Token.primary)
             if let rootID {
                 catalogRows(parentID: rootID, entries: rootCatalog?.entries ?? [], depth: 0)
+                catalogStateRow(parentID: rootID, depth: 0)
             }
         }
         .padding(OfficialUISpec.Spacing.p12)
@@ -72,6 +75,7 @@ struct NativeSubagentCatalogHeaderAction: View {
                 if entry.hasChildren == true, expandedParentIDs.contains(entry.id) {
                     let childEntries = sessionStore.subagentCatalogs[entry.id]?.entries ?? []
                     catalogRows(parentID: entry.id, entries: childEntries, depth: depth + 1)
+                    catalogStateRow(parentID: entry.id, depth: depth + 1)
                 }
             } else {
                 Text(entry.reason ?? OfficialUISpec.Text.subagentLoadError)
@@ -80,6 +84,41 @@ struct NativeSubagentCatalogHeaderAction: View {
                     .padding(.leading, OfficialUISpec.Spacing.p8 * depth)
                     .padding(OfficialUISpec.Spacing.p8)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func catalogStateRow(parentID: String, depth: Int) -> some View {
+        if sessionStore.loadingSubagentCatalogIDs.contains(parentID) {
+            HStack(spacing: OfficialUISpec.Spacing.p8) {
+                ProgressView().controlSize(.small)
+                Text(OfficialUISpec.Text.subagentLoading)
+                    .font(OfficialUISpec.Typography.xs13)
+                    .foregroundStyle(OfficialUISpec.Token.caption)
+            }
+            .padding(.leading, OfficialUISpec.Spacing.p8 * depth)
+            .padding(OfficialUISpec.Spacing.p8)
+            .accessibilityLabel(OfficialUISpec.Text.subagentLoadingAccessibility)
+        } else if sessionStore.failedSubagentCatalogIDs.contains(parentID) {
+            HStack(spacing: OfficialUISpec.Spacing.p8) {
+                Text(OfficialUISpec.Text.subagentLoadError)
+                    .font(OfficialUISpec.Typography.xs13)
+                    .foregroundStyle(OfficialUISpec.Token.errorPrimary)
+                Spacer(minLength: 0)
+                Button {
+                    sessionStore.refreshSubagentCatalog(parentSessionID: parentID)
+                } label: {
+                    HStack(spacing: OfficialUISpec.Spacing.p4) {
+                        Image(systemName: "arrow.clockwise")
+                        Text(OfficialUISpec.Text.subagentRetry)
+                    }
+                    .font(OfficialUISpec.Typography.xs13)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(OfficialUISpec.Text.subagentRetry)
+            }
+            .padding(.leading, OfficialUISpec.Spacing.p8 * depth)
+            .padding(OfficialUISpec.Spacing.p8)
         }
     }
 

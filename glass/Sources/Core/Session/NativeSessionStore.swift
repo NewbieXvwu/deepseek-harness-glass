@@ -403,6 +403,9 @@ final class NativeSessionStore: ObservableObject {
     @Published private(set) var subagentRoute: SubagentRoute?
     @Published private(set) var isLoadingSubagentCatalog = false
     @Published private(set) var loadingSubagentCatalogIDs: Set<String> = []
+    /// Parent IDs whose last complete Host catalog request failed. This exposes
+    /// retry eligibility without retaining transport-private error wording.
+    @Published private(set) var failedSubagentCatalogIDs: Set<String> = []
     @Published private(set) var isSubmittingApproval = false
     @Published private(set) var isSubmittingQuestion = false
     @Published private(set) var lastError: DSHTransportError?
@@ -516,6 +519,7 @@ final class NativeSessionStore: ObservableObject {
         subagentCatalogTasks = [:]
         isLoadingSubagentCatalog = false
         loadingSubagentCatalogIDs = []
+        failedSubagentCatalogIDs = []
         subagentCatalog = nil
         subagentCatalogs = [:]
         subagentCatalogAPI = api
@@ -538,6 +542,7 @@ final class NativeSessionStore: ObservableObject {
         guard let api = subagentCatalogAPI, let rootSessionID = activeSessionID else { return }
         subagentCatalogTasks[parentSessionID]?.cancel()
         let generation = recoveryGeneration
+        failedSubagentCatalogIDs.remove(parentSessionID)
         loadingSubagentCatalogIDs.insert(parentSessionID)
         if parentSessionID == rootSessionID { isLoadingSubagentCatalog = true }
         let task = Task { [weak self] in
@@ -554,6 +559,7 @@ final class NativeSessionStore: ObservableObject {
                       self?.recoveryGeneration == generation,
                       self?.activeSessionID == rootSessionID
                 else { return }
+                self?.failedSubagentCatalogIDs.remove(parentSessionID)
                 self?.subagentCatalogs[parentSessionID] = catalog
                 if parentSessionID == rootSessionID { self?.subagentCatalog = catalog }
             } catch {
@@ -561,6 +567,7 @@ final class NativeSessionStore: ObservableObject {
                       self?.recoveryGeneration == generation,
                       self?.activeSessionID == rootSessionID
                 else { return }
+                self?.failedSubagentCatalogIDs.insert(parentSessionID)
                 self?.subagentCatalogs[parentSessionID] = nil
                 if parentSessionID == rootSessionID { self?.subagentCatalog = nil }
             }
@@ -695,6 +702,7 @@ final class NativeSessionStore: ObservableObject {
         subagentRoute = selectedSubagentRoute
         isLoadingSubagentCatalog = false
         loadingSubagentCatalogIDs = []
+        failedSubagentCatalogIDs = []
         isSubmittingGoal = false
         goalActionFailure = nil
         locallyClearedGoalID = nil

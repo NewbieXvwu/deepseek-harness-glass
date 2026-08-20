@@ -80,9 +80,15 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(api.parentIDs, ["snapshot-tooling"])
         XCTAssertEqual(store.subagentCatalog?.entries.map(\.id), ["child-a", "bad-a"])
 
-        store.setSubagentCatalogAPIForTesting(RecordingSubagentCatalogAPI(error: DSHTransportError.invalidEndpoint))
+        let retryAPI = RecordingSubagentCatalogAPI(catalog: catalog, error: DSHTransportError.invalidEndpoint)
+        store.setSubagentCatalogAPIForTesting(retryAPI)
         store.refreshSubagentCatalog()
         await eventually(timeout: 1) { store.subagentCatalog == nil && !store.isLoadingSubagentCatalog }
+        XCTAssertEqual(store.failedSubagentCatalogIDs, ["snapshot-tooling"])
+
+        retryAPI.error = nil
+        store.refreshSubagentCatalog()
+        await eventually(timeout: 1) { store.subagentCatalog == catalog && store.failedSubagentCatalogIDs.isEmpty }
     }
 
     func testSubagentCatalogCachesEachExpandedParentFromHost() async {
@@ -970,7 +976,7 @@ final class NativeSessionStoreTests: XCTestCase {
     private final class RecordingSubagentCatalogAPI: NativeSubagentCatalogAPI {
         let catalog: SubagentListResponse?
         let catalogs: [String: SubagentListResponse]
-        let error: Error?
+        var error: Error?
         let reached: XCTestExpectation?
         private(set) var parentIDs: [String] = []
 
