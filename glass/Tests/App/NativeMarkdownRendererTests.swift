@@ -32,6 +32,21 @@ final class NativeMarkdownRendererTests: XCTestCase {
         XCTAssertEqual(links, ["https://example.com"])
     }
 
+    func testNativeHighlighterClassifiesSupportedLanguageAndKeepsUnknownLanguagePlain() {
+        let swift = NativeCodeHighlighter.fragments(code: "let value = \"safe\" // comment", language: "swift")
+        XCTAssertEqual(swift, [
+            .init(text: "let", kind: .keyword),
+            .init(text: " value = ", kind: .plain),
+            .init(text: "\"safe\"", kind: .string),
+            .init(text: " ", kind: .plain),
+            .init(text: "// comment", kind: .comment),
+        ])
+        XCTAssertEqual(
+            NativeCodeHighlighter.fragments(code: "<script>alert(1)</script>", language: "untrusted"),
+            [.init(text: "<script>alert(1)</script>", kind: .plain)]
+        )
+    }
+
     func testFencedCodeHasStableCodeBlockAndIncompleteFenceStaysLiteralProse() {
         let settled = NativeMarkdownDocument.parse("before\n```swift\nlet x = 1\n```\nafter")
         XCTAssertEqual(settled, [

@@ -124,6 +124,95 @@ enum NativeMarkdownDocument {
     }
 }
 
+/// A minimal native syntax colorizer for the locked RC8 fence languages. It
+/// intentionally accepts source text only: unknown grammars retain CodeBlock's
+/// plain fallback and no generated HTML or executable grammar package is loaded.
+enum NativeCodeHighlighter {
+    enum Kind: Equatable { case plain, keyword, string, number, comment }
+    struct Fragment: Equatable {
+        let text: String
+        let kind: Kind
+    }
+
+    private static let supportedLanguages: Set<String> = [
+        "swift", "json", "bash", "sh", "shell", "typescript", "ts", "javascript", "js", "python", "py",
+    ]
+    private static let keywords: Set<String> = [
+        "let", "var", "func", "struct", "class", "enum", "protocol", "extension", "import", "return", "if", "else", "for", "while", "switch", "case", "break", "continue", "throw", "throws", "async", "await", "true", "false", "null", "nil", "def", "in", "from", "const", "export", "default",
+    ]
+
+    static func fragments(code: String, language: String?) -> [Fragment] {
+        guard let language, supportedLanguages.contains(language.lowercased()) else {
+            return [.init(text: code, kind: .plain)]
+        }
+        var fragments: [Fragment] = []
+        var index = code.startIndex
+
+        func append(_ text: String, _ kind: Kind) {
+            guard !text.isEmpty else { return }
+            if fragments.last?.kind == kind {
+                let previous = fragments.removeLast()
+                fragments.append(.init(text: previous.text + text, kind: kind))
+            } else {
+                fragments.append(.init(text: text, kind: kind))
+            }
+        }
+
+        while index < code.endIndex {
+            if code[index...].hasPrefix("//") || code[index...].hasPrefix("#") {
+                let end = code[index...].firstIndex(of: "\n") ?? code.endIndex
+                append(String(code[index..<end]), .comment)
+                index = end
+            } else if code[index] == "\"" || code[index] == "'" {
+                let quote = code[index]
+                var end = code.index(after: index)
+                var escaped = false
+                while end < code.endIndex {
+                    let character = code[end]
+                    if character == quote && !escaped {
+                        end = code.index(after: end)
+                        break
+                    }
+                    escaped = character == "\\" && !escaped
+                    if character != "\\" { escaped = false }
+                    end = code.index(after: end)
+                }
+                append(String(code[index..<end]), .string)
+                index = end
+            } else if code[index].isNumber {
+                var end = index
+                while end < code.endIndex, code[end].isNumber || code[end] == "." { end = code.index(after: end) }
+                append(String(code[index..<end]), .number)
+                index = end
+            } else if code[index].isLetter || code[index] == "_" {
+                var end = index
+                while end < code.endIndex, code[end].isLetter || code[end].isNumber || code[end] == "_" { end = code.index(after: end) }
+                let word = String(code[index..<end])
+                append(word, keywords.contains(word) ? .keyword : .plain)
+                index = end
+            } else {
+                append(String(code[index]), .plain)
+                index = code.index(after: index)
+            }
+        }
+        return fragments
+    }
+
+    static func text(code: String, language: String?) -> Text {
+        fragments(code: code, language: language).reduce(Text("")) { result, fragment in
+            let color: Color
+            switch fragment.kind {
+            case .plain: color = OfficialUISpec.Token.primary
+            case .keyword: color = OfficialUISpec.Token.businessBlue
+            case .string: color = OfficialUISpec.Token.success
+            case .number: color = OfficialUISpec.Token.caption
+            case .comment: color = OfficialUISpec.Token.secondary
+            }
+            return result + Text(fragment.text).foregroundColor(color)
+        }
+    }
+}
+
 /// Native counterpart to RC8 MarkdownText. It accepts only the bounded
 /// document model above and gives SwiftUI a sanitized AttributedString; raw HTML
 /// is never supplied to a web or HTML rendering surface.
@@ -194,9 +283,8 @@ private struct NativeMarkdownCodeBlock: View {
             .padding(.vertical, OfficialUISpec.Spacing.p6)
 
             ScrollView(.horizontal, showsIndicators: false) {
-                Text(displayedCode)
+                NativeCodeHighlighter.text(code: displayedCode, language: language)
                     .font(OfficialUISpec.Typography.codeSmallStrong12)
-                    .foregroundStyle(OfficialUISpec.Token.primary)
                     .textSelection(.enabled)
                     .fixedSize(horizontal: true, vertical: true)
                     .padding(OfficialUISpec.Spacing.p10)
