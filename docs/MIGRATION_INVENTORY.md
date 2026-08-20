@@ -51,4 +51,4 @@
 | `GlassSnapshot` | `GlassCore`、`GlassSpec`、`GlassUI` | App lifecycle `@main` | 隔离、离屏的原生场景导出。 |
 | `DeepSeekHarnessGlassApp` | 前四者、AppKit | 无上层模块可反向依赖它 | `@main`、窗口、菜单栏、Host lifecycle 和终止策略。 |
 
-`check-module-boundaries.py` 检查这些边、每层条件模块导入、唯一 `@main`、Core 的 AppKit/SwiftUI 禁止、UI 的 Process/应用生命周期禁止，以及 reducer/session 的 `NSApplication` 禁止。该检查和 SwiftPM release 编译都必须通过；任何临时跨层访问必须先抽取明确协议或 DTO，不能以单体文件重新耦合。
+`check-package-target-graph.py` 从 `swift package describe --type json` 读取 SwiftPM 已解析的 target metadata，精确验证这些 target 的实际路径与内部依赖方向；`test-package-target-graph.py` 以非法 `GlassCore → GlassUI` 反向边和错误 target 路径证明 gate 可证伪。该结构化验证、SwiftPM release 编译及运行态 Host/UI integration XCTest 必须同时通过。系统 API 的职责边界由真实模块编译与运行态行为测试持续证明，而非通过对 Swift 实现文本的关键词扫描；任何临时跨层访问必须先抽取明确协议或 DTO，不能以单体文件重新耦合。

@@ -289,8 +289,9 @@ jobs:
           echo "::group::Runtime asset migration inventory"
           python3 glass/ci/check-runtime-asset-inventory.py
           echo "::endgroup::"
-          echo "::group::Module boundaries"
-          python3 glass/ci/check-module-boundaries.py
+          echo "::group::Structured SwiftPM target graph"
+          python3 glass/ci/test-package-target-graph.py
+          python3 glass/ci/check-package-target-graph.py
           echo "::endgroup::"
           echo "::group::Feature facade boundary"
           python3 glass/ci/check-no-feature-transport.py
