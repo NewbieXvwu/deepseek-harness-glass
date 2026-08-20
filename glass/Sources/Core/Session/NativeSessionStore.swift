@@ -674,7 +674,8 @@ final class NativeSessionStore: ObservableObject {
     /// Core-internal Host mux reducer. The transport owns envelope decoding;
     /// Feature/UI receives the resulting published typed state only.
     func applyMuxFrame(_ frame: RPCServerRequest, sessionID: String) {
-        guard let object = frame.payload.objectValue,
+        guard activeSessionID == sessionID,
+              let object = frame.payload.objectValue,
               object["sessionId"]?.stringValue == sessionID
         else { return }
 

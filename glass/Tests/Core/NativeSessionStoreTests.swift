@@ -182,6 +182,22 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertNil(SessionSubagentProjectionReader.timing(from: store.projections, sessionID: sessionID))
     }
 
+    func testMuxFramesForNonActiveSessionCannotPolluteExtensionState() {
+        let store = NativeSessionStore()
+        store.loadSnapshotToolingFixture()
+        store.applyMuxFrame(queueFrame(sessionID: "foreign", items: [
+            queuedItem(id: "foreign-queue", messageID: "foreign-message", placement: "queued", content: []),
+        ]), sessionID: "foreign")
+        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "foreign-approval", method: "approval/requested", payload: .object([
+            "type": .string("approval/requested"), "sessionId": .string("foreign"),
+            "approvalId": .string("foreign-approval"), "toolName": .string("bash"),
+        ])), sessionID: "foreign")
+
+        let state = tryUnwrap(store.extensionState)
+        XCTAssertTrue(state.queuedMessages.isEmpty)
+        XCTAssertNil(state.pendingApproval)
+    }
+
     func testQueueAndJobsUseCompleteHostSnapshotsAndRejectOtherSessionFrames() {
         let store = NativeSessionStore()
         store.loadSnapshotToolingFixture()
