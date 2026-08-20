@@ -199,7 +199,7 @@ enum NativeCodeHighlighter {
     }
 
     static func text(code: String, language: String?) -> Text {
-        fragments(code: code, language: language).reduce(Text("")) { result, fragment in
+        fragments(code: code, language: language).reduce(Text(String())) { result, fragment in
             let color: Color
             switch fragment.kind {
             case .plain: color = OfficialUISpec.Token.primary
