@@ -381,7 +381,11 @@ final class NativeSessionStore: ObservableObject {
     @Published private(set) var pendingApproval: PendingApproval?
     @Published private(set) var pendingQuestion: PendingQuestion?
     @Published private(set) var subagentCatalog: SubagentListResponse?
+    /// Complete Host catalogs keyed by their direct parent. The root current
+    /// session remains exposed above for existing header consumers.
+    @Published private(set) var subagentCatalogs: [String: SubagentListResponse] = [:]
     @Published private(set) var isLoadingSubagentCatalog = false
+    @Published private(set) var loadingSubagentCatalogIDs: Set<String> = []
     @Published private(set) var isSubmittingApproval = false
     @Published private(set) var isSubmittingQuestion = false
     @Published private(set) var lastError: DSHTransportError?
@@ -422,6 +426,7 @@ final class NativeSessionStore: ObservableObject {
     private var goalAPI: (any NativeGoalAPI)?
     private var subagentCatalogAPI: (any NativeSubagentCatalogAPI)?
     private var subagentCatalogTask: Task<Void, Never>?
+    private var subagentCatalogTasks: [String: Task<Void, Never>] = [:]
     private var goalTask: Task<Void, Never>?
     private var queueUpdateTask: Task<Void, Never>?
     @Published private(set) var isSubmittingGoal = false
@@ -472,43 +477,62 @@ final class NativeSessionStore: ObservableObject {
     /// same API from `NativeShellPresentation.connectVerifiedHost` via `open`.
     func setSubagentCatalogAPIForTesting(_ api: (any NativeSubagentCatalogAPI)?) {
         subagentCatalogTask?.cancel()
+        subagentCatalogTasks.values.forEach { $0.cancel() }
         subagentCatalogTask = nil
+        subagentCatalogTasks = [:]
         isLoadingSubagentCatalog = false
+        loadingSubagentCatalogIDs = []
         subagentCatalog = nil
+        subagentCatalogs = [:]
         subagentCatalogAPI = api
     }
 
     /// Refreshes only the selected session's complete Host catalog. Failure is
     /// fail-closed: the caller observes no catalog rather than local descendants.
     func refreshSubagentCatalog() {
-        guard let api = subagentCatalogAPI, let sessionID = activeSessionID else {
+        guard let sessionID = activeSessionID else {
             subagentCatalog = nil
             return
         }
-        subagentCatalogTask?.cancel()
+        refreshSubagentCatalog(parentSessionID: sessionID)
+    }
+
+    /// Explicit recursive catalog refresh. Each direct parent is keyed and
+    /// fenced by the same selected-root generation; no summary-derived child
+    /// may be inserted while a catalog request is pending or failed.
+    func refreshSubagentCatalog(parentSessionID: String) {
+        guard let api = subagentCatalogAPI, let rootSessionID = activeSessionID else { return }
+        subagentCatalogTasks[parentSessionID]?.cancel()
         let generation = recoveryGeneration
-        isLoadingSubagentCatalog = true
-        subagentCatalogTask = Task { [weak self] in
+        loadingSubagentCatalogIDs.insert(parentSessionID)
+        if parentSessionID == rootSessionID { isLoadingSubagentCatalog = true }
+        let task = Task { [weak self] in
             defer {
-                if self?.recoveryGeneration == generation, self?.activeSessionID == sessionID {
-                    self?.isLoadingSubagentCatalog = false
+                if self?.recoveryGeneration == generation, self?.activeSessionID == rootSessionID {
+                    self?.loadingSubagentCatalogIDs.remove(parentSessionID)
+                    self?.subagentCatalogTasks[parentSessionID] = nil
+                    if parentSessionID == rootSessionID { self?.isLoadingSubagentCatalog = false }
                 }
             }
             do {
-                let catalog = try await api.list(parentSessionID: sessionID)
+                let catalog = try await api.list(parentSessionID: parentSessionID)
                 guard !Task.isCancelled,
                       self?.recoveryGeneration == generation,
-                      self?.activeSessionID == sessionID
+                      self?.activeSessionID == rootSessionID
                 else { return }
-                self?.subagentCatalog = catalog
+                self?.subagentCatalogs[parentSessionID] = catalog
+                if parentSessionID == rootSessionID { self?.subagentCatalog = catalog }
             } catch {
                 guard !Task.isCancelled,
                       self?.recoveryGeneration == generation,
-                      self?.activeSessionID == sessionID
+                      self?.activeSessionID == rootSessionID
                 else { return }
-                self?.subagentCatalog = nil
+                self?.subagentCatalogs[parentSessionID] = nil
+                if parentSessionID == rootSessionID { self?.subagentCatalog = nil }
             }
         }
+        subagentCatalogTasks[parentSessionID] = task
+        if parentSessionID == rootSessionID { subagentCatalogTask = task }
     }
 
     func setGoalAPIForTesting(_ api: (any NativeGoalAPI)?) {
@@ -627,9 +651,13 @@ final class NativeSessionStore: ObservableObject {
         goalTask?.cancel()
         goalTask = nil
         subagentCatalogTask?.cancel()
+        subagentCatalogTasks.values.forEach { $0.cancel() }
         subagentCatalogTask = nil
+        subagentCatalogTasks = [:]
         subagentCatalog = nil
+        subagentCatalogs = [:]
         isLoadingSubagentCatalog = false
+        loadingSubagentCatalogIDs = []
         isSubmittingGoal = false
         goalActionFailure = nil
         locallyClearedGoalID = nil
