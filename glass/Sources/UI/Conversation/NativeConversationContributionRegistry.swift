@@ -1,7 +1,9 @@
+import Combine
 import SwiftUI
 
 #if DEEPSEEK_HARNESS_PACKAGE
 @testable import GlassCore
+@testable import GlassSpec
 #endif
 
 /// Render context handed only to registered native conversation contributions.
@@ -51,7 +53,7 @@ final class NativeConversationViewRegistry: ObservableObject {
 
     static let chatID = "chat"
 
-    @Published private var entries: [Entry] = [
+    private var entries: [Entry] = [
         .init(
             tab: .init(id: chatID, label: OfficialUISpec.Text.chat),
             order: 0,
@@ -82,6 +84,7 @@ final class NativeConversationViewRegistry: ObservableObject {
             throw NativeConversationContributionRegistryError.duplicateViewID(id)
         }
         let nonce = UUID()
+        objectWillChange.send()
         entries.append(.init(
             tab: .init(id: id, label: label ?? id),
             order: order,
@@ -95,6 +98,7 @@ final class NativeConversationViewRegistry: ObservableObject {
         guard let index = entries.firstIndex(where: {
             $0.tab.id == registration.id && $0.nonce == registration.nonce
         }), entries[index].tab.id != Self.chatID else { return }
+        objectWillChange.send()
         entries.remove(at: index)
     }
 
@@ -122,7 +126,7 @@ final class NativeConversationHeaderContributionRegistry: ObservableObject {
         let renderer: Renderer
     }
 
-    @Published private var entriesBySlot: [NativeConversationHeaderSlot: [Entry]] = [:]
+    private var entriesBySlot: [NativeConversationHeaderSlot: [Entry]] = [:]
 
     func register(
         slot: NativeConversationHeaderSlot,
@@ -134,6 +138,7 @@ final class NativeConversationHeaderContributionRegistry: ObservableObject {
             throw NativeConversationContributionRegistryError.duplicateHeaderContribution(slot: slot, id: id)
         }
         let nonce = UUID()
+        objectWillChange.send()
         entriesBySlot[slot, default: []].append(.init(id: id, order: order, nonce: nonce, renderer: renderer))
         return .init(id: id, nonce: nonce)
     }
@@ -143,6 +148,7 @@ final class NativeConversationHeaderContributionRegistry: ObservableObject {
             guard let index = entriesBySlot[slot]?.firstIndex(where: {
                 $0.id == registration.id && $0.nonce == registration.nonce
             }) else { continue }
+            objectWillChange.send()
             entriesBySlot[slot]?.remove(at: index)
             if entriesBySlot[slot]?.isEmpty == true { entriesBySlot[slot] = nil }
             return

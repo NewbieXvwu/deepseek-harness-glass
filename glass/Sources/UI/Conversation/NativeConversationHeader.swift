@@ -15,6 +15,7 @@ struct NativeConversationViewTab: Identifiable, Equatable {
 /// Presentation-only projection of the strict RC8 session header. Its inputs
 /// are the Host-authoritative session list snapshot and Core-owned session
 /// state; it never reparses event payloads or owns durable session metadata.
+@MainActor
 struct NativeSessionHeaderPresentation: Equatable {
     struct Breadcrumb: Identifiable, Equatable {
         let id: String
