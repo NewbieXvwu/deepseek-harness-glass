@@ -163,6 +163,12 @@ final class ConversationCoreNodesTests: XCTestCase {
         XCTAssertEqual((tryUnwrap(chat.first?.data as? CoreUserMessageNode)).kind, .steering)
         XCTAssertEqual((tryUnwrap(chat.last?.data as? CoreUserMessageNode)).kind, .user)
         XCTAssertEqual(reducer.snapshot(target: "timeline").count, 0)
+
+        let trajectory = reducer.snapshot(target: "trajectory")
+        XCTAssertEqual(trajectory.map(\.kind), ["trajectory-input-message", "trajectory-input-message"])
+        XCTAssertEqual(trajectory.map(\.anchorSeq), [3, 4])
+        XCTAssertEqual((tryUnwrap(trajectory.first?.data as? CoreUserMessageNode)).kind, .steering)
+        XCTAssertEqual((tryUnwrap(trajectory.last?.data as? CoreUserMessageNode)).kind, .user)
     }
 
     func testCoreNodeReplaySnapshotsRemainStableAfterEveryOfficialAppend() {

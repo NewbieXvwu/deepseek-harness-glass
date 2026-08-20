@@ -122,6 +122,7 @@ enum ConversationCoreNodeRegistry {
             .init(InboxDefinition(inboxTarget: .nextTurn)),
             .init(InboxDefinition(inboxTarget: .nextStep)),
             .init(InputMessageDefinition()),
+            .init(TrajectoryMessageDefinition()),
             .init(AssistantStepDefinition()),
             .init(ToolDefinition()),
             .init(RetryDefinition()),
@@ -235,6 +236,60 @@ private struct InputMessageDefinition: ConversationNodeDefinition {
         case .context: viewKind = "context"
         }
         return chatNode(context: context, kind: viewKind, anchorSeq: state.seq, data: state)
+    }
+}
+
+/// Target-owned counterpart to the official `trajectory-input-message` definition.
+/// It intentionally has its own stable target/key rather than sharing a chat
+/// node: the trajectory assembler retains source chronology independently.
+private struct TrajectoryMessageDefinition: ConversationNodeDefinition {
+    typealias State = CoreUserMessageNode
+    let kind = "trajectory-input-message"
+    let target: String? = "trajectory"
+
+    func match(_ event: SessionEventDTO) -> ConversationMatchResult? {
+        event.type == "user/message" ? .init(id: event.seq.description, role: .start) : nil
+    }
+
+    func start(context _: ConversationNodeContext<State>, match: ConversationMatch, reader: any ConversationContextReader) -> State {
+        let data = match.event.data
+        let source = data.object(named: "source")
+        let sourceKind = source?.string(named: "kind") ?? "unknown"
+        let messageID = data.string(named: "id") ?? match.event.seq.description
+        let claimedForNextStep = reader.previous(kind: "inbox-next-step", as: InboxDefinition.State.self)?.state.claimed.contains(messageID) == true
+        let nodeKind: CoreUserMessageNode.Kind
+        if sourceKind == "user" {
+            nodeKind = claimedForNextStep ? .steering : .user
+        } else {
+            nodeKind = .context
+        }
+        return .init(
+            kind: nodeKind,
+            seq: match.event.seq,
+            time: match.event.time,
+            messageID: messageID,
+            content: data.content(named: "content"),
+            sourceKind: sourceKind,
+            sourcePlugin: source?.string(named: "plugin")
+        )
+    }
+
+    func update(context: ConversationNodeContext<State>, match _: ConversationMatch) -> State {
+        guard let state = context.state else { preconditionFailure("trajectory-input-message update requires start") }
+        return state
+    }
+
+    func buildViewNode(context: ConversationNodeContext<State>) -> ConversationViewNode? {
+        guard let state = context.state else { return nil }
+        return .init(
+            key: context.key,
+            kind: kind,
+            id: context.id,
+            target: "trajectory",
+            data: state,
+            anchorSeq: Double(state.seq),
+            visibility: .visible
+        )
     }
 }
 
