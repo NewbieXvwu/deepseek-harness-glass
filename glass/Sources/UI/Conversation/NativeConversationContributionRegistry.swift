@@ -14,6 +14,9 @@ struct NativeConversationContributionContext {
     let sessionID: String?
     let sessionSnapshot: NativeWorkspaceStore.Snapshot
     let sessionStore: NativeSessionStore
+    /// Native session navigation supplied by the shell; contributions never
+    /// mutate selection state directly or synthesize child sessions.
+    let openSession: (String) -> Void
 }
 
 /// The two strict RC8 header extension seats. Keeping actions and utilities

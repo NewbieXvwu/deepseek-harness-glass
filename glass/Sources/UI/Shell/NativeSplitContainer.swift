@@ -134,7 +134,7 @@ final class NativeShellPresentation: ObservableObject {
                 id: "subagent-catalog",
                 order: 10
             ) { context in
-                AnyView(NativeSubagentCatalogHeaderAction(sessionStore: context.sessionStore))
+                AnyView(NativeSubagentCatalogHeaderAction(sessionStore: context.sessionStore, openSession: context.openSession))
             }
         } catch {
             assertionFailure("Built-in subagent catalog registration must be unique: \(error)")

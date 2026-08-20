@@ -10,6 +10,7 @@ import SwiftUI
 /// no ordinary session summary is used to invent descendants.
 struct NativeSubagentCatalogHeaderAction: View {
     @ObservedObject var sessionStore: NativeSessionStore
+    let openSession: (String) -> Void
     @State private var open = false
 
     private var catalog: SubagentListResponse? { sessionStore.subagentCatalog }
@@ -51,17 +52,25 @@ struct NativeSubagentCatalogHeaderAction: View {
                 .font(OfficialUISpec.Typography.xsStrong13)
                 .foregroundStyle(OfficialUISpec.Token.primary)
             ForEach(children, id: \.id) { entry in
-                VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p2) {
-                    HStack(spacing: OfficialUISpec.Spacing.p8) {
-                        Circle().fill(entry.activity == "running" ? OfficialUISpec.Token.businessBlue : OfficialUISpec.Token.caption).frame(width: OfficialUISpec.Geometry.px6, height: OfficialUISpec.Geometry.px6)
-                        Text(entry.label ?? entry.id).font(OfficialUISpec.Typography.xs13)
-                        Spacer(minLength: 0)
+                Button {
+                    open = false
+                    openSession(entry.id)
+                } label: {
+                    VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p2) {
+                        HStack(spacing: OfficialUISpec.Spacing.p8) {
+                            Circle().fill(entry.activity == "running" ? OfficialUISpec.Token.businessBlue : OfficialUISpec.Token.caption).frame(width: OfficialUISpec.Geometry.px6, height: OfficialUISpec.Geometry.px6)
+                            Text(entry.label ?? entry.id).font(OfficialUISpec.Typography.xs13)
+                            Spacer(minLength: 0)
+                        }
+                        Text("\(entry.mode == "one-shot" ? OfficialUISpec.Text.subagentModeOneShot : OfficialUISpec.Text.subagentModeContinuable) · \(entry.activity == "running" ? OfficialUISpec.Text.subagentRunning : OfficialUISpec.Text.subagentInactive)")
+                            .font(OfficialUISpec.Typography.xxxs11)
+                            .foregroundStyle(OfficialUISpec.Token.caption)
                     }
-                    Text("\(entry.mode == "one-shot" ? OfficialUISpec.Text.subagentModeOneShot : OfficialUISpec.Text.subagentModeContinuable) · \(entry.activity == "running" ? OfficialUISpec.Text.subagentRunning : OfficialUISpec.Text.subagentInactive)")
-                        .font(OfficialUISpec.Typography.xxxs11)
-                        .foregroundStyle(OfficialUISpec.Token.caption)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(OfficialUISpec.Spacing.p8)
                 }
-                .padding(OfficialUISpec.Spacing.p8)
+                .buttonStyle(.plain)
+                .accessibilityLabel(entry.label ?? entry.id)
             }
             ForEach(diagnostics, id: \.id) { entry in
                 Text(entry.reason ?? OfficialUISpec.Text.subagentLoadError)

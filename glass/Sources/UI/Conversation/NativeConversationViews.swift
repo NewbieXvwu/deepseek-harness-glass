@@ -100,7 +100,8 @@ private struct NativeActiveConversationSurface: View {
         .init(
             sessionID: sessionStore.selectedSessionID,
             sessionSnapshot: sessionSnapshot,
-            sessionStore: sessionStore
+            sessionStore: sessionStore,
+            openSession: openSession
         )
     }
 
