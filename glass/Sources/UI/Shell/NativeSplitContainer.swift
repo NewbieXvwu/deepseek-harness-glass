@@ -126,6 +126,19 @@ final class NativeShellPresentation: ObservableObject {
         } catch {
             assertionFailure("Built-in trajectory view registration must be unique: \(error)")
         }
+        do {
+            // Source: RC8 `ui-subagent/src/client/index.ts:60-68`: direct-child
+            // catalog is a session-header action at order 10.
+            try conversationHeaderContributions.register(
+                slot: .actions,
+                id: "subagent-catalog",
+                order: 10
+            ) { context in
+                AnyView(NativeSubagentCatalogHeaderAction(sessionStore: context.sessionStore))
+            }
+        } catch {
+            assertionFailure("Built-in subagent catalog registration must be unique: \(error)")
+        }
         switch workspaceSnapshotDialog {
         case .none:
             workspaceManagementDialog = nil
@@ -247,6 +260,7 @@ final class NativeShellPresentation: ObservableObject {
                 endpoint: observedEndpoint,
                 hostPathAPI: apis.host,
                 goalAPI: apis.commands,
+                subagentCatalogAPI: apis.subagents,
                 sessionCWD: sessionCWD(for: sessionID)
             )
         }

@@ -264,6 +264,22 @@ enum OfficialUISpec {
         static let retryScheduled = "Waiting to retry model request"
         static let retryDelay = "Retry delay: "
         static let retryFailure = "Failure reason: "
+        // Source: packages/client/ui-subagent/src/client/locales.ts:59-73 (en)
+        static let subagentLoading = "Loading subagents…"
+        static let subagentLoadingAccessibility = "Loading subagents"
+        static let subagentLoadError = "Unable to load subagents"
+        static let subagentRetry = "Retry"
+        static let subagentModeOneShot = "one-shot"
+        static let subagentModeContinuable = "continuable"
+        static let subagentRunning = "running"
+        static let subagentInactive = "not running"
+        static let subagentTreeAccessibility = "Subagent sessions"
+        static func subagentTotalCount(_ count: Int) -> String {
+            "\(count) subagent\(count == 1 ? "" : "s")"
+        }
+        static func subagentRunningCount(_ count: Int) -> String {
+            "\(count) subagent\(count == 1 ? "" : "s") running"
+        }
         static func retryStatus(label: String, retry: Int, maximum: String, seconds: Int) -> String {
             "\(label) (\(retry)/\(maximum)) · \(seconds)s"
         }
