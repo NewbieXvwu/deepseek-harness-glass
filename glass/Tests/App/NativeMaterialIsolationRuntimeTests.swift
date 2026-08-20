@@ -25,6 +25,23 @@ final class NativeMaterialIsolationRuntimeTests: XCTestCase {
         )
     }
 
+    func testNativeShellUsesSystemSidebarAndInspectorItemsWhileContentStaysMaterialFree() {
+        let presentation = NativeShellPresentation(mode: .welcome)
+        let root = NativeShellRootController(presentation: presentation)
+        root.loadView()
+
+        guard let split = root.children.compactMap({ $0 as? NativeShellController }).first else {
+            return XCTFail("Native shell root must contain its AppKit split controller")
+        }
+        XCTAssertEqual(split.splitViewItems.count, 3)
+        XCTAssertEqual(split.splitViewItems[0].behavior, .sidebar)
+        XCTAssertEqual(split.splitViewItems[2].behavior, .inspector)
+        XCTAssertTrue(
+            visualEffects(in: split.splitViewItems[1].viewController.view).isEmpty,
+            "D3 violation: the conversation content host must not materialize an ad-hoc visual effect view."
+        )
+    }
+
     func testVisualEffectTreeInspectionRejectsInjectedStructuralMaterial() {
         let host = NSHostingView(rootView: Color.clear.frame(width: 40, height: 40))
         host.addSubview(NSVisualEffectView(frame: .zero))
