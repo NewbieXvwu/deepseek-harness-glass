@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Lint user-facing SwiftUI string literals with high-visibility Agent alerts and human override."""
+"""Fail-closed lint for user-facing SwiftUI string literals with explicit human override."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ HUMAN_OVERRIDE_ENV = "I_AM_A_REAL_HUMAN_NOT_AN_AI_OR_AN_AGENT_AND_I_CLEARLY_KNOW
 def arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source-root", type=Path, default=ROOT / "Sources/UI")
-    parser.add_argument("--strict", action="store_true", default=False, help="Fail closed on unregistered strings")
+    parser.add_argument("--warning-only", action="store_true", help="Human debugging only; CI remains fail-closed by default")
     return parser.parse_args()
 
 
@@ -38,7 +38,11 @@ def main() -> None:
             for match in VISIBLE_LITERAL.finditer(line):
                 value = ast.literal_eval(match.group("literal"))
                 if value not in registered:
-                    violations.append(f"  - {path.relative_to(ROOT)}:{line_number}: unregistered literal {value!r}")
+                    try:
+                        display_path = path.relative_to(ROOT)
+                    except ValueError:
+                        display_path = path
+                    violations.append(f"  - {display_path}:{line_number}: unregistered literal {value!r}")
     if violations:
         formatted_list = "\n".join(violations[:15])
         if len(violations) > 15:
@@ -46,23 +50,24 @@ def main() -> None:
 
         alert_message = f"""
 ================================================================================
-🚨 AGENT ALERT: UNREGISTERED USER-FACING STRING LITERALS DETECTED 🚨
+AGENT ALERT: UNREGISTERED USER-FACING STRING LITERALS DETECTED
 Found {len(violations)} hardcoded string literals in UI code:
 {formatted_list}
 
-⚠️ INSTRUCTION FOR AI AGENTS:
+INSTRUCTION FOR AI AGENTS:
   You are an automated AI agent. You MUST NOT invent ad-hoc product strings.
   You are strictly required to use `OfficialUISpec.Text.*` mapped from official locales.
   Please resolve all unregistered string literals before completing your task.
 
-👤 NOTICE FOR HUMAN DEVELOPERS:
-  如果你是人类，并且你知道你在干什么，那么可以忽略本警告并继续；或者设置环境变量：
+NOTICE FOR HUMAN DEVELOPERS:
+  仅在本地调试中，如你明确接受未登记文案风险，可同时设置环境变量并传入 `--warning-only`：
   export {HUMAN_OVERRIDE_ENV}=1
 ================================================================================
 """
         print(alert_message)
-        if args.strict and not is_human_override:
-            raise SystemExit(f"Strict check failed: {len(violations)} unregistered literals present.")
+        allow_warning_only = args.warning_only and is_human_override
+        if not allow_warning_only:
+            raise SystemExit(f"Fail-closed check failed: {len(violations)} unregistered literals present.")
 
     print(f"Official locale literal check passed: {args.source_root} checked.")
 
