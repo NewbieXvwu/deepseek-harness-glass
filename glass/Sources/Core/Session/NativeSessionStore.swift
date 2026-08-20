@@ -372,7 +372,7 @@ final class NativeSessionStore: ObservableObject {
                 // history() alone intentionally serves detached logs.
                 _ = try await api.models(sessionID: sessionID)
                 guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
-                let response = try await api.history(sessionID: sessionID)
+                let response = try await api.history(sessionID: sessionID, beforeSeq: nil, maxMessages: nil)
                 guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
                 self?.replaceConversationWindow(response.events.map(ConversationEventInput.init(entry:)), hasMore: response.hasMore)
                 self?.applyHistory(response.events)
@@ -502,7 +502,7 @@ final class NativeSessionStore: ObservableObject {
         olderHistoryTask = Task { [weak self] in
             defer { self?.isLoadingOlderHistory = false }
             do {
-                let response = try await api.history(sessionID: sessionID, beforeSeq: beforeSeq)
+                let response = try await api.history(sessionID: sessionID, beforeSeq: beforeSeq, maxMessages: nil)
                 guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
                 self?.prependConversationWindow(response.events.map(ConversationEventInput.init(entry:)), hasMore: response.hasMore)
                 self?.applyHistory(response.events)
