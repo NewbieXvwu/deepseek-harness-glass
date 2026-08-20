@@ -169,6 +169,11 @@ private struct NativeActiveConversationSurface: View {
                 answer: sessionStore.answerQuestion,
                 cancel: sessionStore.cancelQuestion
             )
+        } else if let route = sessionStore.subagentRoute,
+                  route.mode == .oneShot || !route.parentAvailable {
+            NativeSubagentReadOnlyComposer(reason: route.mode == .oneShot ? .oneShot : .parentUnavailable)
+                .padding(.horizontal, OfficialUISpec.Layout.composerClearance)
+                .padding(.bottom, OfficialUISpec.Spacing.p8)
         } else if case let .identity(identity)? = sessionStore.extensionState?.subagentIdentity,
                   identity.mode == .oneShot {
             NativeSubagentReadOnlyComposer(reason: .oneShot)

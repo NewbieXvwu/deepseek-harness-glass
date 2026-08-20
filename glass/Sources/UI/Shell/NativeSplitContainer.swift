@@ -203,6 +203,7 @@ final class NativeShellPresentation: ObservableObject {
                 hostPathAPI: apis.host,
                 goalAPI: apis.commands,
                 subagentCatalogAPI: apis.subagents,
+                subagentContinuationAPI: apis.subagents,
                 sessionCWD: sessionCWD(for: selectedSessionID)
             )
         }
@@ -261,6 +262,7 @@ final class NativeShellPresentation: ObservableObject {
                 hostPathAPI: apis.host,
                 goalAPI: apis.commands,
                 subagentCatalogAPI: apis.subagents,
+                subagentContinuationAPI: apis.subagents,
                 sessionCWD: sessionCWD(for: sessionID)
             )
         }

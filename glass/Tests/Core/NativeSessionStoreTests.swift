@@ -107,6 +107,68 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertNil(store.subagentCatalogs["grandchild"], "only an explicit parent refresh may create a cached branch")
     }
 
+    func testSubagentRouteAcceptsOnlyCatalogChildWithKnownMode() {
+        let store = NativeSessionStore()
+        let continuable = SubagentListEntryDTO(
+            kind: "child", id: "child-a", activity: "running", hasChildren: false,
+            mode: "continuable", label: "Research", reason: nil
+        )
+        store.setSubagentRoute(parentSessionID: "parent-a", entry: continuable, parentAvailable: false)
+        XCTAssertEqual(
+            store.subagentRoute,
+            .init(parentSessionID: "parent-a", childSessionID: "child-a", mode: .continuable, parentAvailable: false)
+        )
+
+        let diagnostic = SubagentListEntryDTO(
+            kind: "diagnostic", id: "not-a-child", activity: nil, hasChildren: nil,
+            mode: nil, label: nil, reason: "invalid"
+        )
+        store.setSubagentRoute(parentSessionID: "parent-a", entry: diagnostic, parentAvailable: true)
+        XCTAssertNil(store.subagentRoute)
+    }
+
+    func testContinuableSubagentRouteUsesParentChildPromptAndInterrupt() async {
+        let promptReached = expectation(description: "subagent prompt reaches continuation facade")
+        let interruptReached = expectation(description: "subagent interrupt reaches continuation facade")
+        let sessionAPI = RejectingSessionAPI(promptReachedFacade: nil)
+        let continuationAPI = RecordingSubagentContinuationAPI(
+            promptReached: promptReached,
+            interruptReached: interruptReached
+        )
+        let store = NativeSessionStore()
+        let childID = "child-continuable"
+        store.open(
+            sessionID: childID,
+            using: sessionAPI,
+            endpoint: URL(string: "http://127.0.0.1:1")!,
+            subagentContinuationAPI: continuationAPI
+        )
+        store.setSubagentRoute(
+            parentSessionID: "parent-session",
+            entry: .init(kind: "child", id: childID, activity: "running", hasChildren: false, mode: "continuable", label: nil, reason: nil),
+            parentAvailable: true
+        )
+        store.draft = "continue research"
+        store.submitDraft()
+        await fulfillment(of: [promptReached], timeout: 1)
+        await eventually(timeout: 1) { store.draft.isEmpty }
+
+        XCTAssertEqual(sessionAPI.prompts, [])
+        XCTAssertEqual(
+            continuationAPI.prompts,
+            [.init(parentSessionId: "parent-session", childSessionId: childID, content: [.text(text: "continue research")], clientTimeZone: TimeZone.current.identifier)]
+        )
+
+        store.applyMuxFrame(sessionEventFrame(
+            sessionID: childID, seq: 1, type: "turn/start", data: .object(["turn": .number(1)])
+        ), sessionID: childID)
+        store.cancelRunningTurn()
+        await fulfillment(of: [interruptReached], timeout: 1)
+
+        XCTAssertEqual(sessionAPI.cancelledSessionIDs, [])
+        XCTAssertEqual(continuationAPI.interrupts, [.init(parentSessionId: "parent-session", childSessionId: childID)])
+    }
+
     func testInitialAuthorityFromReplacedEndpointCannotReviveOldColdState() async {
         let oldModelsReached = expectation(description: "old endpoint reaches delayed initial models read")
         let oldAPI = GatedInitialModelsAPI(modelsReached: oldModelsReached)
@@ -877,6 +939,31 @@ final class NativeSessionStoreTests: XCTestCase {
             try? await Task.sleep(for: .milliseconds(10))
         }
         XCTFail("condition was not met before timeout")
+    }
+
+    @MainActor
+    private final class RecordingSubagentContinuationAPI: NativeSubagentContinuationAPI {
+        let promptReached: XCTestExpectation
+        let interruptReached: XCTestExpectation
+        private(set) var prompts: [SubagentPromptRequest] = []
+        private(set) var interrupts: [SubagentInterruptRequest] = []
+
+        init(promptReached: XCTestExpectation, interruptReached: XCTestExpectation) {
+            self.promptReached = promptReached
+            self.interruptReached = interruptReached
+        }
+
+        func prompt(_ request: SubagentPromptRequest) async throws -> SubagentPromptResponse {
+            prompts.append(request)
+            promptReached.fulfill()
+            return .init(messageId: "accepted")
+        }
+
+        func interrupt(_ request: SubagentInterruptRequest) async throws -> SubagentInterruptResponse {
+            interrupts.append(request)
+            interruptReached.fulfill()
+            return .init(accepted: true)
+        }
     }
 
     @MainActor

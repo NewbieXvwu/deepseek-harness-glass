@@ -99,6 +99,8 @@ struct NativeSubagentCatalogHeaderAction: View {
                 Color.clear.frame(width: OfficialUISpec.Geometry.px14, height: OfficialUISpec.Geometry.px14)
             }
             Button {
+                let parentAvailable = sessionStore.subagentCatalogs[parentID]?.parentAvailable ?? false
+                sessionStore.setSubagentRoute(parentSessionID: parentID, entry: entry, parentAvailable: parentAvailable)
                 open = false
                 openSession(entry.id)
             } label: {

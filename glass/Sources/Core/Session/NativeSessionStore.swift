@@ -50,7 +50,13 @@ protocol NativeSubagentCatalogAPI: Sendable {
     func list(parentSessionID: String) async throws -> SubagentListResponse
 }
 
-extension SubagentsAPI: NativeSubagentCatalogAPI {}
+@MainActor
+protocol NativeSubagentContinuationAPI: Sendable {
+    func prompt(_ request: SubagentPromptRequest) async throws -> SubagentPromptResponse
+    func interrupt(_ request: SubagentInterruptRequest) async throws -> SubagentInterruptResponse
+}
+
+extension SubagentsAPI: NativeSubagentCatalogAPI, NativeSubagentContinuationAPI {}
 
 /// Typed desktop-action boundary for settled Markdown file mentions. The Host
 /// keeps both path opening authority and loopback/build-trust enforcement.
@@ -125,6 +131,16 @@ final class NativeSessionStore: ObservableObject {
     /// The only error shape the RC8 GoalBar displays inline: Host-provided
     /// business message plus code. Transport failures stay on the existing
     /// session recovery path and never gain invented goal-specific wording.
+    /// Catalog-addressed child route retained while the child is selected. It is
+    /// not inferred from session summaries and exists only for a valid Host row.
+    struct SubagentRoute: Equatable {
+        enum Mode: Equatable { case oneShot, continuable }
+        let parentSessionID: String
+        let childSessionID: String
+        let mode: Mode
+        let parentAvailable: Bool
+    }
+
     struct GoalActionFailure: Equatable {
         let message: String
         let code: String
@@ -384,6 +400,7 @@ final class NativeSessionStore: ObservableObject {
     /// Complete Host catalogs keyed by their direct parent. The root current
     /// session remains exposed above for existing header consumers.
     @Published private(set) var subagentCatalogs: [String: SubagentListResponse] = [:]
+    @Published private(set) var subagentRoute: SubagentRoute?
     @Published private(set) var isLoadingSubagentCatalog = false
     @Published private(set) var loadingSubagentCatalogIDs: Set<String> = []
     @Published private(set) var isSubmittingApproval = false
@@ -425,6 +442,7 @@ final class NativeSessionStore: ObservableObject {
     private var api: (any NativeSessionAPI)?
     private var goalAPI: (any NativeGoalAPI)?
     private var subagentCatalogAPI: (any NativeSubagentCatalogAPI)?
+    private var subagentContinuationAPI: (any NativeSubagentContinuationAPI)?
     private var subagentCatalogTask: Task<Void, Never>?
     private var subagentCatalogTasks: [String: Task<Void, Never>] = [:]
     private var goalTask: Task<Void, Never>?
@@ -475,6 +493,22 @@ final class NativeSessionStore: ObservableObject {
 
     /// Core-internal test seam for goal mutation fencing. Production receives the
     /// same API from `NativeShellPresentation.connectVerifiedHost` via `open`.
+    /// Accepts the selected catalog row as the only route source. Invalid or
+    /// diagnostic rows fail closed rather than enabling continuation by ID.
+    func setSubagentRoute(parentSessionID: String, entry: SubagentListEntryDTO, parentAvailable: Bool) {
+        let mode: SubagentRoute.Mode?
+        switch entry.mode {
+        case "one-shot": mode = .oneShot
+        case "continuable": mode = .continuable
+        default: mode = nil
+        }
+        guard entry.kind == "child", let mode else {
+            subagentRoute = nil
+            return
+        }
+        subagentRoute = .init(parentSessionID: parentSessionID, childSessionID: entry.id, mode: mode, parentAvailable: parentAvailable)
+    }
+
     func setSubagentCatalogAPIForTesting(_ api: (any NativeSubagentCatalogAPI)?) {
         subagentCatalogTask?.cancel()
         subagentCatalogTasks.values.forEach { $0.cancel() }
@@ -638,9 +672,11 @@ final class NativeSessionStore: ObservableObject {
         hostPathAPI: (any NativeHostPathAPI)? = nil,
         goalAPI: (any NativeGoalAPI)? = nil,
         subagentCatalogAPI: (any NativeSubagentCatalogAPI)? = nil,
+        subagentContinuationAPI: (any NativeSubagentContinuationAPI)? = nil,
         sessionCWD: String? = nil
     ) {
         guard activeSessionID != sessionID || self.endpoint != endpoint else { return }
+        let selectedSubagentRoute = subagentRoute?.childSessionID == sessionID ? subagentRoute : nil
         preserveActiveState()
         historyTask?.cancel()
         olderHistoryTask?.cancel()
@@ -656,6 +692,7 @@ final class NativeSessionStore: ObservableObject {
         subagentCatalogTasks = [:]
         subagentCatalog = nil
         subagentCatalogs = [:]
+        subagentRoute = selectedSubagentRoute
         isLoadingSubagentCatalog = false
         loadingSubagentCatalogIDs = []
         isSubmittingGoal = false
@@ -671,10 +708,12 @@ final class NativeSessionStore: ObservableObject {
         self.api = api
         self.goalAPI = goalAPI
         self.subagentCatalogAPI = subagentCatalogAPI
+        self.subagentContinuationAPI = subagentContinuationAPI
         self.hostPathAPI = hostPathAPI
         self.activeSessionCWD = sessionCWD
         self.endpoint = endpoint
         activeSessionID = sessionID
+        if subagentRoute?.childSessionID != sessionID { subagentRoute = nil }
         let restoredResident = restoreResidentState(for: sessionID)
         if !restoredResident {
             items = []
@@ -913,12 +952,37 @@ final class NativeSessionStore: ObservableObject {
         let content: [SessionPromptContent] =
             (text.isEmpty ? [] : [.text(text: text)])
             + pendingImages.map { .image(mediaType: $0.mediaType, data: $0.data.base64EncodedString(), name: $0.name) }
-        guard !content.isEmpty,
+                guard !content.isEmpty,
               !isSubmittingPrompt,
-              let api,
               let sessionID = activeSessionID
         else { return }
-
+        if let route = subagentRoute {
+            guard route.mode == .continuable,
+                  route.parentAvailable,
+                  let subagentContinuationAPI
+            else { return }
+            isSubmittingPrompt = true
+            promptTask?.cancel()
+            promptTask = Task { [weak self] in
+                defer { self?.isSubmittingPrompt = false }
+                do {
+                    _ = try await subagentContinuationAPI.prompt(.init(
+                        parentSessionId: route.parentSessionID,
+                        childSessionId: route.childSessionID,
+                        content: content,
+                        clientTimeZone: TimeZone.current.identifier
+                    ))
+                    guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
+                    self?.draft = ""
+                    self?.pendingImages = []
+                } catch {
+                    // A rejected Host subagent route retains the draft for the
+                    // same official retry posture as a session prompt.
+                }
+            }
+            return
+        }
+        guard let api else { return }
         isSubmittingPrompt = true
         promptTask?.cancel()
         promptTask = Task { [weak self] in
@@ -934,6 +998,7 @@ final class NativeSessionStore: ObservableObject {
                 // is added with the attachment/notice surface.
             }
         }
+
     }
 
     // MARK: - Queue action face
@@ -1041,9 +1106,22 @@ final class NativeSessionStore: ObservableObject {
         }
     }
 
-    /// Source: `sessions.schema.ts:sessionCancelRequestSchema`.
+    /// Source: RC8 `session.ts:cancel`; a continuable child is cancelled only
+    /// through its durable parent-child subagent address, never `session.cancel`.
     func cancelRunningTurn() {
-        guard isRunning, let api, let sessionID = activeSessionID else { return }
+        guard isRunning, let sessionID = activeSessionID else { return }
+        if let route = subagentRoute {
+            guard route.mode == .continuable, let subagentContinuationAPI else { return }
+            cancelTask?.cancel()
+            cancelTask = Task {
+                _ = try? await subagentContinuationAPI.interrupt(.init(
+                    parentSessionId: route.parentSessionID,
+                    childSessionId: route.childSessionID
+                ))
+            }
+            return
+        }
+        guard let api else { return }
         cancelTask?.cancel()
         cancelTask = Task {
             _ = try? await api.cancel(sessionID: sessionID)
