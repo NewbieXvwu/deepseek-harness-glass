@@ -199,7 +199,7 @@ enum NativeCodeHighlighter {
     }
 
     static func text(code: String, language: String?) -> Text {
-        fragments(code: code, language: language).reduce(Text("")) { result, fragment in
+        fragments(code: code, language: language).reduce(Text(verbatim: "")) { result, fragment in
             let color: Color
             switch fragment.kind {
             case .plain: color = OfficialUISpec.Token.primary
@@ -208,7 +208,7 @@ enum NativeCodeHighlighter {
             case .number: color = OfficialUISpec.Token.caption
             case .comment: color = OfficialUISpec.Token.secondary
             }
-            return result + Text(fragment.text).foregroundColor(color)
+            return result + Text(verbatim: fragment.text).foregroundColor(color)
         }
     }
 }

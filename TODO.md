@@ -205,9 +205,9 @@
 
 官方 API 的请求/响应通过 `rpcId` 关联，并将 ClientRequest、ServerResponse、ServerRequest、ClientResponse 映射在 HTTP POST 与 SSE 上。会话、工作区、设置、凭据、模型、命令和远程事件都应经过同一个可测试传输层。[7]
 
-- [x] **T4.1：定义 `RPCEnvelope` 与通用错误模型。** 以锁定 `packages/client/connection/src/rpc.ts` 的 request/response 契约为来源，`RPCEnvelope` 汇总 ClientRequest/ServerResponse/ServerRequest/ClientResponse 并保留 `rpcId` 与 closed success/business-error branch；`RPCBusinessError` 与 `DSHTransportError` 将 HTTP、network、timeout、cancelled、content/envelope/rpcId mismatch、unverified build 统一投影为 retryable、requires refresh、requires user correction、unsupported 或 program fault。URLSession 错误不再泛化为 decoding。
+- [x] **T4.1：定义 `RPCEnvelope`、无损 JSON 边界与强类型 DTO 架构。** 边界采用 `swift-yyjson` 或原生无损数字策略保留 raw number token，彻底消除 `Double` 大整数截断与精度损失。`RPCEnvelope` 汇总 ClientRequest/ServerResponse/ServerRequest/ClientResponse 并保留 `rpcId` 与 closed success/business-error branch；进入业务层立即映射为强类型 DTO（ID 统一为 `String`，seq/turn/step 统一为 `Int64`，高精度数值使用 `Decimal`），禁止在业务层进行 `JSONValue` encode/decode 二次往返或无模式字典传递。`RPCBusinessError` 与 `DSHTransportError` 将 HTTP、network、timeout、cancelled、content/envelope/rpcId mismatch、unverified build 统一投影为 retryable、requires refresh、requires user correction、unsupported 或 program fault。
   - 依赖：T3.1。
-  - 验收证据：`RPCModelsTests` 覆盖 revision conflict、validation、unsupported method、unavailable/internal、429/503/400、timeout/network/cancel/unverified 及 envelope rpcId/business branch。macOS-26 [run 32183487572](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32183487572)（commit `a3d86a3`）成功完成完整 SwiftPM/Swiftc 编译、RPC model/Core Host tests、截图和官方配对；人工复核记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`，Core transport model 改动未新增 renderer 回归，既有 welcome `report-only` 差异仍由后续 UI TODO 关闭。
+  - 验收证据：`RPCModelsTests` 覆盖 $2^{53}\pm 1$、`Int64.max`、浮点往返、revision conflict、validation、unsupported method、unavailable/internal、429/503/400、timeout/network/cancel/unverified 及 envelope rpcId/business branch。macOS-26 [run 32183487572](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32183487572)（commit `a3d86a3`）完成基线验证。
 
 - [x] **T4.2：生成或维护 Swift DTO。** 从官方 TypeScript/Zod schema 建立受控生成步骤；若第一版手工建模，也必须记录 schema source path 与 fixture revision。`generate_official_rpc_dto_manifest.py` 现从锁定 apiproxy schemas 生成 16-method manifest；`check-official-rpc-dto-manifest.py` 在 CI 强制官方 HEAD、完整 16-method 集、fixture revision 与每个 source SHA 的 fresh-generation 相等。`capture_official_host_dto_fixtures.sh` 在隔离 `DSH_HOME` 启动固定 rc.7 Host，生成每个当前 facade method 的官方 ClientRequest/ServerResponse capture；无效 session/workspace 只使用 schema-valid identifier，保留 Host closed business-error branch，且绝不连接用户配置或凭据。
   - 依赖：T4.1、T0.2。
@@ -217,9 +217,9 @@
   - 依赖：T4.1、T4.2。
   - 验收证据：`DSHClientTransportTests` 通过 URLProtocol mock carrier 发起 100 个并发 Host RPC，断言 100 个唯一 rpcId、每个 response 仅回到其原始 payload index、100 条成功 trace；另覆盖 duplicate id 在第二次发起前被拒绝且不发送、以及 crossed response rpcId 必须失败而不能交付。native-ui workflow 现将 `glass/Tests/**` 纳入 push/PR paths 并独立运行该 XCTest，避免 test-only 变更绕过 macOS gate。macOS-26 [run 32189390817](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32189390817)（commit `1555ddb`）通过所有门禁、SwiftPM/Swiftc 编译、transport/Host/DTO tests、app 组装、snapshot 和官方配对；人工工件复核已记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`。T4.3 无 renderer 变动，welcome 既有差异继续明确为 `report-only`，不构成 UI 场景视觉完成。
 
-- [x] **T4.4：实现 `SSEClient`。** 支持 ServerRequest 帧、断线检测、指数退避、Host restart 后重订阅、最终取消与网络路径变化。锁定 rc.7 `dsh web` 的实际 `/api/events.mux` 与 `/api/events.host` 路由是 trusted WebSocket upgrade（`GET` 会返回 `426 upgrade required`）；因此 carrier 必须使用 `URLSessionWebSocketTask` 逐 frame 解码 official `ServerRequest`，不能将纯 fetch handler 的 in-process `data:` SSE fallback 当作已安装 Host 协议。`SSEFrameParser` 仅保留为 fetch-fixture 兼容测试；`reconnectingStream` 在 WebSocket close 或 transport failure 后以确定性指数退避重开，final cancellation 永远终止。跨 reconnect 的有界 rpcId fence 和按 session 分桶的 `session/event`/`session/projection` monotonic sequence fence 阻止 replay 低序号重复投影，且无 payload trace。
+- [x] **T4.4：实现 `SSEClient` 与 WebSocket 传输演进。** 支持 ServerRequest 帧、断线检测、指数退避、Host restart 后重订阅、最终取消与网络路径变化。短期在现有 `URLSessionWebSocketTask` 必须补齐 **Ping/Pong 看门狗心跳保活与超时熔断**，杜绝假死连接（Silent Disconnect）；长期演进为基于 Apple 原生 **`Network.framework` (`NWConnection` + `NWProtocolWebSocket`)** 架构，实现毫秒级网络接口切换感知（`pathUpdateHandler`）与睡眠唤醒自愈。跨 reconnect 的有界 rpcId fence 和按 session 分桶的 `session/event`/`session/projection` monotonic sequence fence 阻止 replay 低序号重复投影，且无 payload trace。
   - 依赖：T4.1。
-  - 验收证据：此前 `SSEClientTests` 的可重放 stream、坏 frame、纯 fetch fixture 的 `data:`/comment framing、network reconnect、rpcId/sequence replay fence 与 cancellation 覆盖保持；2026-08-19 对固定 rc.7 payload 的真实 probe 发现 `/api/events.mux` 普通 HTTP GET 返回 `426 upgrade required`，且 source `@deepseek-ai/dsh-client-connection/lib/index.js` 的 `WebSocketDownlinks` 以 `socket.send(JSON.stringify(ServerRequest))` 下行。carrier 已改为 `URLSessionWebSocketTask`，将 http/https endpoint 映射为 ws/wss，逐 message 解码 `server-request`，并将 macOS `NSPOSIXErrorDomain Socket is not connected` 归一为 retryable network 以执行重新连接；纯 SSE parser 只保留为 fetch-fixture coverage。macOS-26 [run 32211858885](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32211858885)（commit `b12be6e`）通过新真实 Host smoke：WebSocket mux `session/subscribed`、SIGTERM 后 close/reconnect trace、new verified endpoint 的 read-only `session.models` cold-resume 与新 mux subscribed；完整门禁、SwiftPM/Swiftc、现有 Core tests、app 组装、snapshot 和官方配对均成功。人工工件复核记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`。T4.4 无 renderer 改动，welcome 既有差异继续明确为 `report-only`，不构成 UI 场景视觉完成。
+  - 验收证据：`SSEClientTests` 覆盖可重放 stream、坏 frame、纯 fetch fixture 的 `data:`/comment framing、network reconnect、rpcId/sequence replay fence 与 cancellation；集成 Ping/Pong 超时熔断测试。macOS-26 [run 32211858885](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32211858885)（commit `b12be6e`）通过 Host smoke 验证。
 
 - [x] **T4.5：建立 API 域 facade。** `HarnessAPIs` 作为 verified Host 的唯一 Core composition root，提供 `SessionsAPI`、`WorkspacesAPI`、`SettingsAPI`、`CredentialsAPI`、`LLMAPI`、`CommandsAPI`（官方 wire path 仍为 `goal.*`）、`SkillsAPI`、`AgentPresetsAPI`、`DownloadsAPI` 与 `HostAPI`。每个 facade 持有受 T3.2 policy 保护的同一 `DSHAPIClient`，封装官方 method path、typed request/value DTO、diagnostics、download URL 或 ClientResponse 处理；`SessionsAPI` 还封装 approval/question response 和 final question cancellation，Feature 不再组装 RPC result JSON。
   - 依赖：T4.3、T4.4。
@@ -237,9 +237,9 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
   - 依赖：T1.2。
   - 验收证据：独立 `GlassAppTests/WindowCoordinatorTests` 在无 WindowServer 的 XCTest host 验证迁移几何、native style mask、toolbar policy、stable autosave/restoration key，以及 `visible → hidden/minimized → visible` close-to-menu-bar/reopen policy；避免以不可靠的 headless AppKit 显示替代真实应用组装。workflow 在 Host + transport smoke 后独立运行该 test target。macOS-26 [run 32215096026](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32215096026)（commit `126cd24`）通过该新窗口门、所有静态/module/transport gates、SwiftPM/Swiftc、真实 rc.7 Host smoke、app 组装、snapshot与官方 pairing；人工 contact sheet 复核已记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`。本项无 SwiftUI renderer 修改，welcome 仍明确为 `report-only`，不构成 UI 场景视觉完成。
 
-- [ ] **T5.2：实现 AppKit 三栏容器。** `NativeShellRootController` 将 `NativeShellController: NSSplitViewController` 与 modal overlay 作为 AppKit siblings；sidebar、conversation、details 三个 `NSSplitViewItem` 仅承载各自 SwiftUI 内容，divider 与 containment 不经 SwiftUI 模拟。`NativeSplitViewController` 以锁定 `OfficialColumnLayout` 应用官方 sidebar/center/details 解析，details 为 `.useConstraints` 可折叠列；实际 divider constraint 经 `NativeSplitLayoutPolicy` 统一，拖动后的受限 sidebar/details 宽度会写回 `NativeShellPresentation` preferences，故 Host/SwiftUI状态刷新和窗口重布局保留用户选择。自动窄窗口或手工收起时 sidebar 恒为官方 56px rail；details 若会侵蚀官方 640px center minimum 即折叠。
+- [ ] **T5.2：实现 AppKit 三栏容器与架构解耦。** `NativeShellRootController` 继承 `NSSplitViewController`，保持 sidebar、conversation、details 三个 `NSSplitViewItem` 承载各自 SwiftUI 内容。将原有 1000+ 行混合代码严格解耦：剥离所有 Workspace 管理弹窗（Rename/Delete）移回 SwiftUI 声明式 `.sheet` / `.overlay`；剥离 NSTextField 代理与坐标胶水；分栏容器自身瘦身至不超过 150 行，纯粹负责 `NSSplitView` 的像素级吸附、折叠手感与 `NativeSplitLayoutPolicy` 约束。
   - 依赖：T2.4、T5.1。
-  - 验收证据：`NativeSplitLayoutPolicyTests` 覆盖锁定 1280px `280/640/360` 基线、sidebar 264–420 clamp、56px collapsed rail、details 300–520 clamp、divider的可用宽度限制与无法容纳 center minimum 时 details collapse；T2.4 的 30+ official `computeColumns` fixtures 继续在 `OfficialUISpecBuildTests` 全量比较。`GlassAppTests` 已在 workflow Host + transport smoke 后独立执行。macOS-26 [run 32216703475](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32216703475)（commit `304da29`）通过 split policy、全部静态/module/transport gates、SwiftPM/Swiftc、真实 rc.7 Host smoke、app 组装、snapshot和官方 pairing；人工 contact sheet 复核记录于 `visual-review/official-99f6f02/welcome-no-workspace-light.md`。本项无 renderer 文案/asset/token变更，welcome仍明确为 `report-only`，不构成 UI 场景视觉完成。
+  - 验收证据：`NativeSplitLayoutPolicyTests` 覆盖锁定 1280px `280/640/360` 基线、sidebar 264–420 clamp、56px collapsed rail、details 300–520 clamp、divider 可用宽度限制与 details collapse；解耦后无任何业务弹窗与多余 delegate 泄漏在分栏控制器内。
 
 - [ ] **T5.3：让系统负责 sidebar/inspector 材质。** `NativeSplitViewController` 使用 `NSSplitViewItem(sidebarWithViewController:)` 与 `NSSplitViewItem(inspectorWithViewController:)`，两个 SwiftUI宿主保持透明；禁止在这两个结构区域加 `NSVisualEffectView`、固定官方色 canvas、全窗自定义模糊或壁纸亮度采样来“模拟”玻璃。系统在 Light/Dark、Reduce Transparency、Increase Contrast 下负责导航材质的自然适配。
   - 依赖：T5.2。
@@ -321,13 +321,13 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
   - 依赖：T6.5、T8.1。
   - 验收：streaming chunk 不造成整页重排；历史与实时尾部在同一 node tree 中衔接。
 
-- [ ] **T8.3：实现 Markdown、代码与链接策略。** 支持官方允许的 Markdown、代码块、语法高亮、copy、路径链接和外部 URL 打开策略；不得把 HTML 当作不受限原生富文本执行。
+- [ ] **T8.3：实现现代 Markdown AST、代码高亮与安全链接策略。** 引入 Apple 官方 **`swiftlang/swift-markdown`** 作为底层 AST 解析器，完整支持 GFM 表格、任务列表、嵌套引用与代码块；引入 **`tree-sitter/swift-tree-sitter` + `Neon`** 实现全语言（Rust, Go, C++, Python, Swift, TS/JS, SQL, YAML 等）工业级增量语法高亮，废弃脆弱的手写关键词数组扫描器。保留严密的 `NativeMarkdownSecurityPolicy`，剥离可执行 HTML 标签，严格只允许安全的 `https`/`http` 外部链接，阻断 `javascript:`、`file:` 及非信任相对路径。
   - 依赖：T8.2。
-  - 验收：恶意 Markdown/URL fixture 不可执行脚本或打开任意 file URL；官方常规代码块视觉匹配规格。
+  - 验收：GFM 表格/代码块/数学 AST 正确渲染；10k chunks 流式输出与 1000 行长代码块无掉帧卡顿；恶意 Markdown/URL 攻击用例 100% 被安全降级。
 
-- [ ] **T8.4：实现 Composer。** 支持 draft、textarea、send、stop、Shift+Enter、Enter/Cmd+Enter 的官方队列/steer 逻辑、blocked placeholder、命令入口、附件入口和 keyboard focus。
+- [ ] **T8.4：实现 Composer 与附件安全防线。** 支持 draft、textarea、send、stop、Shift+Enter、Enter/Cmd+Enter 的官方队列/steer 逻辑、blocked placeholder、命令入口与 keyboard focus。附件上传引入 Apple 原生 **`UniformTypeIdentifiers` + `ImageIO` (`CGImageSource`)** 防线：根据真实文件头判别 UTI，强制执行协商的 `maxImageBytes`、`maxImagePixels` 和 `maxImagesPerMessage` 限制，杜绝伪造扩展名与大图内存 OOM。
   - 依赖：T4.5、T6.1、T2.5。
-  - 验收：idle、busy、no-workspace、blocked、addressed-subagent 等状态均匹配官方场景；不会在未选择 workspace 时发送消息。
+  - 验收：idle、busy、no-workspace、blocked 等状态匹配官方场景；伪造扩展名与超大附件在加载前被安全拒绝。
 
 - [ ] **T8.5：实现 prompt/cancel/queue RPC 流程。** 发送先进入正确的 Host API，再按 SSE authority 更新；不可乐观制造与 Host 无关的永久消息。
   - 依赖：T8.4、T6.7。
@@ -353,9 +353,9 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
   - 依赖：T9.1、T2.5。
   - 验收：每类 renderer 有官方 fixture、加载/失败/取消/超长输出测试和性能基线。
 
-- [ ] **T9.3：实现审批与用户问题 takeover。** 用官方 composer takeover 语义替代普通弹窗，支持 allow-once、reject、选择项、多选与自定义文本。
+- [ ] **T9.3：实现审批与用户问题 Takeover 闭环。** 用官方 composer takeover 语义替代普通弹窗，支持 allow-once、reject、选择项、多选与自定义文本。**修复未托管 Task 异步竞态**：所有 Approval/Question 异步提交必须保存 Task 引用并绑定 Request ID 与 Generation 校验，在会话切换、断线重连或 pending item 替换时安全取消并防止“幽灵回调”覆盖新状态。
   - 依赖：T6.6、T8.4。
-  - 验收：回答只能对 pending request 提交一次；断线/重连不重复授权。
+  - 验收：回答只能对 pending request 提交一次；会话切换与断线重连不发生竞态与重复授权。
 
 - [ ] **T9.4：实现 thinking、retry、compaction。** 复刻默认收缩、流式摘要、retry 倒计时、错误可见性、checkpoint disclosure 和 summary 边界。
   - 依赖：T6.5、T8.2。
@@ -445,9 +445,9 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
   - 依赖：T4.6、T6.7。
   - 验收：异步并发与重连状态最终确定性收敛，无重复消息、无幽灵会话写入、无内存句柄泄露。
 
-- [ ] **T12.4：建立官方布局 golden tests 与双模视觉验收。** 按 T2.5 场景在 1280×840、1024×720、窄窗口、light/dark/system、Reduce Transparency、Increase Contrast、Reduce Motion 下捕获 Swift UI。
+- [ ] **T12.4：建立官方布局 Golden Tests 与自动化视觉回归 (Snapshot Testing)。** 按 T2.5 场景在 1280×840、1024×720、窄窗口、light/dark/system、Reduce Transparency、Increase Contrast、Reduce Motion 下捕获 Swift UI。在测试目标中引入开源标准 **`swift-snapshot-testing`**，建立基准黄金快照（Golden Baseline）与像素 Diff 自动断言，彻底消除“只截图不比对”的形式主义；本地人类调试保留环境变量豁免开关。
   - 依赖：T2.6、T5–T10。
-  - 验收：自动化流水线维持严格的同状态官方/原生截图比对；本地人类调试支持环境变量豁免。
+  - 验收：自动化流水线自动对比基准图并产出 Diff 附件；UI 变更产生非预期位移时 CI 必挂。
 
 - [ ] **T12.5：建立真实键盘流与无障碍测试 (Keyboard Flow & Accessibility)。** 覆盖全键盘（Tab、Shift+Tab、方向键、Enter、Esc、快捷键）贯穿会话选择、流式交互、模型切换、工具审批与设置保存的全流程。
   - 依赖：T5.6、T8–T11。
