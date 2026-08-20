@@ -23,6 +23,30 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.draft, "do not bypass the typed facade", "a rejected typed facade call must retain the draft for retry")
     }
 
+    func testCancelIntentUsesTypedFacadeOnlyForHostRunningTurn() async {
+        let cancelReachedFacade = expectation(description: "typed cancel facade receives running turn intent")
+        let api = RejectingSessionAPI(promptReachedFacade: nil, cancelReachedFacade: cancelReachedFacade)
+        let store = NativeSessionStore()
+        let sessionID = "cancel-session"
+        store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+
+        store.cancelRunningTurn()
+        XCTAssertTrue(api.cancelledSessionIDs.isEmpty, "idle composer must not manufacture a cancel RPC")
+
+        store.applyMuxFrame(sessionEventFrame(
+            sessionID: sessionID,
+            seq: 1,
+            type: "turn/start",
+            data: .object(["turn": .number(1)])
+        ), sessionID: sessionID)
+        XCTAssertTrue(store.isRunning)
+
+        store.cancelRunningTurn()
+        await fulfillment(of: [cancelReachedFacade], timeout: 1)
+        XCTAssertEqual(api.cancelledSessionIDs, [sessionID])
+        XCTAssertTrue(store.isRunning, "carrier receipt cannot optimistically settle a Host-owned running turn")
+    }
+
     func testQueueAndJobsUseCompleteHostSnapshotsAndRejectOtherSessionFrames() {
         let store = NativeSessionStore()
         store.loadSnapshotToolingFixture()
@@ -247,11 +271,14 @@ final class NativeSessionStoreTests: XCTestCase {
             let content: [SessionPromptContent]
         }
 
-        let promptReachedFacade: XCTestExpectation
+        let promptReachedFacade: XCTestExpectation?
+        let cancelReachedFacade: XCTestExpectation?
         private(set) var prompts: [Prompt] = []
+        private(set) var cancelledSessionIDs: [String] = []
 
-        init(promptReachedFacade: XCTestExpectation) {
+        init(promptReachedFacade: XCTestExpectation?, cancelReachedFacade: XCTestExpectation? = nil) {
             self.promptReachedFacade = promptReachedFacade
+            self.cancelReachedFacade = cancelReachedFacade
         }
 
         func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
@@ -260,11 +287,13 @@ final class NativeSessionStoreTests: XCTestCase {
 
         func prompt(sessionID: String, content: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse {
             prompts.append(.init(sessionID: sessionID, content: content))
-            promptReachedFacade.fulfill()
+            promptReachedFacade?.fulfill()
             throw DSHTransportError.invalidEndpoint
         }
 
-        func cancel(sessionID _: String) async throws -> SessionCancelResponse {
+        func cancel(sessionID: String) async throws -> SessionCancelResponse {
+            cancelledSessionIDs.append(sessionID)
+            cancelReachedFacade?.fulfill()
             throw DSHTransportError.invalidEndpoint
         }
 
