@@ -6,7 +6,7 @@ final class GlassPolicyTests: XCTestCase {
         XCTAssertFalse(GlassPolicy.content.permitsCustomGlassEffect)
         XCTAssertFalse(GlassPolicy.systemNavigation.permitsCustomGlassEffect)
         XCTAssertTrue(GlassPolicy.regularGlassCustomControl.permitsCustomGlassEffect)
-        XCTAssertTrue(GlassPolicy.clearGlassMediaOverlay.permitsCustomGlassEffect)
+        XCTAssertFalse(GlassPolicy.clearGlassMediaOverlay.permitsCustomGlassEffect)
     }
 
     func testSystemNavigationOwnsStructuralMaterial() {
@@ -19,7 +19,11 @@ final class GlassPolicyTests: XCTestCase {
     func testCustomGlassBudgetAllowsOneAndRejectsTwoControls() {
         XCTAssertTrue(GlassPolicyBudget.permits([.content, .regularGlassCustomControl]))
         XCTAssertTrue(GlassPolicyBudget.permits([.systemNavigation, .content]))
-        XCTAssertFalse(GlassPolicyBudget.permits([.regularGlassCustomControl, .clearGlassMediaOverlay]))
+        XCTAssertFalse(GlassPolicyBudget.permits([.regularGlassCustomControl, .regularGlassCustomControl]))
+        XCTAssertTrue(
+            GlassPolicyBudget.permits([.regularGlassCustomControl, .clearGlassMediaOverlay]),
+            "a reserved, non-materializing overlay must not consume an approved control budget"
+        )
     }
 
     func testRuntimeMaterializationDecisionRejectsContentAndUnreviewedPolicies() {

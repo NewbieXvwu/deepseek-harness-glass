@@ -26,13 +26,12 @@ enum GlassPolicy: String, CaseIterable, Sendable {
     /// official surface is implemented and reviewed.
     case clearGlassMediaOverlay
 
+    /// Only an implemented, reviewed control can request the scarce custom
+    /// glass budget. The media-overlay case stays an explicit taxonomy value,
+    /// but is reserved until its official surface and accessibility behavior are
+    /// separately implemented and reviewed.
     var permitsCustomGlassEffect: Bool {
-        switch self {
-        case .regularGlassCustomControl, .clearGlassMediaOverlay:
-            true
-        case .content, .systemNavigation:
-            false
-        }
+        self == .regularGlassCustomControl
     }
 
     var ownsSystemNavigationMaterial: Bool {
