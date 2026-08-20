@@ -98,16 +98,30 @@ DSH_GLASS_SNAPSHOT_MODE="welcome" \
 DSH_GLASS_SNAPSHOT_COLOR_SCHEME="dark" \
 "$BINARY"
 
-for image in "$OUTPUT_DIR/welcome-light.png" "$OUTPUT_DIR/welcome-dark.png" "$OUTPUT_DIR/conversation-dark.png" "$OUTPUT_DIR/jobs-expanded-light.png" "$OUTPUT_DIR/jobs-expanded-dark.png" "$OUTPUT_DIR/tooling-inspector-dark.png" "$OUTPUT_DIR/approval-panel-light.png" "$OUTPUT_DIR/question-composer-light.png" "$OUTPUT_DIR/workspace-search-official-viewport.png" "$OUTPUT_DIR/workspace-rename-official-viewport.png" "$OUTPUT_DIR/session-rename-official-viewport.png" "$OUTPUT_DIR/workspace-delete-official-viewport.png" "$OUTPUT_DIR/approval-panel-official-viewport.png" "$OUTPUT_DIR/question-composer-official-viewport.png"; do
+# RC8 narrow sidebar re-certification uses the exact 1023px auto-collapse
+# threshold and captures both ThemeRuntime color schemes against matching
+# official browser viewports.
+DSH_GLASS_SNAPSHOT_PATH="$OUTPUT_DIR/sidebar-rail-narrow-light.png" \
+DSH_GLASS_SNAPSHOT_MODE="welcome" \
+DSH_GLASS_SNAPSHOT_COLOR_SCHEME="light" \
+DSH_GLASS_SNAPSHOT_WIDTH="1023" \
+DSH_GLASS_SNAPSHOT_HEIGHT="840" \
+"$BINARY"
+
+DSH_GLASS_SNAPSHOT_PATH="$OUTPUT_DIR/sidebar-rail-narrow-dark.png" \
+DSH_GLASS_SNAPSHOT_MODE="welcome" \
+DSH_GLASS_SNAPSHOT_COLOR_SCHEME="dark" \
+DSH_GLASS_SNAPSHOT_WIDTH="1023" \
+DSH_GLASS_SNAPSHOT_HEIGHT="840" \
+"$BINARY"
+
+for image in "$OUTPUT_DIR/welcome-light.png" "$OUTPUT_DIR/welcome-dark.png" "$OUTPUT_DIR/sidebar-rail-narrow-light.png" "$OUTPUT_DIR/sidebar-rail-narrow-dark.png" "$OUTPUT_DIR/conversation-dark.png" "$OUTPUT_DIR/jobs-expanded-light.png" "$OUTPUT_DIR/jobs-expanded-dark.png" "$OUTPUT_DIR/tooling-inspector-dark.png" "$OUTPUT_DIR/approval-panel-light.png" "$OUTPUT_DIR/question-composer-light.png" "$OUTPUT_DIR/workspace-search-official-viewport.png" "$OUTPUT_DIR/workspace-rename-official-viewport.png" "$OUTPUT_DIR/session-rename-official-viewport.png" "$OUTPUT_DIR/workspace-delete-official-viewport.png" "$OUTPUT_DIR/approval-panel-official-viewport.png" "$OUTPUT_DIR/question-composer-official-viewport.png"; do
   test -s "$image"
   sips -g pixelWidth -g pixelHeight "$image"
 done
 
-# D0: 核心 native 源码禁止回归到网页容器、脚本注入或 DOM 扫描。
-if rg -n --glob '*.swift' 'WKWebView|WKUserScript|evaluateJavaScript|MutationObserver' \
-  "$ROOT/glass/Sources/App" "$ROOT/glass/Sources/Core" "$ROOT/glass/Sources/Spec" "$ROOT/glass/Sources/UI" 2>/dev/null; then
-  echo "core native sources must not reintroduce WebView or webpage injection" >&2
-  exit 1
-fi
+# D0 is intentionally verified by NativeWebViewIsolationRuntimeTests against
+# mounted AppKit/SwiftUI surfaces and a real WKWebView injection negative case.
+# Do not scan project Swift source here: behavior tests must remain refactor-safe.
 
 echo "native shell snapshots written to: $OUTPUT_DIR"

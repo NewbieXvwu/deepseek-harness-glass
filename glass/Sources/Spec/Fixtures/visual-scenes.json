@@ -133,9 +133,22 @@
       "id": "sidebar-rail-narrow-light",
       "surface": "sidebar.compact-rail",
       "state": "viewport-below-auto-collapse",
+      "colorScheme": "light",
       "viewport": { "width": 1023, "height": 840 },
       "officialComponents": ["AppFrame", "SidebarRoot"],
-      "requiredEvidence": ["source-map", "official-screenshot", "native-screenshot", "layout-rectangles", "keyboard-focus"],
+      "nativeEntry": "SnapshotExporter.DSH_GLASS_SNAPSHOT_MODE=welcome + DSH_GLASS_SNAPSHOT_WIDTH=1023 + DSH_GLASS_SNAPSHOT_COLOR_SCHEME=light",
+      "requiredEvidence": ["source-map", "official-screenshot", "native-screenshot", "paired-viewport", "difference-ledger", "post-fix-recapture", "layout-rectangles", "accessibility", "keyboard-focus"],
+      "allowedDifferenceClasses": ["font-rendering", "system-glass"]
+    },
+    {
+      "id": "sidebar-rail-narrow-dark",
+      "surface": "sidebar.compact-rail",
+      "state": "viewport-below-auto-collapse",
+      "colorScheme": "dark",
+      "viewport": { "width": 1023, "height": 840 },
+      "officialComponents": ["AppFrame", "SidebarRoot", "ThemeRuntime"],
+      "nativeEntry": "SnapshotExporter.DSH_GLASS_SNAPSHOT_MODE=welcome + DSH_GLASS_SNAPSHOT_WIDTH=1023 + DSH_GLASS_SNAPSHOT_COLOR_SCHEME=dark",
+      "requiredEvidence": ["source-map", "official-screenshot", "native-screenshot", "paired-viewport", "difference-ledger", "post-fix-recapture", "layout-rectangles", "accessibility", "keyboard-focus"],
       "allowedDifferenceClasses": ["font-rendering", "system-glass"]
     }
   ],

@@ -7,6 +7,7 @@ import { connectFreshWorkspace, REPO_ROOT } from './support.ts'
 
 const outputDirectory = resolve(process.env.DSH_REFERENCE_SCREENSHOT_DIR ?? '.artifacts/reference-webui')
 const viewport = { width: 1280, height: 840 }
+const railViewport = { width: 1023, height: 840 }
 const lifecycleFixture = join(REPO_ROOT, 'apps/web/tests/snapshots/lifecycle-chrome/session.jsonl')
 const recordedPrompt = 'Reply with the single word LIGHTHOUSE and stop.'
 const captureColorSchemes = ['light', 'dark'] as const
@@ -32,6 +33,7 @@ async function writeCaptureMetadata(
   page: CapturePage,
   name: string,
   colorScheme: CaptureColorScheme,
+  captureViewport: { width: number, height: number },
   consoleWarnings: readonly string[],
   pageErrors: readonly string[],
 ): Promise<void> {
@@ -47,7 +49,7 @@ async function writeCaptureMetadata(
   const ariaSnapshot = await page.locator('body').ariaSnapshot()
   await writeFile(join(outputDirectory, `${name}.json`), JSON.stringify({
     officialSourceCommit: '141eb6fef83422698aef7a981029e843e8161534',
-    viewport,
+    viewport: captureViewport,
     locale: 'en-US',
     colorScheme,
     geometry,
@@ -102,7 +104,25 @@ describe('reference capture: official welcome and session Jobs action', () => {
       await applyOfficialColorScheme(page, colorScheme)
       await page.getByRole('textbox', { name: 'Choose workspace' }).waitFor({ timeout: 30_000 })
       await page.screenshot({ path: join(outputDirectory, `${name}.png`) })
-      await writeCaptureMetadata(page, name, colorScheme, consoleTripwire.warnings, consoleTripwire.pageErrors)
+      await writeCaptureMetadata(page, name, colorScheme, viewport, consoleTripwire.warnings, consoleTripwire.pageErrors)
+      expect(consoleTripwire.warnings).toEqual([])
+      expect(consoleTripwire.pageErrors).toEqual([])
+      await context.close()
+    }
+  }, 120_000)
+
+  it('captures official 1023px compact-rail fixtures in light and dark mode without browser errors', async () => {
+    for (const colorScheme of captureColorSchemes) {
+      const name = `sidebar-rail-narrow-${colorScheme}`
+      const context = await browser.newContext({ viewport: railViewport, locale: 'en-US', colorScheme, deviceScaleFactor: 1 })
+      const page = await context.newPage()
+      const consoleTripwire = watchConsole(page)
+      await page.goto(scaffold.baseUrl, { waitUntil: 'load' })
+      await page.locator('#root').waitFor({ state: 'attached', timeout: 30_000 })
+      await applyOfficialColorScheme(page, colorScheme)
+      await page.getByRole('textbox', { name: 'Choose workspace' }).waitFor({ timeout: 30_000 })
+      await page.screenshot({ path: join(outputDirectory, `${name}.png`) })
+      await writeCaptureMetadata(page, name, colorScheme, railViewport, consoleTripwire.warnings, consoleTripwire.pageErrors)
       expect(consoleTripwire.warnings).toEqual([])
       expect(consoleTripwire.pageErrors).toEqual([])
       await context.close()
@@ -150,7 +170,7 @@ describe('reference capture: official welcome and session Jobs action', () => {
         await list.waitFor({ timeout: 30_000 })
         await page.getByText('completed', { exact: true }).waitFor({ timeout: 30_000 })
         await page.screenshot({ path: join(outputDirectory, `${name}.png`) })
-        await writeCaptureMetadata(page, name, colorScheme, consoleTripwire.warnings, consoleTripwire.pageErrors)
+        await writeCaptureMetadata(page, name, colorScheme, viewport, consoleTripwire.warnings, consoleTripwire.pageErrors)
         expect(consoleTripwire.warnings).toEqual([])
         expect(consoleTripwire.pageErrors).toEqual([])
       } finally {

@@ -98,6 +98,52 @@
         "rationale": "The sidebar and inspector columns are drawn by AppKit with WindowServer-owned system materials that the WebUI cannot reproduce pixel-for-pixel. Their bands are derived from the official column layout fixture for the captured viewport, so the content-layer metrics measure only what both stacks are expected to match.",
         "derivedColumns": ["sidebar", "details"]
       }
+    },
+    "sidebar-rail-narrow-light": {
+      "mode": "report-only",
+      "mustEnforceBeforeTodoCompletion": true,
+      "viewport": { "width": 1023, "height": 840, "devicePixelRatio": 1 },
+      "strict": { "maxMateriallyChangedRatio": 0.008, "maxMeanAbsoluteChannelDifference": 1.15, "maxExactChangedRatio": 0.2 },
+      "systemRenderingExceptions": [
+        "Liquid Glass refraction and blur may differ only inside a reviewer-approved mask recorded with the scene evidence.",
+        "Font rasterization anti-aliasing may differ by at most the configured low-amplitude exact-pixel allowance; glyph metrics, wrapping, baseline and accessibility labels remain strict.",
+        "The compact AppKit sidebar material band is excluded only when its 56px official rail geometry and runtime material ownership are independently verified."
+      ],
+      "humanReviewRequired": true,
+      "humanReviewCriteria": [
+        "Verify the 1023px auto-collapse threshold, 56px rail width, ordered actions, keyboard focus and accessible labels against the official DOM/ARIA record.",
+        "Verify the expanded sidebar is absent from the captured viewport and no hidden control remains focusable.",
+        "Classify every remaining material diff as a native implementation defect or a documented system-rendering exception; do not use a generic platform exception.",
+        "Attach official image, native image, amplified diff, report JSON and written classification before recertifying T5 or T7."
+      ],
+      "materialRegionExclusion": {
+        "source": "glass/Sources/Spec/Fixtures/official-column-layout-fixtures.json",
+        "rationale": "The compact rail is AppKit-owned system navigation material. Its 56px band is derived from the official layout fixture, while all rail geometry and interaction evidence remain strict.",
+        "derivedColumns": ["sidebar"]
+      }
+    },
+    "sidebar-rail-narrow-dark": {
+      "mode": "report-only",
+      "mustEnforceBeforeTodoCompletion": true,
+      "viewport": { "width": 1023, "height": 840, "devicePixelRatio": 1 },
+      "strict": { "maxMateriallyChangedRatio": 0.008, "maxMeanAbsoluteChannelDifference": 1.15, "maxExactChangedRatio": 0.2 },
+      "systemRenderingExceptions": [
+        "Liquid Glass refraction and blur may differ only inside a reviewer-approved mask recorded with the scene evidence.",
+        "Font rasterization anti-aliasing may differ by at most the configured low-amplitude exact-pixel allowance; glyph metrics, wrapping, baseline and accessibility labels remain strict.",
+        "The compact AppKit sidebar material band is excluded only when its 56px official rail geometry and runtime material ownership are independently verified."
+      ],
+      "humanReviewRequired": true,
+      "humanReviewCriteria": [
+        "Verify the official ThemeRuntime dark cascade, 1023px auto-collapse threshold, 56px rail width, ordered actions, keyboard focus and accessible labels.",
+        "Verify dark surface tokens and that no hidden expanded-sidebar control remains focusable.",
+        "Classify every remaining material diff as a native implementation defect or a documented system-rendering exception; do not use a generic platform exception.",
+        "Attach official image, native image, amplified diff, report JSON and written classification before recertifying T5 or T7."
+      ],
+      "materialRegionExclusion": {
+        "source": "glass/Sources/Spec/Fixtures/official-column-layout-fixtures.json",
+        "rationale": "The compact rail is AppKit-owned system navigation material. Its 56px band is derived from the official layout fixture, while all rail geometry and interaction evidence remain strict.",
+        "derivedColumns": ["sidebar"]
+      }
     }
   }
 }
