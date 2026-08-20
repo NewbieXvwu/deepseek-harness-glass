@@ -99,6 +99,7 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.queuedMessages.map(\.id), ["queued"])
         XCTAssertEqual(store.queuedMessages.first?.messageID, "ordinary")
         XCTAssertEqual(store.items.last?.text, "admitted steering")
+        XCTAssertEqual(store.items.last?.time, 500)
     }
 
     func testPendingApprovalAndQuestionClearOnlyOnMatchingHostResolution() {

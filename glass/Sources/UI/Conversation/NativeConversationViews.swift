@@ -108,6 +108,7 @@ private struct NativeActiveConversationSurface: View {
             NativeTranscriptScrollView(
                 items: sessionStore.items,
                 toolInvocations: sessionStore.toolInvocations,
+                isRunning: sessionStore.isRunning,
                 selectedToolCallID: sessionStore.selectedToolCallID,
                 hasMoreHistory: sessionStore.hasMoreHistory,
                 isLoadingOlderHistory: sessionStore.isLoadingOlderHistory,
@@ -140,6 +141,7 @@ private struct NativeTranscriptScrollView: View {
 
     let items: [NativeSessionStore.TranscriptItem]
     let toolInvocations: [NativeSessionStore.ToolInvocation]
+    let isRunning: Bool
     let selectedToolCallID: String?
     let hasMoreHistory: Bool
     let isLoadingOlderHistory: Bool
@@ -149,6 +151,16 @@ private struct NativeTranscriptScrollView: View {
     private var timeline: [TimelineItem] {
         (items.map(TimelineItem.message) + toolInvocations.map(TimelineItem.tool))
             .sorted { $0.sequence < $1.sequence }
+    }
+
+    /// Mirrors RC8's follow signature: a streaming delta changes only the tail
+    /// signature, leaving all preceding LazyVStack identities untouched.
+    private var tailSignature: String {
+        let tail = timeline.last
+        let textCount: Int
+        if case let .message(item)? = tail { textCount = item.text.count }
+        else { textCount = 0 }
+        return "\(tail?.id ?? ""):\(textCount):\(isRunning ? 1 : 0)"
     }
 
     var body: some View {
@@ -181,16 +193,21 @@ private struct NativeTranscriptScrollView: View {
                             .id(entry.id)
                         }
                     }
+                    if isRunning {
+                        NativeRunningTurnStatus()
+                            .id("running-turn-status")
+                    }
                 }
                 .frame(maxWidth: OfficialUISpec.Layout.chatContentMaximum, alignment: .leading)
                 .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.horizontal, OfficialUISpec.Layout.composerClearance)
+                .padding(.horizontal, OfficialUISpec.Layout.chatTranscriptSideClearance)
                 .padding(.vertical, OfficialUISpec.Layout.chatTranscriptInset)
             }
-            .onChange(of: timeline.last?.id) { _, itemID in
-                guard let itemID else { return }
+            .onChange(of: tailSignature) { _, _ in
+                let target = isRunning ? "running-turn-status" : timeline.last?.id
+                guard let target else { return }
                 withAnimation(.easeOut(duration: 0.18)) {
-                    proxy.scrollTo(itemID, anchor: .bottom)
+                    proxy.scrollTo(target, anchor: .bottom)
                 }
             }
         }
@@ -204,28 +221,34 @@ private struct NativeTranscriptBubble: View {
         Group {
             switch item.role {
             case .user:
-                HStack {
-                    Spacer(minLength: 0)
+                VStack(alignment: .trailing, spacing: OfficialUISpec.Spacing.p2) {
+                    HStack {
+                        Spacer(minLength: 0)
+                        Text(item.text)
+                            .font(OfficialUISpec.Typography.base16)
+                            .foregroundStyle(OfficialUISpec.Token.primary)
+                            .textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.horizontal, OfficialUISpec.Spacing.p16)
+                            .padding(.vertical, OfficialUISpec.Spacing.p10)
+                            .frame(maxWidth: OfficialUISpec.Layout.chatUserMessageMaximum, alignment: .leading)
+                            .background(
+                                OfficialUISpec.Token.conversationBubble,
+                                in: RoundedRectangle(cornerRadius: OfficialUISpec.Layout.chatMessageCornerRadius, style: .continuous)
+                            )
+                    }
+                    NativeMessageActionRow(text: item.text, time: item.time, clockPosition: .start)
+                }
+            case .assistant:
+                VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p2) {
                     Text(item.text)
                         .font(OfficialUISpec.Typography.base16)
                         .foregroundStyle(OfficialUISpec.Token.primary)
                         .textSelection(.enabled)
                         .fixedSize(horizontal: false, vertical: true)
-                        .padding(.horizontal, OfficialUISpec.Spacing.p16)
-                        .padding(.vertical, OfficialUISpec.Spacing.p10)
-                        .frame(maxWidth: OfficialUISpec.Layout.chatUserMessageMaximum, alignment: .leading)
-                        .background(
-                            OfficialUISpec.Token.conversationBubble,
-                            in: RoundedRectangle(cornerRadius: OfficialUISpec.Layout.chatMessageCornerRadius, style: .continuous)
-                        )
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    NativeMessageActionRow(text: item.text, time: item.time, clockPosition: .end)
                 }
-            case .assistant:
-                Text(item.text)
-                    .font(OfficialUISpec.Typography.base16)
-                    .foregroundStyle(OfficialUISpec.Token.primary)
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

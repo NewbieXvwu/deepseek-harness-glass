@@ -30,11 +30,15 @@ enum OfficialUISpec {
         static let composerControlHeight: CGFloat = 28
         static let composerCornerRadius: CGFloat = 22
         static let heroGap: CGFloat = 12
-        // Source: ui-conversation/chat/MessageItem.module.css
-        static let chatMessageGap: CGFloat = 6
-        static let chatTranscriptInset: CGFloat = 20
+        // Source: ui-conversation/chat/ChatView.module.css + MessageItem.module.css
+        static let chatMessageGap: CGFloat = 16
+        static let chatTranscriptInset: CGFloat = 16
+        static let chatTranscriptSideClearance: CGFloat = 32
         static let chatUserMessageMaximum: CGFloat = 525
         static let chatMessageCornerRadius: CGFloat = 22
+        static let chatMessageActionSize: CGFloat = 28
+        static let chatMessageActionGap: CGFloat = 10
+        static let chatRunningStatusHeight: CGFloat = 26
         static let sidebarInlinePadding: CGFloat = 12
         // Source: packages/client/ui-primitives/src/BrandWordmark.tsx → official SVG viewBox.
         static let sidebarWordmarkWidth: CGFloat = 182
@@ -208,6 +212,11 @@ enum OfficialUISpec {
 
         // Source: packages/client/ui-conversation/src/client/locales.ts (en)
         static let chat = "Chat"
+        // Source: packages/client/locale/src/locales/en.ts
+        static let copy = "Copy"
+        static let copied = "Copied"
+        // Source: packages/client/ui-conversation/src/client/chat/ChatView.tsx:144
+        static let deepDiving = "Deep diving..."
         /// Source: RC8 locked jobs capture session summary/title projection.
         static let fixtureJobsSessionTitle = "Reply with the single word"
         static let sessionHierarchy = "Session hierarchy"

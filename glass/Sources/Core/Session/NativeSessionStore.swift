@@ -30,6 +30,9 @@ final class NativeSessionStore: ObservableObject {
         let role: Role
         var text: String
         var isStreaming: Bool
+        /// Unix epoch milliseconds from the durable Host event. Snapshot-only
+        /// fixtures may omit it; the UI then honestly hides clock chrome.
+        let time: Double? = nil
         let sequence: Int
     }
 
@@ -752,6 +755,7 @@ final class NativeSessionStore: ObservableObject {
                 role: .user,
                 text: text,
                 isStreaming: false,
+                time: event.time,
                 sequence: event.seq
             ))
         case "assistant/message":
@@ -762,6 +766,7 @@ final class NativeSessionStore: ObservableObject {
                 role: .assistant,
                 text: text,
                 isStreaming: false,
+                time: event.time,
                 sequence: event.seq
             ))
         case "turn/start":
@@ -803,6 +808,7 @@ final class NativeSessionStore: ObservableObject {
                 role: .assistant,
                 text: text,
                 isStreaming: true,
+                time: event.time,
                 sequence: event.seq
             ))
         }
@@ -870,6 +876,7 @@ final class NativeSessionStore: ObservableObject {
                 role: .user,
                 text: "Reply with the single word LIGHTHOUSE and stop.",
                 isStreaming: false,
+                time: Double(now),
                 sequence: 1
             ),
             TranscriptItem(
@@ -877,6 +884,7 @@ final class NativeSessionStore: ObservableObject {
                 role: .assistant,
                 text: "LIGHTHOUSE",
                 isStreaming: false,
+                time: Double(now),
                 sequence: 2
             )
         ]
