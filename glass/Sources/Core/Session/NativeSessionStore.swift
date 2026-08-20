@@ -4,6 +4,23 @@ import Foundation
 #if DEEPSEEK_HARNESS_PACKAGE
 @testable import GlassSpec
 #endif
+
+/// Typed domain-intent boundary injected into the session feature. It carries
+/// only session operations; wire envelopes, URL requests and transport clients
+/// remain behind the production `SessionsAPI` implementation.
+@MainActor
+protocol NativeSessionAPI: Sendable {
+    func history(sessionID: String, beforeSeq: Int?, maxMessages: Int?) async throws -> SessionHistoryResponse
+    func prompt(sessionID: String, content: [SessionPromptContent], mode: SessionPromptMode) async throws -> SessionPromptResponse
+    func cancel(sessionID: String) async throws -> SessionCancelResponse
+    func models(sessionID: String) async throws -> SessionModelsResponse
+    func answerApproval(rpcID: String, sessionID: String, approvalID: String, outcome: ApprovalOutcome) async throws -> RPCReceipt
+    func answerQuestion(rpcID: String, sessionID: String, answers: [QuestionAnswerResponse]) async throws -> RPCReceipt
+    func cancelQuestion(rpcID: String) async throws -> RPCReceipt
+}
+
+extension SessionsAPI: NativeSessionAPI {}
+
 /// Host-authoritative transcript state for the active native conversation.
 ///
 /// Sources: `sessions.schema.ts:sessionHistoryValueSchema`,
@@ -225,7 +242,7 @@ final class NativeSessionStore: ObservableObject {
     private var olderHistoryTask: Task<Void, Never>?
     private var streamTask: Task<Void, Never>?
     private var endpoint: URL?
-    private var api: SessionsAPI?
+    private var api: (any NativeSessionAPI)?
     private var activeSessionID: String?
     private var residentStates: [String: ResidentSessionState] = [:]
     private var appliedSequences: Set<Int> = []
@@ -308,7 +325,7 @@ final class NativeSessionStore: ObservableObject {
     /// Opens one selected Host session. Re-selecting a resident session restores
     /// its visible window synchronously, then refreshes the Host authority in the
     /// background; a cold session alone enters the blocking history phase.
-    func open(sessionID: String, using api: SessionsAPI, endpoint: URL) {
+    func open(sessionID: String, using api: any NativeSessionAPI, endpoint: URL) {
         guard activeSessionID != sessionID || self.endpoint != endpoint else { return }
         preserveActiveState()
         historyTask?.cancel()

@@ -4,6 +4,25 @@ import XCTest
 
 @MainActor
 final class NativeSessionStoreTests: XCTestCase {
+    func testComposerIntentUsesInjectedTypedSessionFacadeAndRetainsDraftOnRejection() async {
+        let promptReachedFacade = expectation(description: "typed prompt facade receives the user intent")
+        let api = RejectingSessionAPI(promptReachedFacade: promptReachedFacade)
+        let store = NativeSessionStore()
+        store.open(sessionID: "facade-session", using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+        store.draft = "do not bypass the typed facade"
+
+        store.submitDraft()
+        await fulfillment(of: [promptReachedFacade], timeout: 1)
+
+        XCTAssertEqual(api.prompts.count, 1)
+        XCTAssertEqual(api.prompts.first?.sessionID, "facade-session")
+        guard case let .text(text)? = api.prompts.first?.content.first else {
+            return XCTFail("composer did not pass a typed text content item to the facade")
+        }
+        XCTAssertEqual(text, "do not bypass the typed facade")
+        XCTAssertEqual(store.draft, "do not bypass the typed facade", "a rejected typed facade call must retain the draft for retry")
+    }
+
     func testQueueAndJobsUseCompleteHostSnapshotsAndRejectOtherSessionFrames() {
         let store = NativeSessionStore()
         store.loadSnapshotToolingFixture()
@@ -219,6 +238,51 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(SessionJobsPresentation.ordered(jobs).map(\.id), ["stopping-early", "running-late", "failed-new", "done-old"])
         XCTAssertEqual(SessionJobsPresentation.elapsedMilliseconds(for: jobs[1], now: 100), 60)
         XCTAssertEqual(SessionJobsPresentation.elapsedMilliseconds(for: jobs[0], now: 100), 10)
+    }
+
+    @MainActor
+    private final class RejectingSessionAPI: NativeSessionAPI {
+        struct Prompt {
+            let sessionID: String
+            let content: [SessionPromptContent]
+        }
+
+        let promptReachedFacade: XCTestExpectation
+        private(set) var prompts: [Prompt] = []
+
+        init(promptReachedFacade: XCTestExpectation) {
+            self.promptReachedFacade = promptReachedFacade
+        }
+
+        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
+            throw DSHTransportError.invalidEndpoint
+        }
+
+        func prompt(sessionID: String, content: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse {
+            prompts.append(.init(sessionID: sessionID, content: content))
+            promptReachedFacade.fulfill()
+            throw DSHTransportError.invalidEndpoint
+        }
+
+        func cancel(sessionID _: String) async throws -> SessionCancelResponse {
+            throw DSHTransportError.invalidEndpoint
+        }
+
+        func models(sessionID _: String) async throws -> SessionModelsResponse {
+            throw DSHTransportError.invalidEndpoint
+        }
+
+        func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt {
+            throw DSHTransportError.invalidEndpoint
+        }
+
+        func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt {
+            throw DSHTransportError.invalidEndpoint
+        }
+
+        func cancelQuestion(rpcID _: String) async throws -> RPCReceipt {
+            throw DSHTransportError.invalidEndpoint
+        }
     }
 
     private func sessionEventFrame(

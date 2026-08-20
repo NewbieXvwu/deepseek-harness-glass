@@ -10,7 +10,7 @@
 |---|---|---|---|---|
 | P0 | `check-no-webview.sh` | 原对 App/Core/UI Swift 源码使用 `rg` 匹配 WebKit、DOM、JS、`PluginWebHost` 符号，现已删除。 | `NativeWebViewIsolationRuntimeTests` 在 macOS XCTest 实际启动 sidebar、conversation、details 三个核心原生表面，递归检查 `NSView` tree 无 `WKWebView`；测试以真实注入 `WKWebView` 的负例证明探测器可证伪。Plugin sandbox 实现后仅在独立 route 测试中允许受限 web host card。 | **已完成实现迁移，待当前提交 macOS CI**；T11.7 仍须以 SwiftPM graph + runtime host isolation 证明 PluginWebHost 隔离，不能复用源码 grep。 |
 | P0 | `check-module-boundaries.py` | 原枚举并读取各 target 的 Swift imports/禁用 API 文本，现已删除。 | `check-package-target-graph.py` 从 `swift package describe --type json` 验证实际 target path/精确内部依赖；`test-package-target-graph.py` 以非法 `GlassCore → GlassUI` 反向边和错误路径负例证伪。独立 SwiftPM build、module import tests 和运行期 Host/UI integration 将继续证明 API 职责边界。 | **已完成 graph 迁移**；运行态 module/API 隔离覆盖仍随 T12.8 继续补齐。 |
-| P0 | `check-no-feature-transport.py` | 对 Feature/UI Swift 源码查找 transport/process/API 模式。 | XCTest 向 Feature 注入拒绝型 typed facade，断言所有 UI 行为经 facade 可观察调用；运行期测试确保 UI 无法自行启动 Host/进程。 | 待替换；须随 T4/T8 facade test expansion 交付。 |
+| P0 | `check-no-feature-transport.py` | 原对 Feature/UI Swift 源码查找 transport/process/API 模式，现已删除。 | `NativeSessionAPI` 是 `NativeSessionStore` 的 typed domain-intent seam，生产 `SessionsAPI` 提供实现；`NativeSessionStoreTests` 注入拒绝型 recording facade，断言 composer prompt 真实抵达 facade、保持 typed content、拒绝后 draft 可重试。其余 workspace/settings action 随对应 UI 任务在同一注入模式补齐。 | **已完成实现迁移，待当前提交 macOS CI**；不得恢复源码模式扫描。 |
 | P1 | `check-official-locale-literals.py` 与 `check-official-spec.py` 的 UI literal regex | 通过 `Text("...")` 等源码正则判定文案来源。 | UI/accessibility tests 读取实际 rendered labels，并与 `OfficialLocaleCatalog`/官方 fixture 进行值比对；可见字符串由 view runtime 暴露而非源码文本。 | 待替换；PR #4 的 fail-closed lint 仍是既有违反项，不能再扩展。 |
 | P1 | `check-glass-policy.py` | 虽移除 count/required strings，仍遍历 Swift source 检查 `.glassEffect(`。 | 启动真实窗口，在 Reduce Transparency/Contrast/Motion 矩阵中收集 window/view/material telemetry 与截图；断言正文/hero/composer 未出现 glass surface。 | PR #5 改后仍违规，待迁移。 |
 | P1 | `check-native-structural-material.py` | 仍扫描 Swift source 是否包含 `NSVisualEffectView`。 | 原生窗口 integration test 验证 sidebar/inspector 实际使用系统 split-view material，且不存在 ad-hoc structural visual-effect view。 | PR #5 改后仍违规，待迁移。 |
@@ -26,7 +26,7 @@
 
 ## 后续执行顺序
 
-1. 已完成 `check-module-boundaries.py` 的 P0 graph 迁移与 `check-no-webview.sh` 的 D0 运行态 view-tree 迁移；接着替换剩余的 `check-no-feature-transport.py`，以免任何后续 TODO 的 CI 继续将源码关键词匹配误作为质量证据。
+1. 三项 P0 gate（module graph、D0 WebView、feature transport）均已完成迁移实现，待各自当前 SHA 的 macOS CI 闭环；接着按 P1 顺序迁移 visual/accessibility source-text gate，以免任何后续 TODO 的 CI 继续将源码关键词匹配误作为质量证据。
 2. 将 P1 visual/accessibility gate 改为真实 AppKit/SwiftUI UI automation、accessibility tree 与 WindowServer screenshot evidence。
 3. 将 P2 generated spec/locale/transport gate 改为 build artifact JSON、Swift runtime API 和 Host replay evidence。
 4. 每个迁移须保留至少一个**真实缺陷可令测试失败**的负例，且同等行为的重构不可造成失败；完成后删除旧 gate 的 workflow invocation，不能双轨永久保留文本扫描。
