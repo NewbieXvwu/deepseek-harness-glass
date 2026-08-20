@@ -15,7 +15,8 @@
       "protocolFixtureRevision": "official-141eb6f-web-ui-r1",
       "uiSpecRevision": "official-141eb6f-ui-spec-r1",
       "supportedArchitectures": ["arm64"],
-      "verificationState": "planned"
+      "verifiedAt": "2026-08-20",
+      "verificationState": "verified"
     }
   ]
 }
