@@ -98,6 +98,18 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         )
     }
 
+    func testTrajectoryToolbarUsesOfficialLocale() {
+        let officialValues = Set(OfficialUISpec.LocaleCatalog.values.values)
+        let rendered = [
+            OfficialUISpec.Text.trajectoryToolbar,
+            OfficialUISpec.Text.trajectoryTurns,
+            OfficialUISpec.Text.trajectoryCalls,
+            OfficialUISpec.Text.trajectorySearch,
+            OfficialUISpec.Text.trajectorySearchPlaceholder,
+        ]
+        XCTAssertTrue(rendered.allSatisfy(officialValues.contains))
+    }
+
     func testCompactionRendererUsesOfficialLocaleForSummaryStates() {
         let officialValues = Set(OfficialUISpec.LocaleCatalog.values.values)
         let rendered = [

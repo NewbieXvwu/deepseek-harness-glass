@@ -240,6 +240,12 @@ enum OfficialUISpec {
         static let chat = "Chat"
         // Source: packages/client/ui-trajectory/src/client/locales.ts:50 (en)
         static let trajectory = "Trajectory"
+        // Source: packages/client/ui-trajectory/src/client/locales.ts:50-62 (en)
+        static let trajectoryToolbar = "Trajectory toolbar"
+        static let trajectoryTurns = "Turns"
+        static let trajectoryCalls = "Calls"
+        static let trajectorySearch = "Search trajectory"
+        static let trajectorySearchPlaceholder = "Search"
         // Source: packages/client/ui-conversation/src/client/locales.ts:291-295 (en)
         static let compactionTitle = "Context compacted"
         static let compactionRunning = "Compacting context…"
