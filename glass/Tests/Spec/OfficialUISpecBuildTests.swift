@@ -77,6 +77,11 @@ extension OfficialUISpecBuildTests {
             "colorSchemeContrast",
             "colorScheme",
         ])
+        XCTAssertEqual(
+            baseline.requiredEnvironmentMarkers.count,
+            Set(baseline.requiredEnvironmentMarkers).count,
+            "the versioned accessibility baseline must not silently duplicate an environment marker"
+        )
 
         for corePath in baseline.corePaths {
             guard let labels = OfficialAccessibilityBaselineCatalog.resolvedLabels(for: corePath.scene) else {
