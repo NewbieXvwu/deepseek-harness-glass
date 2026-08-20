@@ -282,6 +282,10 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
   - 验收证据：PR #5 后旧 `check-accessibility-baseline.py` 已删除。`OfficialAccessibilityBaselineCatalog` 从实际 `Bundle.module` decode 锁定 JSON，`OfficialUISpecBuildTests` 运行时验证 RC8 commit、六条 distinct core scene、环境标记、每条 scene 的 locale label mapping 与 unknown scene/unregistered label 负例；受信 GUI host 的 `NativeAccessibilityRuntimeTests` 保留真实 native accessibility tree 核验。`GlassPolicyTests` 覆盖Reduce Motion、Reduce Transparency和Increase Contrast下custom glass安全降级。Apple明确macOS用户不能修改`dynamicTypeSize`，且该值不影响文本大小，故不伪造用户Dynamic Type支持；系统Zoom由macOS负责，测试注入仍可用于布局回归。macOS-26 [run 32233840528](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32233840528)（commit `bee3839`）是历史 source-gate/视觉记录；本迁移待当前提交的 macOS-26 CI。该项未扩大T5.3无头系统材质的严格report-only例外。
   - 进度：`OfficialAccessibilityBaseline.CorePath` 现将 `source` 作为必填 runtime decode 字段；`OfficialUISpecBuildTests` 对六条路径追加 `Sources/*.swift` 来源和非空 focus contract 断言，防止基线保留标签却丢失审查定位。契约说明见 `notes/T5.6-accessibility-source-mapping-contract.md`。当前提交仍须由 macOS-26 执行 baseline/XCTest 与真实 GUI AX 验证，保持未勾选。
 
+### RC8 T5/T7 截图重新认证矩阵（进行中）
+
+`glass/ci/test_rc8_recapture_matrix.py` 现将 16 个 T5/T7 必经场景同时约束到 `visual-scenes.json`、visual policy、官方 Playwright 采集和 `native-ui` 的存在性/配对比较步骤。新增 `approval-composer-light`、`question-composer-light` 的官方真实 replay capture，并将其配对到原生 1280×1100 snapshot。所有场景仍为 `report-only`，但必须 `mustEnforceBeforeTodoCompletion` 且具有人审条件；未获得当前 SHA macOS 工件、人工分类和必要的 enforce 升级前，T5.1–T5.6 与 T7.3 一律保持未勾选。完整矩阵和证据边界见 `notes/RC8-T5-T7-recapture-matrix.md`。
+
 ## 6. 会话状态机与事件投影
 
 官方 Web client 将 session history、实时 `session/event` 和 `session/projection` 组合为 incremental conversation snapshots，并用 `ConversationNodeDefinition` 为不同业务节点分派 renderer。原生端必须复现该“事件→节点→视图”结构，而非只做消息数组。[7] [8]

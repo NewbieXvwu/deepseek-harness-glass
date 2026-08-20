@@ -10,7 +10,11 @@ const viewport = { width: 1280, height: 840 }
 const railViewport = { width: 1023, height: 840 }
 const lifecycleFixture = join(REPO_ROOT, 'apps/web/tests/snapshots/lifecycle-chrome/session.jsonl')
 const workspaceSearchFixture = join(REPO_ROOT, 'apps/web/tests/snapshots/navigation-panes/seed.jsonl')
+const approvalFixture = join(REPO_ROOT, 'apps/web/tests/snapshots/approval-composer/session.jsonl')
+const questionFixture = join(REPO_ROOT, 'apps/web/tests/snapshots/question-composer/session.jsonl')
 const recordedPrompt = 'Reply with the single word LIGHTHOUSE and stop.'
+const approvalPrompt = `Write a file named notes.txt in the workspace containing exactly this text on one line: ${Array.from({ length: 220 }, (_, index) => `tok${((index + 1) * 7919 % 99991).toString(36)}`).join(' ')}. Use one bash command with the literal text inline. Then reply with the single word DONE and stop.`
+const questionPrompt = 'Use the ask_user_question tool to ask me exactly one multi-select question with id "color", question "Which color do you prefer?", header "Pick one", and two options: label "Blue" with description "A cool recessive hue that reads as calm and trustworthy in long reading sessions and dense dashboards.", and label "Green" with description "A restful mid-spectrum hue with the highest perceived brightness, easiest on the eye over long sessions." Set multi_select to true. After I answer, reply with the single word DONE and stop.'
 const captureColorSchemes = ['light', 'dark'] as const
 type CaptureColorScheme = typeof captureColorSchemes[number]
 
@@ -263,6 +267,66 @@ describe('reference capture: official welcome and session Jobs action', () => {
       }
     }
   }, 240_000)
+
+  it('captures official approval takeover from the recorded Read Only escalation', async () => {
+    const name = 'approval-composer-light'
+    const approvalScaffold = await launchWebScaffold({ replayFixture: approvalFixture, paceMs: 15 })
+    const context = await browser.newContext({ viewport: { width: 1280, height: 1100 }, locale: 'en-US', colorScheme: 'light', deviceScaleFactor: 1 })
+    const page = await context.newPage()
+    const consoleTripwire = watchConsole(page)
+    try {
+      await page.goto(approvalScaffold.baseUrl, { waitUntil: 'load' })
+      await page.locator('#root').waitFor({ state: 'attached', timeout: 30_000 })
+      await applyOfficialColorScheme(page, 'light')
+      await connectFreshWorkspace(page, approvalScaffold.workspaceCwd)
+      const input = page.locator('textarea').first()
+      await input.waitFor({ timeout: 30_000 })
+      await page.locator('[aria-label^="Access mode"]').click()
+      await page.getByRole('menuitem', { name: 'Read Only' }).click()
+      await page.getByRole('button', { name: /Access mode, current: Read Only/ }).waitFor({ timeout: 30_000 })
+      await input.fill(approvalPrompt)
+      await input.press('Enter')
+      const panel = page.locator('[data-approval-key]')
+      await panel.waitFor({ timeout: 60_000 })
+      await panel.getByText(/tok/).first().waitFor({ timeout: 30_000 })
+      await page.screenshot({ path: join(outputDirectory, `${name}.png`) })
+      await writeCaptureMetadata(page, name, 'light', { width: 1280, height: 1100 }, consoleTripwire.warnings, consoleTripwire.pageErrors)
+      expect(consoleTripwire.warnings).toEqual([])
+      expect(consoleTripwire.pageErrors).toEqual([])
+    } finally {
+      await context.close()
+      await approvalScaffold.close()
+    }
+  }, 120_000)
+
+  it('captures official question takeover from the recorded ask_user_question turn', async () => {
+    const name = 'question-composer-light'
+    const questionScaffold = await launchWebScaffold({ replayFixture: questionFixture, paceMs: 15 })
+    const context = await browser.newContext({ viewport: { width: 1280, height: 1100 }, locale: 'en-US', colorScheme: 'light', deviceScaleFactor: 1 })
+    const page = await context.newPage()
+    const consoleTripwire = watchConsole(page)
+    try {
+      await page.goto(questionScaffold.baseUrl, { waitUntil: 'load' })
+      await page.locator('#root').waitFor({ state: 'attached', timeout: 30_000 })
+      await applyOfficialColorScheme(page, 'light')
+      await connectFreshWorkspace(page, questionScaffold.workspaceCwd)
+      const input = page.locator('textarea').first()
+      await input.waitFor({ timeout: 30_000 })
+      await input.fill(questionPrompt)
+      await input.press('Enter')
+      const composer = page.locator('[data-question-key]')
+      await composer.waitFor({ timeout: 60_000 })
+      await composer.getByText('Which color do you prefer?').waitFor({ timeout: 30_000 })
+      await page.getByText('Waiting for answer', { exact: true }).waitFor({ timeout: 30_000 })
+      await page.screenshot({ path: join(outputDirectory, `${name}.png`) })
+      await writeCaptureMetadata(page, name, 'light', { width: 1280, height: 1100 }, consoleTripwire.warnings, consoleTripwire.pageErrors)
+      expect(consoleTripwire.warnings).toEqual([])
+      expect(consoleTripwire.pageErrors).toEqual([])
+    } finally {
+      await context.close()
+      await questionScaffold.close()
+    }
+  }, 120_000)
 
   it('captures official expanded Jobs actions in light and dark mode from Host-owned whole snapshots', async () => {
     for (const colorScheme of captureColorSchemes) {

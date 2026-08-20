@@ -171,7 +171,7 @@ jobs:
           test -s "artifacts/official-webui/sidebar-rail-narrow-light.json"
           test -s "artifacts/official-webui/sidebar-rail-narrow-dark.png"
           test -s "artifacts/official-webui/sidebar-rail-narrow-dark.json"
-          for scene in workspace-search-light workspace-search-dark workspace-rename-light workspace-rename-dark session-rename-light session-rename-dark workspace-delete-light workspace-delete-dark; do
+          for scene in workspace-search-light workspace-search-dark workspace-rename-light workspace-rename-dark session-rename-light session-rename-dark workspace-delete-light workspace-delete-dark approval-composer-light question-composer-light; do
             test -s "artifacts/official-webui/${scene}.png"
             test -s "artifacts/official-webui/${scene}.json"
           done
@@ -290,6 +290,9 @@ jobs:
           echo "::group::Structured SwiftPM target graph"
           python3 glass/ci/test-package-target-graph.py
           python3 glass/ci/check-package-target-graph.py
+          echo "::endgroup::"
+          echo "::group::RC8 visual recertification matrix"
+          python3 glass/ci/test_rc8_recapture_matrix.py
           echo "::endgroup::"
 
       - name: Assemble native macOS app
@@ -423,7 +426,7 @@ jobs:
             --column-fixtures glass/Sources/Spec/Fixtures/official-column-layout-fixtures.json
           test -s artifacts/visual-diff/jobs-expanded-dark-comparison.png
           test -s artifacts/visual-diff/jobs-expanded-dark-report.json
-          for scene in workspace-search-light workspace-search-dark workspace-rename-light workspace-rename-dark session-rename-light session-rename-dark workspace-delete-light workspace-delete-dark; do
+          for scene in workspace-search-light workspace-search-dark workspace-rename-light workspace-rename-dark session-rename-light session-rename-dark workspace-delete-light workspace-delete-dark approval-composer-light question-composer-light; do
             case "$scene" in
               workspace-search-light) native="workspace-search-official-viewport.png" ;;
               workspace-search-dark) native="workspace-search-official-viewport-dark.png" ;;
@@ -433,7 +436,9 @@ jobs:
               session-rename-dark) native="session-rename-official-viewport-dark.png" ;;
               workspace-delete-light) native="workspace-delete-official-viewport.png" ;;
               workspace-delete-dark) native="workspace-delete-official-viewport-dark.png" ;;
-              *) echo "unknown management visual scene: $scene" >&2; exit 1 ;;
+              approval-composer-light) native="approval-panel-official-viewport.png" ;;
+              question-composer-light) native="question-composer-official-viewport.png" ;;
+              *) echo "unknown RC8 visual scene: $scene" >&2; exit 1 ;;
             esac
             python glass/ci/compare_visual_pair.py \
               --official "artifacts/official-webui/${scene}.png" \
