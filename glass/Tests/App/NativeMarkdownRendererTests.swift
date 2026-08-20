@@ -12,6 +12,17 @@ final class NativeMarkdownRendererTests: XCTestCase {
         }
     }
 
+    func testExternalURLRouterOpensOnlyHTTPDestinations() {
+        var opened: [URL] = []
+        XCTAssertTrue(NativeMarkdownSecurityPolicy.openExternal(URL(string: "https://example.com/safe")!) { opened.append($0) })
+        XCTAssertEqual(opened.map(\.absoluteString), ["https://example.com/safe"])
+
+        for unsafe in ["file:///tmp/private", "data:text/html,boom", "javascript:alert(1)"] {
+            XCTAssertFalse(NativeMarkdownSecurityPolicy.openExternal(URL(string: unsafe)!) { opened.append($0) })
+        }
+        XCTAssertEqual(opened.map(\.absoluteString), ["https://example.com/safe"])
+    }
+
     func testSanitizerRemovesExecutableHTMLAndMakesUnsafeLinksInert() {
         let input = "<script>alert('x')</script><img src=x onerror=alert(1)> [local](file:///tmp/secret) [safe](https://example.com)"
         let sanitized = NativeMarkdownSecurityPolicy.sanitizedInlineMarkdown(input)

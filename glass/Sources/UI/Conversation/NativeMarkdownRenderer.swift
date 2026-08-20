@@ -47,6 +47,13 @@ enum NativeMarkdownSecurityPolicy {
         return result
     }
 
+    @discardableResult
+    static func openExternal(_ candidate: URL, opener: (URL) -> Void) -> Bool {
+        guard let permitted = externalURL(from: candidate.absoluteString) else { return false }
+        opener(permitted)
+        return true
+    }
+
     static func attributedInlineMarkdown(_ source: String) -> AttributedString {
         let safe = sanitizedInlineMarkdown(source)
         var options = AttributedString.MarkdownParsingOptions()
@@ -233,6 +240,11 @@ struct NativeMarkdownText: View {
         }
         .accessibilityLabel(NativeMarkdownSecurityPolicy.sanitizedInlineMarkdown(markdown))
         .accessibilityValue(streaming ? OfficialUISpec.Text.running : "")
+        .environment(\.openURL, OpenURLAction { candidate in
+            NativeMarkdownSecurityPolicy.openExternal(candidate) { permitted in
+                NSWorkspace.shared.open(permitted)
+            } ? .handled : .discarded
+        })
     }
 }
 
