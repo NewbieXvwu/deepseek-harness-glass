@@ -194,7 +194,7 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(state.backgroundJobs.map(\.id), ["job-1"])
         XCTAssertEqual(state.pendingApproval?.rpcID, "approval-rpc")
         XCTAssertEqual(state.pendingQuestion?.rpcID, "question-rpc")
-        XCTAssertEqual(state.subagentIdentity, .absent)
+        XCTAssertEqual(state.subagentIdentity, CoreSubagentIdentityProjection.absent)
         XCTAssertNil(state.subagentTiming)
 
         // A later malformed whole todo projection cannot leak a partly decoded
@@ -219,7 +219,7 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertTrue(freshState.backgroundJobs.isEmpty)
         XCTAssertNil(freshState.pendingApproval)
         XCTAssertNil(freshState.pendingQuestion)
-        XCTAssertEqual(freshState.subagentIdentity, .absent)
+        XCTAssertEqual(freshState.subagentIdentity, CoreSubagentIdentityProjection.absent)
         XCTAssertNil(freshState.subagentTiming)
     }
 
@@ -805,6 +805,14 @@ final class NativeSessionStoreTests: XCTestCase {
                 "jobs": .array(jobs),
             ])
         )
+    }
+
+    private func tryUnwrap<T>(_ value: T?, file: StaticString = #filePath, line: UInt = #line) -> T {
+        guard let value else {
+            XCTFail("Expected non-nil value", file: file, line: line)
+            fatalError("Expected non-nil value")
+        }
+        return value
     }
 
     private func job(id: String, status: String, startedAt: Int) -> JSONValue {
