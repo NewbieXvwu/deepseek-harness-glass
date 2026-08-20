@@ -62,6 +62,23 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(api.promptSessionIDs, [sessionID])
     }
 
+    func testSubscriptionWatermarkRollbackRecoversFullAuthorityWindow() async {
+        let recoveryReachedHistory = expectation(description: "watermark rollback triggers authority history")
+        let api = GapRecoveringSessionAPI(recoveryReachedHistory: recoveryReachedHistory)
+        let store = NativeSessionStore()
+        store.open(sessionID: "recovery-session", using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+        await eventually(timeout: 1) { store.items.map(\.text) == ["baseline"] }
+
+        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "restart-subscription", method: "session/subscribed", payload: .object([
+            "type": .string("session/subscribed"),
+            "sessionId": .string("recovery-session"),
+            "lastSeq": .number(0),
+        ])), sessionID: "recovery-session")
+        await fulfillment(of: [recoveryReachedHistory], timeout: 1)
+        await eventually(timeout: 1) { store.items.map(\.text) == ["baseline", "recovered authority"] }
+        XCTAssertEqual(store.items.map(\.sequence), [1, 2])
+    }
+
     func testLiveEventGapRecoversFullAuthorityWindowInsteadOfAppendingDiscontinuousTail() async {
         let recoveryReachedHistory = expectation(description: "gap triggers a second authority history read")
         let api = GapRecoveringSessionAPI(recoveryReachedHistory: recoveryReachedHistory)
