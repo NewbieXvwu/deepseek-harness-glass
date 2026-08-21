@@ -530,6 +530,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 
 - [ ] **GP-6：profile 共享与装载过滤。** 默认复用 `~/.dsh/profiles/web`；竞争 stdio 的 runtime/TUI 类拒绝装入并提示独立 profile；settings 提供独立 profile 开关（默认关）。
   - 验收：marketplace 类安装器写入对 glass Host 即时生效；过滤规则有诊断可见原因。
+  - 进度：已在 `GlassCore/Plugin/GhostPlaneProfilePolicy.swift` 建立独立于 owned Host `DSH_HOME` 的 profile routing policy：默认 shared selection 解析为 `<DSH_HOME>/profiles/web`，declarative/shared-service 可放行，exclusive-stdio/TUI 返回 typed `requiresIsolatedProfile`；显式 isolated name 仅接受安全 ASCII token，并解析为 `<DSH_HOME>/profiles/glass-<name>`。`GhostPlaneProfilePolicyTests` 与 `ghost-plane-profile-policy-portable-check.swift` 覆盖 shared/isolated、stdio/TUI 拒绝和路径遍历名称；后者已在 Linux Swift 6.2.4 通过并接入 `portable-checks`。Settings 独立 profile 开关、runtime profile 实际启动/持久化、marketplace 写入即时观测与诊断 UI 仍未完成，故保持未勾选。
 
 - [ ] **GP-7：runtime Attach/Adopt/Install 阶梯。** Attach（loopback 发现活跃 host）> Adopt（系统静态安装且版本=锁定 build）> Install（引导下载到 app 容器）；仅锁定 build 给 verified，否则 read-only 降级。
   - 验收：Attach 模式零 Node 依赖可用；非锁定 build 不出现绿色 verified 状态。
