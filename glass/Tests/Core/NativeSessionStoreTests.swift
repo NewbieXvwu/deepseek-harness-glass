@@ -1606,6 +1606,41 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertFalse(store.isSubmittingQuestion)
     }
 
+    func testReplayedQuestionKeepsNewBusyStateWhenOldSubmissionFailsLate() async {
+        let oldAnswerReached = expectation(description: "old answer reaches Host before restart")
+        let api = DelayedReplayedQuestionSessionAPI(oldAnswerReached: oldAnswerReached)
+        let store = NativeSessionStore()
+        let sessionID = "replayed-question-session"
+        store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+        await eventually(timeout: 1) { store.phase == .ready(sessionID: sessionID) }
+
+        let questionFrame = RPCServerRequest(type: "server-request", rpcId: "replayed-question", method: "question/requested", payload: .object([
+            "type": .string("question/requested"),
+            "sessionId": .string(sessionID),
+            "questions": .array([.object(["id": .string("q-1"), "question": .string("Proceed?")])]),
+        ]))
+        store.applyMuxFrame(questionFrame, sessionID: sessionID)
+        store.answerQuestion([.init(id: "q-1", selected: ["yes"], custom: nil)])
+        await fulfillment(of: [oldAnswerReached], timeout: 1)
+        XCTAssertTrue(store.isSubmittingQuestion)
+
+        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "restart", method: "session/subscribed", payload: .object([
+            "type": .string("session/subscribed"),
+            "sessionId": .string(sessionID),
+            "lastSeq": .number(0),
+        ])), sessionID: sessionID)
+        await eventually(timeout: 1) { store.pendingQuestion == nil && !store.isSubmittingQuestion }
+        store.applyMuxFrame(questionFrame, sessionID: sessionID)
+        store.answerQuestion([.init(id: "q-1", selected: ["yes"], custom: nil)])
+        await eventually(timeout: 1) { store.isSubmittingQuestion }
+
+        await api.failOldAnswer()
+        try? await Task.sleep(for: .milliseconds(25))
+        XCTAssertEqual(api.answerCalls, 2)
+        XCTAssertEqual(store.pendingQuestion?.rpcID, "replayed-question")
+        XCTAssertTrue(store.isSubmittingQuestion)
+    }
+
     func testPendingApprovalAndQuestionClearOnlyOnMatchingHostResolution() {
         let store = NativeSessionStore()
         store.loadSnapshotToolingFixture()
@@ -2181,6 +2216,45 @@ final class NativeSessionStoreTests: XCTestCase {
                 sourceEventSeqs: nil,
                 ignorable: nil
             ), view: nil)
+        }
+    }
+
+    @MainActor
+    private final class DelayedReplayedQuestionSessionAPI: NativeSessionAPI {
+        let oldAnswerReached: XCTestExpectation
+        private let oldAnswerGate = RecoveryGate()
+        private(set) var answerCalls = 0
+
+        init(oldAnswerReached: XCTestExpectation) {
+            self.oldAnswerReached = oldAnswerReached
+        }
+
+        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
+            .init(events: [], hasMore: false, projections: nil)
+        }
+
+        func models(sessionID _: String) async throws -> SessionModelsResponse {
+            .init(current: .init(provider: "provider", model: "model", reasoningEffort: nil), routable: true, groups: [], failures: [])
+        }
+
+        func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
+        func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
+        func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+
+        func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt {
+            answerCalls += 1
+            if answerCalls == 1 {
+                oldAnswerReached.fulfill()
+                await oldAnswerGate.wait()
+                throw DSHTransportError.invalidEndpoint
+            }
+            return .init(accepted: true)
+        }
+
+        func cancelQuestion(rpcID _: String) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+
+        func failOldAnswer() async {
+            await oldAnswerGate.open()
         }
     }
 
