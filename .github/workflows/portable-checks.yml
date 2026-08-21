@@ -167,3 +167,8 @@ jobs:
             glass/ci/native-schema-form-draft-portable-check.swift \
             -o /tmp/native-schema-form-draft-portable-check
           /tmp/native-schema-form-draft-portable-check
+          swiftc glass/Sources/Core/Plugin/NativeUIManifest.swift \
+            glass/Sources/Core/Plugin/SwiftAdapterRegistry.swift \
+            glass/ci/swift-adapter-registry-portable-check.swift \
+            -o /tmp/swift-adapter-registry-portable-check
+          /tmp/swift-adapter-registry-portable-check

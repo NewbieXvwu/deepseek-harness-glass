@@ -480,6 +480,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 - [ ] **T11.3：实现 `SwiftAdapterRegistry`。** 用插件 ID 映射深度审查的原生 Swift 特性；允许复杂内置/高频插件以原生 Swift 视图复刻官方交互与 Liquid Glass 质感。角色为精品快车道（零桥接开销），非兼容的前提条件。
   - 依赖：T11.1。
   - 验收：adapter 的可用性、最低 Host build、测试 fixture 和生效状态均可枚举。
+  - 进度：已在 `GlassCore/Plugin/SwiftAdapterRegistry.swift` 建立 source-controlled 闭合 registry。当前仅列入锁定官方 settings client 已审阅的 `settings.shell`、`settings.agent-loop`、`settings.web-search-deepseek` 本地 adapter identities；绝不将任意 Cordis package/slot/name 自动提升为原生视图。每项枚举 `adapterID`、精确 `pluginID`、锁定 `minimumHostBuildID`、`fixtureID` 与 renderer；唯有精确 ID、相同 Host build 和对应 T11.1 verified native manifest route 三者同时成立才 `active`，否则以 `unregisteredPlugin`、`unsupportedHostBuild` 或 `manifestNotVerified` typed reason inactive。`inventory` 始终枚举全部 adapter 及生效状态，供 T11.4 诊断与分流消费；registry 自身不回退或执行动态代码。`SwiftAdapterRegistryTests` 和 `glass/ci/swift-adapter-registry-portable-check.swift` 覆盖 active、未知 ID、Host mismatch、manifest 缺失与完整 inventory；后者已在 Linux Swift 6.2.4 通过并接入 `portable-checks`。来源与边界见 `notes/T11.3-swift-adapter-registry-contract.md`。当前实现尚待自身 macOS-26 Core 构建/XCTest 成功，故保持未勾选。
 
 - [ ] **T11.4：实现插件分流器与兼容矩阵。** 实现装配时的自动路由探测（分流优先级：`SwiftAdapter` ➔ `NativeUIManifest` ➔ `Ghost Plane 自动承载` ➔ `Host-Only`）；含 profile 装载过滤（竞争 stdio 的 TUI/runtime 类拒绝装入共享 profile 并提示独立 profile）。
   - 依赖：T11.1、T11.3、GP-2。
