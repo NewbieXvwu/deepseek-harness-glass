@@ -435,6 +435,29 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.items.map(\.sequence), [1, 2])
     }
 
+    func testSubscriptionWatermarkRecoveryRebuildsProjectionBaselineFromHostAuthority() async {
+        let recoveryReachedHistory = expectation(description: "watermark rollback refreshes history projections")
+        let api = GapRecoveringSessionAPI(recoveryReachedHistory: recoveryReachedHistory)
+        let store = NativeSessionStore()
+        store.open(sessionID: "recovery-session", using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+        await eventually(timeout: 1) {
+            store.projections.value(sessionID: "recovery-session", key: "obsolete-host-value") == .string("initial baseline")
+        }
+
+        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "restart-projections", method: "session/subscribed", payload: .object([
+            "type": .string("session/subscribed"),
+            "sessionId": .string("recovery-session"),
+            "lastSeq": .number(0),
+        ])), sessionID: "recovery-session")
+        await fulfillment(of: [recoveryReachedHistory], timeout: 1)
+        await eventually(timeout: 1) {
+            store.projections.value(sessionID: "recovery-session", key: "latest-host-value") == .string("recovered baseline")
+        }
+
+        XCTAssertNil(store.projections.value(sessionID: "recovery-session", key: "obsolete-host-value"))
+        XCTAssertEqual(store.projections.row(sessionID: "recovery-session", key: "latest-host-value")?.seq, 2)
+    }
+
     func testGapRecoveryReplacesWholeProjectionBaselineFromLatestHostAuthority() async {
         let recoveryReachedHistory = expectation(description: "gap refreshes history projection baseline")
         let api = GapRecoveringSessionAPI(recoveryReachedHistory: recoveryReachedHistory)
