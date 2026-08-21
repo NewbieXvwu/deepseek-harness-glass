@@ -155,6 +155,27 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.selectedSessionID, "new-prompt-session")
     }
 
+    func testDisconnectCancelsPendingPromptBeforeLateAcceptanceCanReviveBusyState() async {
+        let promptReached = expectation(description: "prompt reaches Host before disconnect")
+        let promptCancelled = expectation(description: "prompt Task cancels on disconnect")
+        let api = DelayedPromptSessionAPI(oldPromptReached: promptReached, oldPromptCancelled: promptCancelled)
+        let store = NativeSessionStore()
+        let sessionID = "disconnect-prompt-session"
+        store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+        await eventually(timeout: 1) { store.phase == .ready(sessionID: sessionID) }
+        store.draft = "retry after reconnect"
+        store.submitDraft()
+        await fulfillment(of: [promptReached], timeout: 1)
+        XCTAssertTrue(store.isSubmittingPrompt)
+
+        store.disconnect()
+        await fulfillment(of: [promptCancelled], timeout: 1)
+        for _ in 0 ..< 20 { await Task.yield() }
+
+        XCTAssertNil(store.selectedSessionID)
+        XCTAssertFalse(store.isSubmittingPrompt)
+    }
+
     func testAdmittedImagePromptUsesTypedHostFacadeWithExactContent() async throws {
         let promptReachedFacade = expectation(description: "typed prompt facade receives admitted image content")
         let imageData = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL9UQAAAABJRU5ErkJggg==")!

@@ -379,7 +379,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 - [ ] **T8.5：实现 prompt/cancel/queue RPC 流程。** 发送先进入正确的 Host API，再按 SSE authority 更新；不可乐观制造与 Host 无关的永久消息。
   - 依赖：T8.4、T6.7。
   - 验收：发送、取消、排队编辑/删除、steer race 和 Host 拒绝均有准确可恢复状态。
-  - 进度：接受型 `NativeSessionAPI` 测试 facade 已保留完整 `SessionPromptContent` 数组而不仅记录 session ID。`NativeSessionStoreTests.testAdmittedImagePromptUsesTypedHostFacadeWithExactContent` 以真实 1×1 PNG 内容和正式 `imageLimits` Host projection 完成准入，断言文本及其基于实际读取字节的 PNG media type/base64/name 仅通过 typed `NativeSessionAPI.prompt` 提交，并只在 Host 接受后清空草稿和附件。拒绝型 facade 回归现进一步覆盖真实已准入 PNG：Host 拒绝后完整 typed content 已被发送，但草稿和 pending image 均保留以供重试。新增 gated prompt facade 回归：old session prompt 已到达 Host 后切换 session 会取消旧 `promptTask`，其迟到 accepted response 不得清空 new session draft 或残留 busy state。取消、排队编辑/删除、steer race 与其余拒绝恢复仍须补齐，故保持未勾选。
+  - 进度：接受型 `NativeSessionAPI` 测试 facade 已保留完整 `SessionPromptContent` 数组而不仅记录 session ID。`NativeSessionStoreTests.testAdmittedImagePromptUsesTypedHostFacadeWithExactContent` 以真实 1×1 PNG 内容和正式 `imageLimits` Host projection 完成准入，断言文本及其基于实际读取字节的 PNG media type/base64/name 仅通过 typed `NativeSessionAPI.prompt` 提交，并只在 Host 接受后清空草稿和附件。拒绝型 facade 回归现进一步覆盖真实已准入 PNG：Host 拒绝后完整 typed content 已被发送，但草稿和 pending image 均保留以供重试。新增 gated prompt facade 回归：old session prompt 已到达 Host 后切换 session 会取消旧 `promptTask`，其迟到 accepted response 不得清空 new session draft 或残留 busy state；断线也会取消已到达 Host 的 prompt，迟到 accepted response 不得复活 busy state 或断开会话。取消、排队编辑/删除、steer race 与其余拒绝恢复仍须补齐，故保持未勾选。
 
 - [ ] **T8.6：实现模型与权限控制。** 在 composer 固定官方位置渲染 model selector、reasoning effort、context meter、permission preset 和高风险确认。
   - 依赖：T4.5、T6.3、T8.4。
