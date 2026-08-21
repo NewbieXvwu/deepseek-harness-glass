@@ -361,7 +361,7 @@ private struct NativeMarkdownTable: View {
             }
             ForEach(Array(rows.enumerated()), id: \.offset) { index, cells in
                 row(cells, emphasized: false)
-                if index < rows.indices.last { Divider() }
+                if index != rows.indices.last { Divider() }
             }
         }
         .background(
