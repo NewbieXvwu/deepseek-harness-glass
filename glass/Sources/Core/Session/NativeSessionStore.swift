@@ -440,6 +440,12 @@ final class NativeSessionStore: ObservableObject {
     @Published private(set) var modelDirectory: CoreSessionModelDirectory?
     @Published private(set) var modelDirectoryStatus: ModelDirectoryStatus = .idle
     @Published private(set) var isSelectingModel = false
+
+    /// A loaded non-routable directory is an explicit Host refusal to accept a
+    /// composer prompt. Absence remains unknown/loading rather than a locally
+    /// invented default route, preserving cold-open compatibility until the
+    /// Host supplies `session.models` authority.
+    var isPromptRouteAvailable: Bool { modelDirectory?.routable ?? true }
     @Published private(set) var isSubmittingPermission = false
     @Published private(set) var selectedToolCallID: String?
     @Published private(set) var pendingApproval: PendingApproval?
@@ -1482,6 +1488,7 @@ final class NativeSessionStore: ObservableObject {
             + pendingImages.map { .image(mediaType: $0.mediaType, data: $0.data.base64EncodedString(), name: $0.name) }
                 guard !content.isEmpty,
               !isSubmittingPrompt,
+              isPromptRouteAvailable,
               let sessionID = activeSessionID
         else { return }
         if let route = subagentRoute {

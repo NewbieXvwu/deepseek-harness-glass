@@ -711,6 +711,16 @@ private struct NativeInteractiveComposerCard: View {
         (!sessionStore.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             || !sessionStore.pendingImages.isEmpty)
             && !sessionStore.isSubmittingPrompt
+            && sessionStore.isPromptRouteAvailable
+    }
+
+    private var modelBlockedNotice: String? {
+        guard !sessionStore.isPromptRouteAvailable else { return nil }
+        return OfficialUISpec.LocaleCatalog.value(
+            namespace: "ui-model-selection",
+            key: "blocked.composer",
+            language: "en"
+        )
     }
 
     private var imageAdmissionNotice: String? {
@@ -743,6 +753,13 @@ private struct NativeInteractiveComposerCard: View {
                     .foregroundStyle(OfficialUISpec.Token.errorPrimary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .accessibilityLabel(imageAdmissionNotice)
+            }
+            if let modelBlockedNotice {
+                Text(modelBlockedNotice)
+                    .font(OfficialUISpec.Typography.xs13)
+                    .foregroundStyle(OfficialUISpec.Token.errorPrimary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityLabel(modelBlockedNotice)
             }
             ZStack(alignment: .topLeading) {
                 if sessionStore.draft.isEmpty {

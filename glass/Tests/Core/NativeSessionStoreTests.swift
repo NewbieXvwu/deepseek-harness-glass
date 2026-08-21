@@ -428,6 +428,26 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertNil(store.extensionState?.permissions, "malformed Host projection must hide the optional capability")
     }
 
+    func testKnownUnroutableModelDirectoryBlocksPromptUntilHostReloadRestoresRoute() async {
+        let api = PromptRouteSessionAPI()
+        let store = NativeSessionStore()
+        store.open(sessionID: "model-blocked-session", using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+        await eventually(timeout: 1) { store.modelDirectory?.routable == false }
+        XCTAssertFalse(store.isPromptRouteAvailable)
+        store.draft = "do not send without a Host route"
+        store.submitDraft()
+        try? await Task.sleep(for: .milliseconds(30))
+        XCTAssertTrue(api.promptContents.isEmpty)
+        XCTAssertEqual(store.draft, "do not send without a Host route")
+
+        api.routable = true
+        store.reloadModelDirectory()
+        await eventually(timeout: 1) { store.isPromptRouteAvailable }
+        store.submitDraft()
+        await eventually(timeout: 1) { api.promptContents.count == 1 }
+        XCTAssertEqual(api.promptContents, [[.text(text: "do not send without a Host route")]])
+    }
+
     func testModelSelectionUsesAdvertisedRouteAndHostConfirmedSelectionOnly() async {
         let modelsLoaded = expectation(description: "model directory reaches typed Host facade")
         let selectionReached = expectation(description: "model selection reaches typed Host facade")
@@ -3475,6 +3495,36 @@ final class NativeSessionStoreTests: XCTestCase {
 
         func releaseSelection() async { await selectionGate.open() }
         func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
+        func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
+        func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+        func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+        func cancelQuestion(rpcID _: String) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+    }
+
+    @MainActor
+    private final class PromptRouteSessionAPI: NativeSessionAPI {
+        var routable = false
+        private(set) var promptContents: [[SessionPromptContent]] = []
+
+        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
+            .init(events: [], hasMore: false, projections: nil)
+        }
+
+        func models(sessionID _: String) async throws -> SessionModelsResponse {
+            .init(
+                current: .init(provider: "provider", model: "model", reasoningEffort: nil),
+                routable: routable,
+                groups: [.init(id: "provider", name: "Provider", models: [
+                    .init(id: "model", name: "Model", description: nil, reasoning: nil),
+                ])],
+                failures: []
+            )
+        }
+
+        func prompt(sessionID _: String, content: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse {
+            promptContents.append(content)
+            return .init(accepted: true)
+        }
         func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
         func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
         func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
