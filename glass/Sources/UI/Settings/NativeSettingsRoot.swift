@@ -28,6 +28,8 @@ struct NativeSettingsRoot: View {
     @ObservedObject var store: NativeSettingsStore
     let retry: () -> Void
     let close: () -> Void
+    /// Typed action owned by the shell; the view cannot access transport.
+    let selectTheme: (CoreThemePreference) -> Void
     @State private var selection: SectionID? = .general
 
     var body: some View {
@@ -60,14 +62,33 @@ struct NativeSettingsRoot: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .ready:
-            List {
-                Section(selection?.title ?? SectionID.general.title) {
-                    ForEach(store.namespaces, id: \.ns) { namespace in
-                        VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p4) {
-                            Text(namespace.ns)
-                            Text(namespace.applies)
-                                .font(OfficialUISpec.Typography.xs13)
-                                .foregroundStyle(OfficialUISpec.Token.caption)
+            if selection == .general, store.themePreference.status == .ready {
+                List {
+                    Section(official(namespace: "ui-theme", key: "appearance.title")) {
+                        HStack(spacing: OfficialUISpec.Spacing.p8) {
+                            ForEach(CoreThemePreference.allCases, id: \.rawValue) { preference in
+                                Button {
+                                    selectTheme(preference)
+                                } label: {
+                                    Text(official(namespace: "ui-theme", key: "appearance." + preference.rawValue))
+                                }
+                                .buttonStyle(.bordered)
+                                .disabled(!store.themePreference.writable)
+                                .accessibilityAddTraits(store.themePreference.current == preference ? .isSelected : [])
+                            }
+                        }
+                    }
+                }
+            } else {
+                List {
+                    Section(selection?.title ?? SectionID.general.title) {
+                        ForEach(store.namespaces, id: \.ns) { namespace in
+                            VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p4) {
+                                Text(namespace.ns)
+                                Text(namespace.applies)
+                                    .font(OfficialUISpec.Typography.xs13)
+                                    .foregroundStyle(OfficialUISpec.Token.caption)
+                            }
                         }
                     }
                 }

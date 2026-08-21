@@ -303,6 +303,26 @@ final class NativeShellPresentation: ObservableObject {
         settingsPresented = false
     }
 
+    /// The General Appearance row emits only a typed official preference. The
+    /// view itself has no transport access; on failure, a fresh Host descriptor
+    /// remains authoritative and no local durable preference is manufactured.
+    func selectThemePreference(_ preference: CoreThemePreference) {
+        guard let api = apis?.settings else { return }
+        Task { [weak self] in
+            do {
+                try await self?.settingsStore.selectThemePreference(preference, using: api)
+                guard self?.settingsStore.themePreference.current == preference else { return }
+                switch preference {
+                case .light: NSApp.appearance = .aqua
+                case .dark: NSApp.appearance = .darkAqua
+                case .system: NSApp.appearance = nil
+                }
+            } catch {
+                self?.settingsStore.load(using: api)
+            }
+        }
+    }
+
     func selectSession(_ sessionID: String, workspaceID: String?) {
         let didSwitchSession = sessionStore.selectedSessionID != sessionID
         workspaceStore.select(sessionID: sessionID, workspaceID: workspaceID)
@@ -642,7 +662,10 @@ final class NativeShellController: NativeSplitViewController {
         let root = NativeSettingsRoot(
             store: presentation.settingsStore,
             retry: { [weak presentation] in presentation?.openSettings() },
-            close: { [weak presentation] in presentation?.closeSettings() }
+            close: { [weak presentation] in presentation?.closeSettings() },
+            selectTheme: { [weak presentation] preference in
+                presentation?.selectThemePreference(preference)
+            }
         )
         let window = NSWindow(contentViewController: NSHostingController(rootView: root))
         window.title = OfficialUISpec.LocaleCatalog.value(namespace: "ui-settings-general", key: "title", language: "en") ?? ""

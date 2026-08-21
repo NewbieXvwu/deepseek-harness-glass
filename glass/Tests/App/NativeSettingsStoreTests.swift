@@ -34,6 +34,23 @@ final class NativeSettingsStoreTests: XCTestCase {
         XCTAssertEqual(store.permissionPreset.status, .unavailable)
     }
 
+    func testThemePreferenceSelectionUsesCurrentHostRevisionAndAcceptedNamespace() async throws {
+        let initial = themeNamespace(value: "system", revision: 12)
+        let accepted = themeNamespace(value: "dark", revision: 13)
+        let api = ThemeMutationAPI(initial: initial, accepted: accepted)
+        let store = NativeSettingsStore()
+
+        store.load(using: api)
+        await eventually { store.themePreference.current == .system }
+        try await store.selectThemePreference(.dark, using: api)
+
+        XCTAssertEqual(api.mutations, [[.set(path: ["preference"], value: .string("dark"))]])
+        XCTAssertEqual(api.expectedRevisions, [Optional(12)])
+        XCTAssertEqual(store.themePreference.current, .dark)
+        XCTAssertEqual(store.themePreference.revision, 13)
+        XCTAssertFalse(store.isDirty(namespace: "ui-theme"))
+    }
+
     func testSecretSettingOperationCannotEnterDraftState() {
         let namespace = SettingsNamespaceDTO(
             ns: "provider",
@@ -192,6 +209,19 @@ final class NativeSettingsStoreTests: XCTestCase {
         XCTFail("condition was not met before timeout")
     }
 
+    private func themeNamespace(value: String, revision: Int) -> SettingsNamespaceDTO {
+        .init(
+            ns: "ui-theme",
+            schema: .object([:]),
+            value: .object(["preference": .string(value)]),
+            base: nil,
+            user: nil,
+            applies: "live",
+            secrets: [],
+            revision: revision
+        )
+    }
+
     private func permissionNamespace(value: String, revision: Int) -> SettingsNamespaceDTO {
         .init(
             ns: "permission",
@@ -275,6 +305,34 @@ final class NativeSettingsStoreTests: XCTestCase {
             expectedRevisions.append(expectedRevision)
             mutationCount += 1
             if mutationCount == 1 { throw URLError(.cannotWriteToFile) }
+            return accepted
+        }
+    }
+
+    @MainActor
+    private final class ThemeMutationAPI: NativeSettingsAPI {
+        private let initial: SettingsNamespaceDTO
+        private let accepted: SettingsNamespaceDTO
+        private(set) var mutations: [[SettingsPathOperationDTO]] = []
+        private(set) var expectedRevisions: [Int?] = []
+
+        init(initial: SettingsNamespaceDTO, accepted: SettingsNamespaceDTO) {
+            self.initial = initial
+            self.accepted = accepted
+        }
+
+        func describe() async throws -> SettingsDescribeResponse {
+            .init(writable: true, hasDocument: true, namespaces: [initial])
+        }
+
+        func mutate(
+            namespace: String,
+            operations: [SettingsPathOperationDTO],
+            expectedRevision: Int?
+        ) async throws -> SettingsNamespaceDTO {
+            XCTAssertEqual(namespace, "ui-theme")
+            mutations.append(operations)
+            expectedRevisions.append(expectedRevision)
             return accepted
         }
     }
