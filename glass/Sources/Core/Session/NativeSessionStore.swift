@@ -1791,6 +1791,12 @@ final class NativeSessionStore: ObservableObject {
     /// through its durable parent-child subagent address, never `session.cancel`.
     func cancelRunningTurn() {
         guard isRunning, let sessionID = activeSessionID else { return }
+        // A queued prompt may still be waiting for its receipt while a Host turn
+        // becomes cancellable. Its late acceptance must not clear a draft the
+        // user kept after choosing Cancel.
+        promptTask?.cancel()
+        promptTask = nil
+        isSubmittingPrompt = false
         if let route = subagentRoute {
             guard route.mode == .continuable, let subagentContinuationAPI else { return }
             cancelTask?.cancel()

@@ -176,6 +176,35 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertFalse(store.isSubmittingPrompt)
     }
 
+    func testCancelRunningTurnCancelsPendingPromptBeforeLateAcceptanceCanClearDraft() async {
+        let promptReached = expectation(description: "prompt reaches Host before turn cancellation")
+        let promptCancelled = expectation(description: "pending prompt Task cancels when turn is cancelled")
+        let api = DelayedPromptSessionAPI(oldPromptReached: promptReached, oldPromptCancelled: promptCancelled)
+        let store = NativeSessionStore()
+        let sessionID = "cancel-prompt-session"
+        store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+        await eventually(timeout: 1) { store.phase == .ready(sessionID: sessionID) }
+        store.draft = "retain after cancel"
+        store.submitDraft()
+        await fulfillment(of: [promptReached], timeout: 1)
+        XCTAssertTrue(store.isSubmittingPrompt)
+
+        store.applyMuxFrame(sessionEventFrame(
+            sessionID: sessionID,
+            seq: 1,
+            type: "turn/start",
+            data: .object(["turn": .number(1)])
+        ), sessionID: sessionID)
+        XCTAssertTrue(store.isRunning)
+        store.cancelRunningTurn()
+        await fulfillment(of: [promptCancelled], timeout: 1)
+        for _ in 0 ..< 20 { await Task.yield() }
+
+        XCTAssertEqual(store.draft, "retain after cancel")
+        XCTAssertFalse(store.isSubmittingPrompt)
+        XCTAssertEqual(store.selectedSessionID, sessionID)
+    }
+
     func testAdmittedImagePromptUsesTypedHostFacadeWithExactContent() async throws {
         let promptReachedFacade = expectation(description: "typed prompt facade receives admitted image content")
         let imageData = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL9UQAAAABJRU5ErkJggg==")!
