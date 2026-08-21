@@ -101,7 +101,9 @@ struct NativeProducedFiles: View {
     }
 
     var body: some View {
-        Grid(alignment: .leading, horizontalSpacing: OfficialUISpec.Spacing.p8, verticalSpacing: OfficialUISpec.Spacing.p6) {
+        Group {
+            if !paths.isEmpty {
+                Grid(alignment: .leading, horizontalSpacing: OfficialUISpec.Spacing.p8, verticalSpacing: OfficialUISpec.Spacing.p6) {
             GridRow {
                 Text(OfficialUISpec.Text.producedFiles)
                     .font(OfficialUISpec.Typography.xs13)
@@ -123,10 +125,12 @@ struct NativeProducedFiles: View {
                     .accessibilityLabel(OfficialUISpec.Text.producedFilesShowInFolder)
                 }
             }
+                }
+                .padding(.top, OfficialUISpec.Spacing.p16)
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel(OfficialUISpec.Text.producedFiles)
+            }
         }
-        .padding(.top, OfficialUISpec.Spacing.p16)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(OfficialUISpec.Text.producedFiles)
     }
 
     private var fileLane: some View {
