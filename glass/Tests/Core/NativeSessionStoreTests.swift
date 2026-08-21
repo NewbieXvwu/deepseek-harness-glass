@@ -849,6 +849,39 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.modelDirectoryStatus, .ready)
     }
 
+    func testConcurrentGapFramesCoalesceIntoOneAuthorityRecovery() async {
+        let recoveryHistoryReached = expectation(description: "first gap recovery history is held")
+        let api = CoalescingGapFailureSessionAPI(recoveryHistoryReached: recoveryHistoryReached)
+        let store = NativeSessionStore()
+        store.open(sessionID: "recovery-session", using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+        await eventually(timeout: 1) { store.items.map(\.text) == ["baseline"] }
+
+        for (sequence, text) in [(3, "first buffered gap"), (4, "second buffered gap")] {
+            store.applyMuxFrame(sessionEventFrame(
+                sessionID: "recovery-session",
+                seq: sequence,
+                type: "user/message",
+                data: .object([
+                    "id": .string("coalesced-\(sequence)"),
+                    "content": .array([.object(["type": .string("text"), "text": .string(text)])]),
+                    "source": .object(["kind": .string("user")]),
+                ]),
+                surfaceOp: "append"
+            ), sessionID: "recovery-session")
+        }
+        await fulfillment(of: [recoveryHistoryReached], timeout: 1)
+        XCTAssertEqual(api.historyCalls, 2, "concurrent gaps must reuse the existing authority recovery")
+        XCTAssertEqual(store.items.map(\.text), ["baseline"])
+
+        await api.failRecovery()
+        await eventually(timeout: 1) {
+            if case .error = store.modelDirectoryStatus { return true }
+            return false
+        }
+        XCTAssertEqual(api.historyCalls, 2)
+        XCTAssertEqual(store.items.map(\.text), ["baseline"])
+    }
+
     func testFailedGapRecoveryKeepsBufferedFramesForLaterSuccessfulRepair() async {
         let failedHistory = expectation(description: "first gap history repair fails")
         let successfulHistory = expectation(description: "second gap history repair succeeds")
@@ -2041,6 +2074,54 @@ final class NativeSessionStoreTests: XCTestCase {
         }
 
         func releaseStaleHistory() async { await staleHistoryGate.open() }
+        func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
+        func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
+        func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+        func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+        func cancelQuestion(rpcID _: String) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+
+        private func historyEntry(seq: Int, id: String, text: String) -> SessionHistoryEntryDTO {
+            .init(event: .init(
+                type: "user/message",
+                seq: seq,
+                time: Double(seq),
+                data: .object([
+                    "id": .string(id),
+                    "content": .array([.object(["type": .string("text"), "text": .string(text)])]),
+                    "source": .object(["kind": .string("user")]),
+                ]),
+                surfaceOp: .string("append"),
+                sourceEventSeqs: nil,
+                ignorable: nil
+            ), view: nil)
+        }
+    }
+
+    @MainActor
+    private final class CoalescingGapFailureSessionAPI: NativeSessionAPI {
+        let recoveryHistoryReached: XCTestExpectation
+        private let failureGate = RecoveryGate()
+        private(set) var historyCalls = 0
+
+        init(recoveryHistoryReached: XCTestExpectation) {
+            self.recoveryHistoryReached = recoveryHistoryReached
+        }
+
+        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
+            historyCalls += 1
+            if historyCalls == 1 {
+                return .init(events: [historyEntry(seq: 1, id: "baseline", text: "baseline")], hasMore: false, projections: nil)
+            }
+            recoveryHistoryReached.fulfill()
+            await failureGate.wait()
+            throw DSHTransportError.invalidEndpoint
+        }
+
+        func models(sessionID _: String) async throws -> SessionModelsResponse {
+            .init(current: .init(provider: "provider", model: "model", reasoningEffort: nil), routable: true, groups: [], failures: [])
+        }
+
+        func failRecovery() async { await failureGate.open() }
         func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
         func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
         func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
