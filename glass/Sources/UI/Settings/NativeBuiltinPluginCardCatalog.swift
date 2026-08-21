@@ -37,6 +37,26 @@ enum NativeBuiltinPluginCard: CaseIterable, Identifiable, Equatable {
         }
     }
 
+    /// Fields are the exact native controls owned by the locked official cards.
+    /// The web-search API key is intentionally absent: it uses the write-only
+    /// credentials domain rather than a settings-section operation.
+    var fields: [NativePluginCardField] {
+        switch self {
+        case .bash:
+            [
+                .init("timeoutMs", kind: .number),
+                .init("maxOutputBytes", kind: .number),
+            ]
+        case .agentLoop:
+            [.init("maxParallelToolCalls", kind: .number)]
+        case .webSearch:
+            [
+                .init("baseURL", kind: .text),
+                .init("maxUses", kind: .number),
+            ]
+        }
+    }
+
     static func dispatched(from namespaces: [SettingsNamespaceDTO]) -> [Self] {
         let served = Set(namespaces.map(\.ns))
         return allCases.filter { served.contains($0.namespace) }

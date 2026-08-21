@@ -21,6 +21,22 @@ final class NativeBuiltinPluginCardCatalogTests: XCTestCase {
         XCTAssertTrue(NativeBuiltinPluginCard.dispatched(from: [namespace("unclaimed-plugin")]).isEmpty)
     }
 
+    func testBuiltinCardsDeclareOnlyTheirReviewedSettingsFields() {
+        XCTAssertEqual(
+            NativeBuiltinPluginCard.bash.fields.map(\.path),
+            [["timeoutMs"], ["maxOutputBytes"]]
+        )
+        XCTAssertEqual(
+            NativeBuiltinPluginCard.agentLoop.fields.map(\.path),
+            [["maxParallelToolCalls"]]
+        )
+        XCTAssertEqual(
+            NativeBuiltinPluginCard.webSearch.fields.map(\.path),
+            [["baseURL"], ["maxUses"]]
+        )
+        XCTAssertFalse(NativeBuiltinPluginCard.webSearch.fields.map(\.path).contains(["apiKey"]))
+    }
+
     func testBuiltinCardCopyComesFromLockedPluginsLocale() {
         XCTAssertEqual(
             NativeBuiltinPluginCard.bash.title,
