@@ -62,6 +62,52 @@ final class NativeSplitLayoutPolicyTests: XCTestCase {
         )
     }
 
+    func testOfficialConcessionChainMatchesStepOneAndStepTwoSeams() {
+        let sidebar = 300
+        let details = OfficialUISpec.Layout.detailsDefault
+        let center = OfficialUISpec.Layout.centerMinimum
+
+        XCTAssertEqual(
+            OfficialColumnLayout.resolve(
+                viewport: sidebar + details + center,
+                sidebarPreference: sidebar,
+                detailsPreference: details
+            ),
+            OfficialColumnLayout(sidebar: sidebar, center: center, details: details)
+        )
+        XCTAssertEqual(
+            OfficialColumnLayout.resolve(
+                viewport: sidebar + details + center - 1,
+                sidebarPreference: sidebar,
+                detailsPreference: details
+            ),
+            OfficialColumnLayout(sidebar: sidebar, center: center, details: details - 1)
+        )
+    }
+
+    func testClosedSidebarUsesRailBeforeDetailsConcession() {
+        let rail = OfficialUISpec.Layout.sidebarCollapsed
+        let detailsMinimum = OfficialUISpec.Layout.detailsMinimum
+        let centerMinimum = OfficialUISpec.Layout.centerMinimum
+
+        XCTAssertEqual(
+            OfficialColumnLayout.resolve(
+                viewport: rail + detailsMinimum + centerMinimum,
+                sidebarPreference: 0,
+                detailsPreference: OfficialUISpec.Layout.detailsDefault
+            ),
+            OfficialColumnLayout(sidebar: rail, center: centerMinimum, details: detailsMinimum)
+        )
+        XCTAssertEqual(
+            OfficialColumnLayout.resolve(
+                viewport: rail + detailsMinimum + centerMinimum - 1,
+                sidebarPreference: 0,
+                detailsPreference: OfficialUISpec.Layout.detailsDefault
+            ).details,
+            0
+        )
+    }
+
     func testConcessionTemporarilyCollapsesDetailsWithoutForgettingPreference() {
         let sidebar = OfficialUISpec.Layout.sidebarDefault
         let preference = OfficialUISpec.Layout.detailsMaximum
