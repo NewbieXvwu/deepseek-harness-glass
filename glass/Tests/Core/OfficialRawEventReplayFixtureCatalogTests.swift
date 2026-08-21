@@ -26,6 +26,22 @@ final class OfficialRawEventReplayFixtureCatalogTests: XCTestCase {
         }
     }
 
+    func testLongSessionTemplateExpandsIntoContinuousUniqueReplayEvents() throws {
+        let fixture = try OfficialRawEventReplayFixtureCatalog.load()
+        let replay = tryUnwrap(fixture.cases.first(where: { $0.id == "long-session-template" }))
+        let events = OfficialRawEventReplayFixtureCatalog.expandedEvents(for: replay)
+        let objects = try events.map { try tryUnwrap($0.objectValue) }
+        let sequences = try objects.map { try tryUnwrap($0["seq"]?.numberValue) }
+        let userIDs = objects.compactMap { $0["data"]?.objectValue?["id"]?.stringValue }
+
+        XCTAssertEqual(events.count, 4_000)
+        XCTAssertEqual(sequences, Array(1 ... 4_000).map(Double.init))
+        XCTAssertEqual(userIDs.count, 1_000)
+        XCTAssertEqual(Set(userIDs).count, 1_000)
+        XCTAssertEqual(userIDs.first, "fixture-long-user-1")
+        XCTAssertEqual(userIDs.last, "fixture-long-user-1000")
+    }
+
     func testReplayEventPayloadsContainNoCapturedCredentialOrPrivatePathMarkers() throws {
         let fixture = try OfficialRawEventReplayFixtureCatalog.load()
         let forbidden = ["/Users/", "/home/", "BEGIN PRIVATE", "api_key", "sk-"]

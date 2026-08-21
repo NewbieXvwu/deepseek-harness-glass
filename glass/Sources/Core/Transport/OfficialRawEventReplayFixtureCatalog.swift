@@ -36,6 +36,19 @@ enum OfficialRawEventReplayFixtureCatalog {
         let cases: [ReplayCase]
     }
 
+    /// Expands a deterministic template without reaching a Host or inventing
+    /// payload values. Each iteration receives unique sequence, time, turn, and
+    /// fixture-local identifiers so a reducer can replay it as a real long
+    /// conversation rather than a duplicate-event microbenchmark.
+    static func expandedEvents(for replay: Fixture.ReplayCase) -> [JSONValue] {
+        let repeats = replay.repeatCount ?? 1
+        guard repeats > 1 else { return replay.events }
+        let stride = (replay.events.map { $0.objectValue?["seq"]?.numberValue ?? 0 }.max() ?? 0)
+        return (0 ..< repeats).flatMap { iteration in
+            replay.events.map { expand($0, iteration: iteration, sequenceStride: stride) }
+        }
+    }
+
     static func load() throws -> Fixture {
         guard let url = fixtureBundle.url(forResource: "official-raw-event-replay-fixtures", withExtension: "json") else {
             throw FixtureError.missingResource
@@ -58,6 +71,29 @@ enum OfficialRawEventReplayFixtureCatalog {
             throw FixtureError.incompatibleFixture
         }
         return fixture
+    }
+
+    private static func expand(_ value: JSONValue, iteration: Int, sequenceStride: Double) -> JSONValue {
+        switch value {
+        case let .array(values):
+            return .array(values.map { expand($0, iteration: iteration, sequenceStride: sequenceStride) })
+        case let .object(object):
+            var expanded = object.mapValues { expand($0, iteration: iteration, sequenceStride: sequenceStride) }
+            if let sequence = object["seq"]?.numberValue {
+                expanded["seq"] = .number(sequence + Double(iteration) * sequenceStride)
+            }
+            if let time = object["time"]?.numberValue {
+                expanded["time"] = .number(time + Double(iteration) * sequenceStride)
+            }
+            if let turn = object["turn"]?.numberValue {
+                expanded["turn"] = .number(turn + Double(iteration))
+            }
+            return .object(expanded)
+        case let .string(value):
+            return .string(value.hasPrefix("fixture-long-") ? "\(value)-\(iteration + 1)" : value)
+        case .null, .bool, .number:
+            return value
+        }
     }
 
     private static var fixtureBundle: Bundle {

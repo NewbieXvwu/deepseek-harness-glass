@@ -495,7 +495,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 - [ ] **T12.1：建立 raw-event fixture 管线。** 从官方 e2e/test fixtures 或经审计的录制会话导出 anonymized JSON，覆盖 happy path、错误、重连、并发、长会话和未知节点。
   - 依赖：T4.6、T6.4。
   - 验收：fixture 可离线复放；不含用户 secret、私人路径、API key 或未经许可的对话内容。
-  - 进度：新增 `official-raw-event-replay-fixtures.json` 与 `OfficialRawEventReplayFixtureCatalog`，以锁定 RC1 `packages/client/runtime/tests/event-script.client.ts:13-145` 的事件形状建立版本化、可离线读取的匿名化 catalog。它覆盖 happy streaming、error/retry、reconnect duplicate sequence、并发 tool/assistant、1000 次长会话模板和 unknown node；catalog loader 强制 source commit、修订、类别、唯一 ID、非空事件及匿名化禁用值类。XCTest 逐事件验证 seq/time/type，并将仅 event payload 序列化检查 `/Users/`、`/home/`、私钥、API key 前缀等捕获标记的负例。尚需把 catalog 逐 event 接入 reducer snapshot/transport chaos runner 与 macOS 运行态证据，故保持未勾选。
+  - 进度：新增 `official-raw-event-replay-fixtures.json` 与 `OfficialRawEventReplayFixtureCatalog`，以锁定 RC1 `packages/client/runtime/tests/event-script.client.ts:13-145` 的事件形状建立版本化、可离线读取的匿名化 catalog。它覆盖 happy streaming、error/retry、reconnect duplicate sequence、并发 tool/assistant、1000 次长会话模板和 unknown node；`expandedEvents` 已将长会话 template 以连续 seq/time、递增 turn 及唯一 fixture-local IDs 展开为 4,000 个实际可重放事件，并由回归锁定其连续性和唯一性；catalog loader 强制 source commit、修订、类别、唯一 ID、非空事件及匿名化禁用值类。XCTest 逐事件验证 seq/time/type，并将仅 event payload 序列化检查 `/Users/`、`/home/`、私钥、API key 前缀等捕获标记的负例。尚需把 catalog 逐 event 接入 reducer snapshot/transport chaos runner 与 macOS 运行态证据，故保持未勾选。
 
 - [ ] **T12.2：建立 reducer snapshot tests。** 对每个 raw event append 后的 node snapshot、turn/step boundary、projection value、queue 和 pending interaction 做断言。
   - 依赖：T6.5、T6.6。
