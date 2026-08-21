@@ -3,6 +3,11 @@ import XCTest
 @testable import GlassUI
 
 final class NativeProducedFilesLayoutTests: XCTestCase {
+    func testEmptyPathsFailClosedBeforeAnyLayoutMeasurement() {
+        XCTAssertFalse(NativeProducedFilesLayout.shouldRender(paths: []))
+        XCTAssertTrue(NativeProducedFilesLayout.shouldRender(paths: ["out/index.html"]))
+    }
+
     func testKeepsCandidateCapUntilLaneHasAUsableMeasurement() {
         XCTAssertEqual(
             NativeProducedFilesLayout.shownCount(

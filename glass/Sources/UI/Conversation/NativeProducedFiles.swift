@@ -33,6 +33,8 @@ private struct NativeProducedFilesMoreWidthsKey: PreferenceKey {
 /// remaining-file count as its key so native measurement retains the exact
 /// singular/plural localized width that the official browser tests.
 enum NativeProducedFilesLayout {
+    static func shouldRender(paths: [String]) -> Bool { !paths.isEmpty }
+
     static func shownCount(
         available: CGFloat,
         chipWidths: [CGFloat],
@@ -102,7 +104,7 @@ struct NativeProducedFiles: View {
 
     var body: some View {
         Group {
-            if !paths.isEmpty {
+            if NativeProducedFilesLayout.shouldRender(paths: paths) {
                 Grid(alignment: .leading, horizontalSpacing: OfficialUISpec.Spacing.p8, verticalSpacing: OfficialUISpec.Spacing.p6) {
             GridRow {
                 Text(OfficialUISpec.Text.producedFiles)
