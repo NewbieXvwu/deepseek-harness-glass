@@ -164,6 +164,35 @@ final class RawEventReplayReducerTests: XCTestCase {
         XCTAssertEqual((chat.last?.data as? CoreAssistantNode)?.blocks.first?.text, "fixture long answer-1000")
     }
 
+    func testLongSessionReplaySnapshotsPreserveFirstAndLastTurnBoundaries() throws {
+        let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
+        let events = try events(for: "long-session-template", expanded: true)
+        var selectedSnapshots: [Int: [ConversationViewNode]] = [:]
+        let boundaryIndexes: Set<Int> = [0, 1, 2, 3, events.count - 4, events.count - 3, events.count - 2, events.count - 1]
+
+        for (index, event) in events.enumerated() {
+            _ = reducer.append(.init(event: event))
+            if boundaryIndexes.contains(index) {
+                selectedSnapshots[index] = reducer.snapshot(target: "chat")
+            }
+        }
+
+        XCTAssertTrue(tryUnwrap(selectedSnapshots[0]).isEmpty)
+        XCTAssertEqual(tryUnwrap(selectedSnapshots[1]).map(\.kind), ["user"])
+        XCTAssertEqual(tryUnwrap(selectedSnapshots[2]).map(\.key), [
+            conversationContextKey(kind: "input-message", id: "fixture-long-user-1"),
+            conversationContextKey(kind: "assistant-step", id: "1:1"),
+        ])
+        XCTAssertEqual((tryUnwrap(selectedSnapshots[3]).last?.data as? CoreAssistantNode)?.status, .settled)
+
+        let beforeLastAssistant = tryUnwrap(selectedSnapshots[events.count - 2])
+        XCTAssertEqual(beforeLastAssistant.count, 2_000)
+        XCTAssertEqual(beforeLastAssistant.last?.key, conversationContextKey(kind: "assistant-step", id: "1000:1"))
+        XCTAssertEqual((beforeLastAssistant.last?.data as? CoreAssistantNode)?.blocks.first?.text, "fixture long answer-1000")
+        XCTAssertEqual((tryUnwrap(selectedSnapshots[events.count - 1]).last?.data as? CoreAssistantNode)?.status, .settled)
+        XCTAssertTrue(reducer.snapshot(target: "inspector").isEmpty)
+    }
+
     func testLongSessionReplayPerformanceBaseline() throws {
         let events = try events(for: "long-session-template", expanded: true)
         measure(metrics: [XCTClockMetric()]) {
