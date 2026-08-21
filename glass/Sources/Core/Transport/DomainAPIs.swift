@@ -242,7 +242,13 @@ struct SettingsAPI: Sendable {
     }
 }
 
-struct CredentialsAPI: Sendable {
+protocol NativeCredentialAPI: Sendable {
+    func describe(refs: [String]) async throws -> CredentialsDescribeResponse
+    func set(ref: String, value: String) async throws -> EmptyRPCResponse
+    func unset(ref: String) async throws -> EmptyRPCResponse
+}
+
+struct CredentialsAPI: Sendable, NativeCredentialAPI {
     private let client: DSHAPIClient
     init(client: DSHAPIClient) { self.client = client }
 
