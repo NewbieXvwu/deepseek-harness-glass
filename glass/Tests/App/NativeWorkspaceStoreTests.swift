@@ -51,6 +51,54 @@ final class NativeWorkspaceStoreTests: XCTestCase {
         XCTAssertEqual(NativeWorkspaceStore.recentWorkspaceID(in: emptyOnly), "newer")
     }
 
+    func testBrowserVisibilityMatchesRC8OrdinaryBlankSubagentArchivedAndUngroupedRules() {
+        func session(
+            _ id: String,
+            blank: Bool = false,
+            origin: String? = nil
+        ) -> SessionSummaryDTO {
+            .init(
+                sessionId: id,
+                updatedAt: 1,
+                running: false,
+                blank: blank,
+                pendingInteraction: nil,
+                parentSessionId: origin == "subagent" ? "parent" : nil,
+                origin: origin,
+                cwd: "/fixture",
+                agentPreset: nil,
+                projections: nil
+            )
+        }
+
+        let ordinary = session("ordinary")
+        let selectedBlank = session("selected-blank", blank: true)
+        let unselectedBlank = session("unselected-blank", blank: true)
+        let subagent = session("subagent-child", origin: "subagent")
+        let archived = session("archived")
+        let ungrouped = session("ungrouped")
+        let snapshot = NativeWorkspaceStore.Snapshot(
+            workspaces: [
+                .init(
+                    workspaceId: "fixture-workspace",
+                    path: "/fixture",
+                    title: "Fixture",
+                    sessionIds: [ordinary.sessionId, selectedBlank.sessionId, unselectedBlank.sessionId, subagent.sessionId, archived.sessionId],
+                    createdAt: "2026-01-01T00:00:00.000Z",
+                    updatedAt: "2026-01-01T00:00:00.000Z"
+                ),
+            ],
+            sessions: [ordinary, selectedBlank, unselectedBlank, subagent, archived, ungrouped],
+            archivedSessionIDs: [archived.sessionId],
+            selectedSessionID: selectedBlank.sessionId,
+            selectedWorkspaceID: "fixture-workspace"
+        )
+
+        XCTAssertEqual(snapshot.visibleSessions.map(\.sessionId), [ordinary.sessionId, selectedBlank.sessionId, ungrouped.sessionId])
+        XCTAssertEqual(snapshot.sessions(in: snapshot.workspaces[0]).map(\.sessionId), [ordinary.sessionId, selectedBlank.sessionId])
+        XCTAssertEqual(snapshot.ungroupedSessions.map(\.sessionId), [ungrouped.sessionId])
+    }
+
     func testBlankSessionReuseRequiresWorkspaceMembershipCanonicalCWDAndNonArchivedState() {
         let reusable = SessionSummaryDTO(
             sessionId: "reusable", updatedAt: 1, running: false, blank: true,
