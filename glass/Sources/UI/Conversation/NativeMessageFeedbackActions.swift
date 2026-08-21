@@ -11,8 +11,14 @@ import SwiftUI
 struct NativeMessageFeedbackActions: View {
     let item: MessageFeedbackItemDTO?
     let isSubmitting: Bool
+    let actionFailureCode: String?
     let like: () -> Void
     let dislike: () -> Void
+    let saveNote: (String) -> Void
+
+    @State private var noteOpen = false
+    @State private var draft = ""
+    @State private var noteMutationBaseVersion: String?
 
     private var likeActive: Bool { item?.rating == .positive }
     private var dislikeActive: Bool { item?.rating == .negative }
@@ -33,7 +39,82 @@ struct NativeMessageFeedbackActions: View {
                 active: dislikeActive,
                 action: dislike
             )
+            if item != nil {
+                noteTrigger
+            }
         }
+        .accessibilityElement(children: .contain)
+        .onChange(of: isSubmitting) { wasSubmitting, nowSubmitting in
+            guard wasSubmitting, !nowSubmitting, let base = noteMutationBaseVersion else { return }
+            defer { noteMutationBaseVersion = nil }
+            guard actionFailureCode == nil, item?.version != base else { return }
+            noteOpen = false
+        }
+    }
+
+    private var noteTrigger: some View {
+        Button {
+            if noteOpen {
+                noteOpen = false
+            } else {
+                draft = item?.note ?? ""
+                noteMutationBaseVersion = nil
+                noteOpen = true
+            }
+        } label: {
+            Text(item?.note ?? OfficialUISpec.Text.feedbackNoteOpen)
+                .font(OfficialUISpec.Typography.xs13)
+                .lineLimit(1)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(OfficialUISpec.Token.caption)
+        .accessibilityLabel(OfficialUISpec.Text.feedbackNoteOpen)
+        .popover(isPresented: $noteOpen, arrowEdge: .bottom) {
+            noteEditor
+        }
+    }
+
+    private var noteEditor: some View {
+        VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p8) {
+            Text(OfficialUISpec.Text.feedbackNoteDialog)
+                .font(OfficialUISpec.Typography.xs13Strong)
+                .foregroundStyle(OfficialUISpec.Token.primary)
+            ZStack(alignment: .topLeading) {
+                if draft.isEmpty {
+                    Text(OfficialUISpec.Text.feedbackNotePlaceholder)
+                        .font(OfficialUISpec.Typography.xs13)
+                        .foregroundStyle(OfficialUISpec.Token.placeholder)
+                        .padding(.top, OfficialUISpec.Spacing.p6)
+                        .padding(.leading, OfficialUISpec.Spacing.p5)
+                        .allowsHitTesting(false)
+                }
+                TextEditor(text: $draft)
+                    .font(OfficialUISpec.Typography.xs13)
+                    .foregroundStyle(OfficialUISpec.Token.primary)
+                    .frame(minHeight: OfficialUISpec.Geometry.px72)
+                    .accessibilityLabel(OfficialUISpec.Text.feedbackNoteAccessibility)
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r8, style: .continuous)
+                    .stroke(OfficialUISpec.Token.border, lineWidth: 1)
+            }
+            HStack(spacing: OfficialUISpec.Spacing.p8) {
+                Button(OfficialUISpec.Text.feedbackNoteSave) {
+                    noteMutationBaseVersion = item?.version
+                    saveNote(draft)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(isSubmitting)
+                Button(OfficialUISpec.Text.feedbackNoteCancel) {
+                    noteMutationBaseVersion = nil
+                    noteOpen = false
+                }
+                .buttonStyle(.bordered)
+                .disabled(isSubmitting)
+            }
+        }
+        .padding(OfficialUISpec.Spacing.p12)
+        .frame(width: OfficialUISpec.Geometry.px280)
         .accessibilityElement(children: .contain)
     }
 

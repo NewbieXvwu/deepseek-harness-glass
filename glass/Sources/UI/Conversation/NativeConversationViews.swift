@@ -220,7 +220,9 @@ private struct NativeActiveConversationSurface: View {
                 messageFeedbackItems: sessionStore.messageFeedbackItems,
                 isMessageFeedbackAvailable: sessionStore.isMessageFeedbackAvailable,
                 isSubmittingMessageFeedback: sessionStore.isSubmittingMessageFeedback,
+                messageFeedbackActionFailureCode: sessionStore.messageFeedbackActionFailureCode,
                 toggleMessageFeedback: sessionStore.toggleMessageFeedback,
+                saveMessageFeedbackNote: sessionStore.saveMessageFeedbackNote,
                 openSession: openSession
             )
         }
@@ -260,7 +262,9 @@ private struct NativeTranscriptScrollView: View {
     let messageFeedbackItems: [String: MessageFeedbackItemDTO]
     let isMessageFeedbackAvailable: Bool
     let isSubmittingMessageFeedback: Bool
+    let messageFeedbackActionFailureCode: String?
     let toggleMessageFeedback: (String, MessageFeedbackRatingDTO) -> Void
+    let saveMessageFeedbackNote: (String, String) -> Void
     let openSession: (String) -> Void
 
     private var timeline: [TimelineItem] {
@@ -340,7 +344,9 @@ private struct NativeTranscriptScrollView: View {
                                 messageFeedbackItems: messageFeedbackItems,
                                 isMessageFeedbackAvailable: isMessageFeedbackAvailable,
                                 isSubmittingMessageFeedback: isSubmittingMessageFeedback,
+                                messageFeedbackActionFailureCode: messageFeedbackActionFailureCode,
                                 toggleMessageFeedback: toggleMessageFeedback,
+                                saveMessageFeedbackNote: saveMessageFeedbackNote,
                                 openSession: openSession
                             )
                                 .id(node.key)
@@ -381,7 +387,9 @@ private struct NativeConversationNodeRow: View {
     let messageFeedbackItems: [String: MessageFeedbackItemDTO]
     let isMessageFeedbackAvailable: Bool
     let isSubmittingMessageFeedback: Bool
+    let messageFeedbackActionFailureCode: String?
     let toggleMessageFeedback: (String, MessageFeedbackRatingDTO) -> Void
+    let saveMessageFeedbackNote: (String, String) -> Void
     let openSession: (String) -> Void
 
     var body: some View {
@@ -472,8 +480,10 @@ private struct NativeConversationNodeRow: View {
                     NativeMessageFeedbackActions(
                         item: messageFeedbackItems[messageID],
                         isSubmitting: isSubmittingMessageFeedback,
+                        actionFailureCode: messageFeedbackActionFailureCode,
                         like: { toggleMessageFeedback(messageID, .positive) },
-                        dislike: { toggleMessageFeedback(messageID, .negative) }
+                        dislike: { toggleMessageFeedback(messageID, .negative) },
+                        saveNote: { saveMessageFeedbackNote(messageID, $0) }
                     )
                 }
                 let paths = deliverablesForAssistant(assistant)
