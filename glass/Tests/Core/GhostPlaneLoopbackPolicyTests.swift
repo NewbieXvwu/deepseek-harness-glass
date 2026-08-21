@@ -1,3 +1,5 @@
+import Foundation
+import XCTest
 @testable import GlassCore
 
 final class GhostPlaneLoopbackPolicyTests: XCTestCase {
