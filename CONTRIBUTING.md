@@ -20,7 +20,7 @@ gh run list --repo NewbieXvwu/deepseek-harness-glass --limit 10
 
 核心应用的 sidebar、conversation、details、settings 等原生表面不得在运行态 `NSView` tree 中装载 `WKWebView`，也不得以 Web/DOM/CSS 注入替代核心交互。D0 由 `NativeWebViewIsolationRuntimeTests` 在 macOS XCTest 中实际装载核心 SwiftUI 表面、递归检查其 `NSView` tree，并以注入真实 `WKWebView` 的反例证明探测器可证伪；不得以对项目 Swift 源码的关键词扫描取代该运行态证据。
 
-第三方插件的 Web 兼容由未来独立编译的 `Plugins/PluginWebHost` target 承载，实行自适应双轨制（原生 Manifest/Adapter 优先，未适配的第三方 React 卡片自动由轻量沙箱微宿主兜底）。沙箱严格限定在单卡片或独立设置面板内，遵循 loopback same-origin 策略并由独立安全测试覆盖，严禁侵入会话、侧栏、官方设置、模型、凭据或工具页面等核心结构。
+第三方插件的 Web 兼容由独立编译的插件平面 target 承载（Ghost Plane 幽灵平面：透明共享 Web 平面 + 骨架 DOM + 事件桥，详见 [docs/PLUGIN_COMPATIBILITY_PROPOSAL.md](docs/PLUGIN_COMPATIBILITY_PROPOSAL.md)）。WebView 边界为三层白名单：红区（官方内容渲染——会话正文、侧栏列表、设置表单、工作区树）禁 Web；绿区（登记制的插件平面 target）允许 WKWebView 且固定锚点平面必须单一共享；绿区内一切交互必须经原生桥保证键盘可达性、VoiceOver 与 TCC 权限语义。红区断言沿用 loopback same-origin 与既有运行态隔离测试。
 
 ## 3. 官方来源到实现的闭环
 
