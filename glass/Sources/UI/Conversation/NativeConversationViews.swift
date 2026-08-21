@@ -452,7 +452,7 @@ private struct NativeConversationNodeRow: View {
             return user.content.compactMap(\.text).joined()
         }
         if let assistant = node.data as? CoreAssistantNode {
-            return assistant.blocks.compactMap(\.text).joined()
+            return NativeAssistantTextPresentation.visibleText(assistant)
         }
         return ""
     }
