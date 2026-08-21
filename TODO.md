@@ -510,6 +510,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 
 - [ ] **GP-2：固定锚点平面 host。** 单一共享近透明 WKWebView + 官方模块表 + SlotRegistry + token 注入 + tapIndex 重放；settings 卡片作为其固定锚点特例。
   - 验收：官方 loader 契约下插件 client entry 正常激活（inject 服务齐备）。
+  - 进度：已完成可独立审计的资源准入子阶段：`GlassCore/Plugin/GhostPlaneLoopbackPolicy.swift` 只构造精确 `http://127.0.0.1:<nonzero-port>/` boundary，并仅允许 `/plugins/<registered-id>/…` 下的同源 HTTP 资源；HTTPS/file/data/javascript 等非 HTTP scheme、外部 host、端口变化、userinfo、`/api/*`/任意非 plugin path、未登记 plugin 与编码 `.`/`/`/`\\` 路径穿越均在 navigation 前 typed deny。`pluginRootURL` 也只为已登记 ASCII plugin identity 生成，禁止把 URL 构造当 capability grant。`GhostPlaneLoopbackPolicyTests` 与 `glass/ci/ghost-plane-loopback-policy-portable-check.swift` 覆盖正例及全部上述负例；后者已在 Linux Swift 6.2.4 通过并接入 `portable-checks`。实现依据、决策表及对未来 `WKNavigationDelegate` 接入边界见 `notes/GP-2-loopback-resource-policy.md`。WKWebView Plugin target、CSP/response policy、official ModuleLoader/SlotRegistry、hard injection gate 和 tapIndex 仍未实现，故保持未勾选。
 
 - [ ] **GP-3：滚动标量同步引擎。** 原生会话流滚动 → 向主 document 传递 `scrollOffset` 标量 → 平面内 transform 内容；惯性滚动下插件卡片仅允许轻微拖影（视觉瑕疵），禁止功能错位；需 120Hz ProMotion 实测（开放验证项）。
   - 验收：切片随原生滚动零功能错位；跨插件服务调用一致（单 document 保证互操作）。
