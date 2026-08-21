@@ -1904,6 +1904,10 @@ final class NativeSessionStore: ObservableObject {
                 bufferRecoveryLiveEvent(event, view: view)
                 return
             }
+            // Source: RC8 `Session.acceptLiveEvent`: only an open authority
+            // window accepts direct events. A failed/cold window must wait for
+            // a later history baseline instead of manufacturing a partial log.
+            guard case .ready(sessionID: sessionID) = phase else { return }
             guard !liveEventRequiresAuthorityRecovery(event) else {
                 bufferRecoveryLiveEvent(event, view: view)
                 requestAuthorityRecovery(sessionID: sessionID, reason: .eventGap)

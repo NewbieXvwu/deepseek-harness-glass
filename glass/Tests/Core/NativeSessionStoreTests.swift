@@ -49,6 +49,37 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertTrue(store.isRunning, "carrier receipt cannot optimistically settle a Host-owned running turn")
     }
 
+    func testFailedOpenDropsLiveEventsUntilNextAuthorityBaseline() async {
+        let store = NativeSessionStore()
+        let sessionID = "failed-live-window"
+        store.open(sessionID: sessionID, using: RejectingSessionAPI(promptReachedFacade: nil), endpoint: URL(string: "http://127.0.0.1:1")!)
+        await eventually(timeout: 1) {
+            if case .failed = store.phase { return true }
+            return false
+        }
+
+        store.applyMuxFrame(sessionEventFrame(
+            sessionID: sessionID,
+            seq: 1,
+            type: "user/message",
+            data: .object([
+                "id": .string("must-not-append"),
+                "content": .array([.object(["type": .string("text"), "text": .string("must wait for authority")])]),
+                "source": .object(["kind": .string("user")]),
+            ]),
+            surfaceOp: "append"
+        ), sessionID: sessionID)
+
+        XCTAssertTrue(store.items.isEmpty)
+        XCTAssertTrue(store.chatNodes.isEmpty)
+        XCTAssertTrue(store.trajectoryNodes.isEmpty)
+        if case .failed = store.phase {
+            // Expected RC8 error state remains stable until the next open/resync.
+        } else {
+            XCTFail("failed authority window must not become ready from a live frame")
+        }
+    }
+
     func testAcceptedPromptClearsDraftOnlyAfterTypedHostFacadeAcceptance() async {
         let promptReachedFacade = expectation(description: "typed prompt facade returns Host acceptance")
         let api = AcceptingSessionAPI(promptReachedFacade: promptReachedFacade)
