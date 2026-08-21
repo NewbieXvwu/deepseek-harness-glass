@@ -116,6 +116,29 @@ final class SSEClientTests: XCTestCase {
         XCTAssertEqual(opener.openedEndpoints(), [.mux, .mux])
     }
 
+    func testHighFrequencyOutOfOrderStreamDropsLateFrameWithoutBlockingNewTail() async throws {
+        var script = (1 ... 1_000).map { sequence in
+            RecordedSSEElement.frame(sessionEvent(rpcId: "live-\(sequence)", sequence: sequence))
+        }
+        script.append(.frame(sessionEvent(rpcId: "late-1000", sequence: 1_000)))
+        script.append(.frame(sessionEvent(rpcId: "live-1001", sequence: 1_001)))
+        let opener = RecordedSSEOpener(scripts: [script])
+        let client = SSEClient(
+            baseURL: URL(string: "http://127.0.0.1:9238/")!,
+            testStreamOpener: { endpoint in opener.open(endpoint) }
+        )
+
+        var frames: [RPCServerRequest] = []
+        let stream = await client.reconnectingStream(.mux, policy: .init(initialDelay: 0.01, maximumDelay: 0.02, multiplier: 2))
+        for try await frame in stream { frames.append(frame) }
+
+        XCTAssertEqual(frames.count, 1_001)
+        XCTAssertEqual(frames.first?.rpcId, "live-1")
+        XCTAssertEqual(frames.last?.rpcId, "live-1001")
+        XCTAssertFalse(frames.map(\.rpcId).contains("late-1000"))
+        XCTAssertEqual(opener.openedEndpoints(), [.mux])
+    }
+
     func testFinalCancellationStopsRetryLoopWithoutFurtherOpen() async throws {
         let opener = RecordedSSEOpener(scripts: [[.failure(.network("fixture-disconnect"))]])
         let client = SSEClient(
