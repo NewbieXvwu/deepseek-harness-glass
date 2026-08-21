@@ -849,6 +849,31 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.modelDirectoryStatus, .ready)
     }
 
+    func testAheadWatermarkFailureKeepsFirstWindowReady() async {
+        let recoveryHistoryReached = expectation(description: "ahead watermark recovery history is held")
+        let api = CoalescingGapFailureSessionAPI(recoveryHistoryReached: recoveryHistoryReached)
+        let store = NativeSessionStore()
+        let sessionID = "recovery-session"
+        store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+        await eventually(timeout: 1) { store.items.map(\.text) == ["baseline"] }
+
+        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "ahead-watermark-failure", method: "session/subscribed", payload: .object([
+            "type": .string("session/subscribed"),
+            "sessionId": .string(sessionID),
+            "lastSeq": .number(2),
+        ])), sessionID: sessionID)
+        await fulfillment(of: [recoveryHistoryReached], timeout: 1)
+        await api.failRecovery()
+        await eventually(timeout: 1) {
+            if case .error = store.modelDirectoryStatus { return true }
+            return false
+        }
+
+        XCTAssertEqual(api.historyCalls, 2)
+        XCTAssertEqual(store.items.map(\.text), ["baseline"])
+        XCTAssertEqual(store.phase, .ready(sessionID: sessionID))
+    }
+
     func testNewEndpointOpenSupersedesStaleInitialHistoryAuthority() async {
         let staleHistoryReached = expectation(description: "stale initial history is delayed")
         let staleAPI = DelayedOpeningHistorySessionAPI(staleHistoryReached: staleHistoryReached)
