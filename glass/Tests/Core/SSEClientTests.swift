@@ -292,6 +292,46 @@ final class SSEClientTests: XCTestCase {
         XCTAssertEqual(traces.last?.outcome, .cancelled)
     }
 
+    func testConsumerCancellationBeforeFirstInitialFrameCancelsCarrierWithoutReconnect() async throws {
+        let carrierOpened = expectation(description: "initial carrier opens before its first frame")
+        let carrierCancelled = expectation(description: "silent initial carrier observes cancellation")
+        let carrierStopped = expectation(description: "silent initial carrier producer stops")
+        let gate = RecoveryGate()
+        let opener = RecordedSSEOpener(scripts: [])
+        let client = SSEClient(
+            baseURL: URL(string: "http://127.0.0.1:9244/")!,
+            testStreamOpener: { endpoint in
+                _ = opener.open(endpoint)
+                return SSEFrameStream { continuation in
+                    let producer = Task {
+                        carrierOpened.fulfill()
+                        await gate.wait()
+                        if Task.isCancelled { carrierCancelled.fulfill() }
+                        carrierStopped.fulfill()
+                        continuation.finish()
+                    }
+                    continuation.onTermination = { _ in producer.cancel() }
+                }
+            }
+        )
+
+        let consumer = Task { () throws -> [RPCServerRequest] in
+            let stream = await client.reconnectingStream(.mux, policy: .init(initialDelay: 0.01, maximumDelay: 0.02, multiplier: 2))
+            var frames: [RPCServerRequest] = []
+            for try await frame in stream { frames.append(frame) }
+            return frames
+        }
+        await fulfillment(of: [carrierOpened], timeout: 1)
+        consumer.cancel()
+        _ = try? await consumer.value
+        await fulfillment(of: [carrierCancelled, carrierStopped], timeout: 1)
+        try await Task.sleep(for: .milliseconds(25))
+
+        XCTAssertEqual(opener.openedEndpoints(), [.mux])
+        let traces = await client.recentReconnectTraces()
+        XCTAssertEqual(traces.last?.outcome, .cancelled)
+    }
+
     func testConsumerCancellationBeforeFirstReconnectedFrameCancelsSecondCarrierWithoutThirdOpen() async throws {
         let secondCarrierOpened = expectation(description: "reconnected carrier opens before its first frame")
         let secondCarrierCancelled = expectation(description: "silent reconnected carrier observes cancellation")
