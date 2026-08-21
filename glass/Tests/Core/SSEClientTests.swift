@@ -139,6 +139,57 @@ final class SSEClientTests: XCTestCase {
         XCTAssertEqual(opener.openedEndpoints(), [.mux])
     }
 
+    func testHighFrequencyConsumerTerminationCancelsCarrierWithoutOpeningReconnect() async throws {
+        let firstFrameProduced = expectation(description: "high-frequency carrier produces first frame")
+        let producerStopped = expectation(description: "carrier producer observes stream termination")
+        let producerCancelled = expectation(description: "carrier producer observes cancellation after consumer termination")
+        let gate = RecoveryGate()
+        let opener = RecordedSSEOpener(scripts: [])
+        let client = SSEClient(
+            baseURL: URL(string: "http://127.0.0.1:9239/")!,
+            testStreamOpener: { endpoint in
+                // Count the physical open using the existing deterministic test
+                // helper, then replace its exhausted stream with a cancellable
+                // high-frequency carrier.
+                _ = opener.open(endpoint)
+                return SSEFrameStream { continuation in
+                    let producer = Task {
+                        for sequence in 1 ... 10_000 {
+                            if Task.isCancelled { break }
+                            continuation.yield(highFrequencySessionEvent(sequence: sequence))
+                            if sequence == 1 {
+                                firstFrameProduced.fulfill()
+                                await gate.wait()
+                                if Task.isCancelled { producerCancelled.fulfill() }
+                            }
+                        }
+                        producerStopped.fulfill()
+                        continuation.finish()
+                    }
+                    continuation.onTermination = { _ in producer.cancel() }
+                }
+            }
+        )
+
+        let consumer = Task { () throws -> [RPCServerRequest] in
+            var frames: [RPCServerRequest] = []
+            let stream = await client.reconnectingStream(.mux, policy: .init(initialDelay: 0.01, maximumDelay: 0.02, multiplier: 2))
+            for try await frame in stream {
+                frames.append(frame)
+                if frames.count == 1 { return frames }
+            }
+            return frames
+        }
+        await fulfillment(of: [firstFrameProduced], timeout: 1)
+        let frames = try await consumer.value
+        await fulfillment(of: [producerCancelled, producerStopped], timeout: 1)
+
+        XCTAssertEqual(frames.map(\.rpcId), ["high-frequency-1"])
+        XCTAssertEqual(opener.openedEndpoints(), [.mux])
+        let traces = await client.recentReconnectTraces()
+        XCTAssertEqual(traces.last?.outcome, .cancelled)
+    }
+
     func testFinalCancellationStopsRetryLoopWithoutFurtherOpen() async throws {
         let opener = RecordedSSEOpener(scripts: [[.failure(.network("fixture-disconnect"))]])
         let client = SSEClient(
@@ -236,6 +287,24 @@ final class SSEClientTests: XCTestCase {
         }
         XCTFail("recorded SSE opener did not open \(expected) stream(s) before timeout")
     }
+}
+
+private func highFrequencySessionEvent(sequence: Int) -> RPCServerRequest {
+    RPCServerRequest(
+        type: "server-request",
+        rpcId: "high-frequency-\(sequence)",
+        method: "session/event",
+        payload: .object([
+            "type": .string("session/event"),
+            "sessionId": .string("high-frequency-session"),
+            "event": .object([
+                "type": .string("turn/start"),
+                "seq": .number(Double(sequence)),
+                "time": .number(Double(sequence)),
+                "data": .object([:]),
+            ]),
+        ])
+    )
 }
 
 private enum RecordedSSEElement: Sendable {
