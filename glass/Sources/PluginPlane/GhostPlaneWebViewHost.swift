@@ -11,6 +11,7 @@ public final class GhostPlaneWebViewHost: NSObject {
         /// The host never writes into an arbitrary page. A replay becomes
         /// possible only after the native-owned skeleton has completed loading.
         case skeletonNotReady
+        case duplicateModulePermit
     }
 
     public let webView: WKWebView
@@ -74,6 +75,28 @@ public final class GhostPlaneWebViewHost: NSObject {
         )
     }
 
+    /// Promotes only native graph-admitted permit identities from the document
+    /// queue into its live factory table. This call deliberately does not invoke
+    /// a factory or provide exports/services; the later materializer must still
+    /// satisfy typed injection before execution.
+    public func promoteModuleFactories(_ permits: [GhostPlaneModuleActivationGate.ActivationPermit]) async throws {
+        guard skeletonReady else { throw TapIndexApplicationError.skeletonNotReady }
+        let ids = permits.map(\.pluginID)
+        guard Set(ids).count == ids.count else { throw TapIndexApplicationError.duplicateModulePermit }
+        _ = try await webView.callAsyncJavaScript(
+            """
+            const ghostPlane = window.__DSH_GHOST_PLANE__;
+            if (ghostPlane === undefined || typeof ghostPlane.promoteModuleFactories !== 'function') {
+              throw new Error('Ghost Plane module promotion bootstrap is unavailable');
+            }
+            return ghostPlane.promoteModuleFactories(arguments.pluginIDs);
+            """,
+            arguments: ["pluginIDs": ids],
+            in: nil,
+            in: .page
+        )
+    }
+
     /// Delivers the native-authoritative scalar to the one Ghost Plane document.
     /// The value is already sequence/epoch fenced by `GhostPlaneScrollSynchronizer`;
     /// this host adds document-readiness protection and passes only the numeric
@@ -114,7 +137,7 @@ public final class GhostPlaneWebViewHost: NSObject {
           // invalid factory shape. Actual bundle arrival/materialization stays
           // behind the later hard injection gate.
           const moduleLoader = (() => {
-            let mode = 'queue';
+            let mode = { value: 'queue' };
             const pendingQueue = [];
             const factories = new Map();
             const validRegistration = (registration) => registration !== null
@@ -126,14 +149,32 @@ public final class GhostPlaneWebViewHost: NSObject {
             const load = (registration) => {
               if (!validRegistration(registration)) throw new Error('Ghost Plane module registration was rejected');
               const id = registration.id.endsWith('/client') ? registration.id.slice(0, -'/client'.length) : registration.id;
-              if (mode === 'queue') {
+              if (mode.value === 'queue') {
                 pendingQueue.push(Object.freeze({ id, factory: registration.factory }));
                 return;
               }
               if (factories.has(id)) throw new Error(`Ghost Plane duplicate module factory: ${id}`);
               factories.set(id, registration.factory);
             };
-            return Object.freeze({ load, pendingQueue, factories, mode });
+            const promote = (pluginIDs) => {
+              if (mode.value !== 'queue') throw new Error('Ghost Plane module loader is already live');
+              if (!Array.isArray(pluginIDs) || pluginIDs.length === 0 || new Set(pluginIDs).size !== pluginIDs.length
+                  || !pluginIDs.every(id => typeof id === 'string' && /^[A-Za-z0-9._-]+$/.test(id))) {
+                throw new Error('Ghost Plane native module permits were rejected');
+              }
+              const permitted = new Set(pluginIDs);
+              if (pendingQueue.length !== permitted.size || pendingQueue.some(registration => !permitted.has(registration.id))) {
+                throw new Error('Ghost Plane queue does not exactly match native module permits');
+              }
+              for (const registration of pendingQueue) {
+                if (factories.has(registration.id)) throw new Error(`Ghost Plane duplicate module factory: ${registration.id}`);
+                factories.set(registration.id, registration.factory);
+              }
+              pendingQueue.splice(0);
+              mode.value = 'live';
+              return true;
+            };
+            return Object.freeze({ load, pendingQueue, factories, promote, get mode() { return mode.value; } });
           })();
           Object.defineProperty(window, '__ModuleLoader__', {
             configurable: false,
@@ -208,7 +249,7 @@ public final class GhostPlaneWebViewHost: NSObject {
             configurable: false,
             enumerable: false,
             writable: false,
-            value: Object.freeze({ applyTapIndex, applyScrollOffset }),
+            value: Object.freeze({ applyTapIndex, applyScrollOffset, promoteModuleFactories: moduleLoader.promote }),
           });
         })();
         """,

@@ -12,7 +12,7 @@ final class GhostPlaneWebViewHostTests: XCTestCase {
 
         XCTAssertTrue(host.webView.configuration.websiteDataStore.isPersistent == false)
         XCTAssertNil(host.webView.uiDelegate)
-        XCTAssertNotNil(host.loadSkeleton("<html><body><div data-ghost-plane=\"skeleton\"></div></body></html>"))
+        XCTAssertNotNil(host.loadSkeleton("<html><head></head><body><div data-ghost-plane=\"skeleton\"></div></body></html>"))
         XCTAssertEqual(webViews(in: host.webView).count, 1)
     }
 
@@ -103,6 +103,46 @@ final class GhostPlaneWebViewHostTests: XCTestCase {
         ) as? [String: Any]
         XCTAssertEqual(scrollResult?["transform"] as? String, "translate3d(0px, -42.5px, 0px)")
         XCTAssertEqual(scrollResult?["offset"] as? String, "42.5")
+    }
+
+    func testNativePermitPromotesExactQueuedFactoriesWithoutInvokingThem() async throws {
+        let host = GhostPlaneWebViewHost(policy: try policy())
+        let loaded = expectation(description: "native skeleton completed")
+        var observation: NSKeyValueObservation?
+        observation = host.webView.observe(\.isLoading, options: [.new]) { webView, change in
+            if change.newValue == false, webView.url != nil {
+                loaded.fulfill()
+                observation?.invalidate()
+                observation = nil
+            }
+        }
+        defer { observation?.invalidate() }
+        XCTAssertNotNil(host.loadSkeleton("<!doctype html><html><head></head><body><div id=\"ghost-scroll-content\"></div></body></html>"))
+        await fulfillment(of: [loaded], timeout: 5)
+        _ = try await host.webView.callAsyncJavaScript(
+            """
+            window.__ModuleLoader__.load({
+              id: 'dsh-review-loop/client',
+              factory: () => { throw new Error('factory must not run during promotion'); },
+            });
+            return window.__ModuleLoader__.mode;
+            """,
+            arguments: [:], in: nil, in: .page
+        )
+        try await host.promoteModuleFactories([.init(pluginID: "dsh-review-loop", revision: "r1", graphRevision: "graph-r1")])
+        let result = try await host.webView.callAsyncJavaScript(
+            """
+            return {
+              mode: window.__ModuleLoader__.mode,
+              queued: window.__ModuleLoader__.pendingQueue.length,
+              live: window.__ModuleLoader__.factories.has('dsh-review-loop'),
+            };
+            """,
+            arguments: [:], in: nil, in: .page
+        ) as? [String: Any]
+        XCTAssertEqual(result?["mode"] as? String, "live")
+        XCTAssertEqual(result?["queued"] as? Int, 0)
+        XCTAssertEqual(result?["live"] as? Bool, true)
     }
 
     private func policy() throws -> GhostPlaneLoopbackPolicy {
