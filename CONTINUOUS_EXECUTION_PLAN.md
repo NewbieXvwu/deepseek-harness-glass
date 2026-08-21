@@ -6,7 +6,7 @@
 
 ## 一、结论与当前基线
 
-本计划以**持续工作直至 `TODO.md` 中 78 个编号任务全部达到可审计完成状态**为目标，而不是以“应用可启动”或“局部截图近似”为完成标准。当前本地工作树干净，目标仓库位于 `/home/ubuntu/workspaces/deepseek-harness-glass`，官方参考源码位于 `/home/ubuntu/workspaces/deepseek-harness-official`；二者均已克隆。官方参考版本与项目锁定的 Host、协议和视觉规格版本一致，因此可以直接用于逐项追溯源码、生成 fixture 和复核 UI 行为。[1] [2] [3]
+本计划以**持续工作直至 `TODO.md` 中 78 个编号任务全部达到可审计完成状态**为目标，而不是以“应用可启动”或“局部截图近似”为完成标准。当前本地工作树位于 `/home/ubuntu/work/deepseek-harness-glass`，官方参考源码位于 `/home/ubuntu/work/deepseek-harness-reference`；二者均已克隆。环境与安装事实记录于 `notes/environment-setup.md`。官方参考版本与项目锁定的 Host、协议和视觉规格版本一致，因此可以直接用于逐项追溯源码、生成 fixture 和复核 UI 行为。[1] [2] [3]
 
 | 指标 | 当前值 | 计划含义 |
 |---|---:|---|
