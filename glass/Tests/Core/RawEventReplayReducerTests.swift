@@ -77,6 +77,29 @@ final class RawEventReplayReducerTests: XCTestCase {
         XCTAssertTrue(reducer.snapshot(target: "inspector").isEmpty)
     }
 
+    func testReconnectReplaySnapshotsDropDuplicateChunkBeforeAcceptingLiveTail() throws {
+        let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
+        let events = try events(for: "reconnect-duplicate-sequence")
+        var snapshots: [[ConversationViewNode]] = []
+
+        for event in events {
+            _ = reducer.append(.init(event: event))
+            snapshots.append(reducer.snapshot(target: "chat"))
+        }
+
+        XCTAssertTrue(snapshots[0].isEmpty)
+        XCTAssertTrue(snapshots[1].isEmpty)
+        let firstTail = tryUnwrap(snapshots[2].first?.data as? CoreAssistantNode)
+        XCTAssertEqual(firstTail.blocks.first?.text, "first")
+        XCTAssertEqual(snapshots[3].map(\.key), snapshots[2].map(\.key))
+        let deduplicatedTail = tryUnwrap(snapshots[3].first?.data as? CoreAssistantNode)
+        XCTAssertEqual(deduplicatedTail.blocks.first?.text, "first")
+        let liveTail = tryUnwrap(snapshots[4].first?.data as? CoreAssistantNode)
+        XCTAssertEqual(liveTail.blocks.first?.text, "first second")
+        XCTAssertEqual(liveTail.status, .running)
+        XCTAssertTrue(reducer.snapshot(target: "inspector").isEmpty)
+    }
+
     func testConcurrentToolAndAssistantReplayPreservesBothTypedNodes() throws {
         let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
         let events = try events(for: "interleaved-tool-and-assistant")
