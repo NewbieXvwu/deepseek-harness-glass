@@ -121,6 +121,7 @@ jobs:
             --official-root .reference/deepseek-harness
           echo "::endgroup::"
           echo "::group::Runtime asset migration inventory"
+          python3 glass/ci/test-runtime-asset-inventory.py
           python3 glass/ci/check-runtime-asset-inventory.py
           echo "::endgroup::"
       - name: Verify CI feedback topology

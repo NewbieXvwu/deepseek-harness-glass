@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 
 
@@ -25,6 +26,45 @@ REQUIRED_IDS = {
     "release-workflow",
     "webview-shell",
 }
+
+
+def native_app_target_failures(package: object) -> list[str]:
+    """Return target-graph failures without inspecting application source text."""
+    if not isinstance(package, dict):
+        return ["SwiftPM target graph must be an object"]
+    targets = package.get("targets")
+    if not isinstance(targets, list):
+        return ["SwiftPM target graph has no target array"]
+    app_targets = [
+        target for target in targets
+        if isinstance(target, dict)
+        and target.get("type") == "executable"
+        and target.get("name") == "DeepSeekHarnessGlassApp"
+        and target.get("path") == "Sources/App"
+    ]
+    if len(app_targets) != 1:
+        return ["runtime asset migration requires exactly one DeepSeekHarnessGlassApp executable target at Sources/App"]
+    return []
+
+
+def verify_native_app_target() -> None:
+    """Validate the compiled-package ownership boundary, not Swift source text."""
+    result = subprocess.run(
+        ["swift", "package", "describe", "--type", "json"],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise SystemExit("unable to inspect SwiftPM target graph for runtime asset inventory: " + result.stderr.strip())
+    try:
+        package = json.loads(result.stdout)
+    except json.JSONDecodeError as error:
+        raise SystemExit(f"SwiftPM target graph is not valid JSON: {error}") from error
+    failures = native_app_target_failures(package)
+    if failures:
+        raise SystemExit("; ".join(failures))
 
 
 def main() -> None:
@@ -55,11 +95,7 @@ def main() -> None:
     if missing:
         raise SystemExit("runtime asset inventory misses: " + ", ".join(sorted(missing)))
 
-    if (ROOT / "Sources/main.swift").exists():
-        raise SystemExit("legacy Sources/main.swift must not remain after App lifecycle migration")
-    app_entry = ROOT / "Sources/App/DeepSeekHarnessGlassApp.swift"
-    if "@main" not in app_entry.read_text(encoding="utf-8"):
-        raise SystemExit("module App entry must own the only @main declaration")
+    verify_native_app_target()
 
     print(f"Runtime asset inventory gate passed: {len(assets)} classified assets.")
 
