@@ -87,9 +87,13 @@ final class NativeSettingsStore: ObservableObject {
 
     /// Records a caller-selected mutation without treating it as durable Host
     /// state. A newer remote descriptor may change its revision, but must not
-    /// silently erase a user draft after a conflict.
-    func stage(namespace: SettingsNamespaceDTO, operation: SettingsPathOperationDTO) {
+    /// silently erase a user draft after a conflict. Write-only secret slots use
+    /// the dedicated credentials boundary and are never retained in this store.
+    @discardableResult
+    func stage(namespace: SettingsNamespaceDTO, operation: SettingsPathOperationDTO) -> Bool {
+        guard !namespace.secrets.contains(where: { $0.path == operation.path }) else { return false }
         drafts[namespace.ns] = Draft(namespace: namespace.ns, operation: operation)
+        return true
     }
 
     func discardDraft(namespace: String) {
@@ -127,7 +131,7 @@ final class NativeSettingsStore: ObservableObject {
         operation: SettingsPathOperationDTO,
         using api: (any NativeSettingsAPI)?
     ) async throws {
-        stage(namespace: namespace, operation: operation)
+        guard stage(namespace: namespace, operation: operation) else { return }
         try await saveDraft(namespace: namespace.ns, using: api)
     }
 

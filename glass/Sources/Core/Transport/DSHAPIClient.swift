@@ -785,6 +785,12 @@ enum SettingsPathOperationDTO: Codable, Sendable, Equatable {
     case set(path: [String], value: JSONValue)
     case unset(path: [String])
 
+    var path: [String] {
+        switch self {
+        case let .set(path, _), let .unset(path): return path
+        }
+    }
+
     private enum CodingKeys: String, CodingKey { case op, path, value }
     private enum Operation: String, Codable { case set, unset }
 

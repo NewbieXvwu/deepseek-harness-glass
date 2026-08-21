@@ -34,6 +34,32 @@ final class NativeSettingsStoreTests: XCTestCase {
         XCTAssertEqual(store.permissionPreset.status, .unavailable)
     }
 
+    func testSecretSettingOperationCannotEnterDraftState() {
+        let namespace = SettingsNamespaceDTO(
+            ns: "provider",
+            schema: .object([:]),
+            value: .object([:]),
+            base: nil,
+            user: nil,
+            applies: "live",
+            secrets: [.init(path: ["apiKey"], set: true)],
+            revision: 1
+        )
+        let store = NativeSettingsStore()
+
+        XCTAssertFalse(store.stage(
+            namespace: namespace,
+            operation: .set(path: ["apiKey"], value: .string("must-not-be-retained"))
+        ))
+        XCTAssertFalse(store.isDirty(namespace: namespace.ns))
+        XCTAssertTrue(store.drafts.isEmpty)
+        XCTAssertTrue(store.stage(
+            namespace: namespace,
+            operation: .set(path: ["displayName"], value: .string("safe-draft"))
+        ))
+        XCTAssertEqual(store.drafts[namespace.ns]?.operation, .set(path: ["displayName"], value: .string("safe-draft")))
+    }
+
     func testSupersededDescribeCannotReviveOldSettingsAuthority() async {
         let api = DelayedFirstDescribeSettingsAPI(
             old: .init(writable: true, hasDocument: true, namespaces: [permissionNamespace(value: "workspace-write", revision: 7)]),
@@ -71,7 +97,7 @@ final class NativeSettingsStoreTests: XCTestCase {
 
         store.load(using: api)
         await eventually { store.namespaces.first?.revision == 7 }
-        store.stage(namespace: original, operation: operation)
+        XCTAssertTrue(store.stage(namespace: original, operation: operation))
         XCTAssertTrue(store.isDirty(namespace: "permission"))
 
         do {

@@ -437,7 +437,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 - [ ] **T10.2：实现 `NativeSettingsStore`。** 包含 describe cache、draft、dirty/invalid、readback、discard、revision conflict、remote invalidation 与 reconnect refresh。
   - 依赖：T4.5。
   - 验收：两个客户端并发修改同一 namespace 时，旧 revision 的写入被拒绝且本地草稿仍可修正。
-  - 进度：`NativeSettingsStore` 现以类型化 `Draft` 将用户 mutation 与最后一份完整 Host namespace 分离；保存始终采用当前 Host revision，拒绝时不乐观改写 namespace 且保留草稿，只有接受的 Host 回执才替换 namespace 并清除草稿。`NativeSettingsStoreTests` 已模拟另一客户端先提交 revision 8：旧 revision 7 被拒绝、草稿跨远端 describe refresh 保持，再以 revision 8 重试收到 revision 9 的 Host namespace。describe 亦已改为受管 Task + authority generation；测试覆盖已取消但仍迟到的 revision 7 回包不能覆盖 revision 8 的最新 Host authority。完整 macOS XCTest、settings root/form 的 UI 绑定、readback/discard/secret/重连视觉无障碍证据仍待完成，故保持未勾选。
+  - 进度：`NativeSettingsStore` 现以类型化 `Draft` 将用户 mutation 与最后一份完整 Host namespace 分离；保存始终采用当前 Host revision，拒绝时不乐观改写 namespace 且保留草稿，只有接受的 Host 回执才替换 namespace 并清除草稿。`NativeSettingsStoreTests` 已模拟另一客户端先提交 revision 8：旧 revision 7 被拒绝、草稿跨远端 describe refresh 保持，再以 revision 8 重试收到 revision 9 的 Host namespace。describe 亦已改为受管 Task + authority generation；测试覆盖已取消但仍迟到的 revision 7 回包不能覆盖 revision 8 的最新 Host authority。通用 draft 边界会拒绝 `SettingsNamespaceDTO.secrets` 中 Host 标记的路径；对应负例验证 apiKey 的原始 value 不会进入 drafts，而非敏感字段可继续以类型化 operation 暂存。完整 macOS XCTest、settings root/form 的 UI 绑定、readback/discard/secret/重连视觉无障碍证据仍待完成，故保持未勾选。
 
 - [ ] **T10.3：实现官方 General 页面。** 覆盖官方公开的通用偏好、主题、行为项和 agent preset 行；字段可见性遵循 Host 能力。
   - 依赖：T10.1、T10.2、T2.2。
