@@ -34,8 +34,49 @@ final class NativeModelDiscoveryStoreTests: XCTestCase {
         XCTAssertEqual(store.phase, .idle)
     }
 
-    private func request() -> LLMDiscoverModelsRequest {
-        .init(settingsNs: "provider-settings", provider: "provider", baseURL: "https://models.test", api: nil, apiKey: "ephemeral-test-key")
+    func testLateDiscoveryResponseCannotOverwriteNewerHostCandidates() async {
+        let oldReached = expectation(description: "older discovery waits at Host boundary")
+        let api = DelayedDiscoveryAPI(oldReached: oldReached)
+        let store = NativeModelDiscoveryStore()
+        let oldTask = Task { await store.discover(request(provider: "slow"), using: api) }
+        await fulfillment(of: [oldReached], timeout: 1)
+
+        await store.discover(request(provider: "fresh"), using: api)
+        XCTAssertEqual(store.phase, .ready)
+        XCTAssertEqual(store.candidates.map(\.id), ["fresh-model"])
+
+        await api.releaseOldResponse()
+        await oldTask.value
+        XCTAssertEqual(store.phase, .ready)
+        XCTAssertEqual(store.candidates.map(\.id), ["fresh-model"])
+    }
+
+    private func request(provider: String = "provider") -> LLMDiscoverModelsRequest {
+        .init(settingsNs: "provider-settings", provider: provider, baseURL: "https://models.test", api: nil, apiKey: "ephemeral-test-key")
+    }
+
+    private final class DelayedDiscoveryAPI: NativeLLMDirectoryAPI, @unchecked Sendable {
+        let oldReached: XCTestExpectation
+        private let gate = RecoveryGate()
+
+        init(oldReached: XCTestExpectation) {
+            self.oldReached = oldReached
+        }
+
+        func releaseOldResponse() async {
+            await gate.open()
+        }
+
+        func providers() async throws -> LLMProvidersResponse { .init(providers: []) }
+        func models() async throws -> LLMModelsResponse { .init(groups: [], failures: []) }
+        func discoverModels(_ request: LLMDiscoverModelsRequest) async throws -> LLMDiscoverModelsResponse {
+            if request.provider == "slow" {
+                oldReached.fulfill()
+                await gate.wait()
+                return .init(models: [.init(id: "slow-model", name: "Slow Model", contextWindow: 8_192, maxTokens: 1_024)])
+            }
+            return .init(models: [.init(id: "fresh-model", name: "Fresh Model", contextWindow: 128_000, maxTokens: 8_192)])
+        }
     }
 
     private final class DiscoveryAPI: NativeLLMDirectoryAPI, @unchecked Sendable {

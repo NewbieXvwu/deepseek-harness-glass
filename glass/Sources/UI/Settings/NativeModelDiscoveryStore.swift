@@ -19,8 +19,11 @@ final class NativeModelDiscoveryStore: ObservableObject {
 
     @Published private(set) var phase: Phase = .idle
     @Published private(set) var candidates: [LLMDiscoveredModelDTO] = []
+    private var generation = 0
 
     func discover(_ request: LLMDiscoverModelsRequest, using api: (any NativeLLMDirectoryAPI)?) async {
+        generation &+= 1
+        let currentGeneration = generation
         guard let api else {
             phase = .idle
             candidates = []
@@ -30,9 +33,11 @@ final class NativeModelDiscoveryStore: ObservableObject {
         candidates = []
         do {
             let response = try await api.discoverModels(request)
+            guard generation == currentGeneration else { return }
             candidates = response.models
             phase = candidates.isEmpty ? .empty : .ready
         } catch {
+            guard generation == currentGeneration else { return }
             // Discovery refusal/transport detail is not observable UI state;
             // model-directory failures remain Host-authoritative elsewhere.
             phase = .failed
@@ -40,6 +45,7 @@ final class NativeModelDiscoveryStore: ObservableObject {
     }
 
     func dismiss() {
+        generation &+= 1
         candidates = []
         phase = .idle
     }
