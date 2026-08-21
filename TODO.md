@@ -434,6 +434,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 - [ ] **T10.1：实现 Settings Root。** 复刻官方 settings 导航、section 顺序、选中态、返回逻辑、窗口/面板行为与空状态；不设计额外“原生设置”分类。
   - 依赖：T2.2、T5.2。
   - 验收：所有内置 section 文案与官方 locale 对应，排列由 `OfficialUISpec` 驱动。
+  - 进度：新增 `NativeSettingsRoot`，以锁定 `ui-settings-general/models/plugins` locale 提供 General、Models、Plugins 官方导航，loading/failed/retry 同样来自 catalog；内容只列 Host typed namespaces，绝不由缺失 schema 伪造可写字段。`NativeShellPresentation` 现持有 `NativeSettingsStore`，sidebar Settings action 实际打开/关闭 AppKit `NSHostingController` 窗口并按已验证 Host `SettingsAPI` load；断线清除 authority，且无 Host 打开仅保持 empty/idle，不伪造数据。回归锁定官方导航 key 与 shell open/close 边界。完整 section 排列、返回/面板行为、schema form、主题与 macOS 视觉/AX证据仍待完成，故保持未勾选。
 
 - [ ] **T10.2：实现 `NativeSettingsStore`。** 包含 describe cache、draft、dirty/invalid、readback、discard、revision conflict、remote invalidation 与 reconnect refresh。
   - 依赖：T4.5。

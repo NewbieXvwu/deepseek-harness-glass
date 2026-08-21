@@ -91,6 +91,8 @@ final class NativeShellPresentation: ObservableObject {
 
     let workspaceStore: NativeWorkspaceStore
     let sessionStore: NativeSessionStore
+    let settingsStore: NativeSettingsStore
+    @Published var settingsPresented = false
     /// Window-resident native counterparts of RC8's contribution ledgers.
     /// They deliberately outlive individual SwiftUI root-view assignments.
     let conversationViewRegistry = NativeConversationViewRegistry()
@@ -114,6 +116,7 @@ final class NativeShellPresentation: ObservableObject {
         mode: NativeAppShell.PresentationMode = .welcome,
         workspaceStore: NativeWorkspaceStore? = nil,
         sessionStore: NativeSessionStore? = nil,
+        settingsStore: NativeSettingsStore? = nil,
         workspaceSnapshotDialog: WorkspaceBrowserView.SnapshotDialog = .none,
         jobsPopoverInitiallyOpen: Bool = false,
         jobsSnapshotLanguageCode: String? = nil,
@@ -124,6 +127,7 @@ final class NativeShellPresentation: ObservableObject {
         self.mode = mode
         self.workspaceStore = workspaceStore ?? NativeWorkspaceStore()
         self.sessionStore = sessionStore ?? NativeSessionStore()
+        self.settingsStore = settingsStore ?? NativeSettingsStore()
         self.workspaceSnapshotDialog = workspaceSnapshotDialog
         self.jobsPopoverInitiallyOpen = jobsPopoverInitiallyOpen
         self.jobsSnapshotLanguageCode = jobsSnapshotLanguageCode
@@ -224,6 +228,7 @@ final class NativeShellPresentation: ObservableObject {
             }
         }
         workspaceStore.refresh(using: apis)
+        if settingsPresented { settingsStore.load(using: apis.settings) }
         workspaceStore.observeHostEvents(at: connection.endpoint, using: apis, diagnostics: connection.diagnostics)
         if let selectedSessionID {
             sessionStore.open(
@@ -283,8 +288,19 @@ final class NativeShellPresentation: ObservableObject {
         hostDescription = nil
         workspaceStore.detachHost()
         sessionStore.disconnect()
+        settingsStore.load(using: nil)
+        settingsPresented = false
         mode = .welcome
         closeDetails()
+    }
+
+    func openSettings() {
+        settingsPresented = true
+        settingsStore.load(using: apis?.settings)
+    }
+
+    func closeSettings() {
+        settingsPresented = false
     }
 
     func selectSession(_ sessionID: String, workspaceID: String?) {
@@ -510,6 +526,7 @@ final class NativeShellPresentation: ObservableObject {
 final class NativeShellController: NativeSplitViewController {
     private let presentation: NativeShellPresentation
     private var presentationObservation: AnyCancellable?
+    private var settingsWindow: NSWindow?
 
     init(presentation: NativeShellPresentation) {
         self.presentation = presentation
@@ -609,6 +626,32 @@ final class NativeShellController: NativeSplitViewController {
             detailsVisible: presentation.detailsVisible && presentation.mode != .welcome
         )
         updateDocumentTitle()
+        synchronizeSettingsWindow()
+    }
+
+    private func synchronizeSettingsWindow() {
+        guard presentation.settingsPresented else {
+            settingsWindow?.close()
+            settingsWindow = nil
+            return
+        }
+        if let settingsWindow {
+            settingsWindow.makeKeyAndOrderFront(nil)
+            return
+        }
+        let root = NativeSettingsRoot(
+            store: presentation.settingsStore,
+            retry: { [weak presentation] in presentation?.openSettings() },
+            close: { [weak presentation] in presentation?.closeSettings() }
+        )
+        let window = NSWindow(contentViewController: NSHostingController(rootView: root))
+        window.title = OfficialUISpec.LocaleCatalog.value(namespace: "ui-settings-general", key: "title", language: "en") ?? ""
+        window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
+        window.setContentSize(NSSize(width: 760, height: 520))
+        window.center()
+        window.isReleasedWhenClosed = false
+        window.makeKeyAndOrderFront(nil)
+        settingsWindow = window
     }
 
     /// Source: RC8 `ui-renderer/DocumentTitle.tsx`. The native titlebar remains
@@ -662,7 +705,7 @@ final class NativeShellController: NativeSplitViewController {
             ),
             workspaceSnapshotDialog: presentation.workspaceSnapshotDialog,
             onNewSession: { presentation.createSession(in: presentation.workspaceStore.snapshot.selectedWorkspaceID) },
-            onOpenSettings: {}
+            onOpenSettings: { presentation.openSettings() }
         )
     }
 

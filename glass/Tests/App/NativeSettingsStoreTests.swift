@@ -60,6 +60,25 @@ final class NativeSettingsStoreTests: XCTestCase {
         XCTAssertEqual(store.drafts[namespace.ns]?.operation, .set(path: ["displayName"], value: .string("safe-draft")))
     }
 
+    func testSettingsRootNavigationUsesOnlyLockedOfficialLocaleValues() {
+        XCTAssertEqual(NativeSettingsRoot.SectionID.general.title, OfficialUISpec.LocaleCatalog.value(namespace: "ui-settings-general", key: "general.nav", language: "en"))
+        XCTAssertEqual(NativeSettingsRoot.SectionID.models.title, OfficialUISpec.LocaleCatalog.value(namespace: "ui-settings-models", key: "nav", language: "en"))
+        XCTAssertEqual(NativeSettingsRoot.SectionID.plugins.title, OfficialUISpec.LocaleCatalog.value(namespace: "ui-settings-plugins", key: "nav", language: "en"))
+    }
+
+    func testShellSettingsOpenAndCloseUseTypedStoreWithoutInventingHostAuthority() {
+        let store = NativeSettingsStore()
+        let presentation = NativeShellPresentation(mode: .conversation, settingsStore: store)
+
+        presentation.openSettings()
+        XCTAssertTrue(presentation.settingsPresented)
+        XCTAssertEqual(store.phase, .idle)
+        XCTAssertTrue(store.namespaces.isEmpty)
+
+        presentation.closeSettings()
+        XCTAssertFalse(presentation.settingsPresented)
+    }
+
     func testDiscardDraftRemovesOnlyLocalIntentWithoutChangingHostNamespace() {
         let namespace = permissionNamespace(value: "workspace-write", revision: 7)
         let store = NativeSettingsStore()
