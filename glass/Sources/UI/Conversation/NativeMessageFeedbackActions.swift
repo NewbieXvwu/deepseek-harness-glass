@@ -103,7 +103,6 @@ struct NativeMessageFeedbackActions: View {
                 TextEditor(text: $draft)
                     .font(OfficialUISpec.Typography.xs13)
                     .foregroundStyle(OfficialUISpec.Token.primary)
-                    .frame(minHeight: OfficialUISpec.Geometry.px72)
                     .accessibilityLabel(OfficialUISpec.Text.feedbackNoteAccessibility)
             }
             .overlay {
