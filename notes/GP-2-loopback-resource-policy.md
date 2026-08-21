@@ -31,9 +31,15 @@ GP-2 后续的独立 Plugin target 才可创建 `WKWebView`。它必须将每一
 
 > 本子阶段不宣称实现 WebKit sandbox、CSP、ModuleLoader、SlotRegistry、tapIndex sanitization、网络 response validation 或权限 bridge；这些均是 GP-2/T11.5 后续验收，不能由本 policy 的通过替代。
 
-## 4. 验证资产
+## 4. 登记制 WebKit target
 
-`GhostPlaneLoopbackPolicyTests` 覆盖同源已登记 plugin 放行、plugin root 构造、external/file/https/userinfo/port/path/unknown plugin/encoded traversal 负例及非 canonical origin 构造失败。`GhostPlaneModuleManifestTests` 覆盖已登记且拓扑有序的 graph 正例，以及 malformed graph、空/错 revision、重复 ID、resource mismatch、外站、未知 external 与 dependency-after-consumer 负例。两个 production source 都有对应 Linux Swift 6.2.4 可移植回归，且已接入 `portable-checks`。
+`GlassPluginPlane` 是新增且唯一可承载 WebKit 的 SwiftPM library target。它依赖 `GlassCore` 与 `GlassSpec`，但 `GlassCore`、`GlassUI`、`GlassSnapshot` 和 `DeepSeekHarnessGlassApp` 的精确 resolved target dependencies 不包含它；`check-package-target-graph.py` 通过 `swift package describe --type json` 验证这一方向，且其自测以非法 App→PluginPlane edge 证明会失败，而非扫描 Swift import 文本。
+
+`GhostPlaneWebViewHost` 只存在于该 target：它创建单一 `WKWebView`、使用 `WKWebsiteDataStore.nonPersistent()`、关闭 window opening，并把 main-frame 与 response URL 都送入 `GhostPlaneLoopbackPolicy`。policy 只额外允许精确 origin 根页作为 native content-empty skeleton document；所有其余允许路径仍须是已登记 plugin resource。`GlassPluginPlaneTests` 在 macOS 上验证真实 `WKWebView`、ephemeral store 与 policy boundary。Core/UI/App 的现有 NSView tree negative test 保持验证红区内无 WebView。
+
+## 5. 验证资产
+
+`GhostPlaneLoopbackPolicyTests` 覆盖同源已登记 plugin 放行、唯一 skeleton root、plugin root 构造、external/file/https/userinfo/port/path/unknown plugin/encoded traversal 负例及非 canonical origin 构造失败。`GhostPlaneModuleManifestTests` 覆盖已登记且拓扑有序的 graph 正例，以及 malformed graph、空/错 revision、重复 ID、resource mismatch、外站、未知 external 与 dependency-after-consumer 负例。两个 production source 都有对应 Linux Swift 6.2.4 可移植回归，且已接入 `portable-checks`。
 
 ## References
 

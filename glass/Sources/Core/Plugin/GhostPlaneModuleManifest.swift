@@ -55,6 +55,8 @@ struct GhostPlaneModuleManifest: Codable, Equatable, Sendable {
             switch policy.decision(for: url) {
             case .deny(let reason):
                 return .rejected(.resourceDenied(reason))
+            case .allowSkeletonDocument:
+                return .rejected(.invalidClientBundlePath)
             case .allowPluginResource(let pluginID):
                 guard pluginID == entry.id else { return .rejected(.resourceIDMismatch) }
             }

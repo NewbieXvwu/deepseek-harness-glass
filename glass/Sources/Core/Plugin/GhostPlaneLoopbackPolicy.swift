@@ -3,13 +3,14 @@ import Foundation
 /// Admission policy for all Ghost Plane network/navigation decisions. It is a
 /// pure Core value so the WebKit delegate can make one deterministic decision
 /// without teaching the native shell to trust arbitrary plugin URLs.
-struct GhostPlaneLoopbackPolicy: Equatable, Sendable {
-    enum Decision: Equatable, Sendable {
+public struct GhostPlaneLoopbackPolicy: Equatable, Sendable {
+    public enum Decision: Equatable, Sendable {
+        case allowSkeletonDocument
         case allowPluginResource(pluginID: String)
         case deny(Denial)
     }
 
-    enum Denial: Equatable, Sendable {
+    public enum Denial: Equatable, Sendable {
         case invalidOrigin
         case unsupportedScheme
         case nonLoopbackHost
@@ -20,10 +21,10 @@ struct GhostPlaneLoopbackPolicy: Equatable, Sendable {
         case encodedTraversal
     }
 
-    let origin: URL
+    public let origin: URL
     private let pluginIDs: Set<String>
 
-    init?(origin: URL, pluginIDs: Set<String>) {
+    public init?(origin: URL, pluginIDs: Set<String>) {
         guard Self.isCanonicalLoopbackOrigin(origin), pluginIDs.allSatisfy(Self.isValidPluginID) else {
             return nil
         }
@@ -34,7 +35,7 @@ struct GhostPlaneLoopbackPolicy: Equatable, Sendable {
     /// The only local document/resource paths admitted after the native host
     /// has loaded its own skeleton HTML. Every admitted resource belongs below
     /// `/plugins/<registered-id>/`; Core/App assets are not exposed to plugins.
-    func decision(for request: URL) -> Decision {
+    public func decision(for request: URL) -> Decision {
         guard request.scheme?.lowercased() == "http" else { return .deny(.unsupportedScheme) }
         guard request.user == nil, request.password == nil else { return .deny(.credentialedURL) }
         guard request.host?.lowercased() == "127.0.0.1" else { return .deny(.nonLoopbackHost) }
@@ -46,6 +47,9 @@ struct GhostPlaneLoopbackPolicy: Equatable, Sendable {
         guard !encodedPath.contains("%2e"), !encodedPath.contains("%2f"), !encodedPath.contains("%5c") else {
             return .deny(.encodedTraversal)
         }
+        if request.path == "/", urlComponents.queryItems == nil, urlComponents.fragment == nil {
+            return .allowSkeletonDocument
+        }
         let pathComponents = request.path.split(separator: "/", omittingEmptySubsequences: true).map(String.init)
         guard pathComponents.count >= 3, pathComponents[0] == "plugins" else { return .deny(.nonPluginPath) }
         let pluginID = pathComponents[1]
@@ -53,7 +57,7 @@ struct GhostPlaneLoopbackPolicy: Equatable, Sendable {
         return .allowPluginResource(pluginID: pluginID)
     }
 
-    func pluginRootURL(for pluginID: String) -> URL? {
+    public func pluginRootURL(for pluginID: String) -> URL? {
         guard pluginIDs.contains(pluginID) else { return nil }
         return origin
             .appendingPathComponent("plugins", isDirectory: true)

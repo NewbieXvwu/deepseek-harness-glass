@@ -10,6 +10,7 @@ let package = Package(
         .library(name: "GlassCore", targets: ["GlassCore"]),
         .library(name: "GlassUI", targets: ["GlassUI"]),
         .library(name: "GlassSnapshot", targets: ["GlassSnapshot"]),
+        .library(name: "GlassPluginPlane", targets: ["GlassPluginPlane"]),
         .executable(name: "DeepSeekHarnessGlassApp", targets: ["DeepSeekHarnessGlassApp"]),
     ],
     dependencies: [
@@ -51,6 +52,14 @@ let package = Package(
             path: "Sources/Snapshot",
             swiftSettings: [.define("DEEPSEEK_HARNESS_PACKAGE"), .unsafeFlags(["-enable-testing"])]
         ),
+        // The only target permitted to import/use WebKit for the registered
+        // Ghost Plane. Core/UI/App do not depend on it.
+        .target(
+            name: "GlassPluginPlane",
+            dependencies: ["GlassCore", "GlassSpec"],
+            path: "Sources/PluginPlane",
+            swiftSettings: [.define("DEEPSEEK_HARNESS_PACKAGE"), .unsafeFlags(["-enable-testing"])]
+        ),
         .executableTarget(
             name: "DeepSeekHarnessGlassApp",
             dependencies: ["GlassCore", "GlassSpec", "GlassUI", "GlassSnapshot"],
@@ -81,6 +90,11 @@ let package = Package(
             name: "GlassSnapshotTests",
             dependencies: ["GlassSnapshot"],
             path: "Tests/Snapshot"
+        ),
+        .testTarget(
+            name: "GlassPluginPlaneTests",
+            dependencies: ["GlassPluginPlane", "GlassCore", "GlassSpec"],
+            path: "Tests/PluginPlane"
         ),
     ]
 )

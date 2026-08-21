@@ -9,6 +9,9 @@ struct GhostPlaneLoopbackPolicyPortableCheck {
         ) else {
             throw CheckFailure("canonical loopback policy fixture must initialize")
         }
+        guard policy.decision(for: URL(string: "http://127.0.0.1:7342/")!) == .allowSkeletonDocument else {
+            throw CheckFailure("exact native skeleton origin must be admitted")
+        }
         guard policy.decision(for: URL(string: "http://127.0.0.1:7342/plugins/dsh-review-loop/client.js")!) == .allowPluginResource(pluginID: "dsh-review-loop") else {
             throw CheckFailure("registered same-origin plugin resource must be admitted")
         }

@@ -9,6 +9,7 @@ final class GhostPlaneLoopbackPolicyTests: XCTestCase {
             pluginIDs: ["dsh-review-loop", "dsh.open_in_vscode"]
         ))
 
+        XCTAssertEqual(policy.decision(for: origin), .allowSkeletonDocument)
         XCTAssertEqual(
             policy.decision(for: URL(string: "http://127.0.0.1:7342/plugins/dsh-review-loop/client.js")!),
             .allowPluginResource(pluginID: "dsh-review-loop")

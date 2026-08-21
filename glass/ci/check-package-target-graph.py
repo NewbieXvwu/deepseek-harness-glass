@@ -24,6 +24,7 @@ EXPECTED: dict[str, tuple[str, set[str]]] = {
     "GlassCore": ("Sources/Core", {"GlassSpec"}),
     "GlassUI": ("Sources/UI", {"GlassCore", "GlassSpec", "GlassPortableCore"}),
     "GlassSnapshot": ("Sources/Snapshot", {"GlassCore", "GlassSpec", "GlassUI"}),
+    "GlassPluginPlane": ("Sources/PluginPlane", {"GlassCore", "GlassSpec"}),
     "DeepSeekHarnessGlassApp": ("Sources/App", {"GlassCore", "GlassSpec", "GlassUI", "GlassSnapshot"}),
 }
 
@@ -69,6 +70,9 @@ def validate(description: dict[str, Any]) -> list[str]:
                 f"{name} internal dependencies are {sorted(internal_dependencies)!r}, "
                 f"expected {sorted(expected_dependencies)!r}"
             )
+    plugin_plane = by_name.get("GlassPluginPlane")
+    if plugin_plane is None:
+        failures.append("missing registered GlassPluginPlane target")
     return failures
 
 

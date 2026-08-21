@@ -35,6 +35,12 @@ def main() -> None:
     if not any("GlassCore internal dependencies" in failure for failure in module.validate(reverse_edge)):
         raise SystemExit("illegal Core-to-UI edge was not rejected")
 
+    app_to_plugin = description()
+    app = next(target for target in app_to_plugin["targets"] if target["name"] == "DeepSeekHarnessGlassApp")
+    app["target_dependencies"] = ["GlassCore", "GlassSpec", "GlassUI", "GlassSnapshot", "GlassPluginPlane"]
+    if not any("DeepSeekHarnessGlassApp internal dependencies" in failure for failure in module.validate(app_to_plugin)):
+        raise SystemExit("illegal App-to-PluginPlane edge was not rejected")
+
     wrong_path = description()
     ui = next(target for target in wrong_path["targets"] if target["name"] == "GlassUI")
     ui["path"] = "Sources/Wrong"
