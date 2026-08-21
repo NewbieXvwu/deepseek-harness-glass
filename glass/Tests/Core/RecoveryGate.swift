@@ -1,22 +1,52 @@
 import Foundation
 
 /// Test-only gate for authority reads. A recovery task can be cancelled by a
-/// newer RC8 resync before the test releases its held response. This deliberately
-/// avoids storing a `CheckedContinuation`: macOS can race task cancellation with
-/// the test's late `open()` and allocator-abort when a cancelled continuation is
-/// resumed from a separate task. The gate is only test infrastructure, so a
-/// 1ms cancellable cooperative poll is preferable to unsound continuation
-/// ownership; it has one actor-owned state fact and no resume operation.
+/// newer RC8 resync before the test releases its held response, so every
+/// waiter must be releasable by `open()`, by its own cancellation, and never
+/// resumed twice.
+///
+/// History: the first version stored a single continuation slot, which a
+/// second concurrent `wait()` silently overwrote (leaking the first waiter).
+/// A later revision replaced continuations with a 1 ms poll while chasing the
+/// `NativeSessionStoreTests` SIGABRT, but lldb traced that abort to a
+/// duplicate `-[XCTestExpectation fulfill]` in a test fake - the store's
+/// bounded RC8 follow-up authority pull re-fulfilled an already-waited
+/// expectation - not to continuation ownership; see
+/// `SupersedingGapRecoverySessionAPI`. This version is event-driven again and
+/// sound for any number of waiters: actor isolation serializes the
+/// check-and-store against every resume, and each continuation is removed
+/// from the table before it is resumed exactly once.
 actor RecoveryGate {
     private var opened = false
+    private var waiters: [UUID: CheckedContinuation<Void, Never>] = [:]
 
     func wait() async {
-        while !opened && !Task.isCancelled {
-            try? await Task.sleep(nanoseconds: 1_000_000)
+        if opened { return }
+        let id = UUID()
+        await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                if opened || Task.isCancelled {
+                    continuation.resume()
+                } else {
+                    waiters[id] = continuation
+                }
+            }
+        } onCancel: {
+            Task { await self.cancelWaiter(id: id) }
         }
     }
 
     func open() {
+        guard !opened else { return }
         opened = true
+        let pending = Array(waiters.values)
+        waiters.removeAll()
+        pending.forEach { $0.resume() }
+    }
+
+    private func cancelWaiter(id: UUID) {
+        if let continuation = waiters.removeValue(forKey: id) {
+            continuation.resume()
+        }
     }
 }
