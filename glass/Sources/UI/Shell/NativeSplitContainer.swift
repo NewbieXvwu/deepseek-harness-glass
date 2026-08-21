@@ -163,7 +163,14 @@ final class NativeShellPresentation: ObservableObject {
     /// the pinned bundled Host. The browser obtains its truth from list RPCs
     /// and the official Host SSE stream, never from a web surface.
     func connectVerifiedHost(_ connection: HostConnection) {
-        guard observedEndpoint != connection.endpoint else { return }
+        if observedEndpoint == connection.endpoint {
+            // A Host process can recover on the same loopback endpoint. RC8
+            // resyncs every resident session on this new ready generation;
+            // treating endpoint equality as a no-op leaves stale history and
+            // pending waits attached to the prior Host process.
+            sessionStore.resyncActiveSession()
+            return
+        }
         // Preserve the user-selected session across an owned Host restart. The
         // new port means all old HTTP/WebSocket carriers are invalid; reopen()
         // creates only fresh typed facades and uses the Host's official
