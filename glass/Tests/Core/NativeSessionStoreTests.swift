@@ -907,6 +907,30 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertFalse(store.items.contains(where: { $0.text == "stale authority" }))
         XCTAssertEqual(store.modelDirectory?.current.model, "model-new")
         XCTAssertEqual(store.modelDirectoryStatus, .ready)
+
+        // RC8's JS memo references are runtime-specific. The Native continuous
+        // reference instead compares the published typed projection after the
+        // same authority baseline and post-cut live tail arrive without a gap.
+        let continuous = NativeSessionStore()
+        let continuousAPI = ContinuousAuthoritySessionAPI()
+        continuous.open(sessionID: "recovery-session", using: continuousAPI, endpoint: URL(string: "http://127.0.0.1:1")!)
+        await eventually(timeout: 1) { continuous.items.map(\.sequence) == [1, 2] }
+        continuous.applyMuxFrame(sessionEventFrame(
+            sessionID: "recovery-session",
+            seq: 3,
+            type: "user/message",
+            data: .object([
+                "id": .string("surviving-live-tail"),
+                "content": .array([.object(["type": .string("text"), "text": .string("surviving live tail")])]),
+                "source": .object(["kind": .string("user")]),
+            ]),
+            surfaceOp: "append"
+        ), sessionID: "recovery-session")
+        await eventually(timeout: 1) { continuous.items.map(\.sequence) == [1, 2, 3] }
+
+        XCTAssertEqual(store.items.map { "\($0.sequence):\($0.text)" }, continuous.items.map { "\($0.sequence):\($0.text)" })
+        XCTAssertEqual(store.modelDirectory?.current, continuous.modelDirectory?.current)
+        XCTAssertEqual(store.modelDirectoryStatus, continuous.modelDirectoryStatus)
     }
 
     func testResidentResyncSupersedesInFlightGapRepairAndDropsItsLiveBuffer() async {
@@ -2526,6 +2550,47 @@ final class NativeSessionStoreTests: XCTestCase {
         }
 
         func releaseStaleHistory() async { await staleHistoryGate.open() }
+        func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
+        func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
+        func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+        func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+        func cancelQuestion(rpcID _: String) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+
+        private func historyEntry(seq: Int, id: String, text: String) -> SessionHistoryEntryDTO {
+            .init(event: .init(
+                type: "user/message",
+                seq: seq,
+                time: Double(seq),
+                data: .object([
+                    "id": .string(id),
+                    "content": .array([.object(["type": .string("text"), "text": .string(text)])]),
+                    "source": .object(["kind": .string("user")]),
+                ]),
+                surfaceOp: .string("append"),
+                sourceEventSeqs: nil,
+                ignorable: nil
+            ), view: nil)
+        }
+    }
+
+    @MainActor
+    private final class ContinuousAuthoritySessionAPI: NativeSessionAPI {
+        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
+            .init(events: [
+                historyEntry(seq: 1, id: "baseline", text: "baseline"),
+                historyEntry(seq: 2, id: "new", text: "new host authority"),
+            ], hasMore: false, projections: nil)
+        }
+
+        func models(sessionID _: String) async throws -> SessionModelsResponse {
+            .init(
+                current: .init(provider: "provider", model: "model-new", reasoningEffort: nil),
+                routable: true,
+                groups: [],
+                failures: []
+            )
+        }
+
         func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
         func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
         func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
