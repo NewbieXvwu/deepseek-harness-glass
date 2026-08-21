@@ -347,12 +347,19 @@ final class ConversationCoreNodesTests: XCTestCase {
                 "card": .string("diff"), "locations": .array([.object(["path": .string("failed.md")])]),
             ])),
             .init(event: toolResult(seq: 308, turn: 4, callID: "failed", isError: true)),
+            // A mutation request which never receives a successful result before
+            // the turn closes is cancelled/interrupted, not a produced file.
+            .init(event: event(seq: 309, type: "tool/call", data: ["turn": .number(4), "callId": .string("cancelled"), "name": .string("write")]), view: toolView("call", [
+                "card": .string("diff"), "locations": .array([.object(["path": .string("cancelled.md")])]),
+            ])),
+            .init(event: event(seq: 310, type: "turn/end", data: ["turn": .number(4)])),
         ]
 
         reducer.replaceWindow(entries, hasMore: false)
         let data = tryUnwrap(reducer.locationData(scope: .turn, turn: 4).value(for: "deliverables", as: CoreDeliverablesTurnData.self))
         XCTAssertEqual(data.paths(forClosingSequence: 303), ["out/index.html", "notes.md"])
         XCTAssertEqual(data.paths(), ["out/index.html", "notes.md", "out/app.css"])
+        XCTAssertFalse(data.paths().contains("cancelled.md"))
         XCTAssertTrue(reducer.snapshot(target: "chat").allSatisfy { $0.kind != "deliverables" })
         XCTAssertNil(reducer.locationData(scope: .turn, turn: 99).value(for: "deliverables", as: CoreDeliverablesTurnData.self))
     }
