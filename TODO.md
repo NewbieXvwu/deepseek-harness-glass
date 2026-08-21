@@ -475,6 +475,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 - [ ] **T11.2：实现 `NativeSchemaForm`。** 支持官方可描述的 text、number、toggle、select、secret、path、group、help、reset、save/discard 和 read-only 字段；字段排列严格由 manifest 指定，以 100% 原生 SwiftUI 动态渲染设置表单。
   - 依赖：T11.1、T10.2。
   - 验收：任意 manifest field 不会导致代码执行；通过纯原生组件实现配置变更并直接提交 Host typed RPC。
+  - 进度：已实现 `NativeSchemaForm` 与 `NativeSchemaFormDraft`。表单仅接受 T11.1 verifier 已承认的闭合 `FieldKind`，用原生 `TextField`、`Toggle`、`Picker`、`LabeledContent`、`SecureField`、`VStack` 和标准按钮渲染；不加载 plugin closure、HTML、Markdown、WebView 或 runtime view。draft 以 manifest order 生成 `[SettingsPathOperationDTO]`，number 只接受 finite 值、select 只接受显式 options、read-only/secret field 不可进入 mutation plan；save callback 必须走既有 revision-fenced Host typed RPC。secret 改由 `secretRoles` 使用 write-only credential callback，空 secret 不写入；其与 settings mutation 的非原子边界如实保留给 T12.7 审查。`NativeSchemaFormDraftTests` 覆盖顺序/类型/invalid/reset/不可编辑字段；`glass/ci/native-schema-form-draft-portable-check.swift` 已在 Linux Swift 6.2.4 通过并接入 `portable-checks`。完整来源映射与边界见 `notes/T11.2-native-schema-form-contract.md`。当前实现尚待自身 macOS-26 SwiftUI/XCTest 工作流成功，故保持未勾选。
 
 - [ ] **T11.3：实现 `SwiftAdapterRegistry`。** 用插件 ID 映射深度审查的原生 Swift 特性；允许复杂内置/高频插件以原生 Swift 视图复刻官方交互与 Liquid Glass 质感。角色为精品快车道（零桥接开销），非兼容的前提条件。
   - 依赖：T11.1。
