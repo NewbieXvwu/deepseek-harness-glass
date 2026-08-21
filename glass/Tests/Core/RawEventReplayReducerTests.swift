@@ -65,6 +65,15 @@ final class RawEventReplayReducerTests: XCTestCase {
         XCTAssertEqual((chat.last?.data as? CoreAssistantNode)?.blocks.first?.text, "fixture long answer-1000")
     }
 
+    func testLongSessionReplayPerformanceBaseline() throws {
+        let events = try events(for: "long-session-template", expanded: true)
+        measure(metrics: [XCTClockMetric()]) {
+            let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
+            _ = reducer.replaceWindow(events.map { .init(event: $0) }, hasMore: false)
+            XCTAssertEqual(reducer.snapshot(target: "chat").count, 2_000)
+        }
+    }
+
     func testUnknownReplayEventIsSafelyIgnoredWithoutManufacturingANode() throws {
         let events = try events(for: "unknown-node-safe-ignore")
         let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
