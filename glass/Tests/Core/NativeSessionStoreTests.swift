@@ -1894,6 +1894,27 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.queuedMessages.map(\.id), ["q-remove"])
     }
 
+    func testSteerFailureIsScopedToTheActionAndDoesNotRetireHostRow() async {
+        let store = NativeSessionStore()
+        store.loadSnapshotToolingFixture()
+        let sessionID = tryUnwrap(store.selectedSessionID)
+        store.applyMuxFrame(queueFrame(sessionID: sessionID, items: [
+            queuedItem(id: "q-steer-reject", messageID: "m-steer-reject", placement: "queued", content: [.object(["type": .string("text"), "text": .string("retry after rejection")])]),
+        ]), sessionID: sessionID)
+        let invoked = expectation(description: "steer reaches typed session facade")
+        let api = RecordingQueueSessionAPI(invoked: invoked, error: DSHTransportError.invalidEndpoint)
+        store.setSessionAPIForTesting(api)
+
+        store.updateQueuedMessage(itemID: "q-steer-reject", action: .steer)
+        await fulfillment(of: [invoked], timeout: 1)
+        await eventually(timeout: 1) { store.updatingQueueItemID == nil }
+
+        XCTAssertEqual(api.requests, [.init(sessionId: sessionID, itemId: "q-steer-reject", action: .steer)])
+        XCTAssertEqual(store.queueActionFailure, .init(itemID: "q-steer-reject", kind: .steer))
+        XCTAssertNil(store.queueActionCompletion)
+        XCTAssertEqual(store.queuedMessages.map(\.id), ["q-steer-reject"])
+    }
+
     func testSubscriptionClearsPriorGenerationTransientStateAndTruncatesProjection() {
         let store = NativeSessionStore()
         store.loadSnapshotToolingFixture()
