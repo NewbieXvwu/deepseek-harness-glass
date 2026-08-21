@@ -348,8 +348,10 @@ struct NativeQuestionComposer: View {
                     .textFieldStyle(.plain)
                     .lineLimit(1 ... 6)
                     .disabled(submitting)
-                    .onKeyPress(.return) { press in
-                        guard !press.modifiers.contains(.shift) else { return .ignored }
+                    .onKeyPress { press in
+                        guard press.key == .return,
+                              !press.modifiers.contains(.shift)
+                        else { return .ignored }
                         continueFlow()
                         return .handled
                     }
