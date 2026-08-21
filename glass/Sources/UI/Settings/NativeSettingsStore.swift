@@ -26,10 +26,19 @@ extension SettingsAPI: NativeSettingsAPI {}
 final class NativeSettingsStore: ObservableObject {
     enum Phase: Equatable { case idle, loading, ready, failed(String) }
 
+    /// A user-authored settings intent remains separate from the last complete
+    /// Host namespace. It contains only a path operation and never reads secret
+    /// values back into UI state.
+    struct Draft: Equatable {
+        let namespace: String
+        let operation: SettingsPathOperationDTO
+    }
+
     @Published private(set) var phase: Phase = .idle
     @Published private(set) var writable = false
     @Published private(set) var hasDocument = false
     @Published private(set) var namespaces: [SettingsNamespaceDTO] = []
+    @Published private(set) var drafts: [String: Draft] = [:]
     /// Host-derived `permission.defaultPreset` state. It is unavailable or
     /// malformed by construction when the descriptor cannot safely advertise a
     /// writable option; no UI-side preset list is invented.
@@ -64,23 +73,50 @@ final class NativeSettingsStore: ObservableObject {
         }
     }
 
+    /// Records a caller-selected mutation without treating it as durable Host
+    /// state. A newer remote descriptor may change its revision, but must not
+    /// silently erase a user draft after a conflict.
+    func stage(namespace: SettingsNamespaceDTO, operation: SettingsPathOperationDTO) {
+        drafts[namespace.ns] = Draft(namespace: namespace.ns, operation: operation)
+    }
+
+    func discardDraft(namespace: String) {
+        drafts[namespace] = nil
+    }
+
+    func isDirty(namespace: String) -> Bool {
+        drafts[namespace] != nil
+    }
+
+    /// Sends the staged intent using the newest complete namespace revision. A
+    /// rejected mutation deliberately leaves the draft and current Host snapshot
+    /// intact so the caller can refresh, correct, discard, or retry.
+    func saveDraft(namespace: String, using api: (any NativeSettingsAPI)?) async throws {
+        guard let api else { throw URLError(.notConnectedToInternet) }
+        guard let draft = drafts[namespace],
+              let current = namespaces.first(where: { $0.ns == namespace })
+        else { return }
+        let updated = try await api.mutate(
+            namespace: namespace,
+            operations: [draft.operation],
+            expectedRevision: current.revision
+        )
+        guard let index = namespaces.firstIndex(where: { $0.ns == updated.ns }) else { return }
+        namespaces[index] = updated
+        drafts[namespace] = nil
+        permissionPreset = PermissionPresetProjection.state(
+            namespaces: namespaces,
+            writable: writable
+        )
+    }
+
     func mutate(
         namespace: SettingsNamespaceDTO,
         operation: SettingsPathOperationDTO,
         using api: (any NativeSettingsAPI)?
     ) async throws {
-        guard let api else { throw URLError(.notConnectedToInternet) }
-        let updated = try await api.mutate(
-            namespace: namespace.ns,
-            operations: [operation],
-            expectedRevision: namespace.revision
-        )
-        guard let index = namespaces.firstIndex(where: { $0.ns == updated.ns }) else { return }
-        namespaces[index] = updated
-        permissionPreset = PermissionPresetProjection.state(
-            namespaces: namespaces,
-            writable: writable
-        )
+        stage(namespace: namespace, operation: operation)
+        try await saveDraft(namespace: namespace.ns, using: api)
     }
 
     /// Writes only an option advertised by the latest Host permission schema,
@@ -97,6 +133,7 @@ final class NativeSettingsStore: ObservableObject {
         writable = false
         hasDocument = false
         namespaces = []
+        drafts = [:]
         permissionPreset = .init(
             status: .unavailable,
             writable: false,

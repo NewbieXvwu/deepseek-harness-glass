@@ -781,7 +781,7 @@ struct SettingsSecretDTO: Codable, Sendable, Equatable {
 }
 
 /// Source: `settings.schema.ts:settingsPathOpSchema`.
-enum SettingsPathOperationDTO: Codable, Sendable {
+enum SettingsPathOperationDTO: Codable, Sendable, Equatable {
     case set(path: [String], value: JSONValue)
     case unset(path: [String])
 

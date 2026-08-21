@@ -34,6 +34,48 @@ final class NativeSettingsStoreTests: XCTestCase {
         XCTAssertEqual(store.permissionPreset.status, .unavailable)
     }
 
+    func testRevisionConflictRetainsDraftAcrossRemoteRefreshAndRetriesWithLatestHostRevision() async throws {
+        let original = permissionNamespace(value: "workspace-write", revision: 7)
+        let remote = permissionNamespace(value: "workspace-write", revision: 8)
+        let accepted = permissionNamespace(value: "danger-full-access", revision: 9)
+        let api = ConflictThenAcceptingSettingsAPI(
+            describes: [
+                .init(writable: true, hasDocument: true, namespaces: [original]),
+                .init(writable: true, hasDocument: true, namespaces: [remote]),
+            ],
+            accepted: accepted
+        )
+        let store = NativeSettingsStore()
+        let operation = SettingsPathOperationDTO.set(
+            path: ["defaultPreset"],
+            value: .string("danger-full-access")
+        )
+
+        store.load(using: api)
+        await eventually { store.namespaces.first?.revision == 7 }
+        store.stage(namespace: original, operation: operation)
+        XCTAssertTrue(store.isDirty(namespace: "permission"))
+
+        do {
+            try await store.saveDraft(namespace: "permission", using: api)
+            XCTFail("an old Host revision must reject the first save")
+        } catch {
+            // The fake represents a second client committing revision 8 first.
+        }
+        XCTAssertEqual(api.expectedRevisions, [Optional(7)])
+        XCTAssertEqual(store.namespaces.first?.revision, 7, "a rejected write must not invent a local namespace revision")
+        XCTAssertEqual(store.drafts["permission"]?.operation, operation)
+
+        store.load(using: api)
+        await eventually { store.namespaces.first?.revision == 8 }
+        XCTAssertEqual(store.drafts["permission"]?.operation, operation, "remote invalidation must preserve the correct local draft for repair or retry")
+
+        try await store.saveDraft(namespace: "permission", using: api)
+        XCTAssertEqual(api.expectedRevisions, [Optional(7), Optional(8)])
+        XCTAssertEqual(store.namespaces.first, accepted)
+        XCTAssertFalse(store.isDirty(namespace: "permission"), "only an accepted Host mutation may clear a staged draft")
+    }
+
     private func eventually(
         timeout: TimeInterval = 1,
         condition: @escaping @MainActor () -> Bool
@@ -65,6 +107,35 @@ final class NativeSettingsStoreTests: XCTestCase {
             secrets: [],
             revision: revision
         )
+    }
+
+    @MainActor
+    private final class ConflictThenAcceptingSettingsAPI: NativeSettingsAPI {
+        private var describes: [SettingsDescribeResponse]
+        private let accepted: SettingsNamespaceDTO
+        private(set) var expectedRevisions: [Int?] = []
+        private var mutationCount = 0
+
+        init(describes: [SettingsDescribeResponse], accepted: SettingsNamespaceDTO) {
+            self.describes = describes
+            self.accepted = accepted
+        }
+
+        func describe() async throws -> SettingsDescribeResponse {
+            guard !describes.isEmpty else { throw URLError(.badServerResponse) }
+            return describes.removeFirst()
+        }
+
+        func mutate(
+            namespace _: String,
+            operations _: [SettingsPathOperationDTO],
+            expectedRevision: Int?
+        ) async throws -> SettingsNamespaceDTO {
+            expectedRevisions.append(expectedRevision)
+            mutationCount += 1
+            if mutationCount == 1 { throw URLError(.cannotWriteToFile) }
+            return accepted
+        }
     }
 
     @MainActor
