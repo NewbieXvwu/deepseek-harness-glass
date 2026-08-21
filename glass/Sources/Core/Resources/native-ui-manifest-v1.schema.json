@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://deepseek-harness.local/schemas/native-ui-manifest-v1.json",
+  "title": "Native UI Manifest v1",
+  "description": "A declarative non-executable schema for reviewed native plugin settings surfaces.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "pluginID", "hostBuildRange", "manifestVersion", "kind", "localeResources",
+    "sections", "fields", "groups", "order", "secretRoles", "validations",
+    "actions", "requiredCapabilities", "integrity"
+  ],
+  "properties": {
+    "pluginID": { "$ref": "#/$defs/identifier" },
+    "hostBuildRange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minimumBuildID", "maximumBuildID"],
+      "properties": {
+        "minimumBuildID": { "type": "string", "minLength": 1 },
+        "maximumBuildID": { "type": "string", "minLength": 1 }
+      }
+    },
+    "manifestVersion": { "const": 1 },
+    "kind": { "enum": ["settingsForm", "settingsPanel"] },
+    "localeResources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["language", "namespace", "requiredKeys"],
+        "properties": {
+          "language": { "enum": ["en", "zh"] },
+          "namespace": { "type": "string", "minLength": 1 },
+          "requiredKeys": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+        }
+      }
+    },
+    "sections": { "$ref": "#/$defs/sections" },
+    "fields": { "$ref": "#/$defs/fields" },
+    "groups": { "$ref": "#/$defs/groups" },
+    "order": { "type": "integer", "minimum": 0 },
+    "secretRoles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "credentialReference", "labelKey"],
+        "properties": {
+          "id": { "$ref": "#/$defs/identifier" },
+          "credentialReference": { "$ref": "#/$defs/identifier" },
+          "labelKey": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "validations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "rule"],
+        "properties": {
+          "id": { "$ref": "#/$defs/identifier" },
+          "rule": { "enum": ["required", "finiteNumber", "nonNegativeNumber", "nonEmptySelection"] }
+        }
+      }
+    },
+    "actions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "enum": ["save", "discard", "reset", "help"] },
+      "uniqueItems": true
+    },
+    "requiredCapabilities": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "digest", "sourceCommit"],
+      "properties": {
+        "algorithm": { "const": "sha256" },
+        "digest": { "type": "string", "pattern": "^(sha256:)?[A-Fa-f0-9]{64}$" },
+        "sourceCommit": { "type": "string", "pattern": "^[a-f0-9]{40}$" }
+      }
+    }
+  },
+  "$defs": {
+    "identifier": { "type": "string", "minLength": 1, "maxLength": 160, "pattern": "^[A-Za-z0-9_./:-]+$" },
+    "sections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "titleKey", "fieldIDs", "groupIDs", "order"],
+        "properties": {
+          "id": { "$ref": "#/$defs/identifier" },
+          "titleKey": { "type": "string", "minLength": 1 },
+          "fieldIDs": { "type": "array", "items": { "$ref": "#/$defs/identifier" }, "uniqueItems": true },
+          "groupIDs": { "type": "array", "items": { "$ref": "#/$defs/identifier" }, "uniqueItems": true },
+          "order": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "fields": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "path", "kind", "labelKey", "options", "validationIDs", "requiredCapabilities", "order"],
+        "properties": {
+          "id": { "$ref": "#/$defs/identifier" },
+          "path": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/identifier" } },
+          "kind": { "enum": ["text", "number", "toggle", "select", "secret", "path", "readOnly"] },
+          "labelKey": { "type": "string", "minLength": 1 },
+          "helpKey": { "type": ["string", "null"] },
+          "options": { "type": "array", "items": { "type": "string" } },
+          "validationIDs": { "type": "array", "items": { "$ref": "#/$defs/identifier" } },
+          "requiredCapabilities": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+          "order": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "groups": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "titleKey", "fieldIDs", "order"],
+        "properties": {
+          "id": { "$ref": "#/$defs/identifier" },
+          "titleKey": { "type": ["string", "null"] },
+          "fieldIDs": { "type": "array", "items": { "$ref": "#/$defs/identifier" }, "uniqueItems": true },
+          "order": { "type": "integer", "minimum": 0 }
+        }
+      }
+    }
+  }
+}

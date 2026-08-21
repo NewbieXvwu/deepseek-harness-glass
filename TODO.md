@@ -470,6 +470,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 - [ ] **T11.1：定义 `NativeUIManifest` v1。** 声明原生 Schema 描述模型：`pluginId`、`hostBuildRange`、`manifestVersion`、`kind`、`localeResources`、`sections`、`fields`、`groups`、`order`、`secretRoles`、`validation`、`actions`、`requiredCapabilities`、`integrity`。
   - 依赖：T0.2、T10.2。
   - 验收：manifest 有 JSON Schema、版本升级规则和负面 fixture；未通过完整性检查的安全降级到 Ghost Plane 兜底承载。
+  - 进度：已在 `GlassCore/Plugin/NativeUIManifest.swift` 建立纯 Codable/Sendable 的非可执行 v1 模型和 `native-ui-manifest-v1.schema.json`。v1 明确只接受 `manifestVersion == 1` 与锁定 `OfficialUISpec.Build.id` 的精确 Host build range；不以字符串前缀或猜测性 semver 扩大兼容面，后续 Host/schema 变化必须经新版本迁移。verifier 要求外部受信任边界已验证且逐字段相等的 `sha256` integrity/source commit，任何版本、Host、完整性、locale、引用、path、secret field 或 capability 结构失败均返回 typed `ghostPlaneFallback`，绝不生成局部 native form。`NativeUIManifestTests` 覆盖正例、版本/Host/integrity/secret/reference 负例与 schema resource；`glass/ci/native-ui-manifest-portable-check.swift` 已在 Linux Swift 6.2.4 容器编译并通过 verified 与 fail-closed 回归，且已接入 `portable-checks`。官方来源映射、版本治理与边界见 `notes/T11.1-native-ui-manifest-v1-sources.md`。当前实现尚待自身 macOS-26 Core test/构建工作流成功，因此保持未勾选。
 
 - [ ] **T11.2：实现 `NativeSchemaForm`。** 支持官方可描述的 text、number、toggle、select、secret、path、group、help、reset、save/discard 和 read-only 字段；字段排列严格由 manifest 指定，以 100% 原生 SwiftUI 动态渲染设置表单。
   - 依赖：T11.1、T10.2。

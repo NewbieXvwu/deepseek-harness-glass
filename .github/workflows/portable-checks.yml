@@ -156,3 +156,9 @@ jobs:
             glass/ci/portable-core-check.swift \
             -o /tmp/portable-core-check
           /tmp/portable-core-check
+          # NativeUIManifest stays declarative and is verified through a Core-only
+          # seam so version/integrity failures never wait on a macOS GUI build.
+          swiftc glass/Sources/Core/Plugin/NativeUIManifest.swift \
+            glass/ci/native-ui-manifest-portable-check.swift \
+            -o /tmp/native-ui-manifest-portable-check
+          /tmp/native-ui-manifest-portable-check
