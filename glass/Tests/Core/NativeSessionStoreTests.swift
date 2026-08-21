@@ -1820,6 +1820,31 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(api.modelsCalls, 2)
     }
 
+    func testEarlySubscriptionDuringResidentResyncTriggersFollowUpAuthorityPull() async {
+        let resyncHistoryReached = expectation(description: "resident resync history is held for early subscription")
+        let api = GatedResidentResyncSessionAPI(resyncHistoryReached: resyncHistoryReached)
+        let store = NativeSessionStore()
+        let sessionID = "resident-resync-early-subscription"
+        store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+        await eventually(timeout: 1) { store.phase == .ready(sessionID: sessionID) }
+
+        store.resyncActiveSession()
+        await fulfillment(of: [resyncHistoryReached], timeout: 1)
+        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "resync-early-subscription", method: "session/subscribed", payload: .object([
+            "type": .string("session/subscribed"),
+            "sessionId": .string(sessionID),
+            "lastSeq": .number(4),
+        ])), sessionID: sessionID)
+        await api.releaseResyncHistory()
+        await eventually(timeout: 1) {
+            store.phase == .ready(sessionID: sessionID)
+                && store.items.map(\.text) == ["follow-up authority"]
+                && api.historyCalls == 3
+                && api.modelsCalls == 3
+        }
+        XCTAssertEqual(store.items.map(\.sequence), [4])
+    }
+
     func testResidentResyncRetainsQueueAndJobsUntilFreshSubscriptionBoundary() async {
         let resyncHistoryReached = expectation(description: "resident resync is held before fresh subscription")
         let api = GatedResidentResyncSessionAPI(resyncHistoryReached: resyncHistoryReached)
@@ -2516,9 +2541,12 @@ final class NativeSessionStoreTests: XCTestCase {
             if historyCalls == 1 {
                 return .init(events: [historyEntry(seq: 1, id: "initial", text: "initial authority")], hasMore: true, projections: nil)
             }
-            resyncHistoryReached.fulfill()
-            await historyGate.wait()
-            return .init(events: [historyEntry(seq: 3, id: "resynced", text: "resynced authority")], hasMore: false, projections: nil)
+            if historyCalls == 2 {
+                resyncHistoryReached.fulfill()
+                await historyGate.wait()
+                return .init(events: [historyEntry(seq: 3, id: "resynced", text: "resynced authority")], hasMore: false, projections: nil)
+            }
+            return .init(events: [historyEntry(seq: 4, id: "resync-follow-up", text: "follow-up authority")], hasMore: false, projections: nil)
         }
 
         func models(sessionID _: String) async throws -> SessionModelsResponse {

@@ -1196,9 +1196,7 @@ final class NativeSessionStore: ObservableObject {
                 self?.phase = .ready(sessionID: sessionID)
                 self?.stitchRecoveryLiveBuffer(generation: authorityGeneration)
                 self?.observeMux(sessionID: sessionID, endpoint: endpoint)
-                let installedTail = self?.conversationReducer.rawWindow().map(\.event.seq).max()
-                if let subscribedLastSequence = self?.subscribedLastSequence,
-                   installedTail != subscribedLastSequence {
+                if self?.consumeSubscriptionTailMismatch() == true {
                     self?.requestAuthorityRecovery(sessionID: sessionID, reason: .subscriptionWatermark)
                 }
             } catch let error as DSHTransportError {
@@ -1987,6 +1985,19 @@ final class NativeSessionStore: ObservableObject {
         case residentResync
     }
 
+    /// Consumes a durable `session/subscribed` tail only when its installed
+    /// authority window is discontinuous. Clearing before the follow-up pull
+    /// prevents a stale/underfilled Host page from recursively scheduling the
+    /// same recovery forever.
+    private func consumeSubscriptionTailMismatch() -> Bool {
+        guard let subscribedLastSequence,
+              let installedTail = conversationReducer.rawWindow().map(\.event.seq).max(),
+              installedTail != subscribedLastSequence
+        else { return false }
+        self.subscribedLastSequence = nil
+        return true
+    }
+
     private func bufferRecoveryLiveEvent(_ event: SessionEventDTO, view: ToolEventViewDTO?) {
         recoveryLiveBuffer.append(.init(event: event, view: view))
     }
@@ -2059,6 +2070,10 @@ final class NativeSessionStore: ObservableObject {
                 self?.hasMoreHistory = history.hasMore
                 self?.phase = .ready(sessionID: sessionID)
                 self?.stitchRecoveryLiveBuffer(generation: generation)
+                if self?.consumeSubscriptionTailMismatch() == true {
+                    self?.requestAuthorityRecovery(sessionID: sessionID, reason: .subscriptionWatermark)
+                    return
+                }
                 self?.resyncSubagentCatalogsAfterRecovery()
                 self?.resyncMessageFeedbackAfterRecovery()
             } catch {
