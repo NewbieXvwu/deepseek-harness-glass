@@ -600,6 +600,8 @@ enum OfficialUISpec {
         static let px220: CGFloat = 220
         static let px224: CGFloat = 224
         static let px260: CGFloat = 260
+        /// Source: ui-message-feedback/MessageFeedbackActions.module.css `.notePanel`.
+        static let px320: CGFloat = 320
         static let px336: CGFloat = 336
         static let px360: CGFloat = 360
         static let px400: CGFloat = 400

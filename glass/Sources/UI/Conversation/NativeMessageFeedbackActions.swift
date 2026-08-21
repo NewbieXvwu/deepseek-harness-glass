@@ -89,7 +89,7 @@ struct NativeMessageFeedbackActions: View {
     private var noteEditor: some View {
         VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p8) {
             Text(OfficialUISpec.Text.feedbackNoteDialog)
-                .font(OfficialUISpec.Typography.xs13Strong)
+                .font(OfficialUISpec.Typography.xsStrong13)
                 .foregroundStyle(OfficialUISpec.Token.primary)
             ZStack(alignment: .topLeading) {
                 if draft.isEmpty {
@@ -128,8 +128,8 @@ struct NativeMessageFeedbackActions: View {
                 failureRow(actionFailureText)
             }
         }
-        .padding(OfficialUISpec.Spacing.p12)
-        .frame(width: OfficialUISpec.Geometry.px280)
+        .padding(OfficialUISpec.Spacing.p8)
+        .frame(width: OfficialUISpec.Geometry.px320)
         .accessibilityElement(children: .contain)
     }
 
