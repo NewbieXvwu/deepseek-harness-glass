@@ -60,6 +60,22 @@ final class NativeSettingsStoreTests: XCTestCase {
         XCTAssertEqual(store.drafts[namespace.ns]?.operation, .set(path: ["displayName"], value: .string("safe-draft")))
     }
 
+    func testDiscardDraftRemovesOnlyLocalIntentWithoutChangingHostNamespace() {
+        let namespace = permissionNamespace(value: "workspace-write", revision: 7)
+        let store = NativeSettingsStore()
+        let operation = SettingsPathOperationDTO.set(
+            path: ["defaultPreset"],
+            value: .string("danger-full-access")
+        )
+
+        XCTAssertTrue(store.stage(namespace: namespace, operation: operation))
+        store.discardDraft(namespace: namespace.ns)
+
+        XCTAssertFalse(store.isDirty(namespace: namespace.ns))
+        XCTAssertNil(store.drafts[namespace.ns])
+        XCTAssertEqual(namespace.value, .object(["defaultPreset": .string("workspace-write")]))
+    }
+
     func testDescribeFailureClearsStaleAuthorityButRetainsNonSecretDraftForReconnect() async {
         let original = permissionNamespace(value: "workspace-write", revision: 7)
         let store = NativeSettingsStore()
