@@ -79,6 +79,56 @@ final class NativeConversationHeaderTests: XCTestCase {
         XCTAssertEqual(OfficialUISpec.Text.workflowMemberCount(2), "2 members")
     }
 
+    func testWorkflowDisclosureDefersCleanCollapseUntilFocusLeavesContent() {
+        let running = NativeWorkflowRunPresentation.DisclosureFacts(mode: .running, activityCount: 1)
+        let clean = NativeWorkflowRunPresentation.DisclosureFacts(mode: .clean, activityCount: 1)
+        let active = NativeWorkflowRunPresentation.initialDisclosureState(running)
+
+        let pending = NativeWorkflowRunPresentation.advanceDisclosureState(
+            active,
+            facts: clean,
+            focusWithin: true
+        )
+        XCTAssertTrue(pending.open)
+        XCTAssertTrue(pending.pendingCleanCollapse)
+
+        let settled = NativeWorkflowRunPresentation.advanceDisclosureState(
+            pending,
+            facts: clean,
+            focusWithin: false
+        )
+        XCTAssertFalse(settled.open)
+        XCTAssertFalse(settled.pendingCleanCollapse)
+    }
+
+    func testWorkflowDisclosureReopensNewActivityAndAbnormalEscalation() {
+        let clean = NativeWorkflowRunPresentation.DisclosureFacts(mode: .clean, activityCount: 0)
+        let running = NativeWorkflowRunPresentation.DisclosureFacts(mode: .running, activityCount: 1)
+        let abnormal = NativeWorkflowRunPresentation.DisclosureFacts(mode: .abnormal, activityCount: 1)
+        let closed = NativeWorkflowRunPresentation.initialDisclosureState(clean)
+
+        let active = NativeWorkflowRunPresentation.advanceDisclosureState(
+            closed,
+            facts: running,
+            focusWithin: false
+        )
+        XCTAssertTrue(active.open)
+
+        let userClosedRunning = NativeWorkflowRunPresentation.DisclosureState(
+            mode: .running,
+            activityCount: 1,
+            open: false,
+            pendingCleanCollapse: false
+        )
+        let escalated = NativeWorkflowRunPresentation.advanceDisclosureState(
+            userClosedRunning,
+            facts: abnormal,
+            focusWithin: false
+        )
+        XCTAssertTrue(escalated.open)
+        XCTAssertFalse(escalated.pendingCleanCollapse)
+    }
+
     func testHeaderContributionSlotsRemainSeparateAndDisposeByNonce() throws {
         let registry = NativeConversationHeaderContributionRegistry()
         let action = try registry.register(slot: .actions, id: "action", order: 1) { _ in AnyView(EmptyView()) }
