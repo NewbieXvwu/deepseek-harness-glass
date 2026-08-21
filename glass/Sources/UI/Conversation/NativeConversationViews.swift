@@ -409,9 +409,9 @@ private struct NativeTranscriptScrollView: View {
                             .id(entry.id)
                         }
                     }
-                    if isRunning {
+                    if NativeTranscriptTailPresentation.showsRunningStatus(isRunning: isRunning) {
                         NativeRunningTurnStatus()
-                            .id("running-turn-status")
+                            .id(NativeTranscriptTailPresentation.runningStatusID)
                     }
                 }
                 .frame(maxWidth: OfficialUISpec.Layout.chatContentMaximum, alignment: .leading)
@@ -420,7 +420,10 @@ private struct NativeTranscriptScrollView: View {
                 .padding(.vertical, OfficialUISpec.Layout.chatTranscriptInset)
             }
             .onChange(of: tailSignature) { _, _ in
-                let target = isRunning ? "running-turn-status" : timeline.last?.id
+                let target = NativeTranscriptTailPresentation.scrollTarget(
+                    isRunning: isRunning,
+                    durableTailID: timeline.last?.id
+                )
                 guard let target else { return }
                 withAnimation(.easeOut(duration: 0.18)) {
                     proxy.scrollTo(target, anchor: .bottom)
