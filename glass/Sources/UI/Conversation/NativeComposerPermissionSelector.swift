@@ -119,7 +119,7 @@ struct NativeComposerPermissionSelector: View {
     private var fullAccessConfirmation: some View {
         VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p12) {
             Text(t("access.confirm.title"))
-                .font(OfficialUISpec.Typography.mStrong16)
+                .font(OfficialUISpec.Typography.baseStrong16)
             Text(t("access.confirm.description"))
                 .font(OfficialUISpec.Typography.s14)
                 .foregroundStyle(OfficialUISpec.Token.secondary)
