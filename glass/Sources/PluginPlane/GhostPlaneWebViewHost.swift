@@ -12,6 +12,7 @@ public final class GhostPlaneWebViewHost: NSObject {
         /// possible only after the native-owned skeleton has completed loading.
         case skeletonNotReady
         case duplicateModulePermit
+        case invalidNativeBridgeEvent
     }
 
     public let webView: WKWebView
@@ -97,6 +98,28 @@ public final class GhostPlaneWebViewHost: NSObject {
             return ghostPlane.promoteModuleFactories(arguments.pluginIDs);
             """,
             arguments: ["pluginIDs": ids],
+            in: nil,
+            in: .page
+        )
+    }
+
+    /// Emits a Core-fenced native event as a fixed JSON DTO. The document can
+    /// observe it only after bootstrap validation; this method never serializes
+    /// AppKit/WebKit objects or injects executable JavaScript source.
+    public func emitNativeBridgeEvent(_ event: GhostPlaneBridgeEvent) async throws {
+        guard skeletonReady else { throw TapIndexApplicationError.skeletonNotReady }
+        guard let message = eventFence.emitNative(event),
+              let object = try JSONSerialization.jsonObject(with: GhostPlaneBridgeWireEncoder.encode(message)) as? [String: Any]
+        else { throw TapIndexApplicationError.invalidNativeBridgeEvent }
+        _ = try await webView.callAsyncJavaScript(
+            """
+            const ghostPlane = window.__DSH_GHOST_PLANE__;
+            if (ghostPlane === undefined || typeof ghostPlane.applyNativeBridgeEvent !== 'function') {
+              throw new Error('Ghost Plane native bridge bootstrap is unavailable');
+            }
+            return ghostPlane.applyNativeBridgeEvent(arguments.message);
+            """,
+            arguments: ["message": object],
             in: nil,
             in: .page
         )
@@ -250,11 +273,23 @@ public final class GhostPlaneWebViewHost: NSObject {
             content.style.setProperty('--ghost-scroll-offset', String(scrollOffset));
             return true;
           };
+          const applyNativeBridgeEvent = (message) => {
+            if (message === null || typeof message !== 'object'
+                || message.direction !== 'nativeToPlane'
+                || !Number.isSafeInteger(message.documentEpoch) || message.documentEpoch < 1
+                || !Number.isSafeInteger(message.sequence) || message.sequence < 1
+                || message.event === null || typeof message.event !== 'object'
+                || !['keyboard', 'imagePaste', 'selection', 'drag'].includes(message.event.kind)) {
+              throw new Error('Ghost Plane native bridge event was rejected');
+            }
+            document.dispatchEvent(new CustomEvent('dsh-ghost-plane-native-event', { detail: message }));
+            return true;
+          };
           Object.defineProperty(window, '__DSH_GHOST_PLANE__', {
             configurable: false,
             enumerable: false,
             writable: false,
-            value: Object.freeze({ applyTapIndex, applyScrollOffset, promoteModuleFactories: moduleLoader.promote }),
+            value: Object.freeze({ applyTapIndex, applyScrollOffset, applyNativeBridgeEvent, promoteModuleFactories: moduleLoader.promote }),
           });
         })();
         """,

@@ -145,6 +145,46 @@ final class GhostPlaneWebViewHostTests: XCTestCase {
         XCTAssertEqual(result?["live"] as? Bool, true)
     }
 
+    func testNativeBridgeEventUsesFixedDTOAndDocumentReceiver() async throws {
+        let host = GhostPlaneWebViewHost(policy: try policy())
+        let loaded = expectation(description: "native skeleton completed")
+        var observation: NSKeyValueObservation?
+        observation = host.webView.observe(\.isLoading, options: [.new]) { webView, change in
+            if change.newValue == false, webView.url != nil {
+                loaded.fulfill()
+                observation?.invalidate()
+                observation = nil
+            }
+        }
+        defer { observation?.invalidate() }
+        XCTAssertNotNil(host.loadSkeleton("<!doctype html><html><head></head><body><div id=\"ghost-scroll-content\"></div></body></html>"))
+        await fulfillment(of: [loaded], timeout: 5)
+        _ = try await host.webView.callAsyncJavaScript(
+            """
+            document.addEventListener('dsh-ghost-plane-native-event', event => {
+              window.__ghostNativeBridgeCapture = event.detail;
+            }, { once: true });
+            return true;
+            """,
+            arguments: [:], in: nil, in: .page
+        )
+        try await host.emitNativeBridgeEvent(.keyboard(.init(
+            phase: .down, key: "Enter", code: "Enter", location: 0,
+            modifiers: [.command], isRepeat: false, isComposing: false
+        )))
+        let result = try await host.webView.callAsyncJavaScript(
+            """
+            const value = window.__ghostNativeBridgeCapture;
+            return { direction: value?.direction, epoch: value?.documentEpoch, sequence: value?.sequence, key: value?.event?.key };
+            """,
+            arguments: [:], in: nil, in: .page
+        ) as? [String: Any]
+        XCTAssertEqual(result?["direction"] as? String, "nativeToPlane")
+        XCTAssertEqual(result?["epoch"] as? Int, 1)
+        XCTAssertEqual(result?["sequence"] as? Int, 1)
+        XCTAssertEqual(result?["key"] as? String, "Enter")
+    }
+
     func testWebKitMessageHandlerDeliversOnlyWireDecodedFencedEvent() async throws {
         let host = GhostPlaneWebViewHost(policy: try policy())
         let loaded = expectation(description: "native skeleton completed")
