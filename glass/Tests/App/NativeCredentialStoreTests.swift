@@ -43,6 +43,47 @@ final class NativeCredentialStoreTests: XCTestCase {
         XCTAssertTrue(api.setReferences.isEmpty)
     }
 
+    func testLateCredentialDescribeCannotOverwriteNewerRequestedViewSet() async {
+        let oldReached = expectation(description: "old credential describe reaches Host boundary")
+        let api = DelayedCredentialAPI(oldReached: oldReached)
+        let store = NativeCredentialStore()
+        let oldTask = Task { await store.refresh(refs: ["OLD_KEY"], using: api) }
+        await fulfillment(of: [oldReached], timeout: 1)
+
+        await store.refresh(refs: ["NEW_KEY"], using: api)
+        XCTAssertNil(store.view(for: "OLD_KEY"))
+        XCTAssertEqual(store.view(for: "NEW_KEY")?.configured, true)
+
+        await api.releaseOldDescribe()
+        await oldTask.value
+        XCTAssertNil(store.view(for: "OLD_KEY"))
+        XCTAssertEqual(store.view(for: "NEW_KEY")?.configured, true)
+    }
+
+    private final class DelayedCredentialAPI: NativeCredentialAPI, @unchecked Sendable {
+        let oldReached: XCTestExpectation
+        private let gate = RecoveryGate()
+
+        init(oldReached: XCTestExpectation) {
+            self.oldReached = oldReached
+        }
+
+        func releaseOldDescribe() async {
+            await gate.open()
+        }
+
+        func describe(refs: [String]) async throws -> CredentialsDescribeResponse {
+            if refs == ["OLD_KEY"] {
+                oldReached.fulfill()
+                await gate.wait()
+                return .init(credentials: ["OLD_KEY": .init(configured: false, source: nil, writable: true)])
+            }
+            return .init(credentials: ["NEW_KEY": .init(configured: true, source: "keychain", writable: true)])
+        }
+        func set(ref _: String, value _: String) async throws -> EmptyRPCResponse { throw DSHTransportError.invalidEndpoint }
+        func unset(ref _: String) async throws -> EmptyRPCResponse { throw DSHTransportError.invalidEndpoint }
+    }
+
     private final class CredentialAPI: NativeCredentialAPI, @unchecked Sendable {
         private var views: [String: CredentialViewDTO]
         private let rejectSet: Bool

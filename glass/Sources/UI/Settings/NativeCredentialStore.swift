@@ -9,20 +9,25 @@ import Combine
 @MainActor
 final class NativeCredentialStore: ObservableObject {
     @Published private(set) var views: [String: CredentialViewDTO] = [:]
+    private var refreshGeneration = 0
 
     func view(for reference: String) -> CredentialViewDTO? {
         views[reference]
     }
 
     func refresh(refs: [String], using api: (any NativeCredentialAPI)?) async {
+        refreshGeneration &+= 1
+        let currentGeneration = refreshGeneration
         guard let api else { return }
         do {
             let response = try await api.describe(refs: refs)
+            guard refreshGeneration == currentGeneration else { return }
             let requested = Set(refs)
             // A Host may return extra views for a wider request batch. Do not
             // accidentally promote them into this card's observable state.
             views = response.credentials.filter { requested.contains($0.key) }
         } catch {
+            guard refreshGeneration == currentGeneration else { return }
             // Keep the most recent Host-safe facts; a read failure must not
             // manufacture a configured/unconfigured credential status.
         }
