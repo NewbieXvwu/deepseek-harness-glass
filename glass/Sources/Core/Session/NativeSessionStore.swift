@@ -1837,7 +1837,11 @@ final class NativeSessionStore: ObservableObject {
         pendingQuestion = nil
         isSubmittingApproval = false
         isSubmittingQuestion = false
-        if let priorWindowHighWatermark, subscribed.lastSeq < priorWindowHighWatermark {
+        // RC8 `Session.doOpen` performs a second authority history pull when
+        // the mux subscription reports a durable tail beyond the just-installed
+        // history window. The inverse rollback case requires the same full
+        // recovery so a restarted Host cannot leave a discontinuous window.
+        if let priorWindowHighWatermark, subscribed.lastSeq != priorWindowHighWatermark {
             requestAuthorityRecovery(sessionID: sessionID, reason: .subscriptionWatermark)
         }
     }

@@ -435,6 +435,26 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.items.map(\.sequence), [1, 2])
     }
 
+    func testSubscriptionWatermarkAheadOfHistoryTailRecoversAuthorityWindow() async {
+        let recoveryReachedHistory = expectation(description: "ahead subscription watermark triggers authority history")
+        let api = GapRecoveringSessionAPI(recoveryReachedHistory: recoveryReachedHistory)
+        let store = NativeSessionStore()
+        store.open(sessionID: "recovery-session", using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+        await eventually(timeout: 1) { store.items.map(\.text) == ["baseline"] }
+
+        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "ahead-subscription", method: "session/subscribed", payload: .object([
+            "type": .string("session/subscribed"),
+            "sessionId": .string("recovery-session"),
+            "lastSeq": .number(2),
+        ])), sessionID: "recovery-session")
+        await fulfillment(of: [recoveryReachedHistory], timeout: 1)
+        await eventually(timeout: 1) { store.items.map(\.text) == ["baseline", "recovered authority"] }
+
+        XCTAssertEqual(store.items.map(\.sequence), [1, 2])
+        XCTAssertEqual(store.modelDirectory?.current.model, "model-recovered")
+        XCTAssertEqual(store.modelDirectoryStatus, .ready)
+    }
+
     func testSubscriptionWatermarkRecoveryRebuildsProjectionBaselineFromHostAuthority() async {
         let recoveryReachedHistory = expectation(description: "watermark rollback refreshes history projections")
         let api = GapRecoveringSessionAPI(recoveryReachedHistory: recoveryReachedHistory)
