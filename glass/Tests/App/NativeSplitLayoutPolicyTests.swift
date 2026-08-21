@@ -111,6 +111,22 @@ final class NativeSplitLayoutPolicyTests: XCTestCase {
         XCTAssertFalse(state.narrowExpanded, "the narrow-only override must reset at the breakpoint")
     }
 
+    @MainActor
+    func testDeliverablesSnapshotRetainsRecordedNarrowSidebarExpansionOnly() {
+        let fixture = NativeShellPresentation(
+            mode: .conversation,
+            snapshotSidebarNarrowExpanded: true
+        )
+        fixture.setSidebarViewportNarrow(true)
+        XCTAssertFalse(fixture.sidebarLayout.isCollapsed)
+        XCTAssertTrue(fixture.sidebarLayout.narrowExpanded)
+
+        let production = NativeShellPresentation(mode: .conversation)
+        production.setSidebarViewportNarrow(true)
+        XCTAssertTrue(production.sidebarLayout.isCollapsed)
+        XCTAssertFalse(production.sidebarLayout.narrowExpanded)
+    }
+
     func testRepeatedNarrowViewportRefreshPreservesManualExpansion() {
         var state = NativeSidebarLayoutState()
         state.setNarrow(true)

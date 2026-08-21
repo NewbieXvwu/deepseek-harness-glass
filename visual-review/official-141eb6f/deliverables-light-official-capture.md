@@ -18,7 +18,7 @@
 
 | 人工视觉复核 | 观察结论 |
 |---|---|
-| 窄视口框架 | 780px时左侧呈官方窄rail；会话选择已在宽viewport完成。 |
+| 窄视口框架 | 780px时保留官方已展开sidebar（会话选择先在宽viewport完成，随后保持用户的narrow-expanded偏好）；仅conversation lane被压缩。 |
 | tool到turn-tail顺序 | 十个`Write · path`行位于closing assistant prose之前；turn tail随后显示。 |
 | Measured lane | `Produced`同一首行仅显示`关于我.md`和`index.html`两个basename chip，并显示精确`+ 8 files`。 |
 | Folder action | `Show in folder`在同一grid第二行、chip lane起始列，ARIA为同名button；它依赖记录的loopback `canOpenPath=true`状态。 |

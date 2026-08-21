@@ -71,6 +71,10 @@ final class NativeShellPresentation: ObservableObject {
     /// recorded official state that includes an already verified loopback
     /// `host.describe.canOpenPath=true`; production never sets it.
     private let snapshotCanOpenProjectPath: Bool
+    /// The recorded RC8 Deliverables capture selects the session at a wide
+    /// viewport, then shrinks to 780px while retaining the user's explicit
+    /// narrow-sidebar expansion. Production has no snapshot override.
+    private let snapshotSidebarNarrowExpanded: Bool
 
     var canOpenProjectPath: Bool {
         hostDescription?.canOpenPath == true || snapshotCanOpenProjectPath
@@ -112,7 +116,8 @@ final class NativeShellPresentation: ObservableObject {
         workspaceSnapshotDialog: WorkspaceBrowserView.SnapshotDialog = .none,
         jobsPopoverInitiallyOpen: Bool = false,
         jobsSnapshotLanguageCode: String? = nil,
-        snapshotCanOpenProjectPath: Bool = false
+        snapshotCanOpenProjectPath: Bool = false,
+        snapshotSidebarNarrowExpanded: Bool = false
     ) {
         self.mode = mode
         self.workspaceStore = workspaceStore ?? NativeWorkspaceStore()
@@ -121,6 +126,7 @@ final class NativeShellPresentation: ObservableObject {
         self.jobsPopoverInitiallyOpen = jobsPopoverInitiallyOpen
         self.jobsSnapshotLanguageCode = jobsSnapshotLanguageCode
         self.snapshotCanOpenProjectPath = snapshotCanOpenProjectPath
+        self.snapshotSidebarNarrowExpanded = snapshotSidebarNarrowExpanded
         self.detailsVisible = self.sessionStore.selectedToolCallID != nil
         do {
             // Source: RC8 `ui-trajectory/src/client/index.ts`: the trajectory
@@ -230,6 +236,11 @@ final class NativeShellPresentation: ObservableObject {
     func setSidebarViewportNarrow(_ isNarrow: Bool) {
         var updated = sidebarLayout
         updated.setNarrow(isNarrow)
+        // Equivalent to RC8's user toggle after AppFrame's narrow breakpoint
+        // computed the rail. It is present only in an evidence fixture.
+        if isNarrow, snapshotSidebarNarrowExpanded {
+            updated.setCollapsed(false)
+        }
         guard updated != sidebarLayout else { return }
         sidebarLayout = updated
     }

@@ -268,7 +268,7 @@
       "accessibility": { "reduceTransparency": false, "increaseContrast": false, "reduceMotion": false, "keyboardOnly": false },
       "actions": ["launch a fresh overlay-backed scaffold", "seed the official ten-write completed turn", "select the cold session while the sidebar is wide", "resize to 780px", "wait for the measured Produced lane with two chips, + 8 files, and Show in folder", "capture root geometry and body ARIA"],
       "expectedVisibleText": ["Produced", "关于我.md", "index.html", "+ 8 files", "Show in folder"],
-      "expectedLayoutTree": ["AppFrame narrow rail", "ConversationRoot", "turn-tail Produced grid", "measured one-line file lane", "Show in folder row"],
+      "expectedLayoutTree": ["AppFrame narrow-expanded sidebar", "ConversationRoot compressed lane", "turn-tail Produced grid", "measured one-line file lane", "Show in folder row"],
       "ariaBaseline": "artifacts/official-webui/deliverables-light.json",
       "screenshotBaseline": "artifacts/official-webui/deliverables-light.png",
       "nativeEntry": "SnapshotExporter.DSH_GLASS_SNAPSHOT_MODE=deliverables at 780x900 with the recorded verified canOpenPath fixture fact"

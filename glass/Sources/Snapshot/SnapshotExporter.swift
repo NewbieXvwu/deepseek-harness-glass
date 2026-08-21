@@ -169,7 +169,10 @@ enum SnapshotExporter {
             jobsSnapshotLanguageCode: requestedMode == "jobs" ? "en" : nil,
             // The locked RC8 produced-files capture exercised an already
             // verified loopback `host.describe.canOpenPath=true` state.
-            snapshotCanOpenProjectPath: requestedMode == "deliverables"
+            snapshotCanOpenProjectPath: requestedMode == "deliverables",
+            // RC8 selected that session wide, then retained an explicit narrow
+            // sidebar expansion at the capture's 780px lane viewport.
+            snapshotSidebarNarrowExpanded: requestedMode == "deliverables"
         )
         let shellController = NativeShellRootController(presentation: presentation)
         let size = snapshotSize(environment: ProcessInfo.processInfo.environment)
