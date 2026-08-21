@@ -15,10 +15,16 @@ public final class GhostPlaneWebViewHost: NSObject {
 
     public let webView: WKWebView
     private let policy: GhostPlaneLoopbackPolicy
+    private let responsePolicy: GhostPlaneResponsePolicy
     private var skeletonReady = false
+    /// The main-frame request is retained only until its matching response
+    /// policy callback. It lets Core reject even same-origin redirects rather
+    /// than treating the final endpoint as a fresh capability.
+    private var pendingMainFrameRequestURL: URL?
 
     public init(policy: GhostPlaneLoopbackPolicy) {
         self.policy = policy
+        responsePolicy = GhostPlaneResponsePolicy(loopback: policy)
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .nonPersistent()
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = false
@@ -36,6 +42,7 @@ public final class GhostPlaneWebViewHost: NSObject {
     @discardableResult
     public func loadSkeleton(_ html: String) -> WKNavigation? {
         skeletonReady = false
+        pendingMainFrameRequestURL = policy.origin
         return webView.loadHTMLString(html, baseURL: policy.origin)
     }
 
@@ -213,7 +220,12 @@ extension GhostPlaneWebViewHost: WKNavigationDelegate {
         decidePolicyFor navigationAction: WKNavigationAction,
         decisionHandler: @escaping @MainActor (WKNavigationActionPolicy) -> Void
     ) {
-        decisionHandler(allow(navigationAction.request.url) ? .allow : .cancel)
+        let url = navigationAction.request.url
+        let permitted = allow(url)
+        if permitted && (navigationAction.targetFrame?.isMainFrame ?? true) {
+            pendingMainFrameRequestURL = url
+        }
+        decisionHandler(permitted ? .allow : .cancel)
     }
 
     public func webView(
@@ -221,7 +233,27 @@ extension GhostPlaneWebViewHost: WKNavigationDelegate {
         decidePolicyFor navigationResponse: WKNavigationResponse,
         decisionHandler: @escaping @MainActor (WKNavigationResponsePolicy) -> Void
     ) {
-        decisionHandler(allow(navigationResponse.response.url) ? .allow : .cancel)
+        guard navigationResponse.isForMainFrame,
+              let requestURL = pendingMainFrameRequestURL,
+              let responseURL = navigationResponse.response.url,
+              let http = navigationResponse.response as? HTTPURLResponse
+        else {
+            skeletonReady = false
+            decisionHandler(.cancel)
+            return
+        }
+        switch responsePolicy.decision(
+            requestURL: requestURL,
+            responseURL: responseURL,
+            statusCode: http.statusCode,
+            mimeType: navigationResponse.response.mimeType
+        ) {
+        case .allowSkeletonDocument, .allowPluginResource:
+            decisionHandler(.allow)
+        case .deny:
+            skeletonReady = false
+            decisionHandler(.cancel)
+        }
     }
 
     public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
@@ -229,10 +261,12 @@ extension GhostPlaneWebViewHost: WKNavigationDelegate {
         // remains inside the precise skeleton origin. Redirected/external pages
         // never become writable by the native compatibility renderer.
         skeletonReady = policy.decision(for: webView.url ?? policy.origin) == .allowSkeletonDocument
+        pendingMainFrameRequestURL = nil
     }
 
     public func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: any Error) {
         skeletonReady = false
+        pendingMainFrameRequestURL = nil
     }
 
     public func webView(
@@ -241,5 +275,6 @@ extension GhostPlaneWebViewHost: WKNavigationDelegate {
         withError error: any Error
     ) {
         skeletonReady = false
+        pendingMainFrameRequestURL = nil
     }
 }
