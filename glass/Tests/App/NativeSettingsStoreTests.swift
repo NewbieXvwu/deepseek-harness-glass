@@ -34,6 +34,24 @@ final class NativeSettingsStoreTests: XCTestCase {
         XCTAssertEqual(store.permissionPreset.status, .unavailable)
     }
 
+    func testSupersededDescribeCannotReviveOldSettingsAuthority() async {
+        let api = DelayedFirstDescribeSettingsAPI(
+            old: .init(writable: true, hasDocument: true, namespaces: [permissionNamespace(value: "workspace-write", revision: 7)]),
+            current: .init(writable: true, hasDocument: true, namespaces: [permissionNamespace(value: "danger-full-access", revision: 8)])
+        )
+        let store = NativeSettingsStore()
+
+        store.load(using: api)
+        await eventually { api.describeCount == 1 }
+        store.load(using: api)
+        await eventually { store.namespaces.first?.revision == 8 }
+        try? await Task.sleep(for: .milliseconds(250))
+
+        XCTAssertEqual(store.namespaces.first?.revision, 8)
+        XCTAssertEqual(store.permissionPreset.currentValue, "danger-full-access")
+        XCTAssertEqual(store.phase, .ready)
+    }
+
     func testRevisionConflictRetainsDraftAcrossRemoteRefreshAndRetriesWithLatestHostRevision() async throws {
         let original = permissionNamespace(value: "workspace-write", revision: 7)
         let remote = permissionNamespace(value: "workspace-write", revision: 8)
@@ -107,6 +125,35 @@ final class NativeSettingsStoreTests: XCTestCase {
             secrets: [],
             revision: revision
         )
+    }
+
+    @MainActor
+    private final class DelayedFirstDescribeSettingsAPI: NativeSettingsAPI {
+        private let old: SettingsDescribeResponse
+        private let current: SettingsDescribeResponse
+        private(set) var describeCount = 0
+
+        init(old: SettingsDescribeResponse, current: SettingsDescribeResponse) {
+            self.old = old
+            self.current = current
+        }
+
+        func describe() async throws -> SettingsDescribeResponse {
+            describeCount += 1
+            if describeCount == 1 {
+                try? await Task.sleep(for: .milliseconds(150))
+                return old
+            }
+            return current
+        }
+
+        func mutate(
+            namespace _: String,
+            operations _: [SettingsPathOperationDTO],
+            expectedRevision _: Int?
+        ) async throws -> SettingsNamespaceDTO {
+            throw URLError(.cannotWriteToFile)
+        }
     }
 
     @MainActor

@@ -50,25 +50,37 @@ final class NativeSettingsStore: ObservableObject {
         revision: nil
     )
 
+    private var loadTask: Task<Void, Never>?
+    private var authorityGeneration = 0
+
+    deinit {
+        loadTask?.cancel()
+    }
+
     func load(using api: (any NativeSettingsAPI)?) {
+        loadTask?.cancel()
+        authorityGeneration &+= 1
+        let generation = authorityGeneration
         guard let api else {
             clearAuthority(phase: .idle)
             return
         }
         phase = .loading
-        Task {
+        loadTask = Task { [weak self] in
             do {
                 let response = try await api.describe()
-                writable = response.writable
-                hasDocument = response.hasDocument
-                namespaces = response.namespaces
-                permissionPreset = PermissionPresetProjection.state(
+                guard !Task.isCancelled, self?.authorityGeneration == generation else { return }
+                self?.writable = response.writable
+                self?.hasDocument = response.hasDocument
+                self?.namespaces = response.namespaces
+                self?.permissionPreset = PermissionPresetProjection.state(
                     namespaces: response.namespaces,
                     writable: response.writable
                 )
-                phase = .ready
+                self?.phase = .ready
             } catch {
-                clearAuthority(phase: .failed(error.localizedDescription))
+                guard !Task.isCancelled, self?.authorityGeneration == generation else { return }
+                self?.clearAuthority(phase: .failed(error.localizedDescription))
             }
         }
     }
