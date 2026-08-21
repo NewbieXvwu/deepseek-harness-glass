@@ -48,6 +48,7 @@ struct NativeSettingsRoot: View {
     let refreshCredential: (String) async -> Void
     let refreshCredentials: ([String]) async -> Void
     let setCredential: (String, String) async -> Bool
+    let unsetCredential: (String) async -> Bool
     let savePluginCard: (NativePluginCardDraft) async -> Bool
     @State private var selection: SectionID? = .general
     @State private var copySource: AgentPresetEntryDTO?
@@ -339,9 +340,12 @@ struct NativeSettingsRoot: View {
                                 for: provider,
                                 namespaces: store.namespaces
                             ), let credential = credentialStore.view(for: reference) {
-                                Text(NativeCredentialStatusPresentation.statusText(credential))
-                                    .font(OfficialUISpec.Typography.xs13)
-                                    .foregroundStyle(OfficialUISpec.Token.caption)
+                                NativeProviderCredentialForm(
+                                    reference: reference,
+                                    credential: credential,
+                                    setCredential: setCredential,
+                                    unsetCredential: unsetCredential
+                                )
                             }
                         }
                     }

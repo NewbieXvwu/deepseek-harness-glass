@@ -436,6 +436,10 @@ final class NativeShellPresentation: ObservableObject {
         await credentialStore.set(reference: reference, value: value, using: apis?.credentials)
     }
 
+    func unsetCredential(reference: String) async -> Bool {
+        await credentialStore.unset(reference: reference, using: apis?.credentials)
+    }
+
     func selectSession(_ sessionID: String, workspaceID: String?) {
         let didSwitchSession = sessionStore.selectedSessionID != sessionID
         workspaceStore.select(sessionID: sessionID, workspaceID: workspaceID)
@@ -829,6 +833,10 @@ final class NativeShellController: NativeSplitViewController {
             setCredential: { [weak presentation] reference, value in
                 guard let presentation else { return false }
                 return await presentation.setCredential(reference: reference, value: value)
+            },
+            unsetCredential: { [weak presentation] reference in
+                guard let presentation else { return false }
+                return await presentation.unsetCredential(reference: reference)
             },
             savePluginCard: { [weak presentation] draft in
                 guard let presentation else { return false }
