@@ -238,7 +238,7 @@ extension HarnessHostControllerTests {
         await recorder.recordRPCError(NSError(
             domain: "fixture",
             code: 1,
-            userInfo: [NSLocalizedDescriptionKey: "api_key=top-secret cookie=session-cookie Authorization: Bearer bearer-secret https://user:password@example.test"]
+            userInfo: [NSLocalizedDescriptionKey: "api_key=top-secret cookie=session-cookie Authorization: Bearer bearer-secret https://user:password@example.test {\"api_key\":\"json-secret\\\"escaped\",\"token\":\"json-token\"}"]
         ))
         let snapshot = await recorder.snapshot()
         XCTAssertEqual(snapshot.hostBuildID, Self.fixedCatalog.defaultBuildId)
@@ -253,19 +253,19 @@ extension HarnessHostControllerTests {
         for required in ["hostBuild=", "port=", "dshHome=", "ownership=", "pid=", "lastSSEAt=", "lastRPCError=", "protocolFixtureRevision=", "pluginCompatibility=", "lifecycle="] {
             XCTAssertTrue(copy.contains(required), "diagnostic copy must include \(required)")
         }
-        for secret in ["top-secret", "session-cookie", "bearer-secret", "user:password"] {
+        for secret in ["top-secret", "session-cookie", "bearer-secret", "user:password", "json-secret", "json-token"] {
             XCTAssertFalse(copy.contains(secret), "diagnostic copy must redact \(secret)")
         }
         XCTAssertTrue(copy.contains("<redacted>"))
     }
 
     func testHostLogRedactorIsStableAcrossRepeatedCallsAndPreservesURLScheme() {
-        let input = "Authorization: Bearer alpha-token cookie=browser-cookie https://user:password@example.test/path secret=hidden"
+        let input = "Authorization: Bearer alpha-token cookie=browser-cookie https://user:password@example.test/path secret=hidden {\"api_key\":\"json-secret\\\"escaped\",\"password\":\"json-password\"}"
         let expected = HostLogRedactor.redact(input)
         XCTAssertEqual(HostLogRedactor.redact(input), expected)
         XCTAssertEqual(HostLogRedactor.redact(expected), expected)
         XCTAssertTrue(expected.contains("https://<redacted>@example.test/path"))
-        for secret in ["alpha-token", "browser-cookie", "user:password", "hidden"] {
+        for secret in ["alpha-token", "browser-cookie", "user:password", "hidden", "json-secret", "json-password"] {
             XCTAssertFalse(expected.contains(secret), "redactor must remove \(secret)")
         }
     }

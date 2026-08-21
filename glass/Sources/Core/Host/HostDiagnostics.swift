@@ -123,6 +123,10 @@ enum HostLogRedactor {
             replacementTemplate: "<redacted>"
         ),
         .init(
+            pattern: #"(?i)\"(?:api[_-]?key|cookie|token|secret|password)\"\s*:\s*\"(?:\\.|[^\"])*\""#,
+            replacementTemplate: "\"<redacted>\""
+        ),
+        .init(
             pattern: #"(?i)\b(api[_-]?key|cookie|token|secret|password)\s*[:=]\s*([^\s,;]+)"#,
             replacementTemplate: "<redacted>"
         ),
