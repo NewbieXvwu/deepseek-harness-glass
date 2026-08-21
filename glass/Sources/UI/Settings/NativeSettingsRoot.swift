@@ -31,6 +31,8 @@ struct NativeSettingsRoot: View {
     /// Typed actions owned by the shell; the view cannot access transport.
     let selectTheme: (CoreThemePreference) -> Void
     @ObservedObject var credentialStore: NativeCredentialStore
+    @ObservedObject var modelDirectoryStore: NativeModelDirectoryStore
+    let refreshModelDirectory: () async -> Void
     let refreshCredential: (String) async -> Void
     let setCredential: (String, String) async -> Bool
     let savePluginCard: (NativePluginCardDraft) async -> Bool
@@ -66,7 +68,9 @@ struct NativeSettingsRoot: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .ready:
-            if selection == .plugins {
+            if selection == .models {
+                modelsDetail
+            } else if selection == .plugins {
                 let cards = NativeBuiltinPluginCard.dispatched(from: store.namespaces)
                 List {
                     if cards.isEmpty {
@@ -111,6 +115,58 @@ struct NativeSettingsRoot: View {
                             VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p4) {
                                 Text(namespace.ns)
                                 Text(namespace.applies)
+                                    .font(OfficialUISpec.Typography.xs13)
+                                    .foregroundStyle(OfficialUISpec.Token.caption)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var modelsDetail: some View {
+        switch modelDirectoryStore.phase {
+        case .idle, .loading:
+            ProgressView(official(namespace: "locale", key: "loading"))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .failed:
+            VStack(spacing: OfficialUISpec.Spacing.p12) {
+                Text(NativeModelDirectoryFailurePresentation.title)
+                Button(official(namespace: "ui-settings-models", key: "retry")) {
+                    Task { await refreshModelDirectory() }
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .ready:
+            List {
+                Section(official(namespace: "ui-settings-models", key: "provider")) {
+                    ForEach(modelDirectoryStore.providers) { provider in
+                        VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p4) {
+                            Text(provider.displayName)
+                            Text(provider.settingsNs)
+                                .font(OfficialUISpec.Typography.xs13)
+                                .foregroundStyle(OfficialUISpec.Token.caption)
+                        }
+                    }
+                }
+                Section(official(namespace: "ui-settings-models", key: "models")) {
+                    ForEach(modelDirectoryStore.groups) { group in
+                        VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p4) {
+                            Text(group.name)
+                            Text(group.models.map(\.name).joined(separator: ", "))
+                                .font(OfficialUISpec.Typography.xs13)
+                                .foregroundStyle(OfficialUISpec.Token.caption)
+                        }
+                    }
+                }
+                if !modelDirectoryStore.failures.isEmpty {
+                    Section(NativeModelDirectoryFailurePresentation.title) {
+                        ForEach(modelDirectoryStore.failures) { failure in
+                            VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p4) {
+                                Text(failure.name)
+                                Text(failure.message)
                                     .font(OfficialUISpec.Typography.xs13)
                                     .foregroundStyle(OfficialUISpec.Token.caption)
                             }

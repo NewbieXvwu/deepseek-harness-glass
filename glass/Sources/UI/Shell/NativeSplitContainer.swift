@@ -93,6 +93,7 @@ final class NativeShellPresentation: ObservableObject {
     let sessionStore: NativeSessionStore
     let settingsStore: NativeSettingsStore
     let credentialStore: NativeCredentialStore
+    let modelDirectoryStore: NativeModelDirectoryStore
     @Published var settingsPresented = false
     /// Window-resident native counterparts of RC8's contribution ledgers.
     /// They deliberately outlive individual SwiftUI root-view assignments.
@@ -119,6 +120,7 @@ final class NativeShellPresentation: ObservableObject {
         sessionStore: NativeSessionStore? = nil,
         settingsStore: NativeSettingsStore? = nil,
         credentialStore: NativeCredentialStore? = nil,
+        modelDirectoryStore: NativeModelDirectoryStore? = nil,
         workspaceSnapshotDialog: WorkspaceBrowserView.SnapshotDialog = .none,
         jobsPopoverInitiallyOpen: Bool = false,
         jobsSnapshotLanguageCode: String? = nil,
@@ -131,6 +133,7 @@ final class NativeShellPresentation: ObservableObject {
         self.sessionStore = sessionStore ?? NativeSessionStore()
         self.settingsStore = settingsStore ?? NativeSettingsStore()
         self.credentialStore = credentialStore ?? NativeCredentialStore()
+        self.modelDirectoryStore = modelDirectoryStore ?? NativeModelDirectoryStore()
         self.workspaceSnapshotDialog = workspaceSnapshotDialog
         self.jobsPopoverInitiallyOpen = jobsPopoverInitiallyOpen
         self.jobsSnapshotLanguageCode = jobsSnapshotLanguageCode
@@ -231,7 +234,10 @@ final class NativeShellPresentation: ObservableObject {
             }
         }
         workspaceStore.refresh(using: apis)
-        if settingsPresented { settingsStore.load(using: apis.settings) }
+        if settingsPresented {
+            settingsStore.load(using: apis.settings)
+            Task { [weak self] in await self?.modelDirectoryStore.refresh(using: apis.llm) }
+        }
         workspaceStore.observeHostEvents(at: connection.endpoint, using: apis, diagnostics: connection.diagnostics)
         if let selectedSessionID {
             sessionStore.open(
@@ -292,6 +298,7 @@ final class NativeShellPresentation: ObservableObject {
         workspaceStore.detachHost()
         sessionStore.disconnect()
         settingsStore.load(using: nil)
+        Task { [weak self] in await self?.modelDirectoryStore.refresh(using: nil) }
         settingsPresented = false
         mode = .welcome
         closeDetails()
@@ -300,6 +307,7 @@ final class NativeShellPresentation: ObservableObject {
     func openSettings() {
         settingsPresented = true
         settingsStore.load(using: apis?.settings)
+        Task { [weak self] in await self?.modelDirectoryStore.refresh(using: self?.apis?.llm) }
     }
 
     func closeSettings() {
@@ -309,6 +317,10 @@ final class NativeShellPresentation: ObservableObject {
     /// The General Appearance row emits only a typed official preference. The
     /// view itself has no transport access; on failure, a fresh Host descriptor
     /// remains authoritative and no local durable preference is manufactured.
+    func refreshModelDirectory() async {
+        await modelDirectoryStore.refresh(using: apis?.llm)
+    }
+
     func selectThemePreference(_ preference: CoreThemePreference) {
         guard let api = apis?.settings else { return }
         Task { [weak self] in
@@ -689,6 +701,10 @@ final class NativeShellController: NativeSplitViewController {
                 presentation?.selectThemePreference(preference)
             },
             credentialStore: presentation.credentialStore,
+            modelDirectoryStore: presentation.modelDirectoryStore,
+            refreshModelDirectory: { [weak presentation] in
+                await presentation?.refreshModelDirectory()
+            },
             refreshCredential: { [weak presentation] reference in
                 await presentation?.refreshCredential(reference)
             },
