@@ -968,9 +968,9 @@ final class NativeSessionStore: ObservableObject {
         goalAPI = api
     }
 
-    /// Source: RC8 `SessionProjectionMap.imageLimits`. Absence means the Host
-    /// has no composed attachment service, so UI callers do not invent limits
-    /// and allow the authoritative prompt admission result to decide.
+    /// Source: RC8 `SessionProjectionMap.imageLimits`. Native clients admit
+    /// image bytes only when the Host has supplied this complete contract; this
+    /// fails closed rather than inventing a local size/type policy.
     var imageAttachmentLimits: ImageAttachmentLimits? {
         guard let sessionID = activeSessionID,
               let value = projections.value(sessionID: sessionID, key: "imageLimits")
@@ -1410,14 +1410,21 @@ final class NativeSessionStore: ObservableObject {
     }
 
     func addPendingImage(_ url: URL) {
-        guard let mediaType = Self.mediaType(for: url),
-              let data = try? Data(contentsOf: url)
-        else { return }
+        let admission = NativeImageAttachmentAdmission.admit(
+            url: url,
+            limits: imageAttachmentLimits,
+            existingImageCount: pendingImages.count,
+            existingImageBytes: pendingImages.reduce(into: 0) { partial, image in
+                let result = partial.addingReportingOverflow(image.data.count)
+                partial = result.overflow ? Int.max : result.partialValue
+            }
+        )
+        guard case let .success(image) = admission else { return }
         pendingImages.append(PendingImage(
             id: UUID(),
             name: url.lastPathComponent,
-            mediaType: mediaType,
-            data: data
+            mediaType: image.mediaType,
+            data: image.data
         ))
     }
 
@@ -3188,16 +3195,6 @@ final class NativeSessionStore: ObservableObject {
             return object["text"]?.stringValue
         }.joined()
         return text.isEmpty ? nil : text
-    }
-
-    private static func mediaType(for url: URL) -> String? {
-        switch url.pathExtension.lowercased() {
-        case "png": return "image/png"
-        case "jpg", "jpeg": return "image/jpeg"
-        case "webp": return "image/webp"
-        case "gif": return "image/gif"
-        default: return nil
-        }
     }
 
     private func decode<Value: Decodable>(_ type: Value.Type, from value: JSONValue) -> Value? {

@@ -371,6 +371,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 - [ ] **T8.4：实现 Composer 与附件安全防线。** 支持 draft、textarea、send、stop、Shift+Enter、Enter/Cmd+Enter 的官方队列/steer 逻辑、blocked placeholder、命令入口与 keyboard focus。附件上传引入 Apple 原生 **`UniformTypeIdentifiers` + `ImageIO` (`CGImageSource`)** 防线：根据真实文件头判别 UTI，强制执行协商的 `maxImageBytes`、`maxImagePixels` 和 `maxImagesPerMessage` 限制，杜绝伪造扩展名与大图内存 OOM。
   - 依赖：T4.5、T6.1、T2.5。
   - 验收：idle、busy、no-workspace、blocked 等状态匹配官方场景；伪造扩展名与超大附件在加载前被安全拒绝。
+  - 进度：已在 `GlassCore` 新增 `NativeImageAttachmentAdmission`，使 file picker 与拖拽最终会合到 `NativeSessionStore.addPendingImage` 的同一 Core 准入点。它在保留内容前以 `CGImageSourceCreateWithURL` 判定真实 UTI/像素元数据，拒绝伪造扩展名、非 image UTI、未协商 media type、超单文件/总量/数量/边长/像素限制以及 Host 缺失的 `imageLimits`；读取后再次核验 bytes 以收窄 stat-to-read 替换窗口。`NativeImageAttachmentAdmissionTests` 覆盖无扩展名有效 PNG、伪造 PNG、缺失限制、数量、总字节、尺寸与像素边界。当前仍须把安全拒绝原因映射为官方 composer notice、覆盖实际 image prompt Host round-trip 与 macOS 当前 SHA 证据，故保持未勾选。
 
 - [ ] **T8.5：实现 prompt/cancel/queue RPC 流程。** 发送先进入正确的 Host API，再按 SSE authority 更新；不可乐观制造与 Host 无关的永久消息。
   - 依赖：T8.4、T6.7。
