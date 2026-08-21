@@ -668,7 +668,12 @@ final class NativeSessionStore: ObservableObject {
     /// durable observation set; it never derives descriptors from summaries.
     private func resyncSubagentCatalogsAfterRecovery() {
         guard let rootSessionID = activeSessionID, subagentCatalogAPI != nil else { return }
-        let observedParents = Set(subagentCatalogs.keys).union([rootSessionID])
+        let selectedAddressParent = subagentRoute?.childSessionID == rootSessionID
+            ? subagentRoute?.parentSessionID
+            : nil
+        let observedParents = Set(subagentCatalogs.keys)
+            .union([rootSessionID])
+            .union(selectedAddressParent.map { [$0] } ?? [])
         for parentSessionID in observedParents {
             refreshSubagentCatalog(parentSessionID: parentSessionID)
         }

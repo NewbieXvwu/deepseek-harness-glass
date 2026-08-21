@@ -450,6 +450,46 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertFalse(store.subagentCatalogs.keys.contains("new-grandchild"), "recovery must not infer a grandchild catalog without an explicit Host list")
     }
 
+    func testAuthorityRecoveryResyncsSelectedSubagentParentCatalog() async {
+        let childID = "selected-child"
+        let parentID = "selected-parent"
+        let parentCatalog = SubagentListResponse(entries: [
+            .init(kind: "child", id: childID, activity: "running", hasChildren: false, mode: "continuable", label: "Recovered selected child", reason: nil),
+        ], parentAvailable: true)
+        let childCatalog = SubagentListResponse(entries: [], parentAvailable: true)
+        let recoveryHistory = expectation(description: "selected child gap reaches recovery history")
+        let api = RecordingSubagentCatalogAPI(catalogs: [parentID: parentCatalog, childID: childCatalog])
+        let store = NativeSessionStore()
+        store.open(
+            sessionID: childID,
+            using: GapRecoveringSessionAPI(recoveryReachedHistory: recoveryHistory),
+            endpoint: URL(string: "http://127.0.0.1:1")!,
+            subagentCatalogAPI: api
+        )
+        store.setSubagentRoute(
+            parentSessionID: parentID,
+            entry: .init(kind: "child", id: childID, activity: "running", hasChildren: false, mode: "continuable", label: nil, reason: nil),
+            parentAvailable: true
+        )
+
+        store.applyMuxFrame(sessionEventFrame(
+            sessionID: childID,
+            seq: 3,
+            type: "user/message",
+            data: .object([
+                "id": .string("selected-child-gap"),
+                "content": .array([.object(["type": .string("text"), "text": .string("trigger selected child recovery")])]),
+                "source": .object(["kind": .string("user")]),
+            ]),
+            surfaceOp: "append"
+        ), sessionID: childID)
+        await fulfillment(of: [recoveryHistory], timeout: 1)
+        await eventually(timeout: 1) { store.subagentCatalogs[parentID] == parentCatalog }
+
+        XCTAssertEqual(Set(api.parentIDs), Set([childID, parentID]))
+        XCTAssertEqual(store.subagentCatalogs[parentID]?.entries.first?.label, "Recovered selected child")
+    }
+
     func testSubagentRouteAcceptsOnlyCatalogChildWithKnownMode() {
         let store = NativeSessionStore()
         let continuable = SubagentListEntryDTO(
