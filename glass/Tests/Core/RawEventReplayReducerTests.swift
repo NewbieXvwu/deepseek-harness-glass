@@ -239,6 +239,14 @@ final class RawEventReplayReducerTests: XCTestCase {
         XCTAssertEqual(reducer.rawWindow().map(\.event.type), ["plugin/future-node"])
     }
 
+    private func tryUnwrap<T>(_ value: T?, file: StaticString = #filePath, line: UInt = #line) -> T {
+        guard let value else {
+            XCTFail("Expected non-nil value", file: file, line: line)
+            fatalError("Expected non-nil value")
+        }
+        return value
+    }
+
     private func events(for id: String, expanded: Bool = false) throws -> [SessionEventDTO] {
         let fixture = try OfficialRawEventReplayFixtureCatalog.load()
         let replay = tryUnwrap(fixture.cases.first(where: { $0.id == id }))
