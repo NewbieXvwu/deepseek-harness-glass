@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "officialSourceCommit": "528c682e061696f5a160f363f236ecbf53cbd006",
+  "fixtureRevision": "official-528c682e-raw-event-replay-r1",
+  "source": {
+    "path": "packages/client/runtime/tests/event-script.client.ts",
+    "lines": "13-145",
+    "commit": "528c682e061696f5a160f363f236ecbf53cbd006"
+  },
+  "anonymization": {
+    "policy": "Deterministic synthetic identifiers and neutral fixture text only; no captured user dialogue, credentials, private paths, or Host configuration values.",
+    "forbiddenValueClasses": ["credential", "api-key", "private-path", "recorded-user-content"]
+  },
+  "cases": [
+    {
+      "id": "happy-streaming-turn",
+      "category": "happy-path",
+      "description": "A complete streamed assistant turn with a final durable message.",
+      "events": [
+        {"seq": 1, "time": 1700000000001, "type": "turn/start", "data": {"turn": 1}},
+        {"seq": 2, "time": 1700000000002, "type": "user/message", "surfaceOp": "append", "data": {"id": "fixture-user-1", "content": [{"type": "text", "text": "fixture request"}], "source": {"kind": "user"}}},
+        {"seq": 3, "time": 1700000000003, "type": "step/start", "data": {"turn": 1, "step": 1}},
+        {"seq": 4, "time": 1700000000004, "type": "assistant/chunk", "data": {"turn": 1, "step": 1, "chunk": {"type": "text-delta", "index": 0, "text": "fixture "}}},
+        {"seq": 5, "time": 1700000000005, "type": "assistant/chunk", "data": {"turn": 1, "step": 1, "chunk": {"type": "text-delta", "index": 0, "text": "answer"}}},
+        {"seq": 6, "time": 1700000000006, "type": "assistant/message", "surfaceOp": "append", "data": {"turn": 1, "step": 1, "message": {"id": "fixture-assistant-1", "content": [{"type": "text", "text": "fixture answer"}], "source": {"kind": "model", "provider": "fixture", "model": "fixture-model"}}}},
+        {"seq": 7, "time": 1700000000007, "type": "step/end", "data": {"turn": 1, "step": 1}},
+        {"seq": 8, "time": 1700000000008, "type": "turn/end", "data": {"turn": 1, "reason": {"kind": "completed"}}}
+      ]
+    },
+    {
+      "id": "retry-error-turn",
+      "category": "error",
+      "description": "A retryable model failure that becomes terminal after the Host closes the turn.",
+      "events": [
+        {"seq": 20, "time": 1700000000020, "type": "turn/start", "data": {"turn": 2}},
+        {"seq": 21, "time": 1700000000021, "type": "step/start", "data": {"turn": 2, "step": 1}},
+        {"seq": 22, "time": 1700000000022, "type": "llm/retry", "data": {"retryId": "fixture-retry-1", "retry": 1, "turn": 2, "step": 1, "mode": "normal", "maxRetries": 2, "delayMs": 250, "failure": {"code": "TRANSPORT", "message": "fixture transport failure"}}},
+        {"seq": 23, "time": 1700000000023, "type": "turn/end", "data": {"turn": 2, "reason": {"kind": "error", "error": {"code": "TRANSPORT", "message": "fixture terminal failure"}}}}
+      ]
+    },
+    {
+      "id": "reconnect-duplicate-sequence",
+      "category": "reconnect",
+      "description": "A resubscription replay with a duplicate event followed by a contiguous live delta.",
+      "events": [
+        {"seq": 40, "time": 1700000000040, "type": "turn/start", "data": {"turn": 3}},
+        {"seq": 41, "time": 1700000000041, "type": "step/start", "data": {"turn": 3, "step": 1}},
+        {"seq": 42, "time": 1700000000042, "type": "assistant/chunk", "data": {"turn": 3, "step": 1, "chunk": {"type": "text-delta", "index": 0, "text": "first"}}},
+        {"seq": 42, "time": 1700000000042, "type": "assistant/chunk", "data": {"turn": 3, "step": 1, "chunk": {"type": "text-delta", "index": 0, "text": "first"}}},
+        {"seq": 43, "time": 1700000000043, "type": "assistant/chunk", "data": {"turn": 3, "step": 1, "chunk": {"type": "text-delta", "index": 0, "text": " second"}}}
+      ]
+    },
+    {
+      "id": "interleaved-tool-and-assistant",
+      "category": "concurrent",
+      "description": "A tool call and assistant tail within one open step, preserving typed correlations.",
+      "events": [
+        {"seq": 60, "time": 1700000000060, "type": "turn/start", "data": {"turn": 4}},
+        {"seq": 61, "time": 1700000000061, "type": "step/start", "data": {"turn": 4, "step": 1}},
+        {"seq": 62, "time": 1700000000062, "type": "tool/call", "data": {"turn": 4, "step": 1, "callId": "fixture-call-1", "name": "search", "arguments": "{\"query\":\"fixture\"}"}},
+        {"seq": 63, "time": 1700000000063, "type": "assistant/chunk", "data": {"turn": 4, "step": 1, "chunk": {"type": "text-delta", "index": 0, "text": "working"}}},
+        {"seq": 64, "time": 1700000000064, "type": "tool/result", "surfaceOp": "append", "data": {"turn": 4, "step": 1, "message": {"source": {"callId": "fixture-call-1"}, "content": [{"type": "text", "text": "fixture result"}]}}}
+      ]
+    },
+    {
+      "id": "long-session-template",
+      "category": "long-session",
+      "description": "A deterministic 1,000-iteration append template for stress replay; the runner offsets sequence and turn fields per iteration.",
+      "repeatCount": 1000,
+      "events": [
+        {"seq": 1, "time": 1700000000001, "type": "turn/start", "data": {"turn": 1}},
+        {"seq": 2, "time": 1700000000002, "type": "user/message", "surfaceOp": "append", "data": {"id": "fixture-long-user", "content": [{"type": "text", "text": "fixture long request"}], "source": {"kind": "user"}}},
+        {"seq": 3, "time": 1700000000003, "type": "assistant/message", "surfaceOp": "append", "data": {"turn": 1, "step": 1, "message": {"id": "fixture-long-assistant", "content": [{"type": "text", "text": "fixture long answer"}], "source": {"kind": "model", "provider": "fixture", "model": "fixture-model"}}}},
+        {"seq": 4, "time": 1700000000004, "type": "turn/end", "data": {"turn": 1, "reason": {"kind": "completed"}}}
+      ]
+    },
+    {
+      "id": "unknown-node-safe-ignore",
+      "category": "unknown-node",
+      "description": "An extensible event type that must not crash a native replay or invent a local renderer.",
+      "events": [
+        {"seq": 90, "time": 1700000000090, "type": "plugin/future-node", "data": {"plugin": "fixture-extension", "state": "opaque"}}
+      ]
+    }
+  ]
+}
