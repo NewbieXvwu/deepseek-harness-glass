@@ -22,40 +22,48 @@ struct NativeToolRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: OfficialUISpec.Spacing.p8) {
+            HStack(spacing: OfficialUISpec.Spacing.p0) {
                 Button(action: toggleExpandedAndInspect) {
-                    HStack(spacing: OfficialUISpec.Spacing.p8) {
+                    HStack(spacing: OfficialUISpec.Spacing.p6) {
                         leading
                             .frame(width: OfficialUISpec.Geometry.px16, height: OfficialUISpec.Geometry.px16)
                         Text(title)
-                            .font(OfficialUISpec.Typography.xsStrong13)
+                            .font(OfficialUISpec.Typography.s14)
                             .foregroundStyle(OfficialUISpec.Token.primary)
-                        Text(OfficialUISpec.Text.toolSummarySeparator)
-                            .foregroundStyle(OfficialUISpec.Token.caption)
                     }
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(rowAccessibilityLabel)
                 .accessibilityValue(stateDescription)
 
+                Circle()
+                    .fill(OfficialUISpec.Token.caption)
+                    .frame(width: OfficialUISpec.Spacing.p2, height: OfficialUISpec.Spacing.p2)
+                    .padding(.horizontal, OfficialUISpec.Spacing.p8)
+
                 if let filePath, canOpenProjectPath, state != .failed {
                     Button(action: { openKnownProjectPath(filePath) }) {
                         Text(summary)
-                            .font(OfficialUISpec.Typography.xs13)
+                            .font(OfficialUISpec.Typography.s14)
                             .foregroundStyle(OfficialUISpec.Token.secondary)
+                            .underline(true, color: OfficialUISpec.Token.caption)
                             .lineLimit(1)
+                            .truncationMode(.tail)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(filePath)
                 } else {
                     Button(action: toggleExpandedAndInspect) {
                         Text(summary)
-                            .font(OfficialUISpec.Typography.xs13)
+                            .font(OfficialUISpec.Typography.s14)
                             .foregroundStyle(state == .failed ? OfficialUISpec.Token.errorPrimary : OfficialUISpec.Token.secondary)
                             .lineLimit(1)
+                            .truncationMode(.tail)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel(title)
+                    .accessibilityLabel(rowAccessibilityLabel)
                     .accessibilityValue(stateDescription)
                 }
                 Spacer(minLength: 0)
