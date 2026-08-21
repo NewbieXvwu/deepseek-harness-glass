@@ -547,6 +547,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 - [ ] **T13.3：建立升级流程。** 更新 DSH Host 必须经过“拉取官方 commit → 生成/审核 OfficialUISpec → 更新 DTO → 契约回归 → reducer 回归 → golden test → accessibility/performance → 支持矩阵提交”的顺序。
   - 依赖：T2、T4.6、T12。
   - 验收：任何 Host payload 升级 PR 都必须关联 spec revision、fixture revision 和测试报告。
+  - 进度：新增 `notes/T13.3-host-upgrade-governance.md`，将升级固化为官方 commit 锁定、结构化 spec 再生、typed DTO/facade、匿名 raw-event fixture、reducer/SSE/authority 负例、macOS visual/AX/keyboard/performance 证据和 `SupportedHostBuilds` 发布门的可审计顺序；文档同时提供升级报告、提交序列与回滚模板。尚需把该报告模板和必需 metadata 接入实际 release/PR enforcement，故保持未勾选。
 
 - [ ] **T13.4：建立发布前禁用开关。** 对高风险未完成表面用 feature flag 保持隐藏或只读，绝不以半完成的“自创占位页面”替代官方 UI。
   - 依赖：T1.2、T2.2。
