@@ -263,7 +263,12 @@ struct CredentialsAPI: Sendable, NativeCredentialAPI {
     }
 }
 
-struct LLMAPI: Sendable {
+protocol NativeLLMDirectoryAPI: Sendable {
+    func providers() async throws -> LLMProvidersResponse
+    func models() async throws -> LLMModelsResponse
+}
+
+struct LLMAPI: Sendable, NativeLLMDirectoryAPI {
     private let client: DSHAPIClient
     init(client: DSHAPIClient) { self.client = client }
 
