@@ -853,6 +853,7 @@ private struct NativeInteractiveComposerCard: View {
 
                 NativeComposerPermissionSelector(sessionStore: sessionStore)
                 NativeComposerModelSelector(sessionStore: sessionStore)
+                NativeContextMeter(sessionStore: sessionStore)
 
                 if sessionStore.isRunning {
                     Button(action: sessionStore.cancelRunningTurn) {

@@ -50,3 +50,12 @@
 - confirmation 的 title、description、acknowledge、cancel、enable 必须来自 `ui-conversation.access.confirm.*`；确认后仍需等待 Host 下一份 permissions projection 才更新可见状态。
 
 这些条目补充上文，不替代下一次实现前对锁定官方源的核对。
+
+## Context meter projection
+
+来源：`/home/ubuntu/deepseek-harness-official/packages/client/ui-conversation/src/client/skeleton/ContextMeter.tsx`、`chat/StatsLine.tsx` 与 `packages/llm/token-meter/src/projection.ts`。
+
+- Context meter 读取 session `contextPressure` projection；仅当 usage 与 route `contextWindow` 均存在时显示，二者都是 informational Host facts，不能被 native 估算、计费或作为 prompt gating 输入。
+- usage 分子优先 `projectedTokens`，仅在字段缺失时 fallback 到 `pressureTokens`；projected figure 结合 compacted surface 的变化，因此 compaction 发生后不必等待下一次 provider usage 回报。
+- 百分比为 `round(usedTokens / contextWindow * 100)` 并上限 100。`contextWindow` 缺失时必须隐藏并关闭详情；capacity 与 pressure 来自独立 last-wins projection fields。
+- 触发器/详情标题使用锁定 `ui-conversation.context.aria` 与 `context.used` locale；官方 breakdown 仅在 `contextBreakdown` projection 实际存在时才展示。
