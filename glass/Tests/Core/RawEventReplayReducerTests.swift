@@ -23,6 +23,17 @@ final class RawEventReplayReducerTests: XCTestCase {
         XCTAssertEqual(snapshots.dropLast().flatMap { $0 }.filter { $0.kind == "assistant-step" }.map(\.key).last, final.last?.key)
     }
 
+    func testRetryErrorReplayCancelsScheduledAttemptAtHostTurnClosure() throws {
+        let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
+        let events = try events(for: "retry-error-turn")
+
+        XCTAssertEqual(reducer.replaceWindow(events.map { .init(event: $0) }, hasMore: false), .immediate)
+        let retry = tryUnwrap(reducer.snapshot(target: "chat").first(where: { $0.kind == "model-retry" })?.data as? CoreRetryNode)
+        XCTAssertEqual(retry.attempts.map(\.state), [.cancelled])
+        XCTAssertEqual(retry.attempts.first?.failureMessage, "fixture transport failure")
+        XCTAssertEqual(reducer.snapshot(target: "chat").filter { $0.kind == "model-retry" }.count, 1)
+    }
+
     func testUnknownReplayEventIsSafelyIgnoredWithoutManufacturingANode() throws {
         let events = try events(for: "unknown-node-safe-ignore")
         let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
