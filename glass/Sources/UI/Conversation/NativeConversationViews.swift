@@ -755,6 +755,7 @@ private struct NativeInteractiveComposerCard: View {
 
                 Spacer(minLength: 0)
 
+                NativeComposerPermissionSelector(sessionStore: sessionStore)
                 NativeComposerModelSelector(sessionStore: sessionStore)
 
                 if sessionStore.isRunning {

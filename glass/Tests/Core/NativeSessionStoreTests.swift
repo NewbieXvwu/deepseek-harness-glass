@@ -1068,6 +1068,18 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertFalse(store.isRunning)
     }
 
+    func testSnapshotPermissionFixturePublishesWholeHostProjection() {
+        let store = NativeSessionStore()
+        store.loadSnapshotPermissionFixture()
+
+        XCTAssertEqual(store.selectedSessionID, "fx-alpha")
+        XCTAssertEqual(store.extensionState?.permissions?.currentValue, "workspace-write")
+        XCTAssertEqual(store.extensionState?.permissions?.options.map(\.value), ["workspace-write", "danger-full-access"])
+        XCTAssertEqual(store.extensionState?.permissions?.options.map(\.name), ["workspace-write", "danger-full-access"])
+        XCTAssertFalse(store.isSubmittingPermission)
+        XCTAssertFalse(store.isRunning)
+    }
+
     func testSnapshotModelSelectionFixturePublishesCompleteHostDirectory() {
         let store = NativeSessionStore()
         store.loadSnapshotModelSelectionFixture()

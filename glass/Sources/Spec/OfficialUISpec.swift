@@ -420,6 +420,8 @@ enum OfficialUISpec {
         static let composerHeroPlaceholder = "Describe what you want to build"
         // Source: packages/client/connection/src/client/fixture.ts / ui-conversation PermissionSelect
         static let fixtureWorkspaceWrite = "Workspace Write"
+        /// Source: RC8 `ui-conversation/PermissionSelect.tsx:60-62`.
+        static let permissionFullAccess = "Full access"
         static let fixtureModelName = "DeepSeek-V4-Flash"
         static let fixtureReasoningEffort = "High"
         static let sendMessageAccessibility = "Send message"

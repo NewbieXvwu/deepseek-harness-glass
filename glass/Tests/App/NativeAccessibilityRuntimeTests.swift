@@ -170,6 +170,24 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         XCTAssertNotEqual(rendered.last, "warning.groupLoad", "interpolated warning must not fall back to an unregistered product literal")
     }
 
+    func testNativePermissionSelectUsesLockedConversationLocaleCatalog() {
+        let officialValues = Set(OfficialUISpec.LocaleCatalog.values.values)
+        let rendered = [
+            NativeComposerPermissionSelector.localizedValue(key: "input.accessMode", language: "en", replacements: ["name": OfficialUISpec.Text.fixtureWorkspaceWrite]),
+            NativeComposerPermissionSelector.localizedValue(key: "access.confirm.title", language: "en"),
+            NativeComposerPermissionSelector.localizedValue(key: "access.confirm.description", language: "en"),
+            NativeComposerPermissionSelector.localizedValue(key: "access.confirm.acknowledge", language: "en"),
+            NativeComposerPermissionSelector.localizedValue(key: "access.confirm.cancel", language: "en"),
+            NativeComposerPermissionSelector.localizedValue(key: "access.confirm.enable", language: "en"),
+        ]
+        XCTAssertTrue(rendered.dropFirst().allSatisfy(officialValues.contains))
+        XCTAssertEqual(
+            NativeComposerPermissionSelector.localizedValue(key: "access.confirm.title", language: "zh"),
+            OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "access.confirm.title", language: "zh")
+        )
+        XCTAssertNotEqual(rendered.first, "input.accessMode", "interpolated access label must not fall back to an unregistered product literal")
+    }
+
     func testCompactionRendererUsesOfficialLocaleForSummaryStates() {
         let officialValues = Set(OfficialUISpec.LocaleCatalog.values.values)
         let rendered = [

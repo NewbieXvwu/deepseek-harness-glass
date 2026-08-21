@@ -2283,6 +2283,57 @@ final class NativeSessionStore: ObservableObject {
         appliedSequences = []
     }
 
+    /// Snapshot-only Host-shaped `permissions` fixture. It represents the
+    /// complete projection produced by the optional RC8 permission service; the
+    /// current session command path is intentionally not invoked here.
+    func loadSnapshotPermissionFixture() {
+        let sessionID = "fx-alpha"
+        phase = .ready(sessionID: sessionID)
+        activeSessionID = sessionID
+        items = []
+        resetConversationWindow()
+        toolInvocations = []
+        queuedMessages = []
+        backgroundJobs = []
+        modelDirectory = nil
+        projections.remove(sessionID: sessionID)
+        projections.apply(
+            sessionID: sessionID,
+            key: "permissions",
+            value: .object([
+                "options": .array([
+                    .object([
+                        "value": .string("workspace-write"),
+                        "name": .string("workspace-write"),
+                        "description": .string("Write inside the workspace and permitted temporary directories; wider retries require approval."),
+                    ]),
+                    .object([
+                        "value": .string("danger-full-access"),
+                        "name": .string("danger-full-access"),
+                        "description": .string("Full file access without approval prompts."),
+                    ]),
+                ]),
+                "currentValue": .string("workspace-write"),
+            ]),
+            seq: 1
+        )
+        isSelectingModel = false
+        isSubmittingPermission = false
+        selectedToolCallID = nil
+        pendingApproval = nil
+        pendingQuestion = nil
+        isSubmittingApproval = false
+        isSubmittingQuestion = false
+        isRunning = false
+        hasMoreHistory = false
+        isLoadingOlderHistory = false
+        isSubmittingPrompt = false
+        draft = ""
+        pendingImages = []
+        lastError = nil
+        appliedSequences = []
+    }
+
     /// Snapshot-only Host-shaped approval fixture. It exercises the same
     /// `PendingApproval` holder that a live `approval/requested` mux frame sets.
     func loadSnapshotApprovalFixture() {
