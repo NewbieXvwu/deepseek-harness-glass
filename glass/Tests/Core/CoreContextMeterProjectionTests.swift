@@ -29,6 +29,26 @@ final class CoreContextMeterProjectionTests: XCTestCase {
         )
     }
 
+    func testContextBreakdownRequiresAllThreeHostCompositionValues() {
+        XCTAssertEqual(
+            CoreContextMeterBreakdown.value(projection: .object([
+                "systemTokens": .number(1_000),
+                "toolsTokens": .number(2_000),
+                "messageTokens": .number(3_000),
+            ])),
+            .init(systemTokens: 1_000, toolsTokens: 2_000, messageTokens: 3_000)
+        )
+        XCTAssertNil(CoreContextMeterBreakdown.value(projection: .object([
+            "systemTokens": .number(1_000),
+            "toolsTokens": .number(2_000),
+        ])))
+        XCTAssertNil(CoreContextMeterBreakdown.value(projection: .object([
+            "systemTokens": .number(1_000),
+            "toolsTokens": .number(2_000),
+            "messageTokens": .number(-3_000),
+        ])))
+    }
+
     func testMalformedOrCapacitylessContextPressureDoesNotInventMeter() {
         XCTAssertNil(CoreContextMeterState.value(projection: .object([
             "pressureTokens": .number(0),

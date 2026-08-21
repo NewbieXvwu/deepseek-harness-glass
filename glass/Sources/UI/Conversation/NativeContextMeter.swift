@@ -15,6 +15,11 @@ struct NativeContextMeter: View {
         return CoreContextMeterState.value(from: sessionStore.projections, sessionID: sessionID)
     }
 
+    private var breakdown: CoreContextMeterBreakdown? {
+        guard let sessionID = sessionStore.selectedSessionID else { return nil }
+        return CoreContextMeterBreakdown.value(from: sessionStore.projections, sessionID: sessionID)
+    }
+
     private var language: String { Locale.current.language.languageCode?.identifier ?? "en" }
 
     var body: some View {
@@ -39,12 +44,12 @@ struct NativeContextMeter: View {
             .accessibilityLabel(t("context.aria", replacements: ["percent": "\(state.percent)%"]))
             .accessibilityValue("\(state.usedTokens)/\(state.contextWindow)")
             .popover(isPresented: $isOpen, arrowEdge: .bottom) {
-                contextDetail(state)
+                contextDetail(state, breakdown: breakdown)
             }
         }
     }
 
-    private func contextDetail(_ state: CoreContextMeterState) -> some View {
+    private func contextDetail(_ state: CoreContextMeterState, breakdown: CoreContextMeterBreakdown?) -> some View {
         VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p8) {
             Text(t("context.used"))
                 .font(OfficialUISpec.Typography.baseStrong16)
@@ -59,11 +64,29 @@ struct NativeContextMeter: View {
             }
             ProgressView(value: Double(state.percent), total: 100)
                 .tint(OfficialUISpec.Token.businessBlue)
+            if let breakdown {
+                Divider()
+                breakdownRow(label: t("context.system"), tokens: breakdown.systemTokens)
+                breakdownRow(label: t("context.tools"), tokens: breakdown.toolsTokens)
+                breakdownRow(label: t("context.messages"), tokens: breakdown.messageTokens)
+            }
         }
         .padding(OfficialUISpec.Spacing.p16)
         .frame(width: OfficialUISpec.Geometry.px240)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(t("context.used"))
+    }
+
+    private func breakdownRow(label: String, tokens: Int) -> some View {
+        HStack(spacing: OfficialUISpec.Spacing.p8) {
+            Text(label)
+                .font(OfficialUISpec.Typography.s14)
+            Spacer(minLength: OfficialUISpec.Spacing.p0)
+            Text("~\(formatTokens(tokens))")
+                .font(OfficialUISpec.Typography.s14)
+                .foregroundStyle(OfficialUISpec.Token.secondary)
+                .monospacedDigit()
+        }
     }
 
     private func formatTokens(_ value: Int) -> String {

@@ -33,7 +33,7 @@ struct CoreContextMeterState: Equatable {
         )
     }
 
-    private static func integer(_ value: JSONValue?) -> Int? {
+    static func integer(_ value: JSONValue?) -> Int? {
         guard let number = value?.numberValue,
               number.isFinite,
               number >= 0,
@@ -41,5 +41,27 @@ struct CoreContextMeterState: Equatable {
               number <= Double(Int.max)
         else { return nil }
         return Int(number)
+    }
+}
+
+/// Optional RC8 `contextBreakdown` composition. Its heuristic segments must
+/// never be substituted for provider-anchored occupancy; the UI shows them only
+/// as individually complete descriptive rows inside an available meter.
+struct CoreContextMeterBreakdown: Equatable {
+    let systemTokens: Int
+    let toolsTokens: Int
+    let messageTokens: Int
+
+    static func value(from store: SessionProjectionStore, sessionID: String) -> Self? {
+        value(projection: store.value(sessionID: sessionID, key: "contextBreakdown"))
+    }
+
+    static func value(projection: JSONValue?) -> Self? {
+        guard let object = projection?.objectValue,
+              let systemTokens = CoreContextMeterState.integer(object["systemTokens"]),
+              let toolsTokens = CoreContextMeterState.integer(object["toolsTokens"]),
+              let messageTokens = CoreContextMeterState.integer(object["messageTokens"])
+        else { return nil }
+        return .init(systemTokens: systemTokens, toolsTokens: toolsTokens, messageTokens: messageTokens)
     }
 }
