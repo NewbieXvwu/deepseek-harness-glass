@@ -50,6 +50,21 @@ final class RawEventReplayReducerTests: XCTestCase {
         XCTAssertEqual(Set(chat.map(\.key)).count, chat.count)
     }
 
+    func testLongSessionReplayMaterializesEveryTurnWithoutDuplicateKeys() throws {
+        let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
+        let events = try events(for: "long-session-template", expanded: true)
+
+        XCTAssertEqual(reducer.replaceWindow(events.map { .init(event: $0) }, hasMore: false), .immediate)
+        let chat = reducer.snapshot(target: "chat")
+        XCTAssertEqual(events.count, 4_000)
+        XCTAssertEqual(chat.count, 2_000)
+        XCTAssertEqual(chat.filter { $0.kind == "user" }.count, 1_000)
+        XCTAssertEqual(chat.filter { $0.kind == "assistant-step" }.count, 1_000)
+        XCTAssertEqual(Set(chat.map(\.key)).count, chat.count)
+        XCTAssertEqual((chat.first?.data as? CoreUserNode)?.blocks.first?.text, "fixture long request-1")
+        XCTAssertEqual((chat.last?.data as? CoreAssistantNode)?.blocks.first?.text, "fixture long answer-1000")
+    }
+
     func testUnknownReplayEventIsSafelyIgnoredWithoutManufacturingANode() throws {
         let events = try events(for: "unknown-node-safe-ignore")
         let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
@@ -63,10 +78,11 @@ final class RawEventReplayReducerTests: XCTestCase {
         XCTAssertEqual(reducer.rawWindow().map(\.event.type), ["plugin/future-node"])
     }
 
-    private func events(for id: String) throws -> [SessionEventDTO] {
+    private func events(for id: String, expanded: Bool = false) throws -> [SessionEventDTO] {
         let fixture = try OfficialRawEventReplayFixtureCatalog.load()
         let replay = tryUnwrap(fixture.cases.first(where: { $0.id == id }))
-        return try replay.events.map { event in
+        let values = expanded ? OfficialRawEventReplayFixtureCatalog.expandedEvents(for: replay) : replay.events
+        return try values.map { event in
             try JSONDecoder().decode(SessionEventDTO.self, from: JSONEncoder().encode(event))
         }
     }
