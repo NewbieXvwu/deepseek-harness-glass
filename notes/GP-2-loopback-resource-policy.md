@@ -44,3 +44,11 @@ GP-2 后续的独立 Plugin target 才可创建 `WKWebView`。它必须将每一
 ## References
 
 [1]: https://github.com/deepseek-ai/deepseek-harness/blob/528c682e061696f5a160f363f236ecbf53cbd006/packages/client/modules/src/client/system.ts "Official ClientModuleSystem loader registration contract"
+
+## 6. 官方动态运行时身份（为 T11.4/T11.5 保留）
+
+锁定官方 `cordis-client-runner` 将每个 browser half 以 `pluginId`、不可变 `packageId`、精确 `pluginRunId`、`agentId` 和 `name` 表示；页面 live state 以 `pluginId` 收敛，重复同 run 为 no-op，另一 run 替换，unload 会移除 loader entry、失效 module factory 并清理 styles。[2] 官方动态 package 通过 `dyn/<pluginId>` 取得 module/loader entry identity，runner 只有在模块表、SlotRegistry、loader 和受 guard 的 host invocation 都可用时才 activation；`inject` 未满足时是成功但 parked 的 `waitingFor` 状态而不是静默失败。[2]
+
+后续 T11.4 的诊断模型必须保留上述 plugin/package/run 三重身份以及 `active`、`waitingFor`、`evaluate`/`module-import`/`activate` failure 原因；不得仅以 package display name 或历史数组判断当前运行轨。当前 `GhostPlaneModuleManifest` 仅验证 boot graph，不模拟 Cordis fiber/SlotRegistry lifecycle。
+
+[2]: https://github.com/deepseek-ai/deepseek-harness/blob/528c682e061696f5a160f363f236ecbf53cbd006/packages/extensions/cordis-client-runner/src/client/runtime.ts "Official dynamic Cordis browser lifecycle"

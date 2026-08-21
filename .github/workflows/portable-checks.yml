@@ -190,3 +190,9 @@ jobs:
             glass/ci/official-ghost-plane-contract-portable-check.swift \
             -o /tmp/official-ghost-plane-contract-portable-check
           /tmp/official-ghost-plane-contract-portable-check
+          swiftc glass/Sources/Core/Plugin/NativeUIManifest.swift \
+            glass/Sources/Core/Plugin/SwiftAdapterRegistry.swift \
+            glass/Sources/Core/Plugin/PluginRouteMatrix.swift \
+            glass/ci/plugin-route-matrix-portable-check.swift \
+            -o /tmp/plugin-route-matrix-portable-check
+          /tmp/plugin-route-matrix-portable-check
