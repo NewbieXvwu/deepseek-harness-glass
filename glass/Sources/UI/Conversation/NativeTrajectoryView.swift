@@ -144,6 +144,30 @@ private struct NativeTrajectoryCallRow: View {
     let selected: Bool
     let select: () -> Void
 
+    private var stateLabel: String {
+        switch invocation.state {
+        case .running:
+            OfficialUISpec.Text.trajectoryPending
+        case .completed:
+            OfficialUISpec.Text.trajectoryCompleted
+        case .failed:
+            OfficialUISpec.Text.trajectoryFailed
+        case .stopped:
+            OfficialUISpec.Text.toolStopped
+        }
+    }
+
+    private var stateColor: Color {
+        switch invocation.state {
+        case .running:
+            OfficialUISpec.Token.warningPrimary
+        case .completed:
+            OfficialUISpec.Token.success
+        case .failed, .stopped:
+            OfficialUISpec.Token.errorPrimary
+        }
+    }
+
     var body: some View {
         Button(action: select) {
             VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p4) {
@@ -155,6 +179,9 @@ private struct NativeTrajectoryCallRow: View {
                         .font(OfficialUISpec.Typography.xsStrong13)
                         .foregroundStyle(OfficialUISpec.Token.primary)
                     Spacer(minLength: 0)
+                    Text(stateLabel)
+                        .font(OfficialUISpec.Typography.xxxs11)
+                        .foregroundStyle(stateColor)
                 }
                 Text(invocation.arguments)
                     .font(OfficialUISpec.Typography.xs13.monospaced())
@@ -170,7 +197,7 @@ private struct NativeTrajectoryCallRow: View {
             RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r8, style: .continuous)
                 .stroke(selected ? OfficialUISpec.Token.businessBlue : OfficialUISpec.Token.hairline, lineWidth: OfficialUISpec.Geometry.px1)
         }
-        .accessibilityLabel(invocation.name)
+        .accessibilityLabel("\(invocation.name) \(stateLabel)")
     }
 }
 

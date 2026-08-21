@@ -246,6 +246,10 @@ enum OfficialUISpec {
         static let trajectoryCalls = "Calls"
         static let trajectorySearch = "Search trajectory"
         static let trajectorySearchPlaceholder = "Search"
+        // Source: packages/client/ui-trajectory/src/client/TrajectoryTable.tsx:677-680 (en)
+        static let trajectoryPending = "Pending"
+        static let trajectoryCompleted = "Completed"
+        static let trajectoryFailed = "Failed"
         // Source: packages/client/ui-trajectory/src/client/TrajectoryTable.tsx:904-913,2672 (en)
         static let trajectoryEventDetails = "Event details"
         static let trajectorySummary = "Summary"
