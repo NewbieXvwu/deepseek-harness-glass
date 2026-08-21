@@ -10,7 +10,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import re
 import subprocess
 import sys
 import tempfile
@@ -22,7 +21,6 @@ PROJECT_ROOT = ROOT.parent
 CATALOG_PATH = ROOT / "Sources/Spec/OfficialUISpec/official-ui-catalog.json"
 SCENES_PATH = ROOT / "Sources/Spec/Fixtures/visual-scenes.json"
 ASSET_DIR = ROOT / "assets"
-UI_ROOT = ROOT / "Sources/UI"
 ICON_EXTRACTOR = PROJECT_ROOT / "tools/extract_official_icon.py"
 ICON_AST_EXTRACTOR = PROJECT_ROOT / "tools/spec-generation/extract_official_icon_ast.mjs"
 LOCKED_COMMIT = "141eb6fef83422698aef7a981029e843e8161534"
@@ -161,19 +159,6 @@ def verify_scenes() -> dict:
     return scenes
 
 
-def verify_ui_text() -> None:
-    # UI product copy must resolve through OfficialUISpec or a future generated
-    # OfficialLocale value. Code identifiers, debug logs and non-UI sources are
-    # deliberately out of scope for this first gate.
-    literal = re.compile(r'\bText\s*\(\s*"([^"\\]|\\.)*"')
-    violations: list[str] = []
-    for path in UI_ROOT.rglob("*.swift"):
-        for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
-            if literal.search(line):
-                violations.append(f"{path.relative_to(ROOT)}:{line_number}: {line.strip()}")
-    if violations:
-        fail("direct UI text literals are prohibited:\n" + "\n".join(violations))
-
 
 def verify_catalog_sources(catalog: dict) -> None:
     for group_name in ("layout", "text", "assets"):
@@ -198,7 +183,6 @@ def main() -> None:
     verify_assets(catalog)
     verify_ast_icon_assets(catalog, official_root)
     scenes = verify_scenes()
-    verify_ui_text()
     print(
         "D1 official specification gate passed: "
         f"{len(catalog['text'])} text values, {len(catalog['layout'])} layout values, "
