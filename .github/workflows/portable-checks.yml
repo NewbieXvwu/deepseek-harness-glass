@@ -187,6 +187,12 @@ jobs:
           /tmp/ghost-plane-module-manifest-portable-check
           swiftc glass/Sources/Core/Plugin/GhostPlaneLoopbackPolicy.swift \
             glass/Sources/Core/Plugin/GhostPlaneModuleManifest.swift \
+            glass/Sources/Core/Plugin/GhostPlaneModuleActivationGate.swift \
+            glass/ci/ghost-plane-module-activation-gate-portable-check.swift \
+            -o /tmp/ghost-plane-module-activation-gate-portable-check
+          /tmp/ghost-plane-module-activation-gate-portable-check
+          swiftc glass/Sources/Core/Plugin/GhostPlaneLoopbackPolicy.swift \
+            glass/Sources/Core/Plugin/GhostPlaneModuleManifest.swift \
             glass/Sources/Core/Plugin/GhostPlaneTapIndexReplay.swift \
             glass/ci/ghost-plane-tap-index-replay-portable-check.swift \
             -o /tmp/ghost-plane-tap-index-replay-portable-check
