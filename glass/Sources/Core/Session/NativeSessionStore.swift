@@ -1844,6 +1844,10 @@ final class NativeSessionStore: ObservableObject {
               activeSessionID == sessionID
         else { return }
         recoveryTask?.cancel()
+        modelSelectionTask?.cancel()
+        modelSelectionTask = nil
+        modelSelectionGeneration &+= 1
+        isSelectingModel = false
         recoveryGeneration &+= 1
         modelDirectoryGeneration &+= 1
         let generation = recoveryGeneration

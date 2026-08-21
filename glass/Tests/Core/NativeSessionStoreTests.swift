@@ -460,6 +460,43 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.modelDirectory?.current.provider, "provider-recovered")
     }
 
+    func testGapRecoveryCancelsStaleModelSelectionAndClearsBusyState() async {
+        let selectionReached = expectation(description: "old selection reaches non-cooperative Host facade")
+        let recoveryReachedModels = expectation(description: "gap recovery reads a new model baseline")
+        let api = RecoveringSelectionSessionAPI(
+            selectionReached: selectionReached,
+            recoveryReachedModels: recoveryReachedModels
+        )
+        let store = NativeSessionStore()
+        store.open(sessionID: "recovery-selection", using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+        await eventually(timeout: 1) { store.modelDirectory?.current.model == "model-a" }
+
+        store.selectModel(provider: "provider-a", model: "model-b", reasoningEffort: "deep")
+        await fulfillment(of: [selectionReached], timeout: 1)
+        XCTAssertTrue(store.isSelectingModel)
+
+        store.applyMuxFrame(sessionEventFrame(
+            sessionID: "recovery-selection",
+            seq: 3,
+            type: "user/message",
+            data: .object([
+                "id": .string("gap-selection"),
+                "content": .array([.object(["type": .string("text"), "text": .string("must not append")])]),
+                "source": .object(["kind": .string("user")]),
+            ]),
+            surfaceOp: "append"
+        ), sessionID: "recovery-selection")
+        await fulfillment(of: [recoveryReachedModels], timeout: 1)
+        await eventually(timeout: 1) {
+            !store.isSelectingModel && store.modelDirectory?.current.model == "model-recovered"
+        }
+
+        await api.releaseSelection()
+        for _ in 0..<20 { await Task.yield() }
+        XCTAssertEqual(store.modelDirectory?.current.model, "model-recovered")
+        XCTAssertEqual(store.modelDirectoryStatus, .ready)
+    }
+
     func testLiveEventGapRecoversFullAuthorityWindowInsteadOfAppendingDiscontinuousTail() async {
         let recoveryReachedHistory = expectation(description: "gap triggers a second authority history read")
         let api = GapRecoveringSessionAPI(recoveryReachedHistory: recoveryReachedHistory)
@@ -1534,6 +1571,67 @@ final class NativeSessionStoreTests: XCTestCase {
             submitted.fulfill()
             return .init(accepted: true)
         }
+        func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
+        func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+        func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+        func cancelQuestion(rpcID _: String) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+    }
+
+    @MainActor
+    private final class RecoveringSelectionSessionAPI: NativeSessionAPI {
+        let selectionReached: XCTestExpectation
+        let recoveryReachedModels: XCTestExpectation
+        private let selectionGate = RecoveryGate()
+        private var modelsCount = 0
+
+        init(selectionReached: XCTestExpectation, recoveryReachedModels: XCTestExpectation) {
+            self.selectionReached = selectionReached
+            self.recoveryReachedModels = recoveryReachedModels
+        }
+
+        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
+            .init(events: [.init(event: .init(
+                type: "user/message", seq: 1, time: 1,
+                data: .object([
+                    "id": .string("baseline"),
+                    "content": .array([.object(["type": .string("text"), "text": .string("baseline")])]),
+                    "source": .object(["kind": .string("user")]),
+                ]),
+                surfaceOp: .string("append"), sourceEventSeqs: nil, ignorable: nil
+            ), view: nil)], hasMore: false, projections: nil)
+        }
+
+        func models(sessionID _: String) async throws -> SessionModelsResponse {
+            modelsCount += 1
+            if modelsCount > 1 { recoveryReachedModels.fulfill() }
+            let recovered = modelsCount > 1
+            return .init(
+                current: .init(
+                    provider: recovered ? "provider-recovered" : "provider-a",
+                    model: recovered ? "model-recovered" : "model-a",
+                    reasoningEffort: recovered ? nil : "balanced"
+                ),
+                routable: true,
+                groups: [.init(id: "provider-a", name: "Provider A", models: [
+                    .init(id: "model-a", name: "Model A", description: nil, reasoning: .init(
+                        efforts: [.init(id: "balanced", name: "Balanced", description: nil)], defaultEffort: "balanced"
+                    )),
+                    .init(id: "model-b", name: "Model B", description: nil, reasoning: .init(
+                        efforts: [.init(id: "deep", name: "Deep", description: nil)], defaultEffort: "deep"
+                    )),
+                ])],
+                failures: []
+            )
+        }
+
+        func selectModel(_ request: SessionSelectModelRequest) async throws -> SessionSelectModelResponse {
+            selectionReached.fulfill()
+            await selectionGate.wait()
+            return .init(selected: .init(provider: request.provider, model: request.model, reasoningEffort: request.reasoningEffort))
+        }
+
+        func releaseSelection() async { await selectionGate.open() }
+        func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
         func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
         func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
         func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
