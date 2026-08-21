@@ -191,6 +191,10 @@ jobs:
             glass/ci/ghost-plane-tap-index-replay-portable-check.swift \
             -o /tmp/ghost-plane-tap-index-replay-portable-check
           /tmp/ghost-plane-tap-index-replay-portable-check
+          swiftc glass/Sources/Core/Plugin/GhostPlaneScrollScalar.swift \
+            glass/ci/ghost-plane-scroll-scalar-portable-check.swift \
+            -o /tmp/ghost-plane-scroll-scalar-portable-check
+          /tmp/ghost-plane-scroll-scalar-portable-check
           swiftc glass/Sources/Core/Plugin/GhostPlaneSkeleton.swift \
             glass/Sources/Core/Plugin/OfficialGhostPlaneContract.swift \
             glass/ci/official-ghost-plane-contract-portable-check.swift \

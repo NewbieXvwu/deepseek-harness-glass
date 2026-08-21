@@ -63,6 +63,26 @@ public final class GhostPlaneWebViewHost: NSObject {
         )
     }
 
+    /// Delivers the native-authoritative scalar to the one Ghost Plane document.
+    /// The value is already sequence/epoch fenced by `GhostPlaneScrollSynchronizer`;
+    /// this host adds document-readiness protection and passes only the numeric
+    /// argument into a fixed bootstrap function.
+    public func applyScrollOffset(_ scalar: GhostPlaneScrollScalar) async throws {
+        guard skeletonReady else { throw TapIndexApplicationError.skeletonNotReady }
+        _ = try await webView.callAsyncJavaScript(
+            """
+            const ghostPlane = window.__DSH_GHOST_PLANE__;
+            if (ghostPlane === undefined || typeof ghostPlane.applyScrollOffset !== 'function') {
+              throw new Error('Ghost Plane scroll bootstrap is unavailable');
+            }
+            return ghostPlane.applyScrollOffset(arguments.scrollOffset);
+            """,
+            arguments: scalar.rendererArguments,
+            in: nil,
+            in: .page
+        )
+    }
+
     private func allow(_ url: URL?) -> Bool {
         guard let url else { return false }
         switch policy.decision(for: url) {
@@ -130,11 +150,21 @@ public final class GhostPlaneWebViewHost: NSObject {
             }
             return true;
           };
+          const applyScrollOffset = (scrollOffset) => {
+            if (typeof scrollOffset !== 'number' || !Number.isFinite(scrollOffset)) {
+              throw new Error('Ghost Plane scroll offset was rejected');
+            }
+            const content = document.getElementById('ghost-scroll-content');
+            if (content === null) throw new Error('Ghost Plane scroll content is absent');
+            content.style.transform = `translate3d(0, ${-scrollOffset}px, 0)`;
+            content.style.setProperty('--ghost-scroll-offset', String(scrollOffset));
+            return true;
+          };
           Object.defineProperty(window, '__DSH_GHOST_PLANE__', {
             configurable: false,
             enumerable: false,
             writable: false,
-            value: Object.freeze({ applyTapIndex }),
+            value: Object.freeze({ applyTapIndex, applyScrollOffset }),
           });
         })();
         """,

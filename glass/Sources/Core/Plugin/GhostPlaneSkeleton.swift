@@ -60,6 +60,7 @@ struct GhostPlaneSkeleton: Equatable, Sendable {
         let rootID: String
         let sessionHeaderID: String
         let conversationScrollID: String
+        let scrollContentID: String
         let chatFlowID: String
         let composerSeatID: String
         let turnTailID: String
@@ -121,6 +122,7 @@ struct GhostPlaneSkeleton: Equatable, Sendable {
             rootID: "ghost-plane-root",
             sessionHeaderID: "ghost-session-header",
             conversationScrollID: "ghost-conversation-scroll",
+            scrollContentID: "ghost-scroll-content",
             chatFlowID: "ghost-chat-flow",
             composerSeatID: "ghost-composer-seat",
             turnTailID: "ghost-turn-tail",
@@ -142,14 +144,16 @@ struct GhostPlaneSkeleton: Equatable, Sendable {
             <main id="ghost-conversation" data-ghost-zone="conversation">
               <header id="\(elements.sessionHeaderID)" data-slot="conversation.session.header"></header>
               <div id="\(elements.conversationScrollID)" data-conversation-scroll="">
-                <section id="ghost-session" data-slot="conversation.session">
-                  <div id="\(elements.chatFlowID)" data-chat-flow="">
-                    \(rows)
-                    <div id="\(elements.turnTailID)" data-slot="conversation.chat.turnTail"></div>
-                    <div id="\(elements.toolviewID)" data-slot="tool.call.toolview"></div>
-                  </div>
-                </section>
-                <div id="\(elements.composerSeatID)" data-composer-seat="" data-slot="conversation.composer"></div>
+                <div id="\(elements.scrollContentID)" data-ghost-scroll-content="">
+                  <section id="ghost-session" data-slot="conversation.session">
+                    <div id="\(elements.chatFlowID)" data-chat-flow="">
+                      \(rows)
+                      <div id="\(elements.turnTailID)" data-slot="conversation.chat.turnTail"></div>
+                      <div id="\(elements.toolviewID)" data-slot="tool.call.toolview"></div>
+                    </div>
+                  </section>
+                  <div id="\(elements.composerSeatID)" data-composer-seat="" data-slot="conversation.composer"></div>
+                </div>
               </div>
             </main>
             <aside id="ghost-details" data-ghost-zone="details">

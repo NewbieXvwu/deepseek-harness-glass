@@ -518,6 +518,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 
 - [ ] **GP-3：滚动标量同步引擎。** 原生会话流滚动 → 向主 document 传递 `scrollOffset` 标量 → 平面内 transform 内容；惯性滚动下插件卡片仅允许轻微拖影（视觉瑕疵），禁止功能错位；需 120Hz ProMotion 实测（开放验证项）。
   - 验收：切片随原生滚动零功能错位；跨插件服务调用一致（单 document 保证互操作）。
+  - 进度：已在 `GlassCore/Plugin/GhostPlaneScrollScalar.swift` 建立 native-authoritative `(documentEpoch, sequence, scrollOffset)` 同步器：只接受当前 document 的严格递增 sequence 和 finite `Double`，并以 typed `ignoredStaleEpoch`、`ignoredStaleSequence`、`rejectedNonFiniteOffset` 拒绝迟到/重放/NaN/infinity 而不改写 latest authority；signed offset 保留 AppKit elastic overscroll，renderer payload 仅为 primitive `{scrollOffset}`。`GhostPlaneSkeleton` 在已有 `data-conversation-scroll` 内新增唯一 `#ghost-scroll-content`，仅包住 scroll content/slots，不移动 header/container；`GhostPlaneWebViewHost.applyScrollOffset` 仅在 loopback root skeleton did-finish 后经参数化 WebKit 调用固定 bootstrap，后者再次验证 finite number 并仅 transform 此内部层。Core XCTest、skeleton Linux 回归、`ghost-plane-scroll-scalar-portable-check.swift`（Linux Swift 6.2.4 已通过并接入 `portable-checks`）及 macOS host DOM transform 回归已覆盖基础模型。原生 `NSScrollView` display-link coalescing、实际调用、120Hz ProMotion 观测和跨插件真实互操作仍未完成，故保持未勾选；来源与边界见 `notes/GP-3-scroll-scalar-synchronization.md`。
 
 - [ ] **GP-4：事件桥四件套。** 按键分诊器、粘贴桥、选区投影（双向对称）、拖拽桥；z 序双实例与焦点协调。
   - 验收：各桥按平台 API 完整契约面定义行为（非逐插件键位/样本）；回环抑制有测试。

@@ -57,7 +57,7 @@ final class GhostPlaneWebViewHostTests: XCTestCase {
 
         XCTAssertNotNil(host.loadSkeleton("""
         <!doctype html><html><head><meta charset="utf-8"></head><body>
-        <div id="ghost-plane-root"></div><div id="ghost-toolview"></div>
+        <div id="ghost-plane-root"></div><div id="ghost-toolview"></div><div id="ghost-scroll-content"></div>
         </body></html>
         """))
         await fulfillment(of: [loaded], timeout: 5)
@@ -83,6 +83,22 @@ final class GhostPlaneWebViewHostTests: XCTestCase {
         XCTAssertEqual(result?["mode"] as? String, "review")
         XCTAssertEqual(result?["classPresent"] as? Bool, true)
         XCTAssertNil(result?["executable"])
+
+        try await host.applyScrollOffset(.init(documentEpoch: 1, sequence: 1, scrollOffset: 42.5))
+        let scrollResult = try await host.webView.callAsyncJavaScript(
+            """
+            const content = document.getElementById('ghost-scroll-content');
+            return {
+              transform: content.style.transform,
+              offset: content.style.getPropertyValue('--ghost-scroll-offset'),
+            };
+            """,
+            arguments: [:],
+            in: nil,
+            in: .page
+        ) as? [String: Any]
+        XCTAssertEqual(scrollResult?["transform"] as? String, "translate3d(0px, -42.5px, 0px)")
+        XCTAssertEqual(scrollResult?["offset"] as? String, "42.5")
     }
 
     private func policy() throws -> GhostPlaneLoopbackPolicy {

@@ -51,7 +51,9 @@ struct GhostPlaneSkeletonPortableCheck {
         guard GhostPlaneSkeleton.requiredSelectors.count == requiredFragments.count else {
             throw CheckFailure("selector inventory and generated skeleton assertion set diverged")
         }
-        guard skeleton.html.contains("data-chat-anchor-key=\"message:1\""),
+        guard skeleton.elements.scrollContentID == "ghost-scroll-content",
+              skeleton.html.contains("data-ghost-scroll-content=\"\""),
+              skeleton.html.contains("data-chat-anchor-key=\"message:1\""),
               skeleton.html.contains("data-chat-flow-kind=\"tool\""),
               skeleton.html.contains("data-streaming=\"false\""),
               !skeleton.html.contains("user authored content") else {
