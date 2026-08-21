@@ -40,19 +40,20 @@ struct NativeJobsHeaderAction: View {
     var body: some View {
         if !jobs.isEmpty {
             Button(action: { open.toggle(); nowMilliseconds = Int(Date().timeIntervalSince1970 * 1_000) }) {
-                HStack(spacing: 3) {
-                    Circle().fill(liveCount > 0 ? OfficialUISpec.Token.businessBlue : OfficialUISpec.Token.caption)
-                        .frame(width: 6, height: 6)
+                HStack(spacing: OfficialUISpec.Spacing.p3) {
+                    if liveCount > 0 {
+                        NativeStateDot(state: .ongoing)
+                    }
                     Text(countLabel)
-                        .font(.system(size: 12))
-                        .padding(.horizontal, 5)
+                        .font(OfficialUISpec.Typography.xxs12)
+                        .padding(.horizontal, OfficialUISpec.Spacing.p5)
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(OfficialUISpec.Typography.xxxsStrong11)
                         .rotationEffect(.degrees(open ? 180 : 0))
                 }
-                .padding(.vertical, 3)
-                .padding(.horizontal, 2)
-                .frame(minHeight: 28)
+                .padding(.vertical, OfficialUISpec.Spacing.p3)
+                .padding(.horizontal, OfficialUISpec.Spacing.p2)
+                .frame(minHeight: OfficialUISpec.Geometry.px28)
                 .foregroundStyle(OfficialUISpec.Token.caption)
             }
             .buttonStyle(.plain)
@@ -65,40 +66,42 @@ struct NativeJobsHeaderAction: View {
     }
 
     private var menu: some View {
-        VStack(alignment: .leading, spacing: 1) {
+        VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p1) {
             ForEach(orderedJobs) { job in
-                HStack(spacing: 8) {
-                    Circle().fill(statusColor(job.status)).frame(width: 7, height: 7)
+                HStack(spacing: OfficialUISpec.Spacing.p8) {
+                    NativeStateDot(state: stateDotState(job.status))
                     Text(job.kind)
-                        .font(.system(size: 11))
+                        .font(OfficialUISpec.Typography.xxxs11)
                         .foregroundStyle(OfficialUISpec.Token.secondary)
-                        .padding(.horizontal, 6)
-                        .background(OfficialUISpec.Token.elevated, in: RoundedRectangle(cornerRadius: 5, style: .continuous))
+                        .padding(.horizontal, OfficialUISpec.Spacing.p6)
+                        .background(OfficialUISpec.Token.elevated, in: RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r5, style: .continuous))
                     Text(job.label)
-                        .font(.system(size: 13, design: .monospaced))
+                        .font(OfficialUISpec.Typography.xs13.monospaced())
                         .lineLimit(1)
                         .truncationMode(.tail)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     Text(job.detail ?? statusLabel(job.status))
-                        .font(.system(size: 11))
+                        .font(OfficialUISpec.Typography.xxxs11)
                         .foregroundStyle(OfficialUISpec.Token.caption)
                         .lineLimit(1)
                         .truncationMode(.tail)
-                        .frame(maxWidth: 134, alignment: .trailing)
+                        .frame(maxWidth: OfficialUISpec.Layout.jobsStatusMaximumWidth, alignment: .trailing)
                     Text(duration(for: job))
-                        .font(.system(size: 11, design: .monospaced))
+                        .font(OfficialUISpec.Typography.xxxs11.monospaced())
                         .foregroundStyle(OfficialUISpec.Token.caption)
                         .fixedSize(horizontal: true, vertical: false)
                 }
-                .padding(.vertical, 6)
-                .padding(.horizontal, 8)
-                .frame(minHeight: 32)
+                .padding(.vertical, OfficialUISpec.Spacing.p6)
+                .padding(.horizontal, OfficialUISpec.Spacing.p8)
+                .frame(minHeight: OfficialUISpec.Geometry.px32)
                 .foregroundStyle(SessionJobsPresentation.isLive(job) ? OfficialUISpec.Token.primary : OfficialUISpec.Token.caption)
                 .accessibilityElement(children: .combine)
             }
         }
-        .padding(4)
-        .frame(width: 336, alignment: .leading)
+        .padding(OfficialUISpec.Spacing.p4)
+        .frame(width: OfficialUISpec.Geometry.px336, alignment: .leading)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(template("list.aria"))
     }
 
     private var countLabel: String {
@@ -117,15 +120,38 @@ struct NativeJobsHeaderAction: View {
 
     private func statusLabel(_ status: NativeSessionStore.BackgroundJob.Status) -> String { template("status.\(status.rawValue)") }
     private func template(_ key: String, replacements: [String: String] = [:]) -> String {
-        let language = Self.resolvedLanguageCode(
-            override: languageCode,
-            current: Locale.current.language.languageCode?.identifier
+        Self.localizedValue(
+            key: key,
+            language: Self.resolvedLanguageCode(
+                override: languageCode,
+                current: Locale.current.language.languageCode?.identifier
+            ),
+            replacements: replacements
         )
+    }
+
+    /// Locked `ui-jobs` locale lookup shared by the native renderer and its
+    /// App regression. An unknown key fails closed to the key, matching the
+    /// existing catalog fallback rather than inventing product copy.
+    static func localizedValue(
+        key: String,
+        language: String,
+        replacements: [String: String] = [:]
+    ) -> String {
         var value = OfficialUISpec.LocaleCatalog.value(namespace: "ui-jobs", key: key, language: language) ?? key
         for (token, replacement) in replacements { value = value.replacingOccurrences(of: "{\(token)}", with: replacement) }
         return value
     }
-    private func statusColor(_ status: NativeSessionStore.BackgroundJob.Status) -> Color {
-        switch status { case .running: OfficialUISpec.Token.businessBlue; case .stopping, .killed: OfficialUISpec.Token.warningPrimary; case .completed: OfficialUISpec.Token.success; case .failed: OfficialUISpec.Token.errorPrimary }
+    private func stateDotState(_ status: NativeSessionStore.BackgroundJob.Status) -> NativeStateDot.State {
+        switch status {
+        case .running:
+            .ongoing
+        case .stopping, .killed:
+            .warning
+        case .completed:
+            .done
+        case .failed:
+            .error
+        }
     }
 }

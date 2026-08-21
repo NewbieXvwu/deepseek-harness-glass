@@ -28,4 +28,15 @@ final class NativeJobsHeaderActionTests: XCTestCase {
             "zh"
         )
     }
+
+    func testPopoverListAccessibilityLabelUsesLockedJobsCatalog() {
+        XCTAssertEqual(
+            NativeJobsHeaderAction.localizedValue(key: "list.aria", language: "en"),
+            "Background jobs"
+        )
+        XCTAssertEqual(
+            NativeJobsHeaderAction.localizedValue(key: "list.aria", language: "zh"),
+            "后台任务"
+        )
+    }
 }

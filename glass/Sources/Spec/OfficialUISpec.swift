@@ -78,6 +78,8 @@ enum OfficialUISpec {
         static let sessionHeaderTopPadding: CGFloat = 12
         static let sessionHeaderLeadingPadding: CGFloat = 20
         static let sessionHeaderTrailingPadding: CGFloat = 28
+        /// Source: ui-jobs/JobListAction.module.css `.status { max-width: 40%; }`.
+        static let jobsStatusMaximumWidth: CGFloat = Geometry.px336 * 0.4
         static let sessionHeaderTitleRowHeight: CGFloat = 32
         static let sessionHeaderTabStripHeight: CGFloat = 35
         static let sessionHeaderTabGap: CGFloat = 36
@@ -494,6 +496,8 @@ enum OfficialUISpec {
         static let floatingButtonFill = Theme.aliasButtonFloatingFill.adaptiveColor
         static let businessBlue = Theme.aliasStateBusinessPrimary.adaptiveColor
         static let businessBlueSoft = Theme.aliasStateBusinessTertiary.adaptiveColor
+        /// Official `StateDot(ongoing)` foreground: `--dsw-static-deepseek-450`.
+        static let stateDotOngoing = Theme.staticDeepseek450.adaptiveColor
         static let conversationBubble = Theme.specificBubble.adaptiveColor
         static let warningPrimary = Theme.aliasStateWarnPrimary.adaptiveColor
         static let warningTertiary = Theme.aliasStateWarnTertiary.adaptiveColor
@@ -527,6 +531,8 @@ enum OfficialUISpec {
         static let p0: CGFloat = 0
         static let p1: CGFloat = 1
         static let p2: CGFloat = 2
+        /// Source: ui-jobs/JobListAction.module.css `.trigger` gap and padding.
+        static let p3: CGFloat = 3
         static let p4: CGFloat = 4
         static let p5: CGFloat = 5
         static let p6: CGFloat = 6
@@ -554,6 +560,8 @@ enum OfficialUISpec {
         static let r2: CGFloat = 2
         static let r3: CGFloat = 3
         static let r4: CGFloat = 4
+        /// Source: ui-jobs/JobListAction.module.css `.kind`.
+        static let r5: CGFloat = 5
         static let r6: CGFloat = 6
         static let r8: CGFloat = 8
         static let r12: CGFloat = 12
