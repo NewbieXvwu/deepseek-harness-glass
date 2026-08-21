@@ -499,6 +499,10 @@ final class NativeSessionStore: ObservableObject {
     /// top of that cut rather than being discarded or folded into an old window.
     private var recoveryLiveBuffer: [SessionHistoryEntryDTO] = []
     private var recoveryBufferGeneration: UInt?
+    /// RC8 retains the mux subscription tail even when it arrives before the
+    /// initial history page. Once that page lands, a mismatch triggers the
+    /// second authority pull required to avoid a cold-to-live discontinuity.
+    private var subscribedLastSequence: Int?
     private var endpoint: URL?
     private var api: (any NativeSessionAPI)?
     private var goalAPI: (any NativeGoalAPI)?
@@ -1114,6 +1118,7 @@ final class NativeSessionStore: ObservableObject {
         queueActionCompletion = nil
         recoveryGeneration &+= 1
         interactionGeneration &+= 1
+        subscribedLastSequence = nil
         let authorityGeneration = recoveryGeneration
         // RC8 buffers live frames during the first authority read as well as
         // gap recovery. The common generation gate keeps a replaced session or
@@ -1191,6 +1196,11 @@ final class NativeSessionStore: ObservableObject {
                 self?.phase = .ready(sessionID: sessionID)
                 self?.stitchRecoveryLiveBuffer(generation: authorityGeneration)
                 self?.observeMux(sessionID: sessionID, endpoint: endpoint)
+                let installedTail = self?.conversationReducer.rawWindow().map(\.event.seq).max()
+                if let subscribedLastSequence = self?.subscribedLastSequence,
+                   installedTail != subscribedLastSequence {
+                    self?.requestAuthorityRecovery(sessionID: sessionID, reason: .subscriptionWatermark)
+                }
             } catch let error as DSHTransportError {
                 guard !Task.isCancelled,
                       self?.recoveryGeneration == authorityGeneration,
@@ -1245,6 +1255,7 @@ final class NativeSessionStore: ObservableObject {
         interactionGeneration &+= 1
         recoveryLiveBuffer = []
         recoveryBufferGeneration = nil
+        subscribedLastSequence = nil
         messageFeedbackTask?.cancel()
         messageFeedbackTask = nil
         messageFeedbackResyncTask?.cancel()
@@ -1324,6 +1335,7 @@ final class NativeSessionStore: ObservableObject {
         interactionGeneration &+= 1
         recoveryLiveBuffer = []
         recoveryBufferGeneration = nil
+        subscribedLastSequence = nil
         messageFeedbackTask?.cancel()
         messageFeedbackTask = nil
         messageFeedbackResyncTask?.cancel()
@@ -1813,6 +1825,7 @@ final class NativeSessionStore: ObservableObject {
         isLoadingOlderHistory = false
         recoveryLiveBuffer = []
         recoveryBufferGeneration = nil
+        subscribedLastSequence = nil
         interactionGeneration &+= 1
         pendingApproval = nil
         pendingQuestion = nil
@@ -1947,6 +1960,7 @@ final class NativeSessionStore: ObservableObject {
         // past `lastSeq`; wait for its fresh whole-set frames instead of showing
         // phantom work from the prior Host generation.
         let priorWindowHighWatermark = conversationReducer.rawWindow().map(\.event.seq).max()
+        subscribedLastSequence = subscribed.lastSeq
         projections.truncate(sessionID: sessionID, after: subscribed.lastSeq)
         queuedMessages = []
         backgroundJobs = []

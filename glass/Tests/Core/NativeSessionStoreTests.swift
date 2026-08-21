@@ -691,6 +691,30 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.modelDirectoryStatus, .ready)
     }
 
+    func testEarlySubscriptionWatermarkTriggersSecondPullAfterInitialHistoryInstall() async {
+        let initialHistoryReached = expectation(description: "initial history is held until subscription arrives")
+        let api = DelayedOpeningHistorySessionAPI(staleHistoryReached: initialHistoryReached)
+        let store = NativeSessionStore()
+        let sessionID = "early-subscription-stitch"
+        store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+        await fulfillment(of: [initialHistoryReached], timeout: 1)
+
+        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "early-ahead-subscription", method: "session/subscribed", payload: .object([
+            "type": .string("session/subscribed"),
+            "sessionId": .string(sessionID),
+            "lastSeq": .number(2),
+        ])), sessionID: sessionID)
+        await api.releaseHistory()
+        await eventually(timeout: 1) {
+            store.phase == .ready(sessionID: sessionID)
+                && store.items.map(\.text) == ["resynced authority"]
+                && store.modelDirectory?.current.model == "resynced-model"
+        }
+
+        XCTAssertEqual(api.historyCalls, 2, "RC8 requires a second history pull after early subscribed.lastSeq exceeds the installed tail")
+        XCTAssertEqual(store.items.map(\.sequence), [2])
+    }
+
     func testSubscriptionWatermarkRecoveryRebuildsProjectionBaselineFromHostAuthority() async {
         let recoveryReachedHistory = expectation(description: "watermark rollback refreshes history projections")
         let api = GapRecoveringSessionAPI(recoveryReachedHistory: recoveryReachedHistory)
