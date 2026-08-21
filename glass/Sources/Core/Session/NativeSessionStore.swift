@@ -427,6 +427,10 @@ final class NativeSessionStore: ObservableObject {
     @Published private(set) var isSubmittingPrompt = false
     @Published var draft = ""
     @Published private(set) var pendingImages: [PendingImage] = []
+    /// Last Core-owned image admission decision. It is intentionally transient:
+    /// presentation maps this safe category to locked official copy and never
+    /// exposes file paths, decoded metadata, or transport-private errors.
+    @Published private(set) var imageAdmissionRejection: NativeImageAttachmentAdmission.Rejection?
     @Published private(set) var toolInvocations: [ToolInvocation] = []
     @Published private(set) var queuedMessages: [QueuedMessage] = []
     @Published private(set) var backgroundJobs: [BackgroundJob] = []
@@ -1425,7 +1429,11 @@ final class NativeSessionStore: ObservableObject {
                 partial = result.overflow ? Int.max : result.partialValue
             }
         )
-        guard case let .success(image) = admission else { return }
+        guard case let .success(image) = admission else {
+            if case let .failure(rejection) = admission { imageAdmissionRejection = rejection }
+            return
+        }
+        imageAdmissionRejection = nil
         pendingImages.append(PendingImage(
             id: UUID(),
             name: url.lastPathComponent,
