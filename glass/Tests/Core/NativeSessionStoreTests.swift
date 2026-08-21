@@ -2499,6 +2499,7 @@ final class NativeSessionStoreTests: XCTestCase {
     private final class AcceptingSessionAPI: NativeSessionAPI {
         let promptReachedFacade: XCTestExpectation
         private(set) var promptSessionIDs: [String] = []
+        private(set) var promptContents: [[SessionPromptContent]] = []
 
         init(promptReachedFacade: XCTestExpectation) {
             self.promptReachedFacade = promptReachedFacade
@@ -2506,8 +2507,9 @@ final class NativeSessionStoreTests: XCTestCase {
 
         func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse { throw DSHTransportError.invalidEndpoint }
         func models(sessionID _: String) async throws -> SessionModelsResponse { throw DSHTransportError.invalidEndpoint }
-        func prompt(sessionID: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse {
+        func prompt(sessionID: String, content: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse {
             promptSessionIDs.append(sessionID)
+            promptContents.append(content)
             promptReachedFacade.fulfill()
             return SessionPromptResponse(accepted: true)
         }

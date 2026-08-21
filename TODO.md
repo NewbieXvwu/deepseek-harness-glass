@@ -376,6 +376,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 - [ ] **T8.5：实现 prompt/cancel/queue RPC 流程。** 发送先进入正确的 Host API，再按 SSE authority 更新；不可乐观制造与 Host 无关的永久消息。
   - 依赖：T8.4、T6.7。
   - 验收：发送、取消、排队编辑/删除、steer race 和 Host 拒绝均有准确可恢复状态。
+  - 进度：现有接受型 `NativeSessionAPI` 测试 facade 已保留完整 `SessionPromptContent` 数组而不仅记录 session ID，作为 text/image 多内容 Host round-trip 的可证伪基础；图片文件准入与 Composer 安全提示已在 T8.4 接入，后续将以真实 image content fixture 断言其只能经 typed Host facade 提交。
 
 - [ ] **T8.6：实现模型与权限控制。** 在 composer 固定官方位置渲染 model selector、reasoning effort、context meter、permission preset 和高风险确认。
   - 依赖：T4.5、T6.3、T8.4。
