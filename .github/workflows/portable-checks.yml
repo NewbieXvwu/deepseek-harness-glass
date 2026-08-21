@@ -185,3 +185,8 @@ jobs:
             glass/ci/ghost-plane-module-manifest-portable-check.swift \
             -o /tmp/ghost-plane-module-manifest-portable-check
           /tmp/ghost-plane-module-manifest-portable-check
+          swiftc glass/Sources/Core/Plugin/GhostPlaneSkeleton.swift \
+            glass/Sources/Core/Plugin/OfficialGhostPlaneContract.swift \
+            glass/ci/official-ghost-plane-contract-portable-check.swift \
+            -o /tmp/official-ghost-plane-contract-portable-check
+          /tmp/official-ghost-plane-contract-portable-check

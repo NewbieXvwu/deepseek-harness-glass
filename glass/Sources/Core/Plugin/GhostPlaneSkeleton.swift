@@ -8,6 +8,12 @@ import Foundation
 /// It contains only geometry and stable Host/node identity; user content and
 /// plugin code are deliberately absent from the generated HTML.
 struct GhostPlaneSkeletonInput: Equatable, Sendable {
+    enum Phase: String, Equatable, Sendable {
+        case settling
+        case hero
+        case active
+    }
+
     struct ChatAnchor: Equatable, Sendable, Identifiable {
         enum Kind: String, Equatable, Sendable {
             case user
@@ -25,17 +31,20 @@ struct GhostPlaneSkeletonInput: Equatable, Sendable {
     let viewportWidth: Double
     let sidebarPreference: Double
     let detailsPreference: Double
+    let phase: Phase
     let anchors: [ChatAnchor]
 
     init(
         viewportWidth: Double,
         sidebarPreference: Double,
         detailsPreference: Double,
+        phase: Phase = .active,
         anchors: [ChatAnchor]
     ) {
         self.viewportWidth = viewportWidth
         self.sidebarPreference = sidebarPreference
         self.detailsPreference = detailsPreference
+        self.phase = phase
         self.anchors = anchors
     }
 }
@@ -67,7 +76,9 @@ struct GhostPlaneSkeleton: Equatable, Sendable {
         "[data-chat-flow]",
         "[data-chat-anchor-key]",
         "[data-chat-flow-key]",
+        "[data-chat-flow-kind]",
         "[data-streaming]",
+        "[data-phase]",
         "[data-composer-seat]",
         "[data-slot=conversation.session]",
         "[data-slot=conversation.session.header]",
@@ -126,7 +137,7 @@ struct GhostPlaneSkeleton: Equatable, Sendable {
         <html lang="en">
         <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
         <body>
-          <div id="\(elements.rootID)" data-ghost-plane="skeleton" style="display:grid;grid-template-columns:\(cssPixels(layout.sidebarWidth)) \(cssPixels(layout.centerWidth)) \(cssPixels(layout.detailsWidth));">
+          <div id="\(elements.rootID)" data-ghost-plane="skeleton" data-phase="\(input.phase.rawValue)" style="display:grid;grid-template-columns:\(cssPixels(layout.sidebarWidth)) \(cssPixels(layout.centerWidth)) \(cssPixels(layout.detailsWidth));">
             <aside id="ghost-sidebar" data-ghost-zone="sidebar"></aside>
             <main id="ghost-conversation" data-ghost-zone="conversation">
               <header id="\(elements.sessionHeaderID)" data-slot="conversation.session.header"></header>

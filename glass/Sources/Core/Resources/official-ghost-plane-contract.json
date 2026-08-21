@@ -1,0 +1,176 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "528c682e061696f5a160f363f236ecbf53cbd006",
+  "sources": [
+    {
+      "path": "packages/client/ui-conversation/src/client/contract/slots.ts",
+      "sha256": "sha256:08c945c51fb4ced80ba971ce18e1905efe7bdccc40b5611722fe6681fb117a19"
+    },
+    {
+      "path": "packages/client/ui-conversation/src/client/skeleton/ConversationRoot.tsx",
+      "sha256": "sha256:dbdf53858eef23261f113e909c17a12cd78fcc4712a568ad0fdaf2df2caf5983"
+    },
+    {
+      "path": "packages/client/ui-conversation/src/client/chat/ChatView.tsx",
+      "sha256": "sha256:85a6d0ba009a141a3f416ea2388d6f3e9570d3c7ece2418997fe9493ec9db541"
+    },
+    {
+      "path": "packages/client/ui-conversation/src/client/chat/ChatNodeSeat.tsx",
+      "sha256": "sha256:d443494afc832d2468a671569e1e7d41a60d5606dd708c1276126e4bd6e4c2b5"
+    },
+    {
+      "path": "packages/client/ui-conversation/src/client/chat/AssistantMarkdown.tsx",
+      "sha256": "sha256:4eed0e01f82c331179301d1c8a97be3ac18dec8e8a70ea1b5b006578e0ba7d57"
+    },
+    {
+      "path": "packages/client/modules/src/client/manifest.ts",
+      "sha256": "sha256:7e5e7ed1b51fd1e021491f5f7994edb8948602a7594ca8845055f8e5776f95ca"
+    }
+  ],
+  "selectors": [
+    "[data-chat-anchor-key]",
+    "[data-chat-flow-key]",
+    "[data-chat-flow-kind]",
+    "[data-chat-flow]",
+    "[data-composer-seat]",
+    "[data-conversation-scroll]",
+    "[data-phase]",
+    "[data-slot=conversation.chat.node]",
+    "[data-slot=conversation.chat.turnTail]",
+    "[data-slot=conversation.composer]",
+    "[data-slot=conversation.details.tool]",
+    "[data-slot=conversation.session.header]",
+    "[data-slot=conversation.session]",
+    "[data-slot=tool.call.toolview]",
+    "[data-streaming]"
+  ],
+  "slots": [
+    {
+      "name": "conversation.chat.assistant-actions",
+      "kind": "list",
+      "scope": "session"
+    },
+    {
+      "name": "conversation.chat.commandview",
+      "kind": "keyed",
+      "scope": "session"
+    },
+    {
+      "name": "conversation.chat.node",
+      "kind": "keyed",
+      "scope": "session"
+    },
+    {
+      "name": "conversation.chat.turnTail",
+      "kind": "chain",
+      "scope": "session"
+    },
+    {
+      "name": "conversation.composer",
+      "kind": "chain",
+      "scope": "session"
+    },
+    {
+      "name": "conversation.composer.bar",
+      "kind": "single",
+      "scope": "session-maybe"
+    },
+    {
+      "name": "conversation.composer.dock",
+      "kind": "list",
+      "scope": "session"
+    },
+    {
+      "name": "conversation.details.tool",
+      "kind": "single",
+      "scope": "session"
+    },
+    {
+      "name": "conversation.hero.agentPreset",
+      "kind": "single",
+      "scope": "root"
+    },
+    {
+      "name": "conversation.hero.brand.mark",
+      "kind": "single",
+      "scope": "root"
+    },
+    {
+      "name": "conversation.hero.workspace",
+      "kind": "single",
+      "scope": "root"
+    },
+    {
+      "name": "conversation.input.attachments",
+      "kind": "single",
+      "scope": "session-maybe"
+    },
+    {
+      "name": "conversation.input.dock",
+      "kind": "list",
+      "scope": "session"
+    },
+    {
+      "name": "conversation.input.left",
+      "kind": "list",
+      "scope": "session"
+    },
+    {
+      "name": "conversation.input.model",
+      "kind": "single",
+      "scope": "session"
+    },
+    {
+      "name": "conversation.input.plan",
+      "kind": "single",
+      "scope": "session"
+    },
+    {
+      "name": "conversation.input.right",
+      "kind": "list",
+      "scope": "session"
+    },
+    {
+      "name": "conversation.message.images",
+      "kind": "single",
+      "scope": "session"
+    },
+    {
+      "name": "conversation.session",
+      "kind": "single",
+      "scope": "session"
+    },
+    {
+      "name": "conversation.session.header",
+      "kind": "single",
+      "scope": "session"
+    },
+    {
+      "name": "conversation.session.header.actions",
+      "kind": "list",
+      "scope": "session"
+    },
+    {
+      "name": "conversation.session.header.lineage",
+      "kind": "single",
+      "scope": "session"
+    },
+    {
+      "name": "conversation.session.header.utilities",
+      "kind": "list",
+      "scope": "session"
+    },
+    {
+      "name": "conversation.view",
+      "kind": "list",
+      "scope": "session"
+    }
+  ],
+  "moduleLoader": {
+    "bootGlobal": "__DSH_BOOT__",
+    "registrationGlobal": "__ModuleLoader__",
+    "registrationMethod": "load",
+    "bundlePathTemplate": "/plugins/<id>/client.js?rev=<rev>",
+    "factoryRegistration": true
+  }
+}

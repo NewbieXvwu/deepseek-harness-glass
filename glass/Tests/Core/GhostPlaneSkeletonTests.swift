@@ -22,6 +22,8 @@ final class GhostPlaneSkeletonTests: XCTestCase {
         XCTAssertEqual(skeleton.elements.anchorElementIDs["message:1"], "ghost-chat-anchor-message:1")
         XCTAssertTrue(skeleton.html.contains("data-conversation-scroll=\"\""))
         XCTAssertTrue(skeleton.html.contains("data-chat-flow=\"\""))
+        XCTAssertTrue(skeleton.html.contains("data-chat-flow-kind=\"tool\""))
+        XCTAssertTrue(skeleton.html.contains("data-phase=\"active\""))
         XCTAssertTrue(skeleton.html.contains("data-composer-seat=\"\""))
         XCTAssertTrue(skeleton.html.contains("data-slot=\"conversation.chat.turnTail\""))
         XCTAssertTrue(skeleton.html.contains("data-slot=\"tool.call.toolview\""))
@@ -55,7 +57,9 @@ final class GhostPlaneSkeletonTests: XCTestCase {
             "[data-chat-flow]",
             "[data-chat-anchor-key]",
             "[data-chat-flow-key]",
+            "[data-chat-flow-kind]",
             "[data-streaming]",
+            "[data-phase]",
             "[data-composer-seat]",
             "[data-slot=conversation.session]",
             "[data-slot=conversation.session.header]",
