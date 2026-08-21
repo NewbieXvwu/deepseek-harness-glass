@@ -435,6 +435,31 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.items.map(\.sequence), [1, 2])
     }
 
+    func testGapRecoveryRebuildsModelDirectoryFromLatestHostBaseline() async {
+        let recoveryReachedHistory = expectation(description: "gap refreshes model directory with authority history")
+        let api = GapRecoveringSessionAPI(recoveryReachedHistory: recoveryReachedHistory)
+        let store = NativeSessionStore()
+        store.open(sessionID: "recovery-session", using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+        await eventually(timeout: 1) { store.modelDirectory?.current.model == "model" }
+
+        store.applyMuxFrame(sessionEventFrame(
+            sessionID: "recovery-session",
+            seq: 3,
+            type: "user/message",
+            data: .object([
+                "id": .string("gap-models"),
+                "content": .array([.object(["type": .string("text"), "text": .string("must not append")])]),
+                "source": .object(["kind": .string("user")]),
+            ]),
+            surfaceOp: "append"
+        ), sessionID: "recovery-session")
+        await fulfillment(of: [recoveryReachedHistory], timeout: 1)
+        await eventually(timeout: 1) { store.modelDirectory?.current.model == "model-recovered" }
+
+        XCTAssertEqual(store.modelDirectoryStatus, .ready)
+        XCTAssertEqual(store.modelDirectory?.current.provider, "provider-recovered")
+    }
+
     func testLiveEventGapRecoversFullAuthorityWindowInsteadOfAppendingDiscontinuousTail() async {
         let recoveryReachedHistory = expectation(description: "gap triggers a second authority history read")
         let api = GapRecoveringSessionAPI(recoveryReachedHistory: recoveryReachedHistory)
@@ -1402,6 +1427,7 @@ final class NativeSessionStoreTests: XCTestCase {
     private final class GapRecoveringSessionAPI: NativeSessionAPI {
         let recoveryReachedHistory: XCTestExpectation
         private var historyCount = 0
+        private var modelsCount = 0
 
         init(recoveryReachedHistory: XCTestExpectation) {
             self.recoveryReachedHistory = recoveryReachedHistory
@@ -1422,7 +1448,11 @@ final class NativeSessionStoreTests: XCTestCase {
         }
 
         func models(sessionID _: String) async throws -> SessionModelsResponse {
-            .init(current: .init(provider: "provider", model: "model", reasoningEffort: nil), routable: true, groups: [], failures: [])
+            modelsCount += 1
+            if modelsCount == 1 {
+                return .init(current: .init(provider: "provider", model: "model", reasoningEffort: nil), routable: true, groups: [], failures: [])
+            }
+            return .init(current: .init(provider: "provider-recovered", model: "model-recovered", reasoningEffort: nil), routable: true, groups: [], failures: [])
         }
 
         func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
