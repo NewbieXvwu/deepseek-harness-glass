@@ -552,6 +552,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 - [ ] **T13.4：建立发布前禁用开关。** 对高风险未完成表面用 feature flag 保持隐藏或只读，绝不以半完成的“自创占位页面”替代官方 UI。
   - 依赖：T1.2、T2.2。
   - 验收：未实现功能不会显示虚假的成功 UI；feature flag 有 owner、到期条件和删除计划。
+  - 进度：新增 `NativeReleaseFeaturePolicy` 并在 `NativeShellPresentation` 的 registry registration 边界执行。production `releaseCandidate` 默认不注册尚未完成的 trajectory tab 与 subagent catalog action，因此它们不再是可达的半完成 UI；每个 rule 具备 owner、macOS acceptance expiry condition 与删除计划。测试 fixture 仅以显式 `allEnabled` opt-in 渲染已审计 renderer，并有回归锁定 release 默认只保留 Chat fallback。后续需在 T9/T12 完整验收后删除对应 rule，而非长期保留 flag，故保持未勾选。
 
 ## 14. 推荐的合并顺序与里程碑门
 

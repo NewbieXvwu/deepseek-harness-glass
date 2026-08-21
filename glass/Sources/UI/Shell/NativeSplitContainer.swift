@@ -75,6 +75,7 @@ final class NativeShellPresentation: ObservableObject {
     /// viewport, then shrinks to 780px while retaining the user's explicit
     /// narrow-sidebar expansion. Production has no snapshot override.
     private let snapshotSidebarNarrowExpanded: Bool
+    private let releaseFeaturePolicy: NativeReleaseFeaturePolicy
 
     var canOpenProjectPath: Bool {
         hostDescription?.canOpenPath == true || snapshotCanOpenProjectPath
@@ -117,7 +118,8 @@ final class NativeShellPresentation: ObservableObject {
         jobsPopoverInitiallyOpen: Bool = false,
         jobsSnapshotLanguageCode: String? = nil,
         snapshotCanOpenProjectPath: Bool = false,
-        snapshotSidebarNarrowExpanded: Bool = false
+        snapshotSidebarNarrowExpanded: Bool = false,
+        releaseFeaturePolicy: NativeReleaseFeaturePolicy = .releaseCandidate
     ) {
         self.mode = mode
         self.workspaceStore = workspaceStore ?? NativeWorkspaceStore()
@@ -127,33 +129,38 @@ final class NativeShellPresentation: ObservableObject {
         self.jobsSnapshotLanguageCode = jobsSnapshotLanguageCode
         self.snapshotCanOpenProjectPath = snapshotCanOpenProjectPath
         self.snapshotSidebarNarrowExpanded = snapshotSidebarNarrowExpanded
+        self.releaseFeaturePolicy = releaseFeaturePolicy
         self.detailsVisible = self.sessionStore.selectedToolCallID != nil
-        do {
-            // Source: RC8 `ui-trajectory/src/client/index.ts`: the trajectory
-            // contribution is a real `conversation.view` tab, ordered after
-            // Chat and backed by its target-specific inspection snapshot.
-            try conversationViewRegistry.register(
-                id: "trajectory",
-                order: 10,
-                label: OfficialUISpec.Text.trajectory
-            ) { context in
-                AnyView(NativeTrajectoryView(sessionStore: context.sessionStore))
+        if releaseFeaturePolicy.permits(.trajectoryTab) {
+            do {
+                // Source: RC8 `ui-trajectory/src/client/index.ts`: the trajectory
+                // contribution is a real `conversation.view` tab, ordered after
+                // Chat and backed by its target-specific inspection snapshot.
+                try conversationViewRegistry.register(
+                    id: "trajectory",
+                    order: 10,
+                    label: OfficialUISpec.Text.trajectory
+                ) { context in
+                    AnyView(NativeTrajectoryView(sessionStore: context.sessionStore))
+                }
+            } catch {
+                assertionFailure("Built-in trajectory view registration must be unique: \(error)")
             }
-        } catch {
-            assertionFailure("Built-in trajectory view registration must be unique: \(error)")
         }
-        do {
-            // Source: RC8 `ui-subagent/src/client/index.ts:60-68`: direct-child
-            // catalog is a session-header action at order 10.
-            try conversationHeaderContributions.register(
-                slot: .actions,
-                id: "subagent-catalog",
-                order: 10
-            ) { context in
-                AnyView(NativeSubagentCatalogHeaderAction(sessionStore: context.sessionStore, openSession: context.openSession))
+        if releaseFeaturePolicy.permits(.subagentCatalogAction) {
+            do {
+                // Source: RC8 `ui-subagent/src/client/index.ts:60-68`: direct-child
+                // catalog is a session-header action at order 10.
+                try conversationHeaderContributions.register(
+                    slot: .actions,
+                    id: "subagent-catalog",
+                    order: 10
+                ) { context in
+                    AnyView(NativeSubagentCatalogHeaderAction(sessionStore: context.sessionStore, openSession: context.openSession))
+                }
+            } catch {
+                assertionFailure("Built-in subagent catalog registration must be unique: \(error)")
             }
-        } catch {
-            assertionFailure("Built-in subagent catalog registration must be unique: \(error)")
         }
         switch workspaceSnapshotDialog {
         case .none:

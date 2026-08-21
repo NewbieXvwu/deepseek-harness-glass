@@ -40,7 +40,11 @@ final class NativeConversationHeaderTests: XCTestCase {
     func testShellRegistersNativeTrajectoryTabWithTypedRenderer() {
         let sessionStore = NativeSessionStore()
         sessionStore.loadSnapshotToolingFixture()
-        let presentation = NativeShellPresentation(mode: .conversation, sessionStore: sessionStore)
+        let presentation = NativeShellPresentation(
+            mode: .conversation,
+            sessionStore: sessionStore,
+            releaseFeaturePolicy: .allEnabled
+        )
         let context = NativeConversationContributionContext(
             sessionID: sessionStore.selectedSessionID,
             sessionSnapshot: .empty,
@@ -58,6 +62,19 @@ final class NativeConversationHeaderTests: XCTestCase {
         )
         XCTAssertEqual(presentation.conversationViewRegistry.resolve(selectedID: "trajectory")?.id, "trajectory")
         XCTAssertNotNil(presentation.conversationViewRegistry.render(selectedID: "trajectory", context: context))
+    }
+
+    func testReleaseCandidateHidesIncompleteComplexSurfacesAtShellRegistration() {
+        let policy = NativeReleaseFeaturePolicy.releaseCandidate
+        let presentation = NativeShellPresentation(mode: .conversation, releaseFeaturePolicy: policy)
+
+        XCTAssertFalse(policy.permits(.trajectoryTab))
+        XCTAssertFalse(policy.permits(.subagentCatalogAction))
+        XCTAssertEqual(policy.rule(for: .trajectoryTab)?.owner, "native-conversation")
+        XCTAssertFalse(policy.rule(for: .trajectoryTab)?.expiryCondition.isEmpty ?? true)
+        XCTAssertFalse(policy.rule(for: .trajectoryTab)?.deletionPlan.isEmpty ?? true)
+        XCTAssertEqual(presentation.conversationViewRegistry.registeredTabs.map(\.id), [NativeConversationViewRegistry.chatID])
+        XCTAssertEqual(presentation.conversationViewRegistry.resolve(selectedID: "trajectory")?.id, NativeConversationViewRegistry.chatID)
     }
 
     func testWorkflowNavigationAndDisclosureFailClosedToTypedRunningChildren() {
