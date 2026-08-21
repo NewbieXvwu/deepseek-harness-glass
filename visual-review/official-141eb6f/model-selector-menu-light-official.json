@@ -1,0 +1,26 @@
+{
+  "officialSourceCommit": "141eb6fef83422698aef7a981029e843e8161534",
+  "viewport": {
+    "width": 1280,
+    "height": 840
+  },
+  "locale": "en-US",
+  "colorScheme": "light",
+  "geometry": {
+    "root": {
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 840
+    },
+    "viewport": {
+      "width": 1280,
+      "height": 840,
+      "devicePixelRatio": 1
+    },
+    "text": "DSH Local Build141eb6fNew SessionWorkspacesworkspaceNew SessionSettingsInto the UnknownPreviewworkspaceStandard mode Workspace WriteDeepSeek-V4-FlashModelDeepSeek-V4-FlashDetailsClick a tool row in the message flow to view its details"
+  },
+  "ariaSnapshot": "- button \"New session\"\n- button \"Collapse sidebar\":\n  - img\n- button \"New session\":\n  - img\n  - text: New Session\n- text: Workspaces\n- button \"Search sessions\":\n  - img\n- textbox \"Search sessions...\"\n- button \"View options\":\n  - img\n- button \"Add workspace\":\n  - img\n- tree \"Sessions\":\n  - treeitem \"workspace\" [expanded]:\n    - img\n    - text: workspace\n  - treeitem \"New Session\" [selected]\n- button \"Settings\":\n  - img\n  - text: Settings\n- text: Into the Unknown Preview\n- button \"Choose workspace\":\n  - img\n  - text: workspace\n  - img\n- button \"Standard mode\":\n  - img\n  - text: Standard mode\n  - img\n- textbox \"Describe what you want to build\"\n- button \"Commands\":\n  - img\n- 'button \"Access mode, current: Workspace Write\"': Workspace Write\n- button \"Select model, current DeepSeek-V4-Flash\" [expanded]:\n  - text: DeepSeek-V4-Flash\n  - img\n- menu \"Model and reasoning effort\":\n  - menuitem \"Model DeepSeek-V4-Flash\":\n    - text: Model DeepSeek-V4-Flash\n    - img\n- button \"Send message\" [disabled]\n- text: Details\n- button \"Close details\"\n- text: Click a tool row in the message flow to view its details",
+  "consoleWarnings": [],
+  "pageErrors": []
+}
