@@ -78,3 +78,12 @@ GP-2 后续的独立 Plugin target 才可创建 `WKWebView`。它必须将每一
 官方 `ClientModuleSystem` 以 `window.__ModuleLoader__` 的 queue-form facade 作为 bundle factory 先到达时的暂存入口；系统 boot 后才将该 facade 切换为 live registration，并在 factory 缺失、重复或 dependency unresolved 时显式失败。[1] `GhostPlaneWebViewHost` 因而在 main-frame document start 唯一创建不可重写的 queue facade：`load(registration)` 只接受 ASCII package/client ID 与 function factory，正常化 `/client` 后暂存 immutable record，并拒绝无效 registration。
 
 该 facade 是 module table 的**唯一入口**，而不是完整 module system：当前没有 bundle arrival、live mode switch、static seed exports、factory materialization、`require`、Cordis Loader、SlotRegistry 或 typed injection activation。`GhostPlaneWebViewHostTests` 检查 facade 与 skeleton renderer 位于同一 document 且已具 queue surface；未来 T11.5 必须将已 admitted boot graph 与 static bridge services 接入这些后续阶段，才能声称 plugin client entry 激活。
+
+
+## 9. 官方 queue/create/live facade 契约（2026-08-21 复核）
+
+锁定官方 `packages/client/modules/src/index.ts:231-272` 的 `bootInjections(graph)` 安装顺序为：inline queue facade、modules/runtime parser-preload classic scripts、`__DSH_BOOT__` graph global。官方 `create(options)` 只允许在 `mode === "queue"` 调用；它定位预加载 `@deepseek-ai/dsh-client-modules` registration、从 pending queue 移除该项、以拒绝所有 early external 的 `require` materialize bootstrap factory，并确认 exports 同时提供 `createClientModuleSystem` 与 `apply`，随后才委托创建 live module system。
+
+Ghost Plane 不能把上游 JS queue surface 自身当作执行授权。未来 queue→live/materialization 实现仍必须先经过 native admitted graph 的精确 `(pluginID, revision)` arrival、non-static dependency、activation permit 与 typed injection gates；任何 plugin page-global 自证、未经 host 观察的 factory 或 service object 都不得获准执行。
+
+来源：锁定官方提交 `528c682e061696f5a160f363f236ecbf53cbd006`，`packages/client/modules/src/index.ts:231-272`。
