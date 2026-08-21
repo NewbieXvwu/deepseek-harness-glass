@@ -74,6 +74,30 @@ final class RawEventReplayReducerTests: XCTestCase {
         }
     }
 
+    func testTenThousandStreamingChunksPerformanceBaselineKeepsOneAssistantRow() {
+        let events = (0 ..< 10_000).map { index in
+            SessionEventDTO(
+                type: "assistant/chunk",
+                seq: index + 1,
+                time: Double(index + 1),
+                data: .object([
+                    "turn": .number(1),
+                    "step": .number(1),
+                    "chunk": .object([
+                        "type": .string("text-delta"),
+                        "index": .number(0),
+                        "text": .string("x"),
+                    ]),
+                ])
+            )
+        }
+        measure(metrics: [XCTClockMetric()]) {
+            let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
+            _ = reducer.replaceWindow(events.map { .init(event: $0) }, hasMore: false)
+            XCTAssertEqual(reducer.snapshot(target: "chat").filter { $0.kind == "assistant-step" }.count, 1)
+        }
+    }
+
     func testUnknownReplayEventIsSafelyIgnoredWithoutManufacturingANode() throws {
         let events = try events(for: "unknown-node-safe-ignore")
         let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())

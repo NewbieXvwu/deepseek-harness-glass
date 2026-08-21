@@ -519,7 +519,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 - [ ] **T12.6：长会话极限压力与性能基准 (Stress Benchmarks)。** 测量启动耗时、1,000+ 条超长会话历史极速滚动平滑度、流式 10k chunks 主线程响应、超长代码块/Markdown 排版耗时，以及双轨沙箱 50 次装卸后的内存清理。
   - 依赖：T8–T10。
   - 验收：建立帧率（60fps+）与内存基准线，拖拽 resize 与长文本滚动无主线程卡顿。
-  - 进度：`RawEventReplayReducerTests.testLongSessionReplayPerformanceBaseline` 以 T12.1 的匿名 1,000-turn（4,000 raw event）fixture 记录 `XCTClockMetric`，每次完整重建 reducer 并断言 2,000 个 chat node materialize；这为 macOS CI 的可追溯 core replay 时钟基线，不包含任何私有会话数据。启动、10k streaming、Markdown、WindowServer FPS/resize、双轨沙箱内存和阈值治理仍待完成，故保持未勾选。
+  - 进度：`RawEventReplayReducerTests.testLongSessionReplayPerformanceBaseline` 以 T12.1 的匿名 1,000-turn（4,000 raw event）fixture 记录 `XCTClockMetric`，每次完整重建 reducer 并断言 2,000 个 chat node materialize；这为 macOS CI 的可追溯 core replay 时钟基线，不包含任何私有会话数据。另一个 `XCTClockMetric` 直接生成 10,000 个 text-delta chunk，锁定高频流仅 materialize 单一 keyed assistant row。启动、10k streaming、Markdown、WindowServer FPS/resize、双轨沙箱内存和阈值治理仍待完成，故保持未勾选。
 
 - [ ] **T12.7：安全隔离与双轨沙箱审查。** 审查 loopback 信任边界、RPC 内容类型、下载路径安全、Markdown 外部链接拦截、凭据内存生命周期与 `PluginWebHost` 严格沙箱隔离（阻断外网与 file:// 读取）。
   - 依赖：T3–T4、T8.3、T10.4、T11。
