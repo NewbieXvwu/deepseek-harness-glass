@@ -87,9 +87,9 @@ public final class GhostPlaneWebViewHost: NSObject {
         guard let url else { return false }
         switch policy.decision(for: url) {
         case .allowSkeletonDocument, .allowPluginResource:
-            true
+            return true
         case .deny:
-            false
+            return false
         }
     }
 
