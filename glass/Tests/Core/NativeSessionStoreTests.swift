@@ -874,6 +874,44 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.phase, .ready(sessionID: sessionID))
     }
 
+    func testColdOpenStitchesBufferedLiveTailAfterHistoryAuthority() async {
+        let historyReached = expectation(description: "cold history is delayed")
+        let api = DelayedOpeningHistorySessionAPI(staleHistoryReached: historyReached)
+        let store = NativeSessionStore()
+        let sessionID = "cold-stitch-session"
+        store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+        await fulfillment(of: [historyReached], timeout: 1)
+
+        store.applyMuxFrame(sessionEventFrame(
+            sessionID: sessionID,
+            seq: 1,
+            type: "user/message",
+            data: .object([
+                "id": .string("page-overlap"),
+                "content": .array([.object(["type": .string("text"), "text": .string("must not replace history")])]),
+                "source": .object(["kind": .string("user")]),
+            ]),
+            surfaceOp: "append"
+        ), sessionID: sessionID)
+        store.applyMuxFrame(sessionEventFrame(
+            sessionID: sessionID,
+            seq: 2,
+            type: "user/message",
+            data: .object([
+                "id": .string("live-tail"),
+                "content": .array([.object(["type": .string("text"), "text": .string("live tail")])]),
+                "source": .object(["kind": .string("user")]),
+            ]),
+            surfaceOp: "append"
+        ), sessionID: sessionID)
+        await api.releaseHistory()
+        await eventually(timeout: 1) { store.items.map(\.text) == ["stale authority", "live tail"] }
+
+        XCTAssertEqual(store.items.map(\.sequence), [1, 2])
+        XCTAssertEqual(store.phase, .ready(sessionID: sessionID))
+        XCTAssertEqual(store.chatNodes.compactMap { $0.data as? CoreUserMessageNode }.map(\.seq), [1, 2])
+    }
+
     func testNewEndpointOpenSupersedesStaleInitialHistoryAuthority() async {
         let staleHistoryReached = expectation(description: "stale initial history is delayed")
         let staleAPI = DelayedOpeningHistorySessionAPI(staleHistoryReached: staleHistoryReached)

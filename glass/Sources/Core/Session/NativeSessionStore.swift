@@ -1109,6 +1109,10 @@ final class NativeSessionStore: ObservableObject {
         queueActionCompletion = nil
         recoveryGeneration &+= 1
         let authorityGeneration = recoveryGeneration
+        // RC8 buffers live frames during the first authority read as well as
+        // gap recovery. The common generation gate keeps a replaced session or
+        // endpoint from stitching its old pending tail into the new window.
+        recoveryBufferGeneration = authorityGeneration
         let directoryGeneration = modelDirectoryGeneration
         self.api = api
         self.goalAPI = goalAPI
@@ -1179,6 +1183,7 @@ final class NativeSessionStore: ObservableObject {
                 if let projections = response.projections { self?.projections.seed(sessionID: sessionID, baseline: projections) }
                 self?.hasMoreHistory = response.hasMore
                 self?.phase = .ready(sessionID: sessionID)
+                self?.stitchRecoveryLiveBuffer(generation: authorityGeneration)
                 self?.observeMux(sessionID: sessionID, endpoint: endpoint)
             } catch let error as DSHTransportError {
                 guard !Task.isCancelled,
@@ -1190,6 +1195,10 @@ final class NativeSessionStore: ObservableObject {
                 if case .loading = self?.modelDirectoryStatus {
                     self?.modelDirectoryStatus = .error(error.localizedDescription)
                 }
+                if self?.recoveryBufferGeneration == authorityGeneration {
+                    self?.recoveryBufferGeneration = nil
+                    self?.recoveryLiveBuffer = []
+                }
                 if !restoredResident { self?.phase = .failed(sessionID: sessionID) }
             } catch {
                 guard !Task.isCancelled,
@@ -1199,6 +1208,10 @@ final class NativeSessionStore: ObservableObject {
                 else { return }
                 if case .loading = self?.modelDirectoryStatus {
                     self?.modelDirectoryStatus = .error(error.localizedDescription)
+                }
+                if self?.recoveryBufferGeneration == authorityGeneration {
+                    self?.recoveryBufferGeneration = nil
+                    self?.recoveryLiveBuffer = []
                 }
                 if !restoredResident { self?.phase = .failed(sessionID: sessionID) }
             }
