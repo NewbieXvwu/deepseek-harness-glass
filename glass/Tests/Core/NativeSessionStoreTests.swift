@@ -1982,6 +1982,44 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertTrue(store.isSubmittingQuestion)
     }
 
+    func testReplacingApprovalCancelsOldSubmissionBeforeItCanMutateNewRequest() async {
+        let oldApprovalReached = expectation(description: "old approval reaches Host before pending replacement")
+        let oldApprovalCancelled = expectation(description: "old approval Task cancels when a new approval replaces it")
+        let api = DelayedReplacingApprovalSessionAPI(
+            oldApprovalReached: oldApprovalReached,
+            oldApprovalCancelled: oldApprovalCancelled
+        )
+        let store = NativeSessionStore()
+        let sessionID = "replaced-approval-session"
+        store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+        await eventually(timeout: 1) { store.phase == .ready(sessionID: sessionID) }
+
+        func approvalFrame(rpcID: String, approvalID: String) -> RPCServerRequest {
+            .init(type: "server-request", rpcId: rpcID, method: "approval/requested", payload: .object([
+                "type": .string("approval/requested"),
+                "sessionId": .string(sessionID),
+                "approvalId": .string(approvalID),
+                "toolName": .string("bash"),
+            ]))
+        }
+
+        store.applyMuxFrame(approvalFrame(rpcID: "approval-old", approvalID: "old-id"), sessionID: sessionID)
+        store.answerApproval(allowOnce: true)
+        await fulfillment(of: [oldApprovalReached], timeout: 1)
+        XCTAssertTrue(store.isSubmittingApproval)
+
+        store.applyMuxFrame(approvalFrame(rpcID: "approval-new", approvalID: "new-id"), sessionID: sessionID)
+        await fulfillment(of: [oldApprovalCancelled], timeout: 1)
+        XCTAssertEqual(store.pendingApproval?.rpcID, "approval-new")
+        XCTAssertEqual(store.pendingApproval?.approvalID, "new-id")
+        XCTAssertFalse(store.isSubmittingApproval)
+
+        store.answerApproval(allowOnce: false)
+        await eventually(timeout: 1) { api.approvalCalls == 2 && store.isSubmittingApproval }
+        XCTAssertEqual(store.pendingApproval?.rpcID, "approval-new")
+        XCTAssertTrue(store.isSubmittingApproval)
+    }
+
     func testPendingApprovalAndQuestionClearOnlyOnMatchingHostResolution() {
         let store = NativeSessionStore()
         store.loadSnapshotToolingFixture()
@@ -2752,6 +2790,44 @@ final class NativeSessionStoreTests: XCTestCase {
                 ignorable: nil
             ), view: nil)
         }
+    }
+
+    @MainActor
+    private final class DelayedReplacingApprovalSessionAPI: NativeSessionAPI {
+        let oldApprovalReached: XCTestExpectation
+        let oldApprovalCancelled: XCTestExpectation
+        private let oldApprovalGate = RecoveryGate()
+        private(set) var approvalCalls = 0
+
+        init(oldApprovalReached: XCTestExpectation, oldApprovalCancelled: XCTestExpectation) {
+            self.oldApprovalReached = oldApprovalReached
+            self.oldApprovalCancelled = oldApprovalCancelled
+        }
+
+        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
+            .init(events: [], hasMore: false, projections: nil)
+        }
+
+        func models(sessionID _: String) async throws -> SessionModelsResponse {
+            .init(current: .init(provider: "provider", model: "model", reasoningEffort: nil), routable: true, groups: [], failures: [])
+        }
+
+        func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
+        func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
+
+        func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt {
+            approvalCalls += 1
+            if approvalCalls == 1 {
+                oldApprovalReached.fulfill()
+                await oldApprovalGate.wait()
+                if Task.isCancelled { oldApprovalCancelled.fulfill() }
+                throw DSHTransportError.invalidEndpoint
+            }
+            return .init(accepted: true, reason: nil)
+        }
+
+        func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+        func cancelQuestion(rpcID _: String) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
     }
 
     @MainActor
