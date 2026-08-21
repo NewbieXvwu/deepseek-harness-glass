@@ -62,7 +62,7 @@ final class NativeSettingsStore: ObservableObject {
         authorityGeneration &+= 1
         let generation = authorityGeneration
         guard let api else {
-            clearAuthority(phase: .idle)
+            clearAuthority(phase: .idle, clearingDrafts: true)
             return
         }
         phase = .loading
@@ -80,7 +80,7 @@ final class NativeSettingsStore: ObservableObject {
                 self?.phase = .ready
             } catch {
                 guard !Task.isCancelled, self?.authorityGeneration == generation else { return }
-                self?.clearAuthority(phase: .failed(error.localizedDescription))
+                self?.clearAuthority(phase: .failed(error.localizedDescription), clearingDrafts: false)
             }
         }
     }
@@ -145,11 +145,11 @@ final class NativeSettingsStore: ObservableObject {
         try await mutate(namespace: namespace, operation: operation, using: api)
     }
 
-    private func clearAuthority(phase: Phase) {
+    private func clearAuthority(phase: Phase, clearingDrafts: Bool) {
         writable = false
         hasDocument = false
         namespaces = []
-        drafts = [:]
+        if clearingDrafts { drafts = [:] }
         permissionPreset = .init(
             status: .unavailable,
             writable: false,

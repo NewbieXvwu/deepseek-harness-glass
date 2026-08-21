@@ -60,6 +60,31 @@ final class NativeSettingsStoreTests: XCTestCase {
         XCTAssertEqual(store.drafts[namespace.ns]?.operation, .set(path: ["displayName"], value: .string("safe-draft")))
     }
 
+    func testDescribeFailureClearsStaleAuthorityButRetainsNonSecretDraftForReconnect() async {
+        let original = permissionNamespace(value: "workspace-write", revision: 7)
+        let store = NativeSettingsStore()
+        let available = RecordingSettingsAPI(result: .success(.init(writable: true, hasDocument: true, namespaces: [original])))
+        let unavailable = FailingSettingsAPI()
+        let operation = SettingsPathOperationDTO.set(
+            path: ["defaultPreset"],
+            value: .string("danger-full-access")
+        )
+
+        store.load(using: available)
+        await eventually { store.namespaces.first?.revision == 7 }
+        XCTAssertTrue(store.stage(namespace: original, operation: operation))
+        store.load(using: unavailable)
+        await eventually {
+            if case .failed = store.phase { return true }
+            return false
+        }
+
+        XCTAssertTrue(store.namespaces.isEmpty)
+        XCTAssertEqual(store.permissionPreset.status, .unavailable)
+        XCTAssertEqual(store.drafts["permission"]?.operation, operation)
+        XCTAssertTrue(store.isDirty(namespace: "permission"))
+    }
+
     func testSupersededDescribeCannotReviveOldSettingsAuthority() async {
         let api = DelayedFirstDescribeSettingsAPI(
             old: .init(writable: true, hasDocument: true, namespaces: [permissionNamespace(value: "workspace-write", revision: 7)]),
@@ -151,6 +176,14 @@ final class NativeSettingsStoreTests: XCTestCase {
             secrets: [],
             revision: revision
         )
+    }
+
+    @MainActor
+    private final class FailingSettingsAPI: NativeSettingsAPI {
+        func describe() async throws -> SettingsDescribeResponse { throw URLError(.notConnectedToInternet) }
+        func mutate(namespace _: String, operations _: [SettingsPathOperationDTO], expectedRevision _: Int?) async throws -> SettingsNamespaceDTO {
+            throw URLError(.notConnectedToInternet)
+        }
     }
 
     @MainActor
