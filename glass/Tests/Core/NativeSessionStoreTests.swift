@@ -133,6 +133,28 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(api.promptSessionIDs, [sessionID])
     }
 
+    func testSessionSwitchCancelsPendingPromptBeforeLateAcceptanceCanClearNewDraft() async {
+        let oldPromptReached = expectation(description: "old prompt reaches Host before session switch")
+        let oldPromptCancelled = expectation(description: "old prompt Task cancels when session changes")
+        let api = DelayedPromptSessionAPI(oldPromptReached: oldPromptReached, oldPromptCancelled: oldPromptCancelled)
+        let store = NativeSessionStore()
+        store.open(sessionID: "old-prompt-session", using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+        await eventually(timeout: 1) { store.phase == .ready(sessionID: "old-prompt-session") }
+        store.draft = "old draft"
+        store.submitDraft()
+        await fulfillment(of: [oldPromptReached], timeout: 1)
+        XCTAssertTrue(store.isSubmittingPrompt)
+
+        store.open(sessionID: "new-prompt-session", using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+        store.draft = "new draft"
+        await fulfillment(of: [oldPromptCancelled], timeout: 1)
+        await eventually(timeout: 1) { store.phase == .ready(sessionID: "new-prompt-session") }
+
+        XCTAssertEqual(store.draft, "new draft")
+        XCTAssertFalse(store.isSubmittingPrompt)
+        XCTAssertEqual(store.selectedSessionID, "new-prompt-session")
+    }
+
     func testAdmittedImagePromptUsesTypedHostFacadeWithExactContent() async throws {
         let promptReachedFacade = expectation(description: "typed prompt facade receives admitted image content")
         let imageData = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL9UQAAAABJRU5ErkJggg==")!
@@ -2645,6 +2667,39 @@ final class NativeSessionStoreTests: XCTestCase {
         func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse { throw DSHTransportError.invalidEndpoint }
         func models(sessionID _: String) async throws -> SessionModelsResponse { throw DSHTransportError.invalidEndpoint }
         func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
+        func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
+        func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+        func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+        func cancelQuestion(rpcID _: String) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+    }
+
+    @MainActor
+    private final class DelayedPromptSessionAPI: NativeSessionAPI {
+        let oldPromptReached: XCTestExpectation
+        let oldPromptCancelled: XCTestExpectation
+        private let gate = RecoveryGate()
+        private var promptCalls = 0
+
+        init(oldPromptReached: XCTestExpectation, oldPromptCancelled: XCTestExpectation) {
+            self.oldPromptReached = oldPromptReached
+            self.oldPromptCancelled = oldPromptCancelled
+        }
+
+        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
+            .init(events: [], hasMore: false, projections: nil)
+        }
+        func models(sessionID _: String) async throws -> SessionModelsResponse {
+            .init(current: .init(provider: "provider", model: "model", reasoningEffort: nil), routable: true, groups: [], failures: [])
+        }
+        func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse {
+            promptCalls += 1
+            if promptCalls == 1 {
+                oldPromptReached.fulfill()
+                await gate.wait()
+                if Task.isCancelled { oldPromptCancelled.fulfill() }
+            }
+            return .init(accepted: true)
+        }
         func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
         func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
         func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
