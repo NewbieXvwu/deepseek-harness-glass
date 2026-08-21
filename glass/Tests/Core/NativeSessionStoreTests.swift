@@ -974,6 +974,26 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertFalse(store.isRunning)
     }
 
+    func testSnapshotRetryFixtureMaterializesScheduledTypedAttempt() {
+        let store = NativeSessionStore()
+        store.loadSnapshotRetryFixture()
+
+        let retry = tryUnwrap(store.chatNodes.first(where: { $0.kind == "model-retry" })?.data as? CoreRetryNode)
+        XCTAssertEqual(retry.attempts, [
+            .init(
+                seq: 105,
+                time: 105,
+                retry: 1,
+                state: .scheduled,
+                delayMilliseconds: 1_250,
+                failureMessage: "provider busy",
+                maximumRetries: 3,
+                unlimited: false
+            ),
+        ])
+        XCTAssertTrue(store.isRunning)
+    }
+
     func testSnapshotCompactionFixtureMaterializesLandedTypedCheckpoint() {
         let store = NativeSessionStore()
         store.loadSnapshotCompactionFixture()

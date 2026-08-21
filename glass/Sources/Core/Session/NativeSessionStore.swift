@@ -2305,6 +2305,34 @@ final class NativeSessionStore: ObservableObject {
         messageFeedbackMutationMessageID = nil
     }
 
+    /// Snapshot-only model-retry fixture. It appends the RC8-shaped scheduled
+    /// attempt through the reducer, rather than injecting a Core retry node.
+    func loadSnapshotRetryFixture() {
+        loadSnapshotToolingFixture()
+        let retry = ConversationEventInput(event: SessionEventDTO(
+            type: "llm/retry",
+            seq: 105,
+            time: 105,
+            data: .object([
+                "retryId": .string("snapshot-retry"),
+                "retry": .number(1),
+                "turn": .number(1),
+                "step": .number(1),
+                "mode": .string("normal"),
+                "maxRetries": .number(3),
+                "delayMs": .number(1_250),
+                "failure": .object([
+                    "message": .string("provider busy"),
+                    "code": .string("rate_limit"),
+                ]),
+            ])
+        ))
+        appendConversationEvent(retry)
+        apply(event: retry.event)
+        isRunning = true
+        appliedSequences.insert(retry.event.seq)
+    }
+
     /// Snapshot-only landed compaction fixture. It appends the same typed
     /// checkpoint/summary shape that the Core reducer regression certifies.
     func loadSnapshotCompactionFixture() {
