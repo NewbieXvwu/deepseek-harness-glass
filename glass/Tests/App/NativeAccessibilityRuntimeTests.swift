@@ -98,6 +98,14 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         )
     }
 
+    func testMessageFeedbackActionLabelsUseOfficialLocale() {
+        let officialValues = Set(OfficialUISpec.LocaleCatalog.values.values)
+        XCTAssertTrue(officialValues.contains(OfficialUISpec.Text.feedbackLike))
+        XCTAssertTrue(officialValues.contains(OfficialUISpec.Text.feedbackLikeActive))
+        XCTAssertTrue(officialValues.contains(OfficialUISpec.Text.feedbackDislike))
+        XCTAssertTrue(officialValues.contains(OfficialUISpec.Text.feedbackDislikeActive))
+    }
+
     func testSubagentBranchKeyboardLabelsUseOfficialLocale() {
         let officialValues = Set(OfficialUISpec.LocaleCatalog.values.values)
         XCTAssertTrue(officialValues.contains(OfficialUISpec.Text.subagentBranchExpandTemplate))

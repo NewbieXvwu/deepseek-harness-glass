@@ -251,6 +251,11 @@ enum OfficialUISpec {
         static let trajectorySummary = "Summary"
         static let trajectoryPayload = "Payload"
         static let trajectoryResult = "Result"
+        // Source: packages/client/ui-message-feedback/src/client/locales.ts (en)
+        static let feedbackLike = "Good response"
+        static let feedbackLikeActive = "Remove rating"
+        static let feedbackDislike = "Bad response"
+        static let feedbackDislikeActive = "Remove rating"
         // Source: packages/client/ui-conversation/src/client/locales.ts:291-295 (en)
         static let compactionTitle = "Context compacted"
         static let compactionRunning = "Compacting context…"

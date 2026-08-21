@@ -217,6 +217,9 @@ private struct NativeActiveConversationSurface: View {
                 selectToolCall: sessionStore.selectToolCall,
                 deliverablesForAssistant: sessionStore.deliverables,
                 openKnownProjectPath: sessionStore.openKnownProjectPath,
+                messageFeedbackItems: sessionStore.messageFeedbackItems,
+                isSubmittingMessageFeedback: sessionStore.isSubmittingMessageFeedback,
+                toggleMessageFeedback: sessionStore.toggleMessageFeedback,
                 openSession: openSession
             )
         }
@@ -253,6 +256,9 @@ private struct NativeTranscriptScrollView: View {
     let selectToolCall: (String?) -> Void
     let deliverablesForAssistant: (CoreAssistantNode) -> [String]
     let openKnownProjectPath: (String) -> Void
+    let messageFeedbackItems: [String: MessageFeedbackItemDTO]
+    let isSubmittingMessageFeedback: Bool
+    let toggleMessageFeedback: (String, MessageFeedbackRatingDTO) -> Void
     let openSession: (String) -> Void
 
     private var timeline: [TimelineItem] {
@@ -329,6 +335,9 @@ private struct NativeTranscriptScrollView: View {
                                 node: node,
                                 deliverablesForAssistant: deliverablesForAssistant,
                                 openKnownProjectPath: openKnownProjectPath,
+                                messageFeedbackItems: messageFeedbackItems,
+                                isSubmittingMessageFeedback: isSubmittingMessageFeedback,
+                                toggleMessageFeedback: toggleMessageFeedback,
                                 openSession: openSession
                             )
                                 .id(node.key)
@@ -366,6 +375,9 @@ private struct NativeConversationNodeRow: View {
     let node: ConversationViewNode
     let deliverablesForAssistant: (CoreAssistantNode) -> [String]
     let openKnownProjectPath: (String) -> Void
+    let messageFeedbackItems: [String: MessageFeedbackItemDTO]
+    let isSubmittingMessageFeedback: Bool
+    let toggleMessageFeedback: (String, MessageFeedbackRatingDTO) -> Void
     let openSession: (String) -> Void
 
     var body: some View {
@@ -452,6 +464,14 @@ private struct NativeConversationNodeRow: View {
             if !text.isEmpty {
                 NativeMarkdownText(markdown: text, streaming: assistant.status == .running)
                 NativeMessageActionRow(text: text, time: assistant.time, clockPosition: .end)
+                if assistant.status == .settled, let messageID = assistant.messageID {
+                    NativeMessageFeedbackActions(
+                        item: messageFeedbackItems[messageID],
+                        isSubmitting: isSubmittingMessageFeedback,
+                        like: { toggleMessageFeedback(messageID, .positive) },
+                        dislike: { toggleMessageFeedback(messageID, .negative) }
+                    )
+                }
                 let paths = deliverablesForAssistant(assistant)
                 if !paths.isEmpty {
                     NativeProducedFiles(paths: paths, open: openKnownProjectPath)
