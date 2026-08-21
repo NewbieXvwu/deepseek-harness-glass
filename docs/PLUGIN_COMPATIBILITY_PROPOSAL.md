@@ -1,18 +1,18 @@
-# 专项提案：第三方插件全兼容运行时（Ghost Plane 幽灵平面）v2
+# 专项提案：第三方插件全兼容运行时（Ghost Plane 幽灵平面）v3
 
 | | |
 |---|---|
-| 状态 | 草案 v2（吸收外部评审意见修订） |
+| 状态 | 草案 v3（吸收二次外部评审；按"开源工具立场"收敛过度设计） |
 | 取代 | 原「渐进双轨制 + `PluginWebHost` 单卡片沙箱」设计（TODO T11 系列 v1） |
 | 官方基准 | `deepseek-ai/deepseek-harness` `0.1.1-rc.1`（commit `528c682e`）；契约红线仍以 `SupportedHostBuilds.json` 锁定 build 为 verified 判据 |
-| 证据基础 | 30 个社区插件源码实读分析（本提案初版 18 个 + 外部评审补充 12 个），全部结论带文件:行号级证据；官方槽位全集与装载契约经独立分析交叉验证 |
-| 修订记录 | v1→v2：① M2 改为单一主 document（废弃内联切片/BroadcastChannel）；② 新增 T0–T4 分级能力模型取代"契约面内 100%"表述；③ 安全模型改为安装时刻信任边界 + 浏览器式初次调用授权；④ 防漂移门禁扩至 SlotMap/服务声明/module manifest；⑤ 验证路径改为行为闭环断言；⑥ 并入 12 个补充样本；⑦ 修正 slots.ts 路径引用 |
+| 证据基础 | 43 个社区插件源码实读分析（初版 18 + 两次外部评审补充 25），全部结论带文件:行号级证据；官方槽位全集与装载契约经独立分析交叉验证 |
+| 修订记录 | v1→v2：① M2 单一主 document；② T0–T4 分级；③ 安全模型；④ 门禁扩展；⑤ 行为闭环验证；⑥ 并入 12 样本；⑦ 路径修正。**v2→v3**：① 砍掉 grant 会话/窗口绑定、指纹判定、白名单、compat.json、发布口径改名等家长式设计（开源工具立场：兼容是 Ghost Plane 的义务，不是插件的义务）；② Shadow Host 服务图表述去仪式化，保留其物理前提；③ 事务回滚边界诚实化（补不了的不假装原子）；④ 并入二次评审的 13 样本并剥离 TUI/remote/extension 出 UI 统计 |
 
 ---
 
 ## 1. 背景与动机
 
-对 30 个真实生态插件的实证分析表明：按原双轨制设计直接安装，兼容度两极分化——纯 Host 工具类 95~100%，而任何依赖 client 半区 UI 承载的插件大面积静默失效（0~45%）。失效不是工程量问题，而是原「单卡片沙箱」模型的结构性缺陷：它假设插件 UI 可以被拆成孤立卡片，但生态的现实是插件深度耦合官方页面的**槽位位置、服务注入与文档级 DOM 契约**，部分插件更进一步要求**完整会话视图与宿主数据面**。
+对 43 个真实生态插件的实证分析表明：按原双轨制设计直接安装，兼容度两极分化——纯 Host 工具类 95~100%，而任何依赖 client 半区 UI 承载的插件大面积静默失效（0~45%）。失效不是工程量问题，而是原「单卡片沙箱」模型的结构性缺陷：它假设插件 UI 可以被拆成孤立卡片，但生态的现实是插件深度耦合官方页面的**槽位位置、服务注入与文档级 DOM 契约**，部分插件更进一步要求**完整会话视图与宿主数据面**。
 
 ### 1.1 四类失效根因
 
@@ -45,7 +45,7 @@ DOM 只是这些语义请求在官方 Web 里的载体巧合。因此正确的�
 
 mini-host 页面不放官方内容，放一棵同构骨架：菜单节点带 `[role=menu]`、会话节点带 `data-chat-anchor-key` / `data-streaming` / `data-chat-flow-kind`、composer 带 dock/overlay 挂载点。结构与契约属性由原生壳同步，内容留空。骨架几何直接复用项目已锁定的 `OfficialColumnLayoutFixtures`（官方 `columns.ts` 算法）与 theme tokens 计算——骨架与原生布局共享同一几何系，这是后续一切低成本对齐的前提。
 
-骨架不是通用兼容的地基，而是 **T3 Legacy DOM 适配层的承载物**（见 §4）：对其视（selector/observer）的仿真保真度按"尽力兼容 + 风险标识"定义，不承诺通配。
+骨架不是通用兼容的地基，而是 **T3 Legacy DOM 适配层的承载物**（见 §4）：对其视（selector/observer）的仿真尽力而为，能匹配就匹配、匹配不了如实报错，不承诺通配。
 
 #### M2 单一主 document——滚动同步退化为一个标量
 
@@ -78,7 +78,7 @@ mini-host 页面不放官方内容，放一棵同构骨架：菜单节点带 `[r
 | Drag & Drop DataTransfer | NSDraggingSession ⇄ 合成 dragover/drop | 随装载授予 | 反向走 NSPasteboard |
 | OAuth / 打开系统浏览器 | 系统浏览器跳转 | **每次跳转前确认 URL** | 唯一真需自定义确认项 |
 | `fetch('/api/...')` 相对路径 | 同源 loopback 直达 host | 随装载授予 | **零转译**，架构白送 |
-| `webServer.tapIndex` 令牌 | 构建 mini-host HTML 时依序重放 | 共享 profile 前提下等价于官方页面 | 应用于受控兼容通道，先净化 + 来源追踪 |
+| `webServer.tapIndex` 令牌 | 构建 mini-host HTML 时依序重放 | 共享 profile 前提下等价于官方页面 | 重放内容先净化（本质是把官方页面同等注入搬进平面，非新增信任） |
 
 ### 2.3 选区投影（双向对称）
 
@@ -130,13 +130,13 @@ mini-host 页面不放官方内容，放一棵同构骨架：菜单节点带 `[r
 
 ### 3.3 安全模型：安装时刻即信任边界
 
-> **核心立场**：DSH 插件的信任模型是 npm 包模型——`dsh plugin add github:xxx` 即授予该插件在 Host 进程中执行任意 Node 代码的全权（读文件、开网络、碰凭据存储、spawn 子进程）。Ghost Plane 的 client 桥能力相对**同一个插件**的 Host 半区能力是严格子集，不构成新的攻击面。用浏览器扩展的沙箱威胁模型套 DSH 插件属于错配。
+> **核心立场**：DSH 插件的信任模型是 npm 包模型——`dsh plugin add github:xxx` 即授予该插件在 Host 进程中执行任意 Node 代码的全权（读文件、开网络、碰凭据存储、spawn 子进程）。Ghost Plane 的 client 桥能力相对**同一个插件**的 Host 半区能力是严格子集，不构成新的攻击面。用浏览器扩展的沙箱威胁模型套 DSH 插件属于错配——这不是我们该修的问题，修它也修不了。
 
 因此运行时安全采用**最轻的一致化**：
 
-1. **初次调用授权（浏览器式）**：`PermissionBroker` 按 `(pluginId, capability)` 记忆 granted/denied；插件首次调用需授权的能力时，弹原生对话框（带插件名与能力说明），选择被记住。
+1. **初次调用授权（浏览器式）**：`PermissionBroker` 按 `(pluginId, capability)` 记忆 granted/denied；插件首次调用需授权的能力时，弹原生对话框（带插件名与能力说明），选择被记住。不绑会话/窗口/时效——这是桌面 app 不是 iOS 企业环境，永久记忆 + 事后可撤销已经足够。
 2. **大头由系统兜底**：通知走 UNUserNotificationCenter 的 TCC 首调弹窗；Save/OpenPanel 为用户交互即授权；剪贴板写风险天然低。**唯一自定义确认项**：跳转系统浏览器的外链/OAuth（展示目标 URL）。settings 仅提供**事后查看与撤销**（像浏览器站点权限页），不设预授权入口。
-3. **profile 变更类操作走原生确认 + 原子回滚**（marketplace 安装/更新/卸载）——防 bug 而非防恶意，批量变更应可回退。
+3. **profile 变更类操作的回滚边界**（marketplace 安装/更新/卸载）：可回滚的部分（patch/配置）做 staged commit 回滚；不可回滚的部分（npm install script 的副作用、已下载依赖、运行中 module graph）**诚实标注"补偿失败，需人工处理"**，不假装原子——补不了的事不吹。
 4. 明确的边界声明：为浏览器编写但含恶意 Host 代码的插件，其威胁在**安装时刻**已成事实，任何 client 层桥都无法逆转——那不是兼容层的职责。
 
 ---
@@ -150,10 +150,10 @@ mini-host 页面不放官方内容，放一棵同构骨架：菜单节点带 `[r
 | **T0 Host-only** | tools / CLI / RPC / provider / worker | 官方 host runtime | 工具调用与结果回传闭环；**不计入 UI 兼容统计** |
 | **T1 Native adapter** | 有 `NativeUIManifest` / `SwiftAdapter` | SwiftUI 精品快车道 | 原生交互 + Liquid Glass 质感复刻 |
 | **T2 Contract Web Surface** | 标准 slots + 版本化 typed bridge | 单一主 document 内的插件 UI 运行时 | slot 挂载、服务注入、行为用例、无障碍、卸载清理通过 |
-| **T3 Legacy DOM adapter** | selector / observer / body 注入 | 主 document 骨架 DOM（尽力兼容） | 显式 opt-in + 单插件指纹 + 风险标识；漂移失败有策略，不承诺通配 |
+| **T3 Legacy DOM adapter** | selector / observer / body 注入 | 主 document 骨架 DOM（尽力兼容） | **尽力跑，不设门槛**：能匹配就匹配，匹配不了就如实报错，不搞指纹判定/白名单/风险标识，不替用户决定 |
 | **T4 Full View / Sandbox app** | `conversation.view`、完整设置页、iframe 子应用 | 原生导航容器内受管 Web surface | 尺寸/焦点/权限/生命周期协议 + 行为用例通过 |
 
-**统计口径**：兼容度只统计 T0–T4 各自层级内的成员；数字是**分层预期**，逐项绑定 §5 行为闭环的通过条件，未通过者发布为对应层级状态而非默认全兼容。
+**统计口径**：兼容度按层级内成员计算。**不搞认证**——插件装上能跑就是能跑，跑不了就把坏在哪如实显示（报错信息、缺失服务、loading 卡住原因），由用户决定去留。数字只是对"哪些大概率能活"的事前估计，验证以 §5 行为测试为准。
 
 **与 v1 表述的关系**：v1 的"契约面内 100% / 中位 90%+"改为分层重新表述——T0 与 T2 为承诺层级（可测试、可验收），T3/T4 明示尽力/受管语义，长尾形态不再被头部门槛掩盖。
 
@@ -168,7 +168,7 @@ mini-host 页面不放官方内容，放一棵同构骨架：菜单节点带 `[r
 | **P0 激活与单 document** | `dsh-review-loop`、`dsh-open-in-vscode`、`dsh-visualize` | module graph 正确激活（inject 服务齐备）；dock/menu 契约命中；RPC 交互闭环；卸载后无 observer/样式残留；惯性滚动下卡片无可见错位 |
 | **P1 高价值桥** | `dsh-at-file`、`dsh-vision-toolkit`、`dsh-web-ui-notify` | @ 全键盘闭环（↑↓/Enter/Esc）；贴图即析；系统通知 TCC 首调弹窗与送达 |
 | **P2 互操作与选区** | `DSH-better-sidebar` + `dsh-sidebar-qa`、`dsh-theme-plugin` | 跨插件服务发现（`betterSidebar`）成功；划词投影双向一致；token 注入换肤生效且原生骨架区不受影响 |
-| **P3 权限与装配** | `DSH-Plugins-Marketplace`、`dsh-usage-stats` | tapIndex 重放后写操作可用；profile 操作原子回滚可验证；`upstream-defect`（Windows-only）标注清晰呈现 |
+| **P3 装配与边界** | `DSH-Plugins-Marketplace`、`dsh-usage-stats` | tapIndex 重放后写操作可用；profile 变更可回滚部分验证回滚、不可回滚部分（安装脚本副作用）如实标注；`upstream-defect`（Windows-only）标注清晰呈现 |
 
 全部阶段使用同一锁定官方 build、可复现插件提交、行为级断言、失败分类与性能/内存数据。
 
@@ -188,7 +188,7 @@ mini-host 页面不放官方内容，放一棵同构骨架：菜单节点带 `[r
 | T11.6 | 重写：单 document + 滚动标量同步 + 事件桥（原内联切片设计废弃） |
 | T11.7 红/绿区门禁 | 保留并强化为红/绿区 + T4 受管容器登记 |
 | T11.8 契约防漂移 | 扩展：快照范围含 SlotMap / 服务声明 / module manifest |
-| T12.7 安全审查 | 更新为安装时刻信任模型 + PermissionBroker + TCC + 原子回滚审查 |
+| T12.7 安全审查 | 更新为安装时刻信任模型 + PermissionBroker + TCC + 回滚边界审查（可回滚 staged / 不可回滚如实标注） |
 
 新增任务族（GP）：GP-1 骨架 DOM 生成器；GP-2 主 document host + typed bridge 前置；GP-3 滚动标量同步引擎；GP-4 事件桥四件套；GP-5 平台 API 字典（含 PermissionBroker）；GP-6 profile 共享与装载过滤；GP-7 runtime 阶梯。另增 GP-8 PermissionBroker 授权界面（首调弹窗 + 事后撤销页）。
 
@@ -202,51 +202,73 @@ mini-host 页面不放官方内容，放一棵同构骨架：菜单节点带 `[r
 
 ---
 
-## 附录 A：30 插件实证矩阵
+## 附录 A：43 插件实证矩阵
 
-**样本构成**：本提案初版 18 个（`dsh-plugin` topic 头部、覆盖全形态，两路独立交叉验证）+ 外部评审补充 12 个（≥25 stars、具备 2 个以上独立兼容面）。下表数字为**分层预期假设**，逐项绑定 §5 行为闭环通过条件；未通过者降级为对应层级状态。
+**样本构成**：本提案初版 18 个（`dsh-plugin` topic 头部、覆盖全形态，两路独立交叉验证）+ 一次评审补充 12 个 + 二次评审补充 13 个。所有数字为**事前估计**（"大概率能活"），不是认证；最终以 §5 行为测试为准，活不了就把坏在哪如实显示，由用户决定去留。
 
-| 插件 | 形态 | 判级 | 预期（分层） | 主要增量来源 / 说明 |
+| 插件 | 形态 | 判级 | 预期（事前估计） | 主要增量来源 / 说明 |
 |---|---|---|---|---|
 | dsh-orchestrator | toolkit | T0 | 100% | 纯 Host；worker 流视图为原生端路线图 |
 | dsh-plugin-anydoc | toolkit | T0 | 100% | 纯 Host |
-| dsh-plugin-bridge (评审样本) | host CLI/RPC | T0 | 100% | 范围外，不计入 UI 统计 |
-| dsh-plugin-cc (评审样本) | host/CLI | T0 | 100% | 范围外，不计入 UI 统计 |
+| dsh-plugin-bridge (评审样本) | host CLI/RPC | T0 | 100% | 问题域不在 UI 平面 |
+| dsh-plugin-cc (评审样本) | host/CLI | T0 | 100% | 问题域不在 UI 平面 |
 | dsh-custom-tool | hybrid | T2 | 95~100% | 设置页特例 + 模型闭环 |
 | dsh-review-loop | hybrid | T2 | 95~100% | dock 锚点 + 轮询 HTTP |
-| dsh-visualize (评审样本) | hybrid | T2 | 90%+（优先实测） | 标准 slot 型，与 Ghost Plane 最贴合 |
+| dsh-visualize (评审样本) | hybrid | T2 | 90%+（优先实测） | 标准 slot 型，最贴合 Ghost Plane |
+| dashi-taskboard (二次评审样本) | hybrid | T2 | 高（条件性） | sidebar.footer.action + host webServer 路由 + 同源 fetch；需 Shadow Host 提供 renderer/slot props |
 | modlens | hybrid | T2 | 95%+ | 粘贴桥 |
-| dsh-vision-toolkit | hybrid | T2 | 95% | toolview 切片 + artifact 同源直载 + 粘贴桥 |
+| dsh-vision-toolkit | hybrid | T2 | 95% | toolview + artifact 同源直载 + 粘贴桥 |
 | dsh-at-file | hybrid | T2 | 95% | inputTriggers 桥 + 按键分诊器 |
-| dsh-theme-plugin | theme | T2 | 95% | token 全量注入平面 |
+| dsh-theme-plugin | theme | T2（平面内）/ 换肤边界见 §4 注 | 95% | token 全量注入平面；原生骨架区换肤不生效是物理事实，如实呈现 |
 | dsh-web-ui-notify | 纯 Web | T2 | 95%+ | Notification → UNUserNotificationCenter |
 | dsh-sidebar-qa | hybrid | T2 | 90% | betterSidebar 服务在场 + 选区投影 |
 | dsh-open-in-vscode | hybrid | T3 | 80~90%（尽力） | 骨架 `[role=menu]` 契约；slot 主路径缺失时走 legacy |
 | dsh-web-ui 家族 | hybrid×16 | T2/T3 | 85%+ | conversation./sidebar. 槽位复活；DOM shim 为 T3 |
-| DSH-Plugins-Marketplace | hybrid | T3 | 80%+ | 共享 profile + tapIndex 重放（受控兼容通道） |
-| dsh-genui (评审样本) | hybrid | T2/T3 | 中（需补契约） | fence registry / DOM 回退双通道；需真实消息/fence 数据 |
-| dsh-plugin-subscriptions (评审样本) | hybrid | T2 | 中（需服务桥） | OAuth/popup、commandUi、媒体 toolview 需 bridge |
-| dsh-plugin-mineru (评审样本) | hybrid | T2 | 中（需设置/文件契约） | 持久设置、文件选择、权限 API |
-| dsh-usage-plugin (评审样本) | hybrid | T4 | 中（需 full-view） | 两个 conversation view + Canvas/download |
-| dsh-deepseek-design (评审样本) | hybrid | T4 | 中（需 full-view bridge） | conversation.view、iframe→draft 回写 |
-| dsh-plugin-agent-workflow (评审样本) | hybrid | T4 | 低（产品决策先行） | 完整会话数据投影 + 导航视图 |
+| DSH-Plugins-Marketplace | hybrid | T3 | 80%+ | 共享 profile + tapIndex 重放；profile 变更回滚边界见 §3.3 |
+| dsh-genui (评审样本) | hybrid | T2/T3 | 中 | fence registry / DOM 回退双通道；需真实消息/fence 数据 |
+| dsh-plugin-subscriptions (评审样本) | hybrid | T2 | 中 | OAuth/popup、commandUi、媒体 toolview 需 bridge |
+| dsh-plugin-mineru (评审样本) | hybrid | T2 | 中 | 持久设置、文件选择 |
+| dsh-vision-router (二次评审样本) | hybrid | T2 | 部分可行 | settings/toolview slot 走 T2、图片桥有帮助；loader monkey patch 不保证 |
+| dsh-im (二次评审样本) | hybrid | T2 | 部分可行 | settings.plugins.tab 可承载；凭据/QR/多通道事务是 Host 协议面 |
+| dsh-context (二次评审样本) | hybrid | T4 | 部分可行 | conversation.view + session projection + 历史分页需 Shadow Host 数据面 |
+| dsh-agent-teams (二次评审样本) | hybrid | T4 | 部分可行 | shell overlay + DAG + session list/open；需 session event ABI |
+| dsh-usage-plugin (评审样本) | hybrid | T4 | 中 | 两个 conversation view + Canvas/download |
+| dsh-deepseek-design (评审样本) | hybrid | T4 | 中 | conversation.view、iframe→draft 回写 |
+| dsh-plugin-agent-workflow (评审样本) | hybrid | T4 | 低 | 完整会话数据投影 + 导航视图（产品决策项） |
+| dsh-openpencil (二次评审样本) | hybrid | T4 | 条件性可行 | toolview 内容为 CanvasKit/WASM + 跨源 iframe；受管容器需 origin/CSP/dirty-close 协议 |
 | dsh-sidebar-qa 类长尾（session-delete 等，评审样本） | hybrid | T3 | 中偏低（尽力） | 真实列表/menu 生命周期要求高，slot 主路径优先 |
+| dsh-ads (二次评审样本) | hybrid | T3 | 低（尽力） | body portal + 全局 DOM 是保真度压力测试；骨架尽力匹配，匹配不了如实报错 |
+| dsh-plugin-workshop (评审样本) | hybrid | T3 | 中偏低 | 原生新会话按钮/侧栏 class 不在骨架承诺内 |
+| **非 UI 平面问题域（不计入 UI 兼容统计）** | | | | |
 | dsh-tianshu-tui | tui | 独立 profile | 不适用 | 竞争 stdio，正确用法即独立 profile |
+| dsh-TUI (二次评审样本) | tui | 独立 profile | 不适用 | 同上；注意与 dsh-tianshu-tui 是不同仓库 |
+| dsh-browser (二次评审样本) | 浏览器扩展 | 独立 | 不适用 | Host-to-extension 安全协议，问题域在扩展侧 |
+| dsh-pocket (二次评审样本) | 远程代理 | 独立 | 不适用 | 把完整 Web UI 代理给移动端，需要 remote-web 模式而非 UI 平面 |
+| dsh-market (二次评审样本) | profile 管理 | 控制面 | 不适用 | 插件市场控制面，问题是事务/锁/HMR 而非渲染 |
+| dsh-deep-whale (二次评审样本) | 全局主题 | T1 换肤边界 | 低 | CSS 重写官方整页；平面内 CSS 影响不了 SwiftUI 正文——用受支持 token 映射，不承诺穿透 |
+| DSH-Transparent-UI-Plugin (二次评审样本) | 全局主题 | T1 换肤边界 | 低 | 同上；WebGL/canvas 部分标 Web-only |
 | dsh-usage-stats | hybrid | T0+T3 | upstream-defect | 余额查询硬编码 Windows 进程，不背 |
 | dsh-opencodego-usage | hybrid | T0+T3 | upstream-defect | 同上 |
-| dsh-plugin-workshop (评审样本) | hybrid | T3 | 中偏低 | 原生新会话按钮/侧栏 class 不在骨架承诺内 |
 | dsh-explorer | ui-panel | T2 | 85%+ | 侧栏面板锚点 |
 
-**置信度说明**：头部热门样本（本提案选样）偏 standard-slot 型，长尾样本（评审补充）暴露了更多依赖面（fence registry、conversation.view、OAuth、commandUi）。两组合并约 30 个构成生态画像；T2 承诺以 P0/P1 行为闭环为准，T3/T4 明示尽力/受管。
+**样本说明（实话版）**：头部热门样本偏 standard-slot 型；两次评审补充的长尾样本暴露了更多依赖面（fence registry、conversation.view、OAuth、commandUi、Canvas/WASM、远程代理）。整体约 43 个构成生态画像。TUI、远程 full-web proxy、浏览器扩展、profile 管理控制面等**不属于 UI 平面问题域**，从 UI 兼容统计中剥离是事实归类而非口径粉饰。主题类能映射受支持 token 的走换肤，穿不透 SwiftUI 的部分如实标 Web-only。
 
 ---
 
-## 附录 B：v1 → v2 修订记录
+## 附录 B：v1 → v3 修订记录
 
+**v1 → v2**（吸收一次评审）：
 1. **M2 单 document**：废弃内联切片与 BroadcastChannel ctx 镜像（评审否决：服务对象引用不可跨 document 共享，硬 injection gate 会杀死跨插件互操作）；滚动同步改为单标量传递；
-2. **T0–T4 分级模型**：取代"契约面内 100% / 中位 90%+"表述；统计口径分层的层级内计算；
-3. **安全模型**：改为安装时刻信任边界（npm 包模型）；浏览器式初次调用授权；系统 TCC 兜底大头；settings 仅事后撤销；保留 profile 变更原子回滚；`tapIndex` 重放限定受控兼容通道；
+2. **T0–T4 分级模型**：取代"契约面内 100% / 中位 90%+"表述；统计口径分层；
+3. **安全模型**：改为安装时刻信任边界（npm 包模型）；浏览器式初次调用授权；系统 TCC 兜底大头；settings 仅事后撤销；`tapIndex` 重放限定受控兼容通道；
 4. **门禁扩展**：防漂移快照含 SlotMap / 服务声明 / module manifest；
 5. **验证改写**：P0–P3 改为行为闭环断言；
-6. **样本并入**：12 个评审补充样本入附录 A，数字改为分层预期并绑定验证门槛；
+6. **样本并入**：12 个评审补充样本入附录 A；
 7. **路径修正**：`runtime/src/client/slots.ts` → `packages/client/runtime/src/client/slots.ts`。
+
+**v2 → v3**（吸收二次评审；按开源工具立场收敛过度设计）：
+1. **砍掉家长式机制**：grant 会话/窗口/时效绑定、DOM 指纹判定、白名单、`dsh-plugin-compat.json`、发布口径改名——全部移除。立场：兼容是 Ghost Plane 的义务，不是插件的义务；用户装了自己决定，坏就如实报错，不做"判定/拦在门外/指望插件迁就我们"。
+2. **Shadow Host 服务图保留为物理前提**（官方 boot 的 hard injection gate 使然），但去仪式化：它是原生已有能力（transport/projection/settings）的 Web 侧 ABI 投影，不是重写官方 client；不叫"最小但真实的 Shadow Host ABI"这种发布会词。
+3. **事务回滚边界诚实化**：可回滚（patch/配置）做 staged commit；不可回滚（install script 副作用、已下载依赖、运行中 module graph）如实标"补偿失败，需人工处理"，不假装原子。
+4. **T3 降门槛**：尽力跑、不设门槛、失败如实呈现；删"单插件指纹 + 风险标识"。
+5. **样本并入 13 个二次评审样本**（总 43），TUI/远程 full-web proxy/浏览器扩展/profile 管理控制面从 UI 兼容统计剥离（事实归类）；主题类改"受支持 token 换肤 + web-only 如实标注"，不安排正式适配器工程。

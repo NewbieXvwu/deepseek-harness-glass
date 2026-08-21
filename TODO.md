@@ -532,7 +532,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
   - 依赖：T8–T10。
   - 验收：建立帧率（60fps+）与内存基准线，拖拽 resize 与长文本滚动无主线程卡顿。
 
-- [ ] **T12.7：安全隔离与插件平面审查。** 审查 loopback 信任边界、RPC 内容类型、下载路径安全、Markdown 外部链接拦截、凭据内存生命周期与 Ghost Plane 严格隔离（红/绿区 + T4 容器 target 登记、tapIndex 重放的 HTML 净化限定受控通道、平面内外网与 file:// 阻断、TCC 权限语义统一、PermissionBroker 首调授权、profile 变更原子回滚）。安全立场为安装时刻信任边界（npm 包模型）：client 桥能力为同插件 Host 半区严格子集，不构成新攻击面。
+- [ ] **T12.7：安全隔离与插件平面审查。** 审查 loopback 信任边界、RPC 内容类型、下载路径安全、Markdown 外部链接拦截、凭据内存生命周期与 Ghost Plane 严格隔离（红/绿区 + T4 容器 target 登记、tapIndex 重放的 HTML 净化、平面内外网与 file:// 阻断、TCC 权限语义统一、PermissionBroker 首调授权、profile 变更回滚边界——可回滚 staged、不可回滚如实标注）。安全立场为安装时刻信任边界（npm 包模型）：client 桥能力为同插件 Host 半区严格子集，不构成新攻击面。
   - 依赖：T3–T4、T8.3、T10.4、T11。
   - 验收：安全 checklist 全部通过，插件平面完全限制在登记制的绿区边界内。
 
