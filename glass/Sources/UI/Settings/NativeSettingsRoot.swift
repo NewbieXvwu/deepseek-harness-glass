@@ -43,6 +43,7 @@ struct NativeSettingsRoot: View {
     let removeAgentPreset: (String) async -> Bool
     let selectAgentPresetDefault: (AgentPresetEntryDTO) async -> Bool
     let refreshCredential: (String) async -> Void
+    let refreshCredentials: ([String]) async -> Void
     let setCredential: (String, String) async -> Bool
     let savePluginCard: (NativePluginCardDraft) async -> Bool
     @State private var selection: SectionID? = .general
@@ -359,9 +360,7 @@ struct NativeSettingsRoot: View {
                 }
             }
             .task(id: providerCredentialReferences) {
-                for reference in providerCredentialReferences {
-                    await refreshCredential(reference)
-                }
+                await refreshCredentials(providerCredentialReferences)
             }
         }
     }

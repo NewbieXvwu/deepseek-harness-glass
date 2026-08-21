@@ -397,7 +397,11 @@ final class NativeShellPresentation: ObservableObject {
     }
 
     func refreshCredential(_ reference: String) async {
-        await credentialStore.refresh(refs: [reference], using: apis?.credentials)
+        await refreshCredentials([reference])
+    }
+
+    func refreshCredentials(_ references: [String]) async {
+        await credentialStore.refresh(refs: references, using: apis?.credentials)
     }
 
     func setCredential(reference: String, value: String) async -> Bool {
@@ -782,6 +786,9 @@ final class NativeShellController: NativeSplitViewController {
             },
             refreshCredential: { [weak presentation] reference in
                 await presentation?.refreshCredential(reference)
+            },
+            refreshCredentials: { [weak presentation] references in
+                await presentation?.refreshCredentials(references)
             },
             setCredential: { [weak presentation] reference, value in
                 guard let presentation else { return false }

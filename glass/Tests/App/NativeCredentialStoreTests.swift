@@ -20,6 +20,20 @@ final class NativeCredentialStoreTests: XCTestCase {
         XCTAssertNil(store.view(for: "UNREQUESTED"))
     }
 
+    func testBatchRefreshRetainsEveryRequestedProviderCredentialView() async {
+        let api = CredentialAPI(views: [
+            "FIRST_KEY": .init(configured: true, source: "keychain", writable: true),
+            "SECOND_KEY": .init(configured: false, source: nil, writable: true),
+        ])
+        let store = NativeCredentialStore()
+
+        await store.refresh(refs: ["FIRST_KEY", "SECOND_KEY"], using: api)
+
+        XCTAssertEqual(store.view(for: "FIRST_KEY")?.configured, true)
+        XCTAssertEqual(store.view(for: "SECOND_KEY")?.configured, false)
+        XCTAssertEqual(api.describeRequests, [["FIRST_KEY", "SECOND_KEY"]])
+    }
+
     func testSetAndUnsetConfirmStateOnlyThroughFreshHostDescribe() async {
         let api = CredentialAPI(views: ["SEARCH_KEY": .init(configured: false, source: nil, writable: true)])
         let store = NativeCredentialStore()
