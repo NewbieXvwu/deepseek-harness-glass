@@ -384,6 +384,27 @@ final class ConversationCoreNodesTests: XCTestCase {
         XCTAssertNil(reducer.locationData(scope: .turn, turn: 99).value(for: "deliverables", as: CoreDeliverablesTurnData.self))
     }
 
+    func testUnknownPluginToolCardDoesNotFabricateDeliverables() {
+        let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
+        let entries: [ConversationEventInput] = [
+            .init(event: event(seq: 400, type: "turn/start", data: ["turn": .number(8)])),
+            .init(event: event(seq: 401, type: "tool/call", data: [
+                "turn": .number(8), "callId": .string("future-card"), "name": .string("plugin_tool"), "arguments": .string("{\"fixture\":true}"),
+            ]), view: toolView("call", [
+                "card": .string("future-plugin-card"),
+                "locations": .array([.object(["path": .string("must-not-be-produced.md")])]),
+            ])),
+            .init(event: toolResult(seq: 402, turn: 8, callID: "future-card")),
+        ]
+
+        XCTAssertEqual(reducer.replaceWindow(entries, hasMore: false), .immediate)
+        let tool = tryUnwrap(reducer.snapshot(target: "chat").first(where: { $0.kind == "tool-call" })?.data as? CoreToolCallNode)
+        XCTAssertEqual(tool.callID, "future-card")
+        XCTAssertEqual(tool.name, "plugin_tool")
+        XCTAssertEqual(tool.argumentsRaw, "{\"fixture\":true}")
+        XCTAssertNil(reducer.locationData(scope: .turn, turn: 8).value(for: "deliverables", as: CoreDeliverablesTurnData.self))
+    }
+
     private func toolResult(seq: Int, turn: Int, callID: String, isError: Bool = false) -> SessionEventDTO {
         event(seq: seq, type: "tool/result", surface: .string("append"), data: [
             "turn": .number(Double(turn)),
