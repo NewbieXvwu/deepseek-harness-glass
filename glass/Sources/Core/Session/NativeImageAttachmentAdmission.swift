@@ -33,12 +33,12 @@ enum NativeImageAttachmentAdmission {
         existingImageCount: Int,
         existingImageBytes: Int
     ) -> Result<AcceptedImage, Rejection> {
-        guard let limits else { return .failure(.limitsUnavailable) }
-        guard existingImageCount < limits.maxImagesPerMessage else { return .failure(.tooManyImages) }
-        guard let declaredSize = fileSize(at: url) else { return .failure(.fileUnreadable) }
-        guard declaredSize <= limits.maxImageBytes else { return .failure(.fileTooLarge) }
+        guard let limits else { return .failure(Rejection.limitsUnavailable) }
+        guard existingImageCount < limits.maxImagesPerMessage else { return .failure(Rejection.tooManyImages) }
+        guard let declaredSize = fileSize(at: url) else { return .failure(Rejection.fileUnreadable) }
+        guard declaredSize <= limits.maxImageBytes else { return .failure(Rejection.fileTooLarge) }
         guard safeSum(existingImageBytes, declaredSize) <= limits.maxMessageImageBytes else {
-            return .failure(.messageTooLarge)
+            return .failure(Rejection.messageTooLarge)
         }
 
         // Inspect from URL first. This parses magic bytes and container metadata
@@ -48,28 +48,28 @@ enum NativeImageAttachmentAdmission {
               let type = UTType(rawType),
               type.conforms(to: .image),
               let mediaType = type.preferredMIMEType
-        else { return .failure(.unsupportedContentType) }
+        else { return .failure(Rejection.unsupportedContentType) }
         guard limits.mediaTypes.contains(where: { $0.caseInsensitiveCompare(mediaType) == .orderedSame }) else {
-            return .failure(.unsupportedMediaType)
+            return .failure(Rejection.unsupportedMediaType)
         }
-        guard let dimensions = dimensions(of: source) else { return .failure(.invalidImage) }
+        guard let dimensions = dimensions(of: source) else { return .failure(Rejection.invalidImage) }
         guard dimensions.width <= limits.maxImageDimension, dimensions.height <= limits.maxImageDimension else {
-            return .failure(.dimensionsExceeded)
+            return .failure(Rejection.dimensionsExceeded)
         }
         guard safeProduct(dimensions.width, dimensions.height) <= limits.maxImagePixels else {
-            return .failure(.pixelsExceeded)
+            return .failure(Rejection.pixelsExceeded)
         }
 
         // Recheck size after opening to close the common replace-after-stat
         // race before retaining any file contents for the Host prompt.
         guard let data = try? Data(contentsOf: url, options: .mappedIfSafe) else {
-            return .failure(.fileUnreadable)
+            return .failure(Rejection.fileUnreadable)
         }
-        guard data.count <= limits.maxImageBytes else { return .failure(.fileTooLarge) }
+        guard data.count <= limits.maxImageBytes else { return .failure(Rejection.fileTooLarge) }
         guard safeSum(existingImageBytes, data.count) <= limits.maxMessageImageBytes else {
-            return .failure(.messageTooLarge)
+            return .failure(Rejection.messageTooLarge)
         }
-        return .success(.init(
+        return .success(AcceptedImage(
             mediaType: mediaType,
             data: data,
             pixelWidth: dimensions.width,
