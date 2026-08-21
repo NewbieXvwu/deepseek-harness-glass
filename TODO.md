@@ -522,7 +522,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 - [ ] **T12.7：安全隔离与双轨沙箱审查。** 审查 loopback 信任边界、RPC 内容类型、下载路径安全、Markdown 外部链接拦截、凭据内存生命周期与 `PluginWebHost` 严格沙箱隔离（阻断外网与 file:// 读取）。
   - 依赖：T3–T4、T8.3、T10.4、T11。
   - 验收：安全 checklist 全部通过，第三方 Web 插件完全限制在独立沙箱内。
-  - 进度：`HarnessHostController.announcedEndpoint` 现除精确 `http://127.0.0.1` 与有效端口外，还拒绝 URL userinfo 与 port 0；回归覆盖 https、localhost、缺失端口、userinfo、零端口和非法输出 offset，避免非规范启动公告进入 Host verification。下载、Markdown、诊断 redaction 与插件隔离仍需按完整 checklist/运行态继续闭环，故保持未勾选。
+  - 进度：`HarnessHostController.announcedEndpoint` 现除精确 `http://127.0.0.1` 与有效端口外，还拒绝 URL userinfo 与 port 0；回归覆盖 https、localhost、缺失端口、userinfo、零端口和非法输出 offset，避免非规范启动公告进入 Host verification。`SessionLogExporter` 也只接受规范 `http://127.0.0.1:<nonzero port>` 下载 URL，并在文件 materialization 前复核最终 HTTP URL；外部 host、https、localhost、userinfo 与 port 0 的负例均确认在发起网络请求前失败。Markdown、诊断 redaction 与插件隔离仍需按完整 checklist/运行态继续闭环，故保持未勾选。
 
 - [ ] **T12.8：迁移遗留 source-text CI gate 至可证伪运行态验证。** 依据 PR #5 的“验证运行态行为，严禁源码文本对暗号”规定，逐步删除对本项目 `.swift` 源码使用关键词、正则或出现次数作为 pass/fail 的 gate；改用 SwiftPM target graph、XCTest/async protocol replay、真实 AppKit/SwiftUI accessibility tree、WindowServer screenshots 与实际 Host integration。
   - 依赖：T4.6、T5.6、T6.7、T11.7。

@@ -51,6 +51,7 @@ actor SessionLogExporter {
     /// Exposed for a URLProtocol-backed Core test; production features call the
     /// facade-taking overload above and never construct a download URL.
     func export(url: URL, fallbackFilename: String) async throws -> SessionLogExport {
+        guard isTrustedLoopbackDownloadURL(url) else { throw DSHTransportError.invalidEndpoint }
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.timeoutInterval = 60
@@ -60,7 +61,8 @@ actor SessionLogExporter {
         let stagingURL = destinationDirectory.appendingPathComponent(".session-export-\(UUID().uuidString).partial", isDirectory: false)
         let (stagedURL, response) = try await download(request, stagingURL: stagingURL)
         defer { try? fileManager.removeItem(at: stagedURL) }
-        guard let http = response as? HTTPURLResponse else {
+        guard let http = response as? HTTPURLResponse,
+              isTrustedLoopbackDownloadURL(http.url ?? url) else {
             throw DSHTransportError.invalidEndpoint
         }
         guard (200 ... 299).contains(http.statusCode) else {
@@ -82,6 +84,14 @@ actor SessionLogExporter {
             suggestedFilename: destination.lastPathComponent,
             responseContentType: http.value(forHTTPHeaderField: "Content-Type")
         )
+    }
+
+    private func isTrustedLoopbackDownloadURL(_ url: URL) -> Bool {
+        url.scheme == "http"
+            && url.host == "127.0.0.1"
+            && url.user == nil
+            && url.password == nil
+            && (url.port ?? 0) > 0
     }
 
     private func reserveDestination(named proposedName: String) throws -> URL {

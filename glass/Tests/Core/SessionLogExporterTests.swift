@@ -45,6 +45,29 @@ final class SessionLogExporterTests: XCTestCase {
         }
     }
 
+    func testDownloadRejectsNonCanonicalLoopbackURLsBeforeIssuingRequest() async throws {
+        let destination = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: destination) }
+        let exporter = SessionLogExporter(session: makeSession(), destinationDirectory: destination)
+        let rejected = [
+            "https://127.0.0.1:9281/api/session.export",
+            "http://localhost:9281/api/session.export",
+            "http://fixture-user@127.0.0.1:9281/api/session.export",
+            "http://127.0.0.1:0/api/session.export",
+            "http://example.test:9281/api/session.export",
+        ]
+
+        for raw in rejected {
+            do {
+                _ = try await exporter.export(url: try XCTUnwrap(URL(string: raw)), fallbackFilename: "fixture.zip")
+                XCTFail("\(raw) must be rejected before native download")
+            } catch let error as DSHTransportError {
+                XCTAssertEqual(error, .invalidEndpoint)
+            }
+        }
+        XCTAssertTrue(ExportURLProtocol.state.observedRequests().isEmpty)
+    }
+
     func testUnverifiedHostCannotCreateNativeDownloadURL() async throws {
         let transport = DSHClientTransport(
             baseURL: URL(string: "http://127.0.0.1:9281/")!,
