@@ -30,6 +30,7 @@ final class NativeSessionStoreTests: XCTestCase {
         let store = NativeSessionStore()
         let sessionID = "cancel-session"
         store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+        await eventually(timeout: 1) { store.phase == .ready(sessionID: sessionID) }
 
         store.cancelRunningTurn()
         XCTAssertTrue(api.cancelledSessionIDs.isEmpty, "idle composer must not manufacture a cancel RPC")
@@ -466,6 +467,7 @@ final class NativeSessionStoreTests: XCTestCase {
             endpoint: URL(string: "http://127.0.0.1:1")!,
             subagentCatalogAPI: api
         )
+        await eventually(timeout: 1) { store.phase == .ready(sessionID: childID) }
         store.setSubagentRoute(
             parentSessionID: parentID,
             entry: .init(kind: "child", id: childID, activity: "running", hasChildren: false, mode: "continuable", label: nil, reason: nil),
@@ -777,7 +779,9 @@ final class NativeSessionStoreTests: XCTestCase {
         let api = StitchingGapRecoverySessionAPI(recoveryReachedHistory: recoveryReachedHistory)
         let store = NativeSessionStore()
         store.open(sessionID: "recovery-session", using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
-        await eventually(timeout: 1) { store.items.map(\.text) == ["baseline"] }
+        await eventually(timeout: 1) {
+            store.phase == .ready(sessionID: "recovery-session") && store.items.map(\.text) == ["baseline"]
+        }
 
         store.applyMuxFrame(sessionEventFrame(
             sessionID: "recovery-session",
@@ -1871,13 +1875,13 @@ final class NativeSessionStoreTests: XCTestCase {
 
         XCTAssertEqual(store.selectedSessionID, "fx-alpha")
         XCTAssertEqual(store.modelDirectory?.current.provider, "deepseek-official")
-        XCTAssertEqual(store.modelDirectory?.current.model, "deepseek-v4")
-        XCTAssertEqual(store.modelDirectory?.current.reasoningEffort, "balanced")
+        XCTAssertEqual(store.modelDirectory?.current.model, "deepseek-v4-flash")
+        XCTAssertNil(store.modelDirectory?.current.reasoningEffort)
         XCTAssertTrue(store.modelDirectory?.routable == true)
-        XCTAssertEqual(store.modelDirectory?.groups.map(\.id), ["deepseek-official", "local"])
-        XCTAssertEqual(store.modelDirectory?.groups.first?.models.map(\.id), ["deepseek-v4", "deepseek-v4-fast"])
-        XCTAssertEqual(store.modelDirectory?.groups.first?.models.first?.reasoningEfforts.map(\.id), ["balanced", "deep"])
-        XCTAssertEqual(store.modelDirectory?.failures.map(\.id), ["fixture-unavailable"])
+        XCTAssertEqual(store.modelDirectory?.groups.map(\.id), ["deepseek-official"])
+        XCTAssertEqual(store.modelDirectory?.groups.first?.models.map(\.id), ["deepseek-v4-flash"])
+        XCTAssertEqual(store.modelDirectory?.groups.first?.models.first?.reasoningEfforts, [])
+        XCTAssertEqual(store.modelDirectory?.failures, [])
         XCTAssertFalse(store.isSelectingModel)
         XCTAssertFalse(store.isRunning)
     }
