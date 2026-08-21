@@ -137,6 +137,12 @@ struct NativeSubagentCatalogHeaderAction: View {
                         .frame(width: OfficialUISpec.Geometry.px14, height: OfficialUISpec.Geometry.px14)
                 }
                 .buttonStyle(.plain)
+                .focusable(false)
+                .accessibilityLabel(
+                    expandedParentIDs.contains(entry.id)
+                        ? OfficialUISpec.Text.subagentBranchCollapse(entry.label ?? entry.id)
+                        : OfficialUISpec.Text.subagentBranchExpand(entry.label ?? entry.id)
+                )
             } else {
                 Color.clear.frame(width: OfficialUISpec.Geometry.px14, height: OfficialUISpec.Geometry.px14)
             }
@@ -160,6 +166,16 @@ struct NativeSubagentCatalogHeaderAction: View {
                 .padding(OfficialUISpec.Spacing.p8)
             }
             .buttonStyle(.plain)
+            .onKeyPress(.rightArrow) {
+                guard entry.hasChildren == true, !expandedParentIDs.contains(entry.id) else { return .ignored }
+                toggleBranch(entry.id)
+                return .handled
+            }
+            .onKeyPress(.leftArrow) {
+                guard entry.hasChildren == true, expandedParentIDs.contains(entry.id) else { return .ignored }
+                toggleBranch(entry.id)
+                return .handled
+            }
             .accessibilityLabel(entry.label ?? entry.id)
         }
         .padding(.leading, OfficialUISpec.Spacing.p8 * CGFloat(depth))

@@ -302,6 +302,14 @@ enum OfficialUISpec {
         static let subagentRunning = "running"
         static let subagentInactive = "not running"
         static let subagentTreeAccessibility = "Subagent sessions"
+        static let subagentBranchExpandTemplate = "Expand {label} descendants"
+        static let subagentBranchCollapseTemplate = "Collapse {label} descendants"
+        static func subagentBranchExpand(_ label: String) -> String {
+            subagentBranchExpandTemplate.replacingOccurrences(of: "{label}", with: label)
+        }
+        static func subagentBranchCollapse(_ label: String) -> String {
+            subagentBranchCollapseTemplate.replacingOccurrences(of: "{label}", with: label)
+        }
         static let subagentOneShotReadOnlyTitle = "One-shot subagent record"
         static let subagentOneShotReadOnlyBody = "One-shot tasks do not accept follow-ups; review the full execution record here."
         static let subagentParentUnavailableReadOnlyTitle = "This subagent is read-only for now"

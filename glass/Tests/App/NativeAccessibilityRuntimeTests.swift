@@ -98,6 +98,14 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         )
     }
 
+    func testSubagentBranchKeyboardLabelsUseOfficialLocale() {
+        let officialValues = Set(OfficialUISpec.LocaleCatalog.values.values)
+        XCTAssertTrue(officialValues.contains(OfficialUISpec.Text.subagentBranchExpandTemplate))
+        XCTAssertTrue(officialValues.contains(OfficialUISpec.Text.subagentBranchCollapseTemplate))
+        XCTAssertEqual(OfficialUISpec.Text.subagentBranchExpand("worker"), "Expand worker descendants")
+        XCTAssertEqual(OfficialUISpec.Text.subagentBranchCollapse("worker"), "Collapse worker descendants")
+    }
+
     func testTrajectoryToolbarUsesOfficialLocale() {
         let officialValues = Set(OfficialUISpec.LocaleCatalog.values.values)
         let rendered = [
