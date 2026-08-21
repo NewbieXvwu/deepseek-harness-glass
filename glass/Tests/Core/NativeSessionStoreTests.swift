@@ -996,6 +996,28 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.modelDirectoryStatus, .ready)
     }
 
+    func testResidentResyncIgnoresLateFailureFromStaleInitialHistory() async {
+        let staleHistoryReached = expectation(description: "same-endpoint stale history waits before failure")
+        let api = DelayedOpeningHistorySessionAPI(staleHistoryReached: staleHistoryReached, failStaleHistory: true)
+        let store = NativeSessionStore()
+        let sessionID = "resident-resync-stale-failure"
+        store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+        await fulfillment(of: [staleHistoryReached], timeout: 1)
+
+        store.resyncActiveSession()
+        await eventually(timeout: 1) {
+            store.phase == .ready(sessionID: sessionID)
+                && store.items.map(\.text) == ["resynced authority"]
+                && store.modelDirectory?.current.model == "resynced-model"
+        }
+        await api.releaseHistory()
+        await eventually(timeout: 1) {
+            store.phase == .ready(sessionID: sessionID)
+                && store.items.map(\.text) == ["resynced authority"]
+                && store.modelDirectory?.current.model == "resynced-model"
+        }
+    }
+
     func testConcurrentGapFramesCoalesceIntoOneAuthorityRecovery() async {
         let recoveryHistoryReached = expectation(description: "first gap recovery history is held")
         let api = CoalescingGapFailureSessionAPI(recoveryHistoryReached: recoveryHistoryReached)
@@ -2538,11 +2560,13 @@ final class NativeSessionStoreTests: XCTestCase {
     private final class DelayedOpeningHistorySessionAPI: NativeSessionAPI {
         let staleHistoryReached: XCTestExpectation
         private let historyGate = RecoveryGate()
+        private let failStaleHistory: Bool
         private(set) var historyCalls = 0
         private var modelsCalls = 0
 
-        init(staleHistoryReached: XCTestExpectation) {
+        init(staleHistoryReached: XCTestExpectation, failStaleHistory: Bool = false) {
             self.staleHistoryReached = staleHistoryReached
+            self.failStaleHistory = failStaleHistory
         }
 
         func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
@@ -2550,6 +2574,7 @@ final class NativeSessionStoreTests: XCTestCase {
             if historyCalls == 1 {
                 staleHistoryReached.fulfill()
                 await historyGate.wait()
+                if failStaleHistory { throw DSHTransportError.invalidEndpoint }
                 return .init(events: [historyEntry(seq: 1, id: "stale", text: "stale authority")], hasMore: false, projections: nil)
             }
             return .init(events: [historyEntry(seq: 2, id: "resynced", text: "resynced authority")], hasMore: false, projections: nil)
