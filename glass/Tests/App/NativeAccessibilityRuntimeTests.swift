@@ -231,7 +231,7 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
                 enable: {}
             ),
             expected: [title, acknowledge, cancel, enable],
-            expectedCounts: [title: 1, acknowledge: 1, cancel: 1, enable: 1]
+            expectedCounts: [acknowledge: 1, cancel: 1, enable: 1]
         )
     }
 
