@@ -662,6 +662,18 @@ final class NativeSessionStore: ObservableObject {
         }
     }
 
+    /// RC8 `SessionManager.handleConnected`: refresh the selected parent plus
+    /// every catalog already being observed. The native header owns disclosure
+    /// state, so this Store treats its keyed complete Host snapshots as the only
+    /// durable observation set; it never derives descriptors from summaries.
+    private func resyncSubagentCatalogsAfterRecovery() {
+        guard let rootSessionID = activeSessionID, subagentCatalogAPI != nil else { return }
+        let observedParents = Set(subagentCatalogs.keys).union([rootSessionID])
+        for parentSessionID in observedParents {
+            refreshSubagentCatalog(parentSessionID: parentSessionID)
+        }
+    }
+
     /// RC8 `MessageFeedbackController.resync`: serialize the reconnect list
     /// behind the prior mutation tail. The completed Host list remains the only
     /// source that replaces the sidecar; no local version is synthesized.
@@ -1967,6 +1979,7 @@ final class NativeSessionStore: ObservableObject {
                 self?.hasMoreHistory = history.hasMore
                 self?.phase = .ready(sessionID: sessionID)
                 self?.stitchRecoveryLiveBuffer(generation: generation)
+                self?.resyncSubagentCatalogsAfterRecovery()
                 self?.resyncMessageFeedbackAfterRecovery()
             } catch {
                 guard !Task.isCancelled,

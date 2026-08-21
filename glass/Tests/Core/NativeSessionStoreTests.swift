@@ -399,6 +399,57 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertNil(store.subagentCatalogs["grandchild"], "only an explicit parent refresh may create a cached branch")
     }
 
+    func testAuthorityRecoveryResyncsObservedSubagentCatalogsFromHost() async {
+        let rootID = "recovery-session"
+        let childID = "child-parent"
+        let rootInitial = SubagentListResponse(entries: [
+            .init(kind: "child", id: childID, activity: "inactive", hasChildren: true, mode: "continuable", label: "Initial child", reason: nil),
+        ], parentAvailable: true)
+        let childInitial = SubagentListResponse(entries: [
+            .init(kind: "child", id: "old-grandchild", activity: "inactive", hasChildren: false, mode: "one-shot", label: "Old descendant", reason: nil),
+        ], parentAvailable: true)
+        let rootRecovered = SubagentListResponse(entries: [
+            .init(kind: "child", id: childID, activity: "running", hasChildren: true, mode: "continuable", label: "Recovered child", reason: nil),
+        ], parentAvailable: false)
+        let childRecovered = SubagentListResponse(entries: [
+            .init(kind: "child", id: "new-grandchild", activity: "running", hasChildren: false, mode: "one-shot", label: "New descendant", reason: nil),
+        ], parentAvailable: true)
+        let recoveryHistory = expectation(description: "gap recovery reaches history")
+        let api = RecordingSubagentCatalogAPI(catalogs: [rootID: rootInitial, childID: childInitial])
+        let store = NativeSessionStore()
+        store.open(
+            sessionID: rootID,
+            using: GapRecoveringSessionAPI(recoveryReachedHistory: recoveryHistory),
+            endpoint: URL(string: "http://127.0.0.1:1")!,
+            subagentCatalogAPI: api
+        )
+        store.refreshSubagentCatalog()
+        await eventually(timeout: 1) { store.subagentCatalogs[rootID] == rootInitial }
+        store.refreshSubagentCatalog(parentSessionID: childID)
+        await eventually(timeout: 1) { store.subagentCatalogs[childID] == childInitial }
+
+        api.catalogs = [rootID: rootRecovered, childID: childRecovered]
+        store.applyMuxFrame(sessionEventFrame(
+            sessionID: rootID,
+            seq: 3,
+            type: "user/message",
+            data: .object([
+                "id": .string("catalog-recovery-gap"),
+                "content": .array([.object(["type": .string("text"), "text": .string("trigger catalog recovery")])]),
+                "source": .object(["kind": .string("user")]),
+            ]),
+            surfaceOp: "append"
+        ), sessionID: rootID)
+        await fulfillment(of: [recoveryHistory], timeout: 1)
+        await eventually(timeout: 1) {
+            store.subagentCatalogs[rootID] == rootRecovered && store.subagentCatalogs[childID] == childRecovered
+        }
+
+        XCTAssertEqual(api.parentIDs.count, 4)
+        XCTAssertEqual(Set(api.parentIDs.suffix(2)), Set([rootID, childID]))
+        XCTAssertFalse(store.subagentCatalogs.keys.contains("new-grandchild"), "recovery must not infer a grandchild catalog without an explicit Host list")
+    }
+
     func testSubagentRouteAcceptsOnlyCatalogChildWithKnownMode() {
         let store = NativeSessionStore()
         let continuable = SubagentListEntryDTO(
@@ -1723,8 +1774,8 @@ final class NativeSessionStoreTests: XCTestCase {
 
     @MainActor
     private final class RecordingSubagentCatalogAPI: NativeSubagentCatalogAPI {
-        let catalog: SubagentListResponse?
-        let catalogs: [String: SubagentListResponse]
+        var catalog: SubagentListResponse?
+        var catalogs: [String: SubagentListResponse]
         var error: Error?
         let reached: XCTestExpectation?
         private(set) var parentIDs: [String] = []
