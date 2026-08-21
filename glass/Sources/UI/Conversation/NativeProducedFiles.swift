@@ -11,6 +11,10 @@ import SwiftUI
 struct NativeProducedFiles: View {
     let paths: [String]
     let open: (String) -> Void
+    /// RC8 gates directory disclosure on `isLoopback && host.describe.canOpenPath`.
+    /// This native surface receives that already-verified conjunction from the
+    /// Shell; snapshot and disconnected callers remain fail-closed.
+    let canShowInFolder: Bool
     private let shownLimit = 6
 
     private var shown: ArraySlice<String> { paths.prefix(shownLimit) }
@@ -34,6 +38,9 @@ struct NativeProducedFiles: View {
                     .foregroundStyle(OfficialUISpec.Token.secondary)
                     .background(OfficialUISpec.Token.interactiveHover, in: RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r6, style: .continuous))
                     .accessibilityLabel(OfficialUISpec.Text.producedFilesOpen(name: path))
+                    // RC8 keeps the full path as the duplicate-basename
+                    // disambiguator while rendering only the short basename.
+                    .help(path)
                 }
                 if hiddenCount > 0 {
                     Text(OfficialUISpec.Text.producedFilesMore(hiddenCount))
@@ -42,6 +49,15 @@ struct NativeProducedFiles: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            if hiddenCount > 0, canShowInFolder {
+                Button { open(".") } label: {
+                    Text(OfficialUISpec.Text.producedFilesShowInFolder)
+                }
+                .buttonStyle(.plain)
+                .font(OfficialUISpec.Typography.xs13)
+                .foregroundStyle(OfficialUISpec.Token.secondary)
+                .accessibilityLabel(OfficialUISpec.Text.producedFilesShowInFolder)
+            }
         }
         .padding(.top, OfficialUISpec.Spacing.p16)
         .accessibilityElement(children: .contain)

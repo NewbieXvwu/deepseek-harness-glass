@@ -18,6 +18,7 @@ final class NativeMaterialIsolationRuntimeTests: XCTestCase {
                 jobsPopoverInitiallyOpen: false,
                 jobsLanguageCode: nil,
                 openSession: { _ in },
+                canOpenProjectPath: false,
                 viewRegistry: NativeConversationViewRegistry(),
                 headerContributions: NativeConversationHeaderContributionRegistry()
             ),

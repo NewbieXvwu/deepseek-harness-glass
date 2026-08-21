@@ -15,6 +15,8 @@ struct NativeConversationColumn: View {
     let jobsPopoverInitiallyOpen: Bool
     let jobsLanguageCode: String?
     let openSession: (String) -> Void
+    /// Comes only from a verified loopback Host `host.describe` response.
+    let canOpenProjectPath: Bool
     /// Held by the resident shell in production; default construction keeps
     /// isolated preview/snapshot call sites deterministic.
     let viewRegistry: NativeConversationViewRegistry
@@ -28,6 +30,7 @@ struct NativeConversationColumn: View {
         jobsPopoverInitiallyOpen: Bool,
         jobsLanguageCode: String?,
         openSession: @escaping (String) -> Void,
+        canOpenProjectPath: Bool,
         viewRegistry: NativeConversationViewRegistry,
         headerContributions: NativeConversationHeaderContributionRegistry
     ) {
@@ -38,6 +41,7 @@ struct NativeConversationColumn: View {
         self.jobsPopoverInitiallyOpen = jobsPopoverInitiallyOpen
         self.jobsLanguageCode = jobsLanguageCode
         self.openSession = openSession
+        self.canOpenProjectPath = canOpenProjectPath
         self.viewRegistry = viewRegistry
         self.headerContributions = headerContributions
     }
@@ -53,6 +57,7 @@ struct NativeConversationColumn: View {
                 jobsPopoverInitiallyOpen: jobsPopoverInitiallyOpen,
                 jobsLanguageCode: jobsLanguageCode,
                 openSession: openSession,
+                canOpenProjectPath: canOpenProjectPath,
                 viewRegistry: viewRegistry,
                 headerContributions: headerContributions
             )
@@ -69,6 +74,7 @@ private struct NativeActiveConversationSurface: View {
     let jobsPopoverInitiallyOpen: Bool
     let jobsLanguageCode: String?
     let openSession: (String) -> Void
+    let canOpenProjectPath: Bool
     @ObservedObject var viewRegistry: NativeConversationViewRegistry
     @ObservedObject var headerContributions: NativeConversationHeaderContributionRegistry
 
@@ -217,6 +223,7 @@ private struct NativeActiveConversationSurface: View {
                 selectToolCall: sessionStore.selectToolCall,
                 deliverablesForAssistant: sessionStore.deliverables,
                 openKnownProjectPath: sessionStore.openKnownProjectPath,
+                canOpenProjectPath: canOpenProjectPath,
                 messageFeedbackItems: sessionStore.messageFeedbackItems,
                 isMessageFeedbackAvailable: sessionStore.isMessageFeedbackAvailable,
                 failedMessageFeedbackLoad: sessionStore.failedMessageFeedbackLoad,
@@ -261,6 +268,7 @@ private struct NativeTranscriptScrollView: View {
     let selectToolCall: (String?) -> Void
     let deliverablesForAssistant: (CoreAssistantNode) -> [String]
     let openKnownProjectPath: (String) -> Void
+    let canOpenProjectPath: Bool
     let messageFeedbackItems: [String: MessageFeedbackItemDTO]
     let isMessageFeedbackAvailable: Bool
     let failedMessageFeedbackLoad: Bool
@@ -345,6 +353,7 @@ private struct NativeTranscriptScrollView: View {
                                 node: node,
                                 deliverablesForAssistant: deliverablesForAssistant,
                                 openKnownProjectPath: openKnownProjectPath,
+                                canOpenProjectPath: canOpenProjectPath,
                                 messageFeedbackItems: messageFeedbackItems,
                                 isMessageFeedbackAvailable: isMessageFeedbackAvailable,
                                 failedMessageFeedbackLoad: failedMessageFeedbackLoad,
@@ -390,6 +399,7 @@ private struct NativeConversationNodeRow: View {
     let node: ConversationViewNode
     let deliverablesForAssistant: (CoreAssistantNode) -> [String]
     let openKnownProjectPath: (String) -> Void
+    let canOpenProjectPath: Bool
     let messageFeedbackItems: [String: MessageFeedbackItemDTO]
     let isMessageFeedbackAvailable: Bool
     let failedMessageFeedbackLoad: Bool
@@ -497,7 +507,11 @@ private struct NativeConversationNodeRow: View {
                 }
                 let paths = deliverablesForAssistant(assistant)
                 if !paths.isEmpty {
-                    NativeProducedFiles(paths: paths, open: openKnownProjectPath)
+                    NativeProducedFiles(
+                        paths: paths,
+                        open: openKnownProjectPath,
+                        canShowInFolder: canOpenProjectPath
+                    )
                 }
             }
         }

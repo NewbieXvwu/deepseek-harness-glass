@@ -497,6 +497,7 @@ final class NativeShellController: NativeSplitViewController {
                 openSession: { sessionID in
                     presentation.selectSession(sessionID, workspaceID: Self.workspaceID(for: sessionID, in: presentation))
                 },
+                canOpenProjectPath: presentation.hostDescription?.canOpenPath == true,
                 viewRegistry: presentation.conversationViewRegistry,
                 headerContributions: presentation.conversationHeaderContributions
             ),
@@ -569,6 +570,7 @@ final class NativeShellController: NativeSplitViewController {
                     let current = self.presentation
                     current.selectSession(sessionID, workspaceID: Self.workspaceID(for: sessionID, in: current))
                 },
+                canOpenProjectPath: presentation.hostDescription?.canOpenPath == true,
                 viewRegistry: presentation.conversationViewRegistry,
                 headerContributions: presentation.conversationHeaderContributions
             ),

@@ -2053,6 +2053,26 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertFalse(store.isRunning)
     }
 
+    func testSnapshotDeliverablesFixturePublishesReducerOwnedTurnPaths() {
+        let store = NativeSessionStore()
+        store.loadSnapshotDeliverablesFixture()
+
+        let assistant = tryUnwrap(store.chatNodes.compactMap { $0.data as? CoreAssistantNode }
+            .first(where: { $0.messageID == "deliverables-assistant" }))
+        XCTAssertEqual(assistant.status, .settled)
+        XCTAssertEqual(store.deliverables(for: assistant), [
+            "src/main.swift",
+            "README.md",
+            "notes/implementation.md",
+            "tests/DeliverablesTests.swift",
+            "scripts/verify.sh",
+            "assets/preview.png",
+            "out/report.json",
+        ])
+        XCTAssertFalse(store.isRunning)
+        XCTAssertFalse(store.hasMoreHistory)
+    }
+
     func testSnapshotRetryFixtureMaterializesScheduledTypedAttempt() {
         let store = NativeSessionStore()
         store.loadSnapshotRetryFixture()

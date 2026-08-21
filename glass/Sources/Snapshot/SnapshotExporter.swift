@@ -72,7 +72,7 @@ enum SnapshotExporter {
         let mode: NativeAppShell.PresentationMode
         let workspaceSnapshotDialog: WorkspaceBrowserView.SnapshotDialog
         switch requestedMode {
-        case "conversation", "jobs", "todo", "goal", "queue", "trajectory", "retry", "compaction", "feedback", "model", "permission":
+        case "conversation", "jobs", "todo", "goal", "queue", "trajectory", "retry", "compaction", "feedback", "model", "permission", "deliverables":
             mode = .conversation
         case "workspace-search", "workspace-rename", "session-rename", "workspace-delete":
             mode = .welcome
@@ -118,6 +118,9 @@ enum SnapshotExporter {
             workspaceStore.loadSnapshotFixtureWorkspace()
         case .conversation where requestedMode == "feedback":
             sessionStore.loadSnapshotFeedbackFixture()
+            workspaceStore.loadSnapshotFixtureWorkspace()
+        case .conversation where requestedMode == "deliverables":
+            sessionStore.loadSnapshotDeliverablesFixture()
             workspaceStore.loadSnapshotFixtureWorkspace()
         case .conversation where requestedMode == "model":
             sessionStore.loadSnapshotModelSelectionFixture()

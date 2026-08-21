@@ -342,6 +342,7 @@ jobs:
           test -s "$snapshot_dir/welcome-light.png"
           test -s "$snapshot_dir/welcome-dark.png"
           test -s "$snapshot_dir/conversation-dark.png"
+          test -s "$snapshot_dir/deliverables-light.png"
           test -s "$snapshot_dir/model-selector-light.png"
           test -s "$snapshot_dir/jobs-expanded-light.png"
           test -s "$snapshot_dir/jobs-expanded-dark.png"

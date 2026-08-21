@@ -2833,6 +2833,113 @@ final class NativeSessionStore: ObservableObject {
         appliedSequences = Set(conversationEvents.map(\.event.seq))
     }
 
+    /// Snapshot-only RC8 `ui-deliverables` fixture. The reducer derives the
+    /// completed turn's locations from a real diff card and successful result;
+    /// the assistant's closing sequence selects the correct turn tail.
+    func loadSnapshotDeliverablesFixture() {
+        let sessionID = "snapshot-deliverables"
+        phase = .ready(sessionID: sessionID)
+        activeSessionID = sessionID
+        let conversationEvents = [
+            ConversationEventInput(event: SessionEventDTO(
+                type: "user/message",
+                seq: 301,
+                time: 301,
+                data: .object([
+                    "id": .string("deliverables-user"),
+                    "content": .array([.object(["type": .string("text"), "text": .string("Write the requested project files.")])]),
+                    "source": .object(["kind": .string("user")]),
+                ]),
+                surfaceOp: .string("append")
+            )),
+            ConversationEventInput(event: SessionEventDTO(
+                type: "turn/start",
+                seq: 302,
+                time: 302,
+                data: .object(["turn": .number(1)])
+            )),
+            ConversationEventInput(
+                event: SessionEventDTO(
+                    type: "tool/call",
+                    seq: 303,
+                    time: 303,
+                    data: .object([
+                        "turn": .number(1),
+                        "callId": .string("write-1"),
+                        "name": .string("write"),
+                    ]),
+                    surfaceOp: .string("append")
+                ),
+                view: ToolEventViewDTO(for: "call", view: .object([
+                    "card": .string("diff"),
+                    "locations": .array([
+                        .object(["path": .string("src/main.swift")]),
+                        .object(["path": .string("README.md")]),
+                        .object(["path": .string("notes/implementation.md")]),
+                        .object(["path": .string("tests/DeliverablesTests.swift")]),
+                        .object(["path": .string("scripts/verify.sh")]),
+                        .object(["path": .string("assets/preview.png")]),
+                        .object(["path": .string("out/report.json")]),
+                    ]),
+                ]))
+            ),
+            ConversationEventInput(event: SessionEventDTO(
+                type: "tool/result",
+                seq: 304,
+                time: 304,
+                data: .object([
+                    "turn": .number(1),
+                    "message": .object([
+                        "source": .object(["callId": .string("write-1")]),
+                        "content": .array([.object([:])]),
+                    ]),
+                ]),
+                surfaceOp: .string("append")
+            )),
+            ConversationEventInput(event: SessionEventDTO(
+                type: "assistant/message",
+                seq: 305,
+                time: 305,
+                data: .object([
+                    "turn": .number(1),
+                    "step": .number(1),
+                    "message": .object([
+                        "id": .string("deliverables-assistant"),
+                        "content": .array([.object(["type": .string("text"), "text": .string("Files written successfully.")])]),
+                    ]),
+                ]),
+                surfaceOp: .string("append")
+            )),
+            ConversationEventInput(event: SessionEventDTO(
+                type: "turn/end",
+                seq: 306,
+                time: 306,
+                data: .object(["turn": .number(1)])
+            )),
+        ]
+        replaceConversationWindow(conversationEvents, hasMore: false)
+        items = []
+        for input in conversationEvents {
+            apply(event: input.event)
+        }
+        toolInvocations = []
+        queuedMessages = []
+        backgroundJobs = []
+        modelDirectory = nil
+        modelDirectoryStatus = .idle
+        pendingApproval = nil
+        pendingQuestion = nil
+        selectedToolCallID = nil
+        isRunning = false
+        hasMoreHistory = false
+        isLoadingOlderHistory = false
+        isSubmittingPrompt = false
+        draft = ""
+        pendingImages = []
+        lastError = nil
+        appliedSequences = Set(conversationEvents.map(\.event.seq))
+    }
+
     /// Snapshot-only message-feedback fixture. It settles the tooling assistant
     /// through the same reducer event path and supplies a complete Host-shaped
     /// sidecar solely for paired native visual capture.

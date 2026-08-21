@@ -351,6 +351,8 @@ enum OfficialUISpec {
         static let producedFilesMoreOne = "+ 1 file"
         static let producedFilesMoreTemplate = "+ {count} files"
         static let producedFilesOpenTemplate = "Open {name}"
+        // Source: packages/client/ui-deliverables/src/client/locales.ts:21 (en)
+        static let producedFilesShowInFolder = "Show in folder"
         static func producedFilesMore(_ count: Int) -> String {
             count == 1 ? producedFilesMoreOne : producedFilesMoreTemplate.replacingOccurrences(of: "{count}", with: String(count))
         }
