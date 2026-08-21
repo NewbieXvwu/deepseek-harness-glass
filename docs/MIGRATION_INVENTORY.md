@@ -17,7 +17,7 @@
 
 ## 当前禁止清单
 
-主应用及其 `Core`、`UI`、`Features`、内置设置模块不得引入 `WebKit`、`WKWebView`、`WKUserScript`、`evaluateJavaScript`、`MutationObserver`、网页 CSS 注入或网页 DOM 读取。第三方插件兼容通过独立的 `PluginWebHost` 模块承载，实行自适应双轨制（优先原生 Manifest/Adapter，无则自动启动轻量 Web 沙箱卡片容器）；沙箱容器严格限定在单卡片或独立设置面板内，遵循 loopback same-origin 策略并由独立安全测试覆盖，严禁侵入核心应用框架。
+主应用及其 `Core`、`UI`、`Features`、内置设置模块不得引入 `WebKit`、`WKWebView`、`WKUserScript`、`evaluateJavaScript`、`MutationObserver`、网页 CSS 注入或网页 DOM 读取（红区：官方内容渲染权归原生）。第三方插件兼容通过登记制的独立插件平面 target 承载（Ghost Plane 幽灵平面，绿区，唯一允许 WKWebView 之处），详见 [PLUGIN_COMPATIBILITY_PROPOSAL.md](PLUGIN_COMPATIBILITY_PROPOSAL.md)；平面内交互必须经原生桥保证键盘可达性、VoiceOver 与 TCC 权限语义，红区断言由既有运行态隔离测试与 loopback same-origin 策略覆盖。
 
 ## T1.1 运行时资产台账
 

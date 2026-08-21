@@ -2,7 +2,7 @@
 
 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的原生 macOS 客户端——你熟悉的 dsh，装进一扇真正的玻璃窗口。
 
-本仓库 fork 自 [qniequn-boop/deepseek-harness-glass](https://github.com/qniequn-boop/deepseek-harness-glass)。上游项目用原生玻璃窗口包裹官方 WebUI；本 fork 更进一步，用 Swift 6（SwiftUI + AppKit）完整重写浏览器客户端，官方 Host 继续担任后端。macOS CI 会实际装载核心原生表面并递归检查其 `NSView` tree 中不存在 `WKWebView`，测试另含真实注入 WebView 的负例；第三方插件通过自适应双轨制兼容（原生 Manifest/Adapter 优先，未适配的第三方 React 卡片自动由轻量沙箱微宿主兜底承载）。
+本仓库 fork 自 [qniequn-boop/deepseek-harness-glass](https://github.com/qniequn-boop/deepseek-harness-glass)。上游项目用原生玻璃窗口包裹官方 WebUI；本 fork 更进一步，用 Swift 6（SwiftUI + AppKit）完整重写浏览器客户端，官方 Host 继续担任后端。macOS CI 会实际装载核心原生表面并递归检查其 `NSView` tree 中不存在 `WKWebView`，测试另含真实注入 WebView 的负例；第三方插件以 Ghost Plane 运行时达成全兼容（一层透明共享 Web 平面承载官方模块表、槽位注册表与几何精确的骨架 DOM，未修改的插件 client 原样挂载到其预期锚点），原生 Manifest/Adapter 作为可选精品快车道，详见 [docs/PLUGIN_COMPATIBILITY_PROPOSAL.md](docs/PLUGIN_COMPATIBILITY_PROPOSAL.md)。
 
 - **English:** [README.md](README.md)
 

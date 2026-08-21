@@ -32,7 +32,7 @@
 
 ### 4. 原生化、Host真源和Liquid Glass边界
 
-核心 UI 必须完全原生。会话、工作区、官方设置、模型、凭据、工具、审批、问题、命令和插件配置不得通过 WebView、DOM、JavaScript、CSS注入或网页截图完成。Host 是唯一业务真源；所有读写通过官方 loopback RPC/SSE 和类型化 DTO，原生端不建立与 Host 冲突的业务数据库。Liquid Glass 只用于导航、侧栏、工具栏、inspector、popover、sheet和官方已有的操作控件，不得将内容层整体覆盖为玻璃，也不得借玻璃效果创造官方没有的视觉层级。第三方插件实行**渐进双轨制兼容**：检测到专有资产（`SwiftAdapter` / `NativeUIManifest`）时自动走专有原生路径；未提供原生适配的第三方 React 插件自动由轻量沙箱 `PluginWebHost` 局部卡片容器无缝兜底运行；核心应用外壳与会话骨架严禁被 WebView 侵入。
+核心 UI 必须完全原生。会话、工作区、官方设置、模型、凭据、工具、审批、问题、命令和插件配置不得通过 WebView、DOM、JavaScript、CSS注入或网页截图完成。Host 是唯一业务真源；所有读写通过官方 loopback RPC/SSE 和类型化 DTO，原生端不建立与 Host 冲突的业务数据库。Liquid Glass 只用于导航、侧栏、工具栏、inspector、popover、sheet和官方已有的操作控件，不得将内容层整体覆盖为玻璃，也不得借玻璃效果创造官方没有的视觉层级。第三方插件实行 **Ghost Plane 全兼容运行时**（红区/绿区白名单：官方内容渲染权归原生；未修改的插件 client 在登记制的透明共享 Web 平面原样挂载到其预期锚点；`SwiftAdapter` / `NativeUIManifest` 为可选精品快车道），详见 [docs/PLUGIN_COMPATIBILITY_PROPOSAL.md](docs/PLUGIN_COMPATIBILITY_PROPOSAL.md)。
 
 ### 5. “完成”的判定必须有实现、来源和回归证据
 
@@ -56,7 +56,7 @@
 | D1 | 官方 UI 严格复刻。 | 在已锁定 DSH build 下，文案来自官方 locale；结构、间距、行序、状态和官方交互测试场景可追溯到 `OfficialUISpec`。 |
 | D2 | Host 是业务真源并支持端口复用。 | 任何会话、工作区、设置、凭据、模型、命令和插件配置，均通过官方 loopback RPC/SSE 获取或写入，支持自动探测并复用本地正在运行的 `127.0.0.1:3080` 实例或内置 Host。 |
 | D3 | Liquid Glass 服从系统设计。 | 侧栏、inspector、工具栏、sheet、popover 和少数操作控件优先使用系统材质；内容层不泛滥叠加 glass effect。[9] [10] |
-| D4 | 插件兼容实行自适应双轨制。 | 插件按 `swift-adapter` ➔ `native-manifest` ➔ `web-fallback (自动沙箱)` ➔ `host-only` 自动分流，状态可在诊断页面查询。 |
+| D4 | 插件兼容实行 Ghost Plane 全兼容运行时。 | 插件按 `swift-adapter` ➔ `native-manifest` ➔ `ghost-plane (自动承载)` ➔ `host-only` 自动分流，红/绿区白名单隔离，状态可在诊断页面查询。 |
 | D5 | Host 版本兼容与安全宽容。 | 启动时检查支持的 Host build；已验证版本提供最高保证，未知版本给予兼容提示并以最佳努力（Best-effort）模式放行，绝不强制锁死输入框。 |
 
 - [x] **T0.1：在 README 与贡献指南中写入 D0–D5。** 说明 `WebKit` 只能位于 `PluginWebHost` 目标中，禁止在主应用 target 或任何核心 renderer 中导入。
@@ -134,7 +134,7 @@
  ├── Plugins/
  │   ├── NativeUIManifest/
  │   ├── AdapterRegistry/
- │   └── PluginWebHost/               # 唯一允许导入 WebKit 的模块
+ │   └── GhostPlane/                  # 唯一允许导入 WebKit 的模块（绿区，登记制）
  └── Tests/
      ├── Contract/
      ├── Reducer/
@@ -463,41 +463,68 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
   - 验收：Host 只读或无能力时按钮/文案和官方一致；无法写入时没有误导性的成功状态。
   - 进度：已按锁定 RC8 `ui-agent-preset` 的 Host-authority 契约新增 `NativeAgentPresetAPI` 与 `NativeAgentPresetStore`。store 仅保留 Host roster、capability 与只读 composition：加载保留 Host 顺序和 trust/broken/default 元数据；失败清空全部过时事实；read 仅接受与请求 id 匹配的 Host composition；copy/remove 均先经 typed facade，再重新读取整个 roster，绝不乐观增删本地行；select 仅接受当前 roster 中非 broken 的 Host-confirmed id。`NativeAgentPresetStoreTests` 覆盖 Host roster 顺序、copy 后全量 refresh、copy failure 无本地插入、remove 后清除过时 selected/detail，以及未列出 Host response 不被视为 selection。Shell 已在 verified Host 重连、打开 Settings 与断线时刷新/清空该 store，Settings 新增仅用官方 `ui-agent-preset` locale 的导航、列表、错误重试和只读 composition 查看。`agentPreset.openDocument` 已接入官方 Open folder action：Host 自行打开时不制造路径状态；仅在 Host 明确返回 `opened: false` 与非空 path 时显示官方 revealed-path 标签，后续 roster 刷新移除已不存在 preset 的过时路径；回归锁定上述边界。原生 Settings 现对照官方条件接入 Duplicate/Delete：broken 或不可 author 时 Duplicate 禁用，系统 preset 仅可 View，用户 preset 仅可 Open/Show location；copy sheet 只提交 `{from, agentPreset, name?}` 的 typed Host request，非法/冲突 identifier 本地阻断且绝不显示成功；Delete 仅出现在 user preset，并以官方 title/description/cancel/confirm locale 的原生 destructive confirmation 发起。Host 接受的 copy/remove 仍以 roster re-read 判定成功。官方默认 preset 已按 `ui-agent-preset/settings-store.ts` 接入 `agent-presets.default`：`CoreAgentPresetDefaultState` 仅投影该 settings field，`NativeSettingsStore` 只允许当前 Host roster 的 non-broken row 发起 revision-fenced mutation，accepted namespace 才更新可见 default；Shell 随后 re-read roster，只有 Host 将该 row 标为 `isDefault` 才报告成功。回归锁定 path `default`、revision 17→18、Host accepted value 与 broken row 零写入。session seat 已接入 conversation 的 selected Host blank session：picker 仅在 `blank == true` 时显示，候选仅为 non-broken Host roster，当前值优先 session composition、缺失/过时才回退 Host default；运行中 session 不渲染该控件。选择先验证 workspace snapshot 仍为 blank，再经 typed `agentPreset.select`；busy fence 阻止并发选择，accepted 后只刷新 Host workspace authority，绝不在客户端重写 session composition。`NativeAgentPresetSeatPresentationTests` 锁定 blank/started、session composition/default fallback 与 broken exclusion。macOS XCTest/视觉证据仍待完成，故保持未勾选。
 
-## 11. 第三方插件：渐进双轨兼容体系（专有原生路径 + 自动沙箱 Web 宿主）
+## 11. 第三方插件：Ghost Plane 全兼容运行时（红/绿区白名单 + 精品原生快车道）
 
-官方浏览器插件依靠 React/Cordis card 注册。为兼顾 macOS 原生质感与社区生态即插即用，采用**自适应双轨制**（有原生资产走专有路径，无则自动启动轻量 Web 沙箱宿主），确保 100% 社区插件零门槛可用。
+官方浏览器插件依靠 React/Cordis card 注册，且深度耦合官方页面的槽位位置、服务注入与文档级 DOM 契约。为达成社区生态零修改全兼容、同时保住原生本体的全部价值，采用 **Ghost Plane 幽灵平面**（透明共享 Web 平面承载官方模块表、真实 SlotRegistry、官方 Token 与几何精确的骨架 DOM；插件 client 原样挂载到其预期锚点），并以 `SwiftAdapter` / `NativeUIManifest` 作为可选精品快车道。完整设计、18 插件实证证据与验证路径见 [docs/PLUGIN_COMPATIBILITY_PROPOSAL.md](docs/PLUGIN_COMPATIBILITY_PROPOSAL.md)。
 
 - [ ] **T11.1：定义 `NativeUIManifest` v1。** 声明原生 Schema 描述模型：`pluginId`、`hostBuildRange`、`manifestVersion`、`kind`、`localeResources`、`sections`、`fields`、`groups`、`order`、`secretRoles`、`validation`、`actions`、`requiredCapabilities`、`integrity`。
   - 依赖：T0.2、T10.2。
-  - 验收：manifest 有 JSON Schema、版本升级规则和负面 fixture；未通过完整性检查的安全降级到通用沙箱容器。
+  - 验收：manifest 有 JSON Schema、版本升级规则和负面 fixture；未通过完整性检查的安全降级到 Ghost Plane 兜底承载。
 
 - [ ] **T11.2：实现 `NativeSchemaForm`。** 支持官方可描述的 text、number、toggle、select、secret、path、group、help、reset、save/discard 和 read-only 字段；字段排列严格由 manifest 指定，以 100% 原生 SwiftUI 动态渲染设置表单。
   - 依赖：T11.1、T10.2。
   - 验收：任意 manifest field 不会导致代码执行；通过纯原生组件实现配置变更并直接提交 Host typed RPC。
 
-- [ ] **T11.3：实现 `SwiftAdapterRegistry`。** 用插件 ID 映射深度审查的原生 Swift 特性；允许复杂内置/高频插件以原生 Swift 视图复刻官方交互与 Liquid Glass 质感。
+- [ ] **T11.3：实现 `SwiftAdapterRegistry`。** 用插件 ID 映射深度审查的原生 Swift 特性；允许复杂内置/高频插件以原生 Swift 视图复刻官方交互与 Liquid Glass 质感。角色为精品快车道（零桥接开销），非兼容的前提条件。
   - 依赖：T11.1。
   - 验收：adapter 的可用性、最低 Host build、测试 fixture 和生效状态均可枚举。
 
-- [ ] **T11.4：实现插件自适应双轨分流器与兼容矩阵。** 实现装配时的自动路由探测（分流优先级：`SwiftAdapter` ➔ `NativeUIManifest` ➔ `PluginWebHost 自动沙箱` ➔ `Host-Only`）。
-  - 依赖：T11.1、T11.3。
-  - 验收：无任何专有适配文件的第三方 React 插件自动路由至沙箱容器；诊断页清晰展示每个插件当前激活的运行轨与原因。
+- [ ] **T11.4：实现插件分流器与兼容矩阵。** 实现装配时的自动路由探测（分流优先级：`SwiftAdapter` ➔ `NativeUIManifest` ➔ `Ghost Plane 自动承载` ➔ `Host-Only`）；含 profile 装载过滤（竞争 stdio 的 TUI/runtime 类拒绝装入共享 profile 并提示独立 profile）。
+  - 依赖：T11.1、T11.3、GP-2。
+  - 验收：无任何专有适配文件的第三方 React 插件自动路由至 Ghost Plane；诊断页清晰展示每个插件当前激活的运行轨与原因；`upstream-defect` 类（如硬编码 Windows 进程）有明确标注而非静默失败。
 
-- [ ] **T11.5：实现 `PluginWebHost` 自动沙箱微宿主。** 针对未原生化的第三方 React 插件，提供通用的轻量 `mini-host.html` 容器，内置官方 React/Cordis 运行时、公共组件与 CSS Token，自动从 Host 加载 `/plugins/<id>/client.js` 并挂载 React 组件。限制为 loopback same-origin、禁止外网导航、禁止读取非插件本地资源。
-  - 依赖：T11.4。
-  - 验收：社区标准 React 插件在无任何手动适配下可完整加载、渲染并执行 RPC 交互；网络策略阻断外站请求与 file URL。
+- [ ] **T11.5：实现 Ghost Plane host（固定锚点平面）。** 单一共享的全窗口近透明 WKWebView：内置官方模块表（`window.__ModuleLoader__` 契约）、真实 SlotRegistry、官方 CSS Token，构建页面时依序重放 `webServer.tapIndex` 变换（限定受控兼容通道，先净化与来源追踪）；加载 `/plugins/<id>/client.js` 并按官方语义挂载，typed bridge 服务须在 entry 激活前以官方一致方式提供（hard injection gate）。配套隐形骨架 DOM（结构真、内容空、几何真，几何由 `OfficialColumnLayoutFixtures` 算法驱动）与平台 API 字典第一批 shim（Notification→UNUserNotificationCenter、clipboard→NSPasteboard、visibilityState←窗口状态、download→NSSavePanel）。限制为 loopback same-origin、禁止外网导航、禁止读取非插件本地资源。
+  - 依赖：GP-1、GP-2。
+  - 验收：P0 试金石插件（`dsh-review-loop`、`dsh-open-in-vscode`）在零修改下达到提案预期兼容度；网络策略阻断外站请求与 file URL；tapIndex 重放后令牌类插件写操作可用。
 
-- [ ] **T11.6：实现沙箱卡片自适应与视觉融合。** 在单卡片/独立设置面板中嵌入沙箱容器：利用 `ResizeObserver` 动态同步内容高度至 SwiftUI 外层以消除内部滚动条；设置透明背景让原生窗口底色透出；自动同步 macOS Light/Dark 模式。
+- [ ] **T11.6：实现单一主 document 平面与事件桥。** 固定锚点与滚动内容锚点（`turnTail`、`toolview`）全部同住一个 WKWebView 主 document；滚动同步退化为向平面传递 `scrollOffset` 标量（提案 v2 M2，废弃 v1 的内联切片/BroadcastChannel 设计）。事件桥四件套——按键分诊器（KeyboardEvent 完整语义转发 + draft 回写）、粘贴桥（粘贴板图像 → 合成 ClipboardEvent）、选区投影（Selection API 完整面双向对称，含回环抑制）、拖拽桥（NSDragging ⇄ DataTransfer）；z 序双实例（基础层 + portal 浮层）与焦点协调。
   - 依赖：T11.5。
-  - 验收：第三方卡片高度自适应撑开，随外层原生列表平滑滚动；主题跟随系统毫秒级切换，无白屏/闪烁现象。
+  - 验收：`at-file` @ 补全全键盘可用；vision 类贴图即析；`sidebar-qa` 划词追问闭环；快速惯性滚动下切片无可见错位；VoiceOver 焦点顺序可测。
 
-- [ ] **T11.7：禁止兼容沙箱侵入核心 UI 骨架。** 会话外壳、侧栏、窗口容器、Composer 与官方核心设置绝不能借“插件兼容”替换为整页 WebUI；`PluginWebHost` 只能由独立的插件路由/宿主 target 引用，`GlassCore`、`GlassUI`、`DeepSeekHarnessGlassApp` 与其核心 shell 路径不得直接依赖或链接它。
+- [ ] **T11.7：红/绿区边界门禁。** 红区（会话正文、侧栏列表、设置表单、工作区树等官方内容渲染）绝不能交由 Web 承载；Ghost Plane 只能由登记制的独立插件平面 target 引用，`GlassCore`、`GlassUI`、`DeepSeekHarnessGlassApp` 与其核心 shell 路径不得直接依赖或链接它；绿区内交互必须经原生桥保证键盘可达性、VoiceOver 与 TCC 权限语义。
   - 依赖：T11.5。
-  - 验收：真实运行态 diagnostics/NSView tree test 报告核心应用结构中 WebView 数量始终为 0，且以注入真实 WebView 的负例证明确实可拒绝违规；第三方沙箱严格限制在单卡片或独立弹窗边界内；Plugin target 接入后必须以 `swift package describe --type json` 的允许/禁止 target graph 与运行态 host view isolation 测试证明仅明确登记的隔离插件路由 target 可连接该微宿主，绝不对 Core/UI/App 的 Swift 源码做 import 或 symbol 关键词扫描。
+  - 验收：真实运行态 diagnostics/NSView tree test 报告红区 WebView 数量始终为 0，且以注入真实 WebView 的负例证明确实可拒绝违规；Plugin target 接入后必须以 `swift package describe --type json` 的允许/禁止 target graph 与运行态 host view isolation 测试证明仅明确登记的隔离插件路由 target 可连接该平面，绝不对 Core/UI/App 的 Swift 源码做 import 或 symbol 关键词扫描。
+
+- [ ] **T11.8：骨架契约防漂移门禁。** 骨架 DOM 的 selector/契约属性清单（`[role=menu]`、`data-chat-anchor-key`、`data-streaming` 等）**以及 SlotMap、服务声明、module manifest** 纳入 spec-drift CI：对官方锁定 build 页面抓取契约快照并与骨架定义 diff，漂移即红。仅快照 selector 不足以捕获 slot/注入签名变化——DOM 看似一致时插件仍可能死于 injection gate。
+  - 依赖：T2.x OfficialUISpec 门禁体系。
+  - 验收：人为篡改骨架契约或 SlotMap/服务声明时 CI 失败；官方 build 升级流程自动产出新快照供评审。
+
+### GP 任务族：Ghost Plane 基础设施（T11.5/T11.6 的前置件，设计见提案 §2/§5）
+
+- [ ] **GP-1：骨架 DOM 生成器。** 由原生壳同步生成同构骨架（结构 + 契约属性 + ID 映射表），几何复用 `OfficialColumnLayoutFixtures` 算法；内容留空。
+  - 验收：骨架节点与原生组件树一一对应；契约属性与 T11.8 快照一致。
+
+- [ ] **GP-2：固定锚点平面 host。** 单一共享近透明 WKWebView + 官方模块表 + SlotRegistry + token 注入 + tapIndex 重放；settings 卡片作为其固定锚点特例。
+  - 验收：官方 loader 契约下插件 client entry 正常激活（inject 服务齐备）。
+
+- [ ] **GP-3：滚动标量同步引擎。** 原生会话流滚动 → 向主 document 传递 `scrollOffset` 标量 → 平面内 transform 内容；惯性滚动下插件卡片仅允许轻微拖影（视觉瑕疵），禁止功能错位；需 120Hz ProMotion 实测（开放验证项）。
+  - 验收：切片随原生滚动零功能错位；跨插件服务调用一致（单 document 保证互操作）。
+
+- [ ] **GP-4：事件桥四件套。** 按键分诊器、粘贴桥、选区投影（双向对称）、拖拽桥；z 序双实例与焦点协调。
+  - 验收：各桥按平台 API 完整契约面定义行为（非逐插件键位/样本）；回环抑制有测试。
+
+- [ ] **GP-5：平台 API 字典第一批 + PermissionBroker。** Notification→UNUserNotificationCenter、clipboard→NSPasteboard、visibilityState←窗口状态、online/offline←NWPathMonitor、download→NSSavePanel、文件选择→NSOpenPanel。PermissionBroker 实现浏览器式初次调用授权：`(pluginId, capability)` 记忆 granted/denied，首调弹原生对话框（插件名 + 能力说明）；settings 仅提供事后查看与撤销；外链/OAuth 跳转前确认 URL。
+  - 验收：纯通知类插件零修改达到可用，TCC 首调弹窗由系统接管；权限记录可撤销；无预授权设置入口。
+
+- [ ] **GP-6：profile 共享与装载过滤。** 默认复用 `~/.dsh/profiles/web`；竞争 stdio 的 runtime/TUI 类拒绝装入并提示独立 profile；settings 提供独立 profile 开关（默认关）。
+  - 验收：marketplace 类安装器写入对 glass Host 即时生效；过滤规则有诊断可见原因。
+
+- [ ] **GP-7：runtime Attach/Adopt/Install 阶梯。** Attach（loopback 发现活跃 host）> Adopt（系统静态安装且版本=锁定 build）> Install（引导下载到 app 容器）；仅锁定 build 给 verified，否则 read-only 降级。
+  - 验收：Attach 模式零 Node 依赖可用；非锁定 build 不出现绿色 verified 状态。
 
 ## 12. 测试、视觉回归、性能与安全（第一性原理质量体系）
 
-质量保证遵循真实运行态行为验证，坚决杜绝源码纯文本扫描等形式主义测试。核心覆盖真实协议状态机、SSE 混沌网络、千条长会话压力、真实键盘无障碍流与双轨插件沙箱隔离。
+质量保证遵循真实运行态行为验证，坚决杜绝源码纯文本扫描等形式主义测试。核心覆盖真实协议状态机、SSE 混沌网络、千条长会话压力、真实键盘无障碍流与插件平面红/绿区隔离。
 
 - [x] **T12.1：建立 raw-event fixture 管线。** 从官方 e2e/test fixtures 或经审计的录制会话导出 anonymized JSON，覆盖 happy path、错误、重连、并发、长会话和未知节点。
   - 依赖：T4.6、T6.4。
@@ -522,15 +549,15 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
   - 依赖：T5.6、T8–T11。
   - 验收：核心操作路径 100% 支持无鼠标键盘盲操；VoiceOver 读屏语义完整。
 
-- [ ] **T12.6：长会话极限压力与性能基准 (Stress Benchmarks)。** 测量启动耗时、1,000+ 条超长会话历史极速滚动平滑度、流式 10k chunks 主线程响应、超长代码块/Markdown 排版耗时，以及双轨沙箱 50 次装卸后的内存清理。
+- [ ] **T12.6：长会话极限压力与性能基准 (Stress Benchmarks)。** 测量启动耗时、1,000+ 条超长会话历史极速滚动平滑度、流式 10k chunks 主线程响应、超长代码块/Markdown 排版耗时，以及插件平面 50 次装卸后的内存清理。
   - 依赖：T8–T10。
   - 验收：建立帧率（60fps+）与内存基准线，拖拽 resize 与长文本滚动无主线程卡顿。
   - 进度：`RawEventReplayReducerTests.testLongSessionReplayPerformanceBaseline` 以 T12.1 的匿名 1,000-turn（4,000 raw event）fixture 记录 `XCTClockMetric`，每次完整重建 reducer 并断言 2,000 个 chat node materialize；这为 macOS CI 的可追溯 core replay 时钟基线，不包含任何私有会话数据。另一个 `XCTClockMetric` 直接生成 10,000 个 text-delta chunk，锁定高频流仅 materialize 单一 keyed assistant row。Markdown renderer 还对 2,000 行 fenced Swift 与 200 条安全链接记录解析/高亮时钟，同时断言 code byte-for-byte 保留。启动、10k streaming、Markdown、WindowServer FPS/resize、双轨沙箱内存和阈值治理仍待完成，故保持未勾选。
 
-- [ ] **T12.7：安全隔离与双轨沙箱审查。** 审查 loopback 信任边界、RPC 内容类型、下载路径安全、Markdown 外部链接拦截、凭据内存生命周期与 `PluginWebHost` 严格沙箱隔离（阻断外网与 file:// 读取）。
+- [ ] **T12.7：安全隔离与插件平面审查。** 审查 loopback 信任边界、RPC 内容类型、下载路径安全、Markdown 外部链接拦截、凭据内存生命周期与 Ghost Plane 严格隔离（红/绿区 + T4 容器 target 登记、tapIndex 重放的 HTML 净化、平面内外网与 file:// 阻断、TCC 权限语义统一、PermissionBroker 首调授权、profile 变更回滚边界——可回滚 staged、不可回滚如实标注）。安全立场为安装时刻信任边界（npm 包模型）：client 桥能力为同插件 Host 半区严格子集，不构成新攻击面。
   - 依赖：T3–T4、T8.3、T10.4、T11。
-  - 验收：安全 checklist 全部通过，第三方 Web 插件完全限制在独立沙箱内。
-  - 进度：`HarnessHostController.announcedEndpoint` 现除精确 `http://127.0.0.1` 与有效端口外，还拒绝 URL userinfo 与 port 0；回归覆盖 https、localhost、缺失端口、userinfo、零端口和非法输出 offset，避免非规范启动公告进入 Host verification。`SessionLogExporter` 也只接受规范 `http://127.0.0.1:<nonzero port>` 下载 URL，并在文件 materialization 前复核最终 HTTP URL；外部 host、https、localhost、userinfo 与 port 0 的负例均确认在发起网络请求前失败。`CredentialViewDTO` 的回归还以异常携带 raw `value` 的 payload 验证 production typed view 只保留 configured/source/writable，重编码不含原始 value，防止 describe 状态成为凭据 readback 容器。2026-08-21 production source surface 审计未发现 `PluginWebHost`、`WKWebView` 或第三方 web plugin renderer；`NativeReleaseFeaturePolicy.releaseCandidate` 也不注册未完成的 complex subagent catalog entry，避免把未隔离的复杂入口带入 release。真正 PluginWebHost 的独立 target、网络/file sandbox 与运行态注入负例仍未实现，故不可将此 absence audit 当作 T11/T12.7 完成证据。`HostLogRedactor` 现额外识别 JSON 字符串中的 api_key/cookie/token/secret/password 字段（含转义引号 payload）；`HarnessHostControllerTests` 验证 snapshot copy 与幂等 redactor 均不泄露 JSON credential 值。Markdown 外链 policy 现额外拒绝 HTTP(S) userinfo 与 port 0；`NativeMarkdownRendererTests` 覆盖 destination parser、external router 与 sanitizer 的 credentialed URL/零端口负例，确保不可信 Markdown 不会借外链触发携带凭据或无效端口请求。诊断 redaction 与插件隔离仍需按完整 checklist/运行态继续闭环，故保持未勾选。
+  - 验收：安全 checklist 全部通过，插件平面完全限制在登记制的绿区边界内。
+  - 进度：`HarnessHostController.announcedEndpoint` 现除精确 `http://127.0.0.1` 与有效端口外，还拒绝 URL userinfo 与 port 0；回归覆盖 https、localhost、缺失端口、userinfo、零端口和非法输出 offset，避免非规范启动公告进入 Host verification。`SessionLogExporter` 也只接受规范 `http://127.0.0.1:<nonzero port>` 下载 URL，并在文件 materialization 前复核最终 HTTP URL；外部 host、https、localhost、userinfo 与 port 0 的负例均确认在发起网络请求前失败。`CredentialViewDTO` 的回归还以异常携带 raw `value` 的 payload 验证 production typed view 只保留 configured/source/writable，重编码不含原始 value，防止 describe 状态成为凭据 readback 容器。2026-08-21 production source surface 审计未发现 `PluginWebHost`、`WKWebView` 或第三方 web plugin renderer；`NativeReleaseFeaturePolicy.releaseCandidate` 也不注册未完成的 complex subagent catalog entry，避免把未隔离的复杂入口带入 release。真正登记制 Ghost Plane target、网络/file sandbox 与运行态注入负例仍未实现，故不可将此 absence audit 当作 T11/T12.7 完成证据。`HostLogRedactor` 现额外识别 JSON 字符串中的 api_key/cookie/token/secret/password 字段（含转义引号 payload）；`HarnessHostControllerTests` 验证 snapshot copy 与幂等 redactor 均不泄露 JSON credential 值。Markdown 外链 policy 现额外拒绝 HTTP(S) userinfo 与 port 0；`NativeMarkdownRendererTests` 覆盖 destination parser、external router 与 sanitizer 的 credentialed URL/零端口负例，确保不可信 Markdown 不会借外链触发携带凭据或无效端口请求。诊断 redaction 与插件隔离仍需按完整 checklist/运行态继续闭环，故保持未勾选。
 
 - [ ] **T12.8：迁移遗留 source-text CI gate 至可证伪运行态验证。** 依据 PR #5 的“验证运行态行为，严禁源码文本对暗号”规定，逐步删除对本项目 `.swift` 源码使用关键词、正则或出现次数作为 pass/fail 的 gate；改用 SwiftPM target graph、XCTest/async protocol replay、真实 AppKit/SwiftUI accessibility tree、WindowServer screenshots 与实际 Host integration。
   - 依赖：T4.6、T5.6、T6.7、T11.7。
@@ -645,7 +672,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 | 8. Conversation主界面与Composer | 部分完成 | welcome、composer、model/permission控制行和部分prompt/cancel路径已实现；approval/question composer已配对验收 | 完整ChatView、Markdown安全策略、queue/steer、附件、model discovery、stats/todo/goal dock尚未完成 |
 | 9. 工具与复杂节点 | 部分完成 | ApprovalPanel、QuestionComposer和部分tooling inspector fixture存在 | generic tool及bash/read/search/diff/web/workflow/subagent/trajectory/deliverables全套renderer未完成 |
 | 10. 官方设置 | 进行中 | `DSHAPIClient.settingsDescribe/settingsMutate`、`SettingsNamespaceDTO`、secret slot DTO和`NativeSettingsStore`基础已提交 | Settings Root、schema form、draft/dirty/discard、openDocument、General、Models、Credentials、Plugin、Agent Presets和设置视觉回归均未完成 |
-| 11. 插件兼容 | 未开始 | 仅在架构与TODO中规定渐进双轨制（NativeUIManifest/SwiftAdapter/PluginWebHost自动沙箱） | manifest schema、adapter registry、自适应分流路由和通用Web沙箱微宿主尚未实现 |
+| 11. 插件兼容 | 未开始 | Ghost Plane 全兼容架构已定稿（[PLUGIN_COMPATIBILITY_PROPOSAL.md](docs/PLUGIN_COMPATIBILITY_PROPOSAL.md)，含 18 插件实证基线）；NativeUIManifest/SwiftAdapter 快车道与 GP 任务族已定义 | manifest schema、adapter registry、分流器、Ghost Plane host、骨架 DOM 与事件桥均未实现 |
 | 12. 测试与审计 | 部分完成 | D0/D1、视觉场景存在性、macOS-26截图门禁已运行 | reducer、transport chaos、布局golden、UI/accessibility、性能、安全和secret泄露测试未完成 |
 | 13. 发布 | 未开始 | native-ui workflow、缓存和固定payload构建链存在 | 签名、公证、升级流程、支持矩阵、feature flags和发布候选审计未完成 |
 
@@ -714,4 +741,4 @@ RC8 原始迁移提交 `d62ef24` 的 [run 32328246659](https://github.com/Newbie
 
 ### H. 明确的未完成范围
 
-T6.6扩展nodes、T6.7 reconnect/replay、完整Settings Root/schema form/General/Models/Credentials/Plugin pages、NativeUIManifest、SwiftAdapterRegistry、PluginWebHost隔离POC、完整Chat/tool renderer、window recovery、commands、accessibility/performance/security tests、签名公证、升级支持矩阵和发布候选审计均未完成。工程加固项 T2.7（官方规格生成器 TS/TSX 源码解析迁移 AST）、T3.7（Host announcement 正则预编译缓存）、T3.8（`HostLogRedactor` 规则元组重构）、T8.8（`NativeMarkdownRenderer` 正则一次性编译与增量清洗）、T12.9（低频路径正则手写扫描替代）已完成并勾选：其代码、测试与生成器字节一致性验证已闭环，剩余官方锁定提交端点与 macOS-26 全门禁验证由 PR `fix/perf-hotspots-and-ast-parsers` 的 CI run 承担。
+T6.6扩展nodes、T6.7 reconnect/replay、完整Settings Root/schema form/General/Models/Credentials/Plugin pages、NativeUIManifest、SwiftAdapterRegistry、GhostPlane隔离POC（GP任务族）、完整Chat/tool renderer、window recovery、commands、accessibility/performance/security tests、签名公证、升级支持矩阵和发布候选审计均未完成。工程加固项 T2.7（官方规格生成器 TS/TSX 源码解析迁移 AST）、T3.7（Host announcement 正则预编译缓存）、T3.8（`HostLogRedactor` 规则元组重构）、T8.8（`NativeMarkdownRenderer` 正则一次性编译与增量清洗）、T12.9（低频路径正则手写扫描替代）已完成并勾选：其代码、测试与生成器字节一致性验证已闭环，剩余官方锁定提交端点与 macOS-26 全门禁验证由 PR `fix/perf-hotspots-and-ast-parsers` 的 CI run 承担。

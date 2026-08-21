@@ -9,7 +9,7 @@
 | 原生架构 | 模块依赖、并发边界、生命周期测试、D0 扫描。 | `Core`/`UI` 引入 WebView、进程控制或未分层的 URL/字典解析。 |
 | 视觉与无障碍 | 同条件官方/原生截图、layout rectangles、键盘、VoiceOver、对比度/透明度。 | 任何未分类偏差，或仅凭肉眼声明“接近”。 |
 | Liquid Glass | `GlassPolicy`、运行态证据、Reduce Transparency 行为。 | Glass 覆盖官方正文、Hero、composer、代码或消息表面，或没有 policy。 |
-| 插件与安全 | 双轨分流路由、沙箱隔离、loopback same-origin 策略、自适应高度。 | 核心应用外壳/主会话流侵入 WebView，或第三方沙箱逃逸 loopback 限制。 |
+| 插件与安全 | Ghost Plane 分流路由、绿区 target 登记、红/绿区隔离、loopback same-origin 策略、事件桥无障碍语义。 | 红区（官方内容渲染）侵入 WebView，或插件平面逃逸 loopback 限制。 |
 | 发布门禁 | 全部 CI 工件、支持矩阵、版本变更、签名/公证状态。 | D0–D5 任一失败、证据缺失或 Host build 未验证。 |
 
 ## 每个模块 PR 的必需证据包
@@ -43,7 +43,7 @@
    * 严禁只测 Happy Path；必须重点覆盖：
      * **网络异常与混沌**：SSE 断线重连、WebSocket 帧乱序、并发取消、Host 重启自愈；
      * **极端压力与大载荷**：千条长消息会话、超大 Markdown 渲染、内存泄漏与释放；
-     * **双轨容器隔离**：第三方 Web 插件沙箱多次装卸后的内存清理与导航拦截。
+     * **插件平面隔离**：Ghost Plane 多次装卸后的内存清理、导航拦截与红/绿区边界复核。
 
 4. **工具自由，各司其职 (Right Tool for the Job)**
    * 鼓励根据场景自由选用最适合的高效工具：纯逻辑/状态机用原生 `XCTest`，并发/异步网络用 Swift `async/await` 自动化测试，多进程/Host 集成用自动化 Shell 冒烟，性能压力用 Benchmark 测试套件。
