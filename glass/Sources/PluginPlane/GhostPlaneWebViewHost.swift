@@ -22,6 +22,10 @@ public final class GhostPlaneWebViewHost: NSObject {
     /// policy callback. It lets Core reject even same-origin redirects rather
     /// than treating the final endpoint as a fresh capability.
     private var pendingMainFrameRequestURL: URL?
+    private var eventFence = GhostPlaneEventBridgeFence(documentEpoch: 1)
+    /// Optional native sink receives only wire-decoded, fence-admitted plane events.
+    /// It never receives raw WKScriptMessage bodies or page objects.
+    public var onPlaneEvent: ((GhostPlaneBridgeEvent) -> Void)?
 
     public init(policy: GhostPlaneLoopbackPolicy) {
         self.policy = policy
@@ -33,6 +37,7 @@ public final class GhostPlaneWebViewHost: NSObject {
         configuration.userContentController.addUserScript(Self.tapIndexBootstrap)
         webView = WKWebView(frame: .zero, configuration: configuration)
         super.init()
+        configuration.userContentController.add(self, name: "ghostPlaneEvents")
         webView.navigationDelegate = self
         webView.setValue(false, forKey: "drawsBackground")
     }
@@ -257,6 +262,18 @@ public final class GhostPlaneWebViewHost: NSObject {
         forMainFrameOnly: true,
         in: .page
     )
+}
+
+extension GhostPlaneWebViewHost: WKScriptMessageHandler {
+    public func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard message.name == "ghostPlaneEvents",
+              JSONSerialization.isValidJSONObject(message.body),
+              let data = try? JSONSerialization.data(withJSONObject: message.body),
+              let bridgeMessage = try? GhostPlaneBridgeWireDecoder.decode(data),
+              case .deliver(let event) = eventFence.receivePlane(bridgeMessage)
+        else { return }
+        onPlaneEvent?(event)
+    }
 }
 
 extension GhostPlaneWebViewHost: WKNavigationDelegate {

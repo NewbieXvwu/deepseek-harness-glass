@@ -145,6 +145,42 @@ final class GhostPlaneWebViewHostTests: XCTestCase {
         XCTAssertEqual(result?["live"] as? Bool, true)
     }
 
+    func testWebKitMessageHandlerDeliversOnlyWireDecodedFencedEvent() async throws {
+        let host = GhostPlaneWebViewHost(policy: try policy())
+        let loaded = expectation(description: "native skeleton completed")
+        let received = expectation(description: "typed plane event delivered")
+        var observation: NSKeyValueObservation?
+        observation = host.webView.observe(\.isLoading, options: [.new]) { webView, change in
+            if change.newValue == false, webView.url != nil {
+                loaded.fulfill()
+                observation?.invalidate()
+                observation = nil
+            }
+        }
+        defer { observation?.invalidate() }
+        host.onPlaneEvent = { event in
+            guard case let .keyboard(keyboard) = event else { return XCTFail("expected keyboard") }
+            XCTAssertEqual(keyboard.key, "Enter")
+            received.fulfill()
+        }
+        XCTAssertNotNil(host.loadSkeleton("<!doctype html><html><head></head><body><div id=\"ghost-scroll-content\"></div></body></html>"))
+        await fulfillment(of: [loaded], timeout: 5)
+        _ = try await host.webView.callAsyncJavaScript(
+            """
+            window.webkit.messageHandlers.ghostPlaneEvents.postMessage({
+              documentEpoch: 1, sequence: 1, direction: 'planeToNative',
+              event: { kind: 'keyboard', phase: 'down', key: 'Enter', code: 'Enter', location: 0, modifiers: 0, isRepeat: false, isComposing: false },
+            });
+            window.webkit.messageHandlers.ghostPlaneEvents.postMessage({
+              documentEpoch: 1, sequence: 2, direction: 'wrong', event: { kind: 'keyboard' },
+            });
+            return true;
+            """,
+            arguments: [:], in: nil, in: .page
+        )
+        await fulfillment(of: [received], timeout: 5)
+    }
+
     private func policy() throws -> GhostPlaneLoopbackPolicy {
         try XCTUnwrap(GhostPlaneLoopbackPolicy(
             origin: URL(string: "http://127.0.0.1:7342/")!,
