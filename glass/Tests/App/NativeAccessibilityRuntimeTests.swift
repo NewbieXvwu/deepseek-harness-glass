@@ -67,6 +67,51 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         )
     }
 
+    func testExpandedSidebarRetainsHostWorkspaceRowAndFooterSeat() throws {
+        let workspaceTitle = "Fixture workspace"
+        let store = NativeWorkspaceStore(initialSnapshot: .init(
+            workspaces: [
+                .init(
+                    workspaceId: "fixture-workspace",
+                    path: "/fixture",
+                    title: workspaceTitle,
+                    sessionIds: [],
+                    createdAt: "2026-01-01T00:00:00.000Z",
+                    updatedAt: "2026-01-01T00:00:00.000Z"
+                ),
+            ],
+            sessions: [],
+            archivedSessionIDs: [],
+            selectedSessionID: nil,
+            selectedWorkspaceID: nil
+        ))
+
+        try assertAccessibleLabels(
+            in: NativeSidebarView(
+                workspaceStore: store,
+                collapsed: false,
+                setCollapsed: { _ in },
+                workspaceActions: WorkspaceBrowserView.Actions(),
+                workspaceSnapshotDialog: .none,
+                onNewSession: {},
+                onOpenSettings: {}
+            ),
+            expected: [
+                OfficialUISpec.Text.workspaces,
+                OfficialUISpec.Text.sessions,
+                workspaceTitle,
+                OfficialUISpec.Text.workspaceActionsAccessibilityPrefix + workspaceTitle,
+                OfficialUISpec.Text.settings,
+            ],
+            expectedCounts: [
+                OfficialUISpec.Text.workspaces: 1,
+                OfficialUISpec.Text.sessions: 1,
+                OfficialUISpec.Text.workspaceActionsAccessibilityPrefix + workspaceTitle: 1,
+                OfficialUISpec.Text.settings: 1,
+            ]
+        )
+    }
+
     func testConversationComposerExportsFocusAndActionNames() throws {
         let expected = [
             OfficialUISpec.Text.composerDefaultPlaceholder,

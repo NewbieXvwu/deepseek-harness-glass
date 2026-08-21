@@ -87,6 +87,14 @@ final class NativeWorkspaceStore: ObservableObject {
     @Published var searchQuery = ""
     @Published private(set) var remoteSearch: RemoteSearch = .idle
 
+    /// Allows an already-authoritative complete Host snapshot to seed a native
+    /// presentation. Production keeps the default empty state and transitions
+    /// only through `refresh(using:)`; tests and shell restore paths can inject
+    /// a complete value without constructing a second client-side database.
+    init(initialSnapshot: Snapshot = .empty) {
+        snapshot = initialSnapshot
+    }
+
     private var refreshTask: Task<Void, Never>?
     private var searchTask: Task<Void, Never>?
     private var eventTask: Task<Void, Never>?
