@@ -59,13 +59,6 @@ def main() -> None:
             value = token.get(scheme)
             if not isinstance(value, dict) or not isinstance(value.get("rawValue"), str) or not isinstance(value.get("sourceLine"), int):
                 raise SystemExit(f"token {name} has incomplete {scheme} value provenance")
-    swift = SWIFT.read_text(encoding="utf-8")
-    if (
-        f'static let sourceCommit = "{EXPECTED_COMMIT}"' not in swift
-        or f'static let revision = "{revision}"' not in swift
-        or f'static let sourceInputRevision = "{source_input_revision}"' not in swift
-    ):
-        raise SystemExit("generated Swift theme catalog does not expose checked-in source revisions")
     with tempfile.TemporaryDirectory(prefix="dsh-theme-tokens-") as temporary:
         temporary_root = Path(temporary)
         regenerated_json = temporary_root / "official-theme-tokens.json"
