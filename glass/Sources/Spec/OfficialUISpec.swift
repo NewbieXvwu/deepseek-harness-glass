@@ -489,6 +489,8 @@ enum OfficialUISpec {
         static let primaryForeground = Theme.aliasLabelPrimaryForeground.adaptiveColor
         static let primaryInverted = Theme.aliasLabelPrimaryInverted.adaptiveColor
         static let secondary = Theme.aliasLabelSecondary.adaptiveColor
+        /// Source: ui-primitives/Input.module.css `.input::placeholder`.
+        static let placeholder = Theme.aliasLabelDimmed.adaptiveColor
         static let caption = Theme.aliasLabelCaption.adaptiveColor
         static let hairline = Theme.aliasBorderL1.adaptiveColor
         static let border = Theme.aliasBorderL2.adaptiveColor
