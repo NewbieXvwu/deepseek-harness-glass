@@ -79,6 +79,26 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         }
     }
 
+    func testDeliverablesFolderActionFollowsVerifiedCapability() throws {
+        let paths = [
+            "关于我.md", "index.html", "long-generated-experience-specification-for-produced-files-overflow.md",
+            "styles.css", "app.ts", "schema.json", "README.md",
+        ]
+        try assertAccessibleLabels(
+            in: NativeProducedFiles(paths: paths, open: { _ in }, canShowInFolder: true),
+            expected: [
+                OfficialUISpec.Text.producedFiles,
+                OfficialUISpec.Text.producedFilesOpen(name: "关于我.md"),
+                OfficialUISpec.Text.producedFilesShowInFolder,
+            ]
+        )
+        try assertAccessibleLabels(
+            in: NativeProducedFiles(paths: paths, open: { _ in }, canShowInFolder: false),
+            expected: [OfficialUISpec.Text.producedFilesOpen(name: "关于我.md")],
+            forbidden: [OfficialUISpec.Text.producedFilesShowInFolder]
+        )
+    }
+
     func testRuntimeLocaleCatalogAcceptsComposerLabelsAndRejectsInjectedNonOfficialLabel() {
         // These values are evaluated through the same production runtime locale
         // API that mounted native controls consume. AX tree traversal remains a
