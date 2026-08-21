@@ -208,6 +208,13 @@ jobs:
           swiftc glass/Sources/Core/Plugin/GhostPlaneLoopbackPolicy.swift \
             glass/Sources/Core/Plugin/GhostPlaneModuleManifest.swift \
             glass/Sources/Core/Plugin/GhostPlaneModuleActivationGate.swift \
+            glass/Sources/Core/Plugin/GhostPlaneModuleQueueLifecycle.swift \
+            glass/ci/ghost-plane-module-queue-lifecycle-portable-check.swift \
+            -o /tmp/ghost-plane-module-queue-lifecycle-portable-check
+          /tmp/ghost-plane-module-queue-lifecycle-portable-check
+          swiftc glass/Sources/Core/Plugin/GhostPlaneLoopbackPolicy.swift \
+            glass/Sources/Core/Plugin/GhostPlaneModuleManifest.swift \
+            glass/Sources/Core/Plugin/GhostPlaneModuleActivationGate.swift \
             glass/Sources/Core/Plugin/GhostPlaneTypedInjectionGate.swift \
             glass/ci/ghost-plane-typed-injection-gate-portable-check.swift \
             -o /tmp/ghost-plane-typed-injection-gate-portable-check
