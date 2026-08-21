@@ -5,22 +5,30 @@ import SwiftUI
 @testable import GlassSpec
 #endif
 
+/// Typed presentation contract for a landed RC8 compaction checkpoint. It
+/// never reads checkpoint payloads or raw events beyond the Core node fields.
+enum NativeCompactionPresentation {
+    static func isExpandable(_ compaction: CoreCompactionNode) -> Bool {
+        compaction.summary != nil
+    }
+
+    static func summary(_ compaction: CoreCompactionNode) -> String {
+        if let items = compaction.shadowedItemCount, let tokens = compaction.shadowedTokenCount {
+            return OfficialUISpec.Text.compactionCompleted(items: items, tokens: tokens)
+        }
+        if isExpandable(compaction) { return OfficialUISpec.Text.compactionExpand }
+        return OfficialUISpec.Text.compactionUnavailable
+    }
+}
+
 /// Native RC8 `CompactionItem`: a landed checkpoint marker, not a replacement
-/// for the history it shadows. The Core node exposes only the cited summary and
-/// counts, so this view never reads checkpoint payload or raw events.
+/// for the history it shadows.
 struct NativeCompactionRow: View {
     let compaction: CoreCompactionNode
     @State private var expanded = false
 
-    private var isExpandable: Bool { compaction.summary != nil }
-
-    private var summary: String {
-        if let items = compaction.shadowedItemCount, let tokens = compaction.shadowedTokenCount {
-            return OfficialUISpec.Text.compactionCompleted(items: items, tokens: tokens)
-        }
-        if isExpandable { return OfficialUISpec.Text.compactionExpand }
-        return OfficialUISpec.Text.compactionUnavailable
-    }
+    private var isExpandable: Bool { NativeCompactionPresentation.isExpandable(compaction) }
+    private var summary: String { NativeCompactionPresentation.summary(compaction) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p8) {
