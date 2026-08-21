@@ -68,6 +68,10 @@ struct SessionsAPI: Sendable {
         try await client.call("session.updateQueue", payload: request)
     }
     func models(sessionID: String) async throws -> SessionModelsResponse { try await client.sessionModels(sessionID: sessionID) }
+    /// Source: RC8 `SessionAPI.selectModel`; visible selection is Host-confirmed.
+    func selectModel(_ request: SessionSelectModelRequest) async throws -> SessionSelectModelResponse {
+        try await client.sessionSelectModel(request)
+    }
     func rename(sessionID: String, title: String) async throws -> SessionRenameResponse { try await client.sessionRename(sessionID: sessionID, title: title) }
     func fork(sessionID: String, atSeq: Int? = nil) async throws -> SessionForkResponse { try await client.sessionFork(sessionID: sessionID, atSeq: atSeq) }
 

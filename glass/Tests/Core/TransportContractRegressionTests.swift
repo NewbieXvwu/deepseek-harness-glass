@@ -15,7 +15,7 @@ final class TransportContractRegressionTests: XCTestCase {
         XCTAssertFalse(fixture.secretPolicy.contains("real"))
         XCTAssertEqual(
             Set(fixture.records.map(\.contract)),
-            ["session.history", "session.prompt", "session.cancel", "session.models", "settings.describe", "settings.mutate", "credentials.set", "llm.providers"]
+            ["session.history", "session.prompt", "session.cancel", "session.models", "session.selectModel", "settings.describe", "settings.mutate", "credentials.set", "llm.providers"]
         )
         XCTAssertEqual(Set(fixture.sseFrames.map(\.contract)), ["sse.mux", "sse.host"])
     }
@@ -37,6 +37,7 @@ final class TransportContractRegressionTests: XCTestCase {
         try assertRequest("session.prompt", SessionPromptRequest.self, fixture)
         try assertRequest("session.cancel", SessionCancelRequest.self, fixture)
         try assertRequest("session.models", SessionModelsRequest.self, fixture)
+        try assertRequest("session.selectModel", SessionSelectModelRequest.self, fixture)
         try assertRequest("settings.describe", EmptyPayload.self, fixture)
         try assertRequest("settings.mutate", SettingsMutateRequest.self, fixture)
         try assertRequest("credentials.set", CredentialsSetRequest.self, fixture)
@@ -56,6 +57,11 @@ final class TransportContractRegressionTests: XCTestCase {
         XCTAssertEqual(models.current.provider, "deepseek-official")
         XCTAssertTrue(models.routable)
         XCTAssertEqual(models.groups.count, 0)
+
+        let selected: SessionSelectModelResponse = try successValue("session.selectModel", fixture)
+        XCTAssertEqual(selected.selected.provider, "deepseek-official")
+        XCTAssertEqual(selected.selected.model, "deepseek-v4-flash")
+        XCTAssertEqual(selected.selected.reasoningEffort, "balanced")
 
         let settings: SettingsDescribeResponse = try successValue("settings.describe", fixture)
         XCTAssertTrue(settings.writable)

@@ -130,6 +130,12 @@ struct DSHAPIClient: Sendable {
         try await call("session.models", payload: SessionModelsRequest(sessionId: sessionID))
     }
 
+    /// Source: RC8 `sessions.ts:selectModel` / `sessions.schema.ts`.
+    /// The Host validates and returns the selection that may be presented.
+    func sessionSelectModel(_ request: SessionSelectModelRequest) async throws -> SessionSelectModelResponse {
+        try await call("session.selectModel", payload: request)
+    }
+
     /// Source: `sessions.schema.ts:sessionCreateRequestSchema`.
     func sessionCreate(workspaceID: String? = nil) async throws -> SessionCreateResponse {
         try await call("session.create", payload: SessionCreateRequest(workspaceId: workspaceID))
@@ -375,7 +381,21 @@ struct SessionModelsResponse: Decodable, Sendable {
     let failures: [SessionModelCatalogFailureDTO]
 }
 
-struct SessionModelSelectionDTO: Codable, Sendable {
+/// Source: RC8 `SessionAPI.selectModel` request. Omitting rather than nulling
+/// `reasoningEffort` preserves the optional wire contract.
+struct SessionSelectModelRequest: Codable, Sendable, Equatable {
+    let sessionId: String
+    let provider: String
+    let model: String
+    let reasoningEffort: String?
+}
+
+/// Source: RC8 `SessionAPI.selectModel` response.
+struct SessionSelectModelResponse: Decodable, Sendable, Equatable {
+    let selected: SessionModelSelectionDTO
+}
+
+struct SessionModelSelectionDTO: Codable, Sendable, Equatable {
     let provider: String
     let model: String
     let reasoningEffort: String?

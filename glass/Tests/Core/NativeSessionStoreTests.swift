@@ -171,6 +171,29 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(feedbackAPI.putRequests.first?.ifVersion, "v1")
     }
 
+    func testModelSelectionUsesAdvertisedRouteAndHostConfirmedSelectionOnly() async {
+        let modelsLoaded = expectation(description: "model directory reaches typed Host facade")
+        let selectionReached = expectation(description: "model selection reaches typed Host facade")
+        let api = SelectingModelSessionAPI(modelsLoaded: modelsLoaded, selectionReached: selectionReached)
+        let store = NativeSessionStore()
+        store.open(sessionID: "model-session", using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+        await fulfillment(of: [modelsLoaded], timeout: 1)
+        await eventually(timeout: 1) { store.modelDirectory?.current.model == "model-a" }
+
+        store.selectModel(provider: "provider-a", model: "unknown", reasoningEffort: nil)
+        XCTAssertTrue(api.requests.isEmpty, "unknown catalog members must fail closed before a Host mutation")
+
+        store.selectModel(provider: "provider-a", model: "model-b", reasoningEffort: "deep")
+        await fulfillment(of: [selectionReached], timeout: 1)
+        await eventually(timeout: 1) { store.modelDirectory?.current.model == "model-b" && !store.isSelectingModel }
+        XCTAssertEqual(api.requests, [.init(sessionId: "model-session", provider: "provider-a", model: "model-b", reasoningEffort: "deep")])
+
+        api.shouldReject = true
+        store.selectModel(provider: "provider-a", model: "model-a", reasoningEffort: "balanced")
+        await eventually(timeout: 1) { api.requests.count == 2 && !store.isSelectingModel }
+        XCTAssertEqual(store.modelDirectory?.current.model, "model-b", "a rejected Host mutation must not optimistically replace the current selection")
+    }
+
     func testSubagentCatalogPublishesOnlyHostCompleteSnapshotAndFailsClosed() async {
         let catalog = SubagentListResponse(entries: [
             .init(kind: "child", id: "child-a", activity: "running", hasChildren: true, mode: "continuable", label: "Investigate", reason: nil),
@@ -1378,6 +1401,55 @@ final class NativeSessionStoreTests: XCTestCase {
                 ])],
                 failures: [.init(id: "failed-provider", name: "Failed provider", message: "catalog unavailable")]
             )
+        }
+
+        func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
+        func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
+        func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+        func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+        func cancelQuestion(rpcID _: String) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+    }
+
+    @MainActor
+    private final class SelectingModelSessionAPI: NativeSessionAPI {
+        let modelsLoaded: XCTestExpectation
+        let selectionReached: XCTestExpectation
+        var shouldReject = false
+        private(set) var requests: [SessionSelectModelRequest] = []
+
+        init(modelsLoaded: XCTestExpectation, selectionReached: XCTestExpectation) {
+            self.modelsLoaded = modelsLoaded
+            self.selectionReached = selectionReached
+        }
+
+        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
+            throw DSHTransportError.invalidEndpoint
+        }
+
+        func models(sessionID _: String) async throws -> SessionModelsResponse {
+            modelsLoaded.fulfill()
+            return .init(
+                current: .init(provider: "provider-a", model: "model-a", reasoningEffort: "balanced"),
+                routable: true,
+                groups: [.init(id: "provider-a", name: "Provider A", models: [
+                    .init(id: "model-a", name: "Model A", description: nil, reasoning: .init(
+                        efforts: [.init(id: "balanced", name: "Balanced", description: nil)],
+                        defaultEffort: "balanced"
+                    )),
+                    .init(id: "model-b", name: "Model B", description: nil, reasoning: .init(
+                        efforts: [.init(id: "deep", name: "Deep", description: nil)],
+                        defaultEffort: "deep"
+                    )),
+                ])],
+                failures: []
+            )
+        }
+
+        func selectModel(_ request: SessionSelectModelRequest) async throws -> SessionSelectModelResponse {
+            requests.append(request)
+            if requests.count == 1 { selectionReached.fulfill() }
+            if shouldReject { throw DSHTransportError.invalidEndpoint }
+            return .init(selected: .init(provider: request.provider, model: request.model, reasoningEffort: request.reasoningEffort))
         }
 
         func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }

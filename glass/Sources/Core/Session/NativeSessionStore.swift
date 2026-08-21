@@ -15,6 +15,7 @@ protocol NativeSessionAPI: Sendable {
     func cancel(sessionID: String) async throws -> SessionCancelResponse
     func updateQueue(_ request: SessionUpdateQueueRequest) async throws -> SessionUpdateQueueResponse
     func models(sessionID: String) async throws -> SessionModelsResponse
+    func selectModel(_ request: SessionSelectModelRequest) async throws -> SessionSelectModelResponse
     func answerApproval(rpcID: String, sessionID: String, approvalID: String, outcome: ApprovalOutcome) async throws -> RPCReceipt
     func answerQuestion(rpcID: String, sessionID: String, answers: [QuestionAnswerResponse]) async throws -> RPCReceipt
     func cancelQuestion(rpcID: String) async throws -> RPCReceipt
@@ -26,6 +27,12 @@ extension NativeSessionAPI {
     /// Test fakes must opt in explicitly to queue mutation. Treat omitted seams
     /// as an unavailable Host rather than manufacturing an accepted response.
     func updateQueue(_: SessionUpdateQueueRequest) async throws -> SessionUpdateQueueResponse {
+        throw DSHTransportError.invalidEndpoint
+    }
+
+    /// Model selection is unavailable unless a verified Host facade implements
+    /// the RC8 `session.selectModel` operation.
+    func selectModel(_: SessionSelectModelRequest) async throws -> SessionSelectModelResponse {
         throw DSHTransportError.invalidEndpoint
     }
 }
@@ -416,6 +423,7 @@ final class NativeSessionStore: ObservableObject {
     /// not been loaded or the current session cannot be restored yet; it is not
     /// an invitation to invent a default provider/model pair.
     @Published private(set) var modelDirectory: CoreSessionModelDirectory?
+    @Published private(set) var isSelectingModel = false
     @Published private(set) var selectedToolCallID: String?
     @Published private(set) var pendingApproval: PendingApproval?
     @Published private(set) var pendingQuestion: PendingQuestion?
@@ -487,6 +495,8 @@ final class NativeSessionStore: ObservableObject {
     private var subagentCatalogTasks: [String: Task<Void, Never>] = [:]
     private var goalTask: Task<Void, Never>?
     private var queueUpdateTask: Task<Void, Never>?
+    private var modelSelectionTask: Task<Void, Never>?
+    private var modelSelectionGeneration: UInt = 0
     @Published private(set) var isSubmittingGoal = false
     @Published private(set) var goalActionFailure: GoalActionFailure?
     /// RC8 GoalBar hides a successfully cleared goal before the next whole
@@ -525,6 +535,10 @@ final class NativeSessionStore: ObservableObject {
     func setSessionAPIForTesting(_ api: (any NativeSessionAPI)?) {
         queueUpdateTask?.cancel()
         queueUpdateTask = nil
+        modelSelectionTask?.cancel()
+        modelSelectionTask = nil
+        modelSelectionGeneration &+= 1
+        isSelectingModel = false
         updatingQueueItemID = nil
         queueActionFailure = nil
         queueActionCompletion = nil
@@ -848,6 +862,10 @@ final class NativeSessionStore: ObservableObject {
         locallyClearedGoalID = nil
         queueUpdateTask?.cancel()
         queueUpdateTask = nil
+        modelSelectionTask?.cancel()
+        modelSelectionTask = nil
+        modelSelectionGeneration &+= 1
+        isSelectingModel = false
         updatingQueueItemID = nil
         queueActionFailure = nil
         queueActionCompletion = nil
@@ -984,6 +1002,10 @@ final class NativeSessionStore: ObservableObject {
         locallyClearedGoalID = nil
         queueUpdateTask?.cancel()
         queueUpdateTask = nil
+        modelSelectionTask?.cancel()
+        modelSelectionTask = nil
+        modelSelectionGeneration &+= 1
+        isSelectingModel = false
         updatingQueueItemID = nil
         queueActionFailure = nil
         queueActionCompletion = nil
@@ -1115,6 +1137,10 @@ final class NativeSessionStore: ObservableObject {
         locallyClearedGoalID = nil
         queueUpdateTask?.cancel()
         queueUpdateTask = nil
+        modelSelectionTask?.cancel()
+        modelSelectionTask = nil
+        modelSelectionGeneration &+= 1
+        isSelectingModel = false
         updatingQueueItemID = nil
         queueActionFailure = nil
         queueActionCompletion = nil
@@ -1177,6 +1203,10 @@ final class NativeSessionStore: ObservableObject {
         locallyClearedGoalID = nil
         queueUpdateTask?.cancel()
         queueUpdateTask = nil
+        modelSelectionTask?.cancel()
+        modelSelectionTask = nil
+        modelSelectionGeneration &+= 1
+        isSelectingModel = false
         updatingQueueItemID = nil
         queueActionFailure = nil
         queueActionCompletion = nil
@@ -1312,6 +1342,54 @@ final class NativeSessionStore: ObservableObject {
             }
         }
 
+    }
+
+    // MARK: - Model selection face
+
+    /// Source: RC8 `SessionDirectory.select`. The UI may submit only a complete
+    /// currently advertised route; successful presentation follows the exact
+    /// Host-confirmed `selected` value and does not edit provider catalog facts.
+    func selectModel(provider: String, model: String, reasoningEffort: String?) {
+        guard !isSelectingModel,
+              let api,
+              let sessionID = activeSessionID,
+              let directory = modelDirectory,
+              directory.routable,
+              directory.contains(provider: provider, model: model, reasoningEffort: reasoningEffort)
+        else { return }
+
+        modelSelectionTask?.cancel()
+        modelSelectionGeneration &+= 1
+        let mutationGeneration = modelSelectionGeneration
+        let currentRecoveryGeneration = recoveryGeneration
+        isSelectingModel = true
+        modelSelectionTask = Task { [weak self] in
+            defer {
+                if !Task.isCancelled,
+                   self?.activeSessionID == sessionID,
+                   self?.recoveryGeneration == currentRecoveryGeneration,
+                   self?.modelSelectionGeneration == mutationGeneration {
+                    self?.isSelectingModel = false
+                }
+            }
+            do {
+                let response = try await api.selectModel(.init(
+                    sessionId: sessionID,
+                    provider: provider,
+                    model: model,
+                    reasoningEffort: reasoningEffort
+                ))
+                guard !Task.isCancelled,
+                      self?.activeSessionID == sessionID,
+                      self?.recoveryGeneration == currentRecoveryGeneration,
+                      self?.modelSelectionGeneration == mutationGeneration
+                else { return }
+                self?.modelDirectory = self?.modelDirectory?.applying(response.selected)
+            } catch {
+                // RC8 keeps the last Host directory selection visible on a
+                // rejected mutation; no local fallback or synthetic error row.
+            }
+        }
     }
 
     // MARK: - Queue action face

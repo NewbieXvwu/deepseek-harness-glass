@@ -80,4 +80,42 @@ struct CoreSessionModelDirectory: Equatable {
             group.id == provider && group.models.contains { $0.id == model }
         }
     }
+
+    /// A native chooser only emits selections backed by the complete Host
+    /// directory. When effort is supplied, it must belong to that advertised
+    /// model; an unknown effort never becomes a client-side route.
+    func contains(provider: String, model: String, reasoningEffort: String?) -> Bool {
+        guard let selectedModel = groups.first(where: { $0.id == provider })?.models.first(where: { $0.id == model }) else {
+            return false
+        }
+        return reasoningEffort == nil || selectedModel.reasoningEfforts.contains(where: { $0.id == reasoningEffort })
+    }
+
+    /// RC8 directory select only replaces `current` after `session.selectModel`
+    /// returns a Host-confirmed selection. Provider groups/failures remain the
+    /// last complete directory snapshot and are never edited optimistically.
+    func applying(_ selected: SessionModelSelectionDTO) -> CoreSessionModelDirectory {
+        .init(
+            current: .init(
+                provider: selected.provider,
+                model: selected.model,
+                reasoningEffort: selected.reasoningEffort
+            ),
+            routable: true,
+            groups: groups,
+            failures: failures
+        )
+    }
+
+    private init(
+        current: Selection,
+        routable: Bool,
+        groups: [ProviderGroup],
+        failures: [Failure]
+    ) {
+        self.current = current
+        self.routable = routable
+        self.groups = groups
+        self.failures = failures
+    }
 }

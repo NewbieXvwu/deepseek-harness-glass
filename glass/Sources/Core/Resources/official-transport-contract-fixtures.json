@@ -89,6 +89,34 @@
       }
     },
     {
+      "contract": "session.selectModel",
+      "request": {
+        "type": "client-request",
+        "rpcId": "contract-select-model",
+        "method": "session.selectModel",
+        "payload": {
+          "sessionId": "contract-session",
+          "provider": "deepseek-official",
+          "model": "deepseek-v4-flash",
+          "reasoningEffort": "balanced"
+        }
+      },
+      "response": {
+        "type": "server-response",
+        "rpcId": "contract-select-model",
+        "result": {
+          "ok": true,
+          "value": {
+            "selected": {
+              "provider": "deepseek-official",
+              "model": "deepseek-v4-flash",
+              "reasoningEffort": "balanced"
+            }
+          }
+        }
+      }
+    },
+    {
       "contract": "session.models",
       "request": {
         "type": "client-request",
