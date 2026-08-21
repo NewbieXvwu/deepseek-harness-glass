@@ -454,7 +454,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 - [ ] **T10.5：实现官方 Plugin configuration 页面。** 先完成官方内置的 bash、agent-loop 和 web-search 的原生专用卡片，以官方字段、copy、draft、reset 和 save 语义为准。[14]
   - 依赖：T10.2、T11.1。
   - 验收：三个官方卡片不使用 WebView，save/discard/reset/revision conflict 与 Host fixture 一致。
-  - 进度：依据锁定 `ui-settings-plugins/README.md` 的 namespace dispatch 合同及本地 `settings.describe` fixture，新增 `NativeBuiltinPluginCard` catalog；Plugins section 只按官方注册顺序 dispatch 当前 Host 服务的 shell（bash）、agent-loop、web-search-deepseek 卡片，未服务或未知 namespace 完全不留占位。回归锁定顺序、Host 缺失边界与三张 card 的 title/description 均来自官方 locale。三个 card 的 expand/collapse、字段表单、secret credentials、draft/reset/save/conflict 与 macOS 视觉仍待完成，故保持未勾选。
+  - 进度：依据锁定 `ui-settings-plugins/README.md` 的 namespace dispatch 合同及本地 `settings.describe` fixture，新增 `NativeBuiltinPluginCard` catalog；Plugins section 只按官方注册顺序 dispatch 当前 Host 服务的 shell（bash）、agent-loop、web-search-deepseek 卡片，未服务或未知 namespace 完全不留占位。回归锁定顺序、Host 缺失边界与三张 card 的 title/description 均来自官方 locale。新增 `NativePluginCardDraft` 作为单一 namespace 的非持久化多字段 staged model：按 Host user layer（而非值比较）标示 override，空文本/Reset 生成 unset，非法非空 number 阻断 save，按稳定字段顺序输出批量 typed mutation plan，并在初始化即排除 Host secret paths，确保 apiKey 等明文永不进入 settings draft。回归覆盖两字段 draft、override/reset、空值 clear、无效数值、discard 与 secret 排除。三个 card 的 expand/collapse、字段表单、write-only secret credentials、通过 Settings facade 的 revision-fenced save/conflict 与 macOS 视觉仍待完成，故保持未勾选。
 
 - [ ] **T10.6：实现 Agent Presets 与 Plugin Inventory。** 支持读取、选择、复制、删除、打开文档、trust/broken/read-only 状态和 inventory 查看；危险 action 须遵循原生确认策略而非凭借新文案改变语义。
   - 依赖：T4.5、T10.1。
