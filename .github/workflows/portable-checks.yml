@@ -101,6 +101,8 @@ jobs:
             --official-root .reference/deepseek-harness
           echo "::endgroup::"
           echo "::group::Official theme tokens"
+          python3 glass/ci/test-official-theme-tokens.py \
+            --official-root .reference/deepseek-harness
           python3 glass/ci/check-official-theme-tokens.py \
             --official-root .reference/deepseek-harness
           echo "::endgroup::"

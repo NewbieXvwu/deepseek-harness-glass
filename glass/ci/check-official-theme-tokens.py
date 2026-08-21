@@ -14,7 +14,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY_ROOT = ROOT.parent
 CATALOG = ROOT / "Sources/Spec/Tokens/official-theme-tokens.json"
-SWIFT = ROOT / "Sources/Spec/OfficialThemeCatalog.swift"
 SPEC_BUILD = ROOT / "Sources/Spec/OfficialUISpec/official-ui-spec-build.json"
 GENERATOR = REPOSITORY_ROOT / "tools/spec-generation/generate_official_theme_tokens.py"
 EXPECTED_COMMIT = "528c682e061696f5a160f363f236ecbf53cbd006"
@@ -24,12 +23,14 @@ EXPECTED_SOURCE = "packages/client/ui-theme/src/styles/design-platform.css"
 def arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--official-root", type=Path, required=True)
+    parser.add_argument("--catalog", type=Path, default=CATALOG)
     return parser.parse_args()
 
 
 def main() -> None:
     args = arguments()
-    document = json.loads(CATALOG.read_text(encoding="utf-8"))
+    catalog_path = args.catalog
+    document = json.loads(catalog_path.read_text(encoding="utf-8"))
     if document.get("schemaVersion") != 1 or document.get("sourceCommit") != EXPECTED_COMMIT:
         raise SystemExit("official theme catalog has an invalid schema or source commit")
     revision = document.get("themeRevision")
@@ -69,9 +70,12 @@ def main() -> None:
             "--json-output", str(regenerated_json),
             "--swift-output", str(regenerated_swift),
         ], check=True)
-        if regenerated_json.read_bytes() != CATALOG.read_bytes() or regenerated_swift.read_bytes() != SWIFT.read_bytes():
+        if regenerated_json.read_bytes() != catalog_path.read_bytes():
             raise SystemExit("official theme token catalog is stale; regenerate from the locked official source")
-    print(f"Official theme token gate passed: {len(tokens)} CSS tokens.")
+    print(
+        f"Official theme token structured gate passed: {len(tokens)} CSS tokens; "
+        "compiled runtime API parity is covered by OfficialUISpecBuildTests."
+    )
 
 
 if __name__ == "__main__":
