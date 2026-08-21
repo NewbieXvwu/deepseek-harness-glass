@@ -26,7 +26,7 @@ final class NativeSessionStoreTests: XCTestCase {
 
     func testCancelIntentUsesTypedFacadeOnlyForHostRunningTurn() async {
         let cancelReachedFacade = expectation(description: "typed cancel facade receives running turn intent")
-        let api = RejectingSessionAPI(promptReachedFacade: nil, cancelReachedFacade: cancelReachedFacade)
+        let api = RejectingSessionAPI(promptReachedFacade: nil, cancelReachedFacade: cancelReachedFacade, opensAuthority: true)
         let store = NativeSessionStore()
         let sessionID = "cancel-session"
         store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
@@ -546,7 +546,7 @@ final class NativeSessionStoreTests: XCTestCase {
     func testContinuableSubagentRouteUsesParentChildPromptAndInterrupt() async {
         let promptReached = expectation(description: "subagent prompt reaches continuation facade")
         let interruptReached = expectation(description: "subagent interrupt reaches continuation facade")
-        let sessionAPI = RejectingSessionAPI(promptReachedFacade: nil)
+        let sessionAPI = RejectingSessionAPI(promptReachedFacade: nil, opensAuthority: true)
         let continuationAPI = RecordingSubagentContinuationAPI(
             promptReached: promptReached,
             interruptReached: interruptReached
@@ -861,6 +861,7 @@ final class NativeSessionStoreTests: XCTestCase {
         await api.releaseRecoveryHistory()
         await eventually(timeout: 1) {
             store.projections.value(sessionID: "recovery-session", key: "recovery-projection") == .string("live push wins")
+                && store.items.map(\.sequence) == [1, 2, 3]
         }
 
         XCTAssertEqual(store.projections.row(sessionID: "recovery-session", key: "recovery-projection")?.seq, 3)
@@ -3174,16 +3175,19 @@ final class NativeSessionStoreTests: XCTestCase {
 
         let promptReachedFacade: XCTestExpectation?
         let cancelReachedFacade: XCTestExpectation?
+        let opensAuthority: Bool
         private(set) var prompts: [Prompt] = []
         private(set) var cancelledSessionIDs: [String] = []
 
-        init(promptReachedFacade: XCTestExpectation?, cancelReachedFacade: XCTestExpectation? = nil) {
+        init(promptReachedFacade: XCTestExpectation?, cancelReachedFacade: XCTestExpectation? = nil, opensAuthority: Bool = false) {
             self.promptReachedFacade = promptReachedFacade
             self.cancelReachedFacade = cancelReachedFacade
+            self.opensAuthority = opensAuthority
         }
 
         func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
-            throw DSHTransportError.invalidEndpoint
+            guard opensAuthority else { throw DSHTransportError.invalidEndpoint }
+            return .init(events: [], hasMore: false, projections: nil)
         }
 
         func prompt(sessionID: String, content: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse {
@@ -3199,7 +3203,8 @@ final class NativeSessionStoreTests: XCTestCase {
         }
 
         func models(sessionID _: String) async throws -> SessionModelsResponse {
-            throw DSHTransportError.invalidEndpoint
+            guard opensAuthority else { throw DSHTransportError.invalidEndpoint }
+            return .init(current: .init(provider: "provider", model: "model", reasoningEffort: nil), routable: true, groups: [], failures: [])
         }
 
         func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt {
