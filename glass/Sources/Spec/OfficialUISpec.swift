@@ -262,6 +262,9 @@ enum OfficialUISpec {
         static let feedbackNoteSave = "Save"
         static let feedbackNoteCancel = "Cancel"
         static let feedbackNoteAccessibility = "Feedback note"
+        static let feedbackErrorConflict = "This feedback changed elsewhere; the latest state is shown"
+        static let feedbackErrorLoad = "Could not load feedback"
+        static let feedbackErrorGeneric = "Could not save feedback"
         // Source: packages/client/ui-conversation/src/client/locales.ts:291-295 (en)
         static let compactionTitle = "Context compacted"
         static let compactionRunning = "Compacting context…"

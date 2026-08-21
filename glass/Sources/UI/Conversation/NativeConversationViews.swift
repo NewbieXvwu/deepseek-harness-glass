@@ -219,8 +219,10 @@ private struct NativeActiveConversationSurface: View {
                 openKnownProjectPath: sessionStore.openKnownProjectPath,
                 messageFeedbackItems: sessionStore.messageFeedbackItems,
                 isMessageFeedbackAvailable: sessionStore.isMessageFeedbackAvailable,
+                failedMessageFeedbackLoad: sessionStore.failedMessageFeedbackLoad,
                 isSubmittingMessageFeedback: sessionStore.isSubmittingMessageFeedback,
                 messageFeedbackActionFailureCode: sessionStore.messageFeedbackActionFailureCode,
+                messageFeedbackMutationMessageID: sessionStore.messageFeedbackMutationMessageID,
                 toggleMessageFeedback: sessionStore.toggleMessageFeedback,
                 saveMessageFeedbackNote: sessionStore.saveMessageFeedbackNote,
                 openSession: openSession
@@ -261,8 +263,10 @@ private struct NativeTranscriptScrollView: View {
     let openKnownProjectPath: (String) -> Void
     let messageFeedbackItems: [String: MessageFeedbackItemDTO]
     let isMessageFeedbackAvailable: Bool
+    let failedMessageFeedbackLoad: Bool
     let isSubmittingMessageFeedback: Bool
     let messageFeedbackActionFailureCode: String?
+    let messageFeedbackMutationMessageID: String?
     let toggleMessageFeedback: (String, MessageFeedbackRatingDTO) -> Void
     let saveMessageFeedbackNote: (String, String) -> Void
     let openSession: (String) -> Void
@@ -343,8 +347,10 @@ private struct NativeTranscriptScrollView: View {
                                 openKnownProjectPath: openKnownProjectPath,
                                 messageFeedbackItems: messageFeedbackItems,
                                 isMessageFeedbackAvailable: isMessageFeedbackAvailable,
+                                failedMessageFeedbackLoad: failedMessageFeedbackLoad,
                                 isSubmittingMessageFeedback: isSubmittingMessageFeedback,
                                 messageFeedbackActionFailureCode: messageFeedbackActionFailureCode,
+                                messageFeedbackMutationMessageID: messageFeedbackMutationMessageID,
                                 toggleMessageFeedback: toggleMessageFeedback,
                                 saveMessageFeedbackNote: saveMessageFeedbackNote,
                                 openSession: openSession
@@ -386,8 +392,10 @@ private struct NativeConversationNodeRow: View {
     let openKnownProjectPath: (String) -> Void
     let messageFeedbackItems: [String: MessageFeedbackItemDTO]
     let isMessageFeedbackAvailable: Bool
+    let failedMessageFeedbackLoad: Bool
     let isSubmittingMessageFeedback: Bool
     let messageFeedbackActionFailureCode: String?
+    let messageFeedbackMutationMessageID: String?
     let toggleMessageFeedback: (String, MessageFeedbackRatingDTO) -> Void
     let saveMessageFeedbackNote: (String, String) -> Void
     let openSession: (String) -> Void
@@ -480,7 +488,8 @@ private struct NativeConversationNodeRow: View {
                     NativeMessageFeedbackActions(
                         item: messageFeedbackItems[messageID],
                         isSubmitting: isSubmittingMessageFeedback,
-                        actionFailureCode: messageFeedbackActionFailureCode,
+                        loadFailed: failedMessageFeedbackLoad,
+                        actionFailureCode: messageFeedbackMutationMessageID == messageID ? messageFeedbackActionFailureCode : nil,
                         like: { toggleMessageFeedback(messageID, .positive) },
                         dislike: { toggleMessageFeedback(messageID, .negative) },
                         saveNote: { saveMessageFeedbackNote(messageID, $0) }

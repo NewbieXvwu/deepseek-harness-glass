@@ -432,6 +432,7 @@ final class NativeSessionStore: ObservableObject {
     @Published private(set) var failedMessageFeedbackLoad = false
     @Published private(set) var isSubmittingMessageFeedback = false
     @Published private(set) var messageFeedbackActionFailureCode: String?
+    @Published private(set) var messageFeedbackMutationMessageID: String?
     @Published private(set) var isLoadingSubagentCatalog = false
     @Published private(set) var loadingSubagentCatalogIDs: Set<String> = []
     /// Parent IDs whose last complete Host catalog request failed. This exposes
@@ -557,6 +558,7 @@ final class NativeSessionStore: ObservableObject {
         failedMessageFeedbackLoad = false
         isSubmittingMessageFeedback = false
         messageFeedbackActionFailureCode = nil
+        messageFeedbackMutationMessageID = nil
         hasLoadedMessageFeedback = false
         isMessageFeedbackAvailable = api != nil
         messageFeedbackAPI = api
@@ -610,6 +612,13 @@ final class NativeSessionStore: ObservableObject {
         case toggle(messageID: String, rating: MessageFeedbackRatingDTO)
         case rate(messageID: String, rating: MessageFeedbackRatingDTO, note: String?)
         case clear(messageID: String)
+
+        var messageID: String {
+            switch self {
+            case let .toggle(messageID, _), let .rate(messageID, _, _), let .clear(messageID):
+                return messageID
+            }
+        }
     }
 
     /// RC8 toggle behavior: matching committed rating retracts it; another rating
@@ -633,11 +642,13 @@ final class NativeSessionStore: ObservableObject {
     private func enqueueMessageFeedbackMutation(_ action: MessageFeedbackAction) {
         guard let api = messageFeedbackAPI, let sessionID = activeSessionID else { return }
         let generation = recoveryGeneration
+        let actionMessageID = action.messageID
         messageFeedbackMutationGeneration &+= 1
         let mutationGeneration = messageFeedbackMutationGeneration
         let previous = messageFeedbackMutationTask
         isSubmittingMessageFeedback = true
         messageFeedbackActionFailureCode = nil
+        messageFeedbackMutationMessageID = actionMessageID
         messageFeedbackMutationTask = Task { [weak self] in
             if let previous { await previous.value }
             guard !Task.isCancelled,
@@ -761,6 +772,7 @@ final class NativeSessionStore: ObservableObject {
         else { return }
         isSubmittingMessageFeedback = false
         messageFeedbackActionFailureCode = failureCode
+        if failureCode == nil { messageFeedbackMutationMessageID = nil }
         messageFeedbackMutationTask = nil
     }
 
@@ -959,6 +971,7 @@ final class NativeSessionStore: ObservableObject {
         failedMessageFeedbackLoad = false
         isSubmittingMessageFeedback = false
         messageFeedbackActionFailureCode = nil
+        messageFeedbackMutationMessageID = nil
         hasLoadedMessageFeedback = false
         subagentCatalog = nil
         subagentCatalogs = [:]
@@ -1090,6 +1103,7 @@ final class NativeSessionStore: ObservableObject {
         failedMessageFeedbackLoad = false
         isSubmittingMessageFeedback = false
         messageFeedbackActionFailureCode = nil
+        messageFeedbackMutationMessageID = nil
         hasLoadedMessageFeedback = false
         endpoint = nil
         api = nil
@@ -1151,6 +1165,7 @@ final class NativeSessionStore: ObservableObject {
         failedMessageFeedbackLoad = false
         isSubmittingMessageFeedback = false
         messageFeedbackActionFailureCode = nil
+        messageFeedbackMutationMessageID = nil
         hasLoadedMessageFeedback = false
         endpoint = nil
         api = nil

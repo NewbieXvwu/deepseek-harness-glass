@@ -11,6 +11,7 @@ import SwiftUI
 struct NativeMessageFeedbackActions: View {
     let item: MessageFeedbackItemDTO?
     let isSubmitting: Bool
+    let loadFailed: Bool
     let actionFailureCode: String?
     let like: () -> Void
     let dislike: () -> Void
@@ -24,6 +25,12 @@ struct NativeMessageFeedbackActions: View {
     private var dislikeActive: Bool { item?.rating == .negative }
     private var likeLabel: String { likeActive ? OfficialUISpec.Text.feedbackLikeActive : OfficialUISpec.Text.feedbackLike }
     private var dislikeLabel: String { dislikeActive ? OfficialUISpec.Text.feedbackDislikeActive : OfficialUISpec.Text.feedbackDislike }
+    private var actionFailureText: String? {
+        guard let actionFailureCode else { return nil }
+        return actionFailureCode == "version-conflict"
+            ? OfficialUISpec.Text.feedbackErrorConflict
+            : OfficialUISpec.Text.feedbackErrorGeneric
+    }
 
     var body: some View {
         HStack(spacing: OfficialUISpec.Spacing.p4) {
@@ -41,6 +48,11 @@ struct NativeMessageFeedbackActions: View {
             )
             if item != nil {
                 noteTrigger
+            }
+            if let actionFailureText {
+                failureRow(actionFailureText)
+            } else if loadFailed {
+                failureRow(OfficialUISpec.Text.feedbackErrorLoad)
             }
         }
         .accessibilityElement(children: .contain)
@@ -112,10 +124,21 @@ struct NativeMessageFeedbackActions: View {
                 .buttonStyle(.bordered)
                 .disabled(isSubmitting)
             }
+            if let actionFailureText {
+                failureRow(actionFailureText)
+            }
         }
         .padding(OfficialUISpec.Spacing.p12)
         .frame(width: OfficialUISpec.Geometry.px280)
         .accessibilityElement(children: .contain)
+    }
+
+    private func failureRow(_ text: String) -> some View {
+        Text(text)
+            .font(OfficialUISpec.Typography.xs13)
+            .foregroundStyle(OfficialUISpec.Token.errorPrimary)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityAddTraits(.isStaticText)
     }
 
     @ViewBuilder
