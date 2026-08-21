@@ -253,6 +253,12 @@ jobs:
             glass/ci/ghost-plane-profile-preference-portable-check.swift \
             -o /tmp/ghost-plane-profile-preference-portable-check
           /tmp/ghost-plane-profile-preference-portable-check
+          swiftc glass/Sources/Core/Plugin/GhostPlaneProfilePolicy.swift \
+            glass/Sources/Core/Plugin/GhostPlaneProfilePreference.swift \
+            glass/Sources/Core/Plugin/GhostPlaneProfilePreferenceStore.swift \
+            glass/ci/ghost-plane-profile-preference-store-portable-check.swift \
+            -o /tmp/ghost-plane-profile-preference-store-portable-check
+          /tmp/ghost-plane-profile-preference-store-portable-check
           swiftc glass/Sources/Core/Plugin/GhostPlaneSlotRegistry.swift \
             glass/ci/ghost-plane-slot-registry-portable-check.swift \
             -o /tmp/ghost-plane-slot-registry-portable-check
