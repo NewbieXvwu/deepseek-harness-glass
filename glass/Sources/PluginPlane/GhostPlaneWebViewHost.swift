@@ -97,6 +97,39 @@ public final class GhostPlaneWebViewHost: NSObject {
         source: """
         (() => {
           'use strict';
+          // Official ClientModuleSystem boots against a queue-form global facade,
+          // then switches it to live factory registration. The native Ghost Plane
+          // owns this one facade; no plugin may replace the table or register an
+          // invalid factory shape. Actual bundle arrival/materialization stays
+          // behind the later hard injection gate.
+          const moduleLoader = (() => {
+            let mode = 'queue';
+            const pendingQueue = [];
+            const factories = new Map();
+            const validRegistration = (registration) => registration !== null
+              && typeof registration === 'object'
+              && typeof registration.id === 'string' && registration.id.length > 0
+              && registration.id.length <= 128
+              && /^[A-Za-z0-9._-]+(?:\\/client)?$/.test(registration.id)
+              && typeof registration.factory === 'function';
+            const load = (registration) => {
+              if (!validRegistration(registration)) throw new Error('Ghost Plane module registration was rejected');
+              const id = registration.id.endsWith('/client') ? registration.id.slice(0, -'/client'.length) : registration.id;
+              if (mode === 'queue') {
+                pendingQueue.push(Object.freeze({ id, factory: registration.factory }));
+                return;
+              }
+              if (factories.has(id)) throw new Error(`Ghost Plane duplicate module factory: ${id}`);
+              factories.set(id, registration.factory);
+            };
+            return Object.freeze({ load, pendingQueue, factories, mode });
+          })();
+          Object.defineProperty(window, '__ModuleLoader__', {
+            configurable: false,
+            enumerable: false,
+            writable: false,
+            value: moduleLoader,
+          });
           const targetIDs = new Set([
             'ghost-plane-root', 'ghost-session-header', 'ghost-conversation-scroll',
             'ghost-chat-flow', 'ghost-composer-seat', 'ghost-turn-tail',

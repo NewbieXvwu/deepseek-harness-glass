@@ -72,3 +72,9 @@ GP-2 后续的独立 Plugin target 才可创建 `WKWebView`。它必须将每一
 > 此阶段只完成受控 replay 的 Core admission 与 skeleton-only 参数化 WebKit application；没有宣称 WebKit 已提供官方 ModuleLoader、SlotRegistry 或 typed injection services。
 
 [3]: https://github.com/deepseek-ai/deepseek-harness/blob/528c682e061696f5a160f363f236ecbf53cbd006/packages/host/webserver/src/index.ts "Official WebServer index injection and tap order"
+
+## 8. `__ModuleLoader__` queue facade
+
+官方 `ClientModuleSystem` 以 `window.__ModuleLoader__` 的 queue-form facade 作为 bundle factory 先到达时的暂存入口；系统 boot 后才将该 facade 切换为 live registration，并在 factory 缺失、重复或 dependency unresolved 时显式失败。[1] `GhostPlaneWebViewHost` 因而在 main-frame document start 唯一创建不可重写的 queue facade：`load(registration)` 只接受 ASCII package/client ID 与 function factory，正常化 `/client` 后暂存 immutable record，并拒绝无效 registration。
+
+该 facade 是 module table 的**唯一入口**，而不是完整 module system：当前没有 bundle arrival、live mode switch、static seed exports、factory materialization、`require`、Cordis Loader、SlotRegistry 或 typed injection activation。`GhostPlaneWebViewHostTests` 检查 facade 与 skeleton renderer 位于同一 document 且已具 queue surface；未来 T11.5 必须将已 admitted boot graph 与 static bridge services 接入这些后续阶段，才能声称 plugin client entry 激活。

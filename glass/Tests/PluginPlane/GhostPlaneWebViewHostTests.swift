@@ -72,6 +72,8 @@ final class GhostPlaneWebViewHostTests: XCTestCase {
               mode: tool.getAttribute('data-ghost-mode'),
               classPresent: tool.classList.contains('ghost-compat-review-tool'),
               executable: root.getAttribute('onclick'),
+              moduleLoadType: typeof window.__ModuleLoader__?.load,
+              moduleQueue: Array.isArray(window.__ModuleLoader__?.pendingQueue),
             };
             """,
             arguments: [:],
@@ -83,6 +85,8 @@ final class GhostPlaneWebViewHostTests: XCTestCase {
         XCTAssertEqual(result?["mode"] as? String, "review")
         XCTAssertEqual(result?["classPresent"] as? Bool, true)
         XCTAssertNil(result?["executable"])
+        XCTAssertEqual(result?["moduleLoadType"] as? String, "function")
+        XCTAssertEqual(result?["moduleQueue"] as? Bool, true)
 
         try await host.applyScrollOffset(.init(documentEpoch: 1, sequence: 1, scrollOffset: 42.5))
         let scrollResult = try await host.webView.callAsyncJavaScript(
