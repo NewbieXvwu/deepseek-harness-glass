@@ -42,6 +42,38 @@ final class SSEClientTests: XCTestCase {
         XCTAssertTrue(traces.contains { $0.outcome == .opened })
     }
 
+    func testReconnectDropsLateDuplicateUnsequencedHostResponseButKeepsNewResponse() async throws {
+        let opener = RecordedSSEOpener(scripts: [
+            [
+                .frame(settingsDocumentUpdated(rpcId: "settings-revision-1", revision: 1)),
+                .failure(.network("fixture-disconnect")),
+            ],
+            [
+                .frame(settingsDocumentUpdated(rpcId: "settings-revision-1", revision: 1)),
+                .frame(settingsDocumentUpdated(rpcId: "settings-revision-2", revision: 2)),
+            ],
+        ])
+        let client = SSEClient(
+            baseURL: URL(string: "http://127.0.0.1:9241/")!,
+            testStreamOpener: { endpoint in opener.open(endpoint) }
+        )
+        let collector = Task { () throws -> [RPCServerRequest] in
+            var frames: [RPCServerRequest] = []
+            let stream = await client.reconnectingStream(.host, policy: .init(initialDelay: 0.01, maximumDelay: 0.02, multiplier: 2))
+            for try await frame in stream {
+                frames.append(frame)
+                if frames.count == 2 { return frames }
+            }
+            return frames
+        }
+
+        let frames = try await collector.value
+
+        XCTAssertEqual(frames.map(\.rpcId), ["settings-revision-1", "settings-revision-2"])
+        XCTAssertEqual(frames.compactMap { $0.payload.objectValue?["revision"]?.numberValue.map(Int.init) }, [1, 2])
+        XCTAssertEqual(opener.openedEndpoints(), [.host, .host])
+    }
+
     func testSequenceFenceDoesNotCrossDeduplicateDifferentSessions() async throws {
         let opener = RecordedSSEOpener(scripts: [[
             .frame(sessionEvent(rpcId: "session-a-seq-1", sequence: 1, sessionID: "fixture-session-a")),
@@ -289,6 +321,19 @@ final class SSEClientTests: XCTestCase {
                 "type": .string("session/event"),
                 "sessionId": .string("fixture-session"),
                 "event": event,
+            ])
+        )
+    }
+
+    private func settingsDocumentUpdated(rpcId: String, revision: Int) -> RPCServerRequest {
+        RPCServerRequest(
+            type: "server-request",
+            rpcId: rpcId,
+            method: "settings/document-updated",
+            payload: .object([
+                "type": .string("settings/document-updated"),
+                "namespace": .string("fixture-settings"),
+                "revision": .number(Double(revision)),
             ])
         )
     }
