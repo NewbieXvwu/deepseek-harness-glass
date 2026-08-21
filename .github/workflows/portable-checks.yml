@@ -150,6 +150,10 @@ jobs:
           # macOS runner or a source-text heuristic.
           chmod +x glass/ci/test-assemble-resource-bundle.sh
           ./glass/ci/test-assemble-resource-bundle.sh
+          # Parse macOS-only PluginPlane sources as a syntax gate even on Linux.
+          # Their typed AppKit/WebKit build remains the native-ui authority.
+          swiftc -parse glass/Sources/PluginPlane/GhostPlaneWebViewHost.swift \
+            glass/Sources/PluginPlane/GhostPlaneScrollViewBridge.swift
           # Compile only the portable production source plus a CLI regression
           # harness. This avoids resolving the macOS-only XCTest target graph.
           swiftc glass/Sources/PortableCore/HostPathDisplay.swift \
