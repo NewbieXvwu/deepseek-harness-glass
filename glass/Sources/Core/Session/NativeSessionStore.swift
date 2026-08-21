@@ -58,6 +58,15 @@ protocol NativeSubagentContinuationAPI: Sendable {
 
 extension SubagentsAPI: NativeSubagentCatalogAPI, NativeSubagentContinuationAPI {}
 
+/// Read-only phase of the RC8 feedback controller. Items are always supplied by
+/// the Host list response; mutations are added only behind the same typed seam.
+@MainActor
+protocol NativeMessageFeedbackAPI: Sendable {
+    func list(sessionID: String) async throws -> MessageFeedbackListResponse
+}
+
+extension MessageFeedbackAPI: NativeMessageFeedbackAPI {}
+
 /// Typed desktop-action boundary for settled Markdown file mentions. The Host
 /// keeps both path opening authority and loopback/build-trust enforcement.
 @MainActor
@@ -401,6 +410,11 @@ final class NativeSessionStore: ObservableObject {
     /// session remains exposed above for existing header consumers.
     @Published private(set) var subagentCatalogs: [String: SubagentListResponse] = [:]
     @Published private(set) var subagentRoute: SubagentRoute?
+    /// Complete RC8 message-feedback sidecar snapshot keyed by assistant message id.
+    /// A missing API or failed load remains empty; no local rating is invented.
+    @Published private(set) var messageFeedbackItems: [String: MessageFeedbackItemDTO] = [:]
+    @Published private(set) var isLoadingMessageFeedback = false
+    @Published private(set) var failedMessageFeedbackLoad = false
     @Published private(set) var isLoadingSubagentCatalog = false
     @Published private(set) var loadingSubagentCatalogIDs: Set<String> = []
     /// Parent IDs whose last complete Host catalog request failed. This exposes
@@ -446,6 +460,8 @@ final class NativeSessionStore: ObservableObject {
     private var goalAPI: (any NativeGoalAPI)?
     private var subagentCatalogAPI: (any NativeSubagentCatalogAPI)?
     private var subagentContinuationAPI: (any NativeSubagentContinuationAPI)?
+    private var messageFeedbackAPI: (any NativeMessageFeedbackAPI)?
+    private var messageFeedbackTask: Task<Void, Never>?
     private var subagentCatalogTask: Task<Void, Never>?
     private var subagentCatalogTasks: [String: Task<Void, Never>] = [:]
     private var goalTask: Task<Void, Never>?
@@ -510,6 +526,57 @@ final class NativeSessionStore: ObservableObject {
             return
         }
         subagentRoute = .init(parentSessionID: parentSessionID, childSessionID: entry.id, mode: mode, parentAvailable: parentAvailable)
+    }
+
+    /// Core test seam; production injects the same verified Host facade through `open`.
+    func setMessageFeedbackAPIForTesting(_ api: (any NativeMessageFeedbackAPI)?) {
+        messageFeedbackTask?.cancel()
+        messageFeedbackTask = nil
+        messageFeedbackItems = [:]
+        isLoadingMessageFeedback = false
+        failedMessageFeedbackLoad = false
+        messageFeedbackAPI = api
+    }
+
+    /// Fetches a complete sidecar snapshot. A business or carrier failure clears
+    /// visible feedback rather than retaining stale ratings from another session.
+    func refreshMessageFeedback() {
+        guard let api = messageFeedbackAPI, let sessionID = activeSessionID else {
+            messageFeedbackItems = [:]
+            return
+        }
+        messageFeedbackTask?.cancel()
+        let generation = recoveryGeneration
+        isLoadingMessageFeedback = true
+        failedMessageFeedbackLoad = false
+        messageFeedbackTask = Task { [weak self] in
+            defer {
+                if self?.recoveryGeneration == generation, self?.activeSessionID == sessionID {
+                    self?.isLoadingMessageFeedback = false
+                    self?.messageFeedbackTask = nil
+                }
+            }
+            do {
+                let response = try await api.list(sessionID: sessionID)
+                guard !Task.isCancelled,
+                      self?.recoveryGeneration == generation,
+                      self?.activeSessionID == sessionID
+                else { return }
+                guard response.ok, let items = response.value?.items else {
+                    self?.messageFeedbackItems = [:]
+                    self?.failedMessageFeedbackLoad = true
+                    return
+                }
+                self?.messageFeedbackItems = Dictionary(uniqueKeysWithValues: items.map { ($0.messageId, $0) })
+            } catch {
+                guard !Task.isCancelled,
+                      self?.recoveryGeneration == generation,
+                      self?.activeSessionID == sessionID
+                else { return }
+                self?.messageFeedbackItems = [:]
+                self?.failedMessageFeedbackLoad = true
+            }
+        }
     }
 
     func setSubagentCatalogAPIForTesting(_ api: (any NativeSubagentCatalogAPI)?) {
@@ -680,6 +747,7 @@ final class NativeSessionStore: ObservableObject {
         goalAPI: (any NativeGoalAPI)? = nil,
         subagentCatalogAPI: (any NativeSubagentCatalogAPI)? = nil,
         subagentContinuationAPI: (any NativeSubagentContinuationAPI)? = nil,
+        messageFeedbackAPI: (any NativeMessageFeedbackAPI)? = nil,
         sessionCWD: String? = nil
     ) {
         guard activeSessionID != sessionID || self.endpoint != endpoint else { return }
@@ -697,6 +765,11 @@ final class NativeSessionStore: ObservableObject {
         subagentCatalogTasks.values.forEach { $0.cancel() }
         subagentCatalogTask = nil
         subagentCatalogTasks = [:]
+        messageFeedbackTask?.cancel()
+        messageFeedbackTask = nil
+        messageFeedbackItems = [:]
+        isLoadingMessageFeedback = false
+        failedMessageFeedbackLoad = false
         subagentCatalog = nil
         subagentCatalogs = [:]
         subagentRoute = selectedSubagentRoute
@@ -717,11 +790,13 @@ final class NativeSessionStore: ObservableObject {
         self.goalAPI = goalAPI
         self.subagentCatalogAPI = subagentCatalogAPI
         self.subagentContinuationAPI = subagentContinuationAPI
+        self.messageFeedbackAPI = messageFeedbackAPI
         self.hostPathAPI = hostPathAPI
         self.activeSessionCWD = sessionCWD
         self.endpoint = endpoint
         activeSessionID = sessionID
         if subagentRoute?.childSessionID != sessionID { subagentRoute = nil }
+        refreshMessageFeedback()
         let restoredResident = restoreResidentState(for: sessionID)
         if !restoredResident {
             items = []
@@ -813,6 +888,12 @@ final class NativeSessionStore: ObservableObject {
         recoveryTask?.cancel()
         recoveryTask = nil
         recoveryGeneration &+= 1
+        messageFeedbackTask?.cancel()
+        messageFeedbackTask = nil
+        messageFeedbackAPI = nil
+        messageFeedbackItems = [:]
+        isLoadingMessageFeedback = false
+        failedMessageFeedbackLoad = false
         endpoint = nil
         api = nil
         goalTask?.cancel()
@@ -862,6 +943,12 @@ final class NativeSessionStore: ObservableObject {
         recoveryTask?.cancel()
         recoveryTask = nil
         recoveryGeneration &+= 1
+        messageFeedbackTask?.cancel()
+        messageFeedbackTask = nil
+        messageFeedbackAPI = nil
+        messageFeedbackItems = [:]
+        isLoadingMessageFeedback = false
+        failedMessageFeedbackLoad = false
         endpoint = nil
         api = nil
         goalTask?.cancel()

@@ -63,6 +63,37 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(api.promptSessionIDs, [sessionID])
     }
 
+    func testMessageFeedbackPublishesCompleteHostSnapshotAndFailsClosed() async {
+        let reached = expectation(description: "feedback list reaches typed Host facade")
+        let initial = MessageFeedbackListResponse(
+            ok: true,
+            value: .init(items: [
+                .init(messageId: "assistant-1", rating: .positive, note: "useful", version: "v1", createdAt: 1, updatedAt: 1),
+            ]),
+            error: nil
+        )
+        let feedbackAPI = RecordingMessageFeedbackAPI(response: initial, reached: reached)
+        let store = NativeSessionStore()
+        let sessionAPI = RejectingSessionAPI(promptReachedFacade: nil)
+        store.open(sessionID: "feedback-session", using: sessionAPI, endpoint: URL(string: "http://127.0.0.1:1")!)
+        store.setMessageFeedbackAPIForTesting(feedbackAPI)
+        store.refreshMessageFeedback()
+        await fulfillment(of: [reached], timeout: 1)
+        await eventually(timeout: 1) { store.messageFeedbackItems["assistant-1"]?.version == "v1" && !store.isLoadingMessageFeedback }
+        XCTAssertFalse(store.failedMessageFeedbackLoad)
+
+        feedbackAPI.response = .init(
+            ok: false,
+            value: nil,
+            error: .init(code: "session-not-found", sessionId: "feedback-session", messageId: nil, current: nil, maxBytes: nil, actualBytes: nil)
+        )
+        let failed = expectation(description: "failed feedback list reaches typed Host facade")
+        feedbackAPI.reached = failed
+        store.refreshMessageFeedback()
+        await fulfillment(of: [failed], timeout: 1)
+        await eventually(timeout: 1) { store.failedMessageFeedbackLoad && store.messageFeedbackItems.isEmpty && !store.isLoadingMessageFeedback }
+    }
+
     func testSubagentCatalogPublishesOnlyHostCompleteSnapshotAndFailsClosed() async {
         let catalog = SubagentListResponse(entries: [
             .init(kind: "child", id: "child-a", activity: "running", hasChildren: true, mode: "continuable", label: "Investigate", reason: nil),
@@ -961,6 +992,23 @@ final class NativeSessionStoreTests: XCTestCase {
     }
 
     @MainActor
+    private final class RecordingMessageFeedbackAPI: NativeMessageFeedbackAPI {
+        var response: MessageFeedbackListResponse
+        var reached: XCTestExpectation
+        private(set) var sessionIDs: [String] = []
+
+        init(response: MessageFeedbackListResponse, reached: XCTestExpectation) {
+            self.response = response
+            self.reached = reached
+        }
+
+        func list(sessionID: String) async throws -> MessageFeedbackListResponse {
+            sessionIDs.append(sessionID)
+            reached.fulfill()
+            return response
+        }
+    }
+
     private final class RecordingSubagentContinuationAPI: NativeSubagentContinuationAPI {
         let promptReached: XCTestExpectation
         let interruptReached: XCTestExpectation

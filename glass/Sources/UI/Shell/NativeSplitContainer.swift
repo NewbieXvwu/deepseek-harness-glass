@@ -204,6 +204,7 @@ final class NativeShellPresentation: ObservableObject {
                 goalAPI: apis.commands,
                 subagentCatalogAPI: apis.subagents,
                 subagentContinuationAPI: apis.subagents,
+                messageFeedbackAPI: apis.feedback,
                 sessionCWD: sessionCWD(for: selectedSessionID)
             )
         }
@@ -263,6 +264,7 @@ final class NativeShellPresentation: ObservableObject {
                 goalAPI: apis.commands,
                 subagentCatalogAPI: apis.subagents,
                 subagentContinuationAPI: apis.subagents,
+                messageFeedbackAPI: apis.feedback,
                 sessionCWD: sessionCWD(for: sessionID)
             )
         }
