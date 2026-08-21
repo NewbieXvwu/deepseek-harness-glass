@@ -157,6 +157,31 @@ final class HarnessHostController: ObservableObject {
         }
     }
 
+    /// Discovers an already-running exact-loopback Host through diagnostics-only
+    /// `host.describe`, then delegates to the existing unverified external probe.
+    /// Discovery never starts a process or changes the external Host's trust.
+    func discoverExternal(candidates: [URL]) {
+        guard process == nil else { return }
+        verificationTask?.cancel()
+        verificationTask = Task { [weak self] in
+            let endpoint = await HostLoopbackEndpointDiscovery().discover(
+                candidates: candidates,
+                using: DiagnosticsOnlyLoopbackProbe()
+            )
+            guard !Task.isCancelled else { return }
+            guard let endpoint else {
+                self?.state = .failed(HostFailure(
+                    kind: .verificationFailed,
+                    message: "Could not discover an active loopback DeepSeek Harness Host.",
+                    exitStatus: nil,
+                    logPath: self?.runtime.logFile.path ?? ""
+                ))
+                return
+            }
+            self?.probeExternal(endpoint: endpoint)
+        }
+    }
+
     func retryOnce() {
         guard recoveryAttempts == 0 else { return }
         recoveryAttempts = 1
@@ -439,6 +464,20 @@ if announcedOutput.count > 32_768 {
             // First line, or the file was replaced externally (log rotation):
             // fall back to atomic replacement until the new file exists.
             try? data.write(to: runtime.logFile, options: .atomic)
+        }
+    }
+}
+
+
+private struct DiagnosticsOnlyLoopbackProbe: HostLoopbackEndpointDiscovery.Probe {
+    func respondsToDescribe(at endpoint: URL) async -> Bool {
+        do {
+            let transport = DSHClientTransport(baseURL: endpoint, accessPolicy: .diagnosticsOnly)
+            let response = try await transport.call(method: "host.describe", payload: .object([:]))
+            if case .success = response.result { return true }
+            return false
+        } catch {
+            return false
         }
     }
 }
