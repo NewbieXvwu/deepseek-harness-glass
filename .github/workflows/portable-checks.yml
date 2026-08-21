@@ -225,6 +225,11 @@ jobs:
             glass/ci/ghost-plane-event-bridge-portable-check.swift \
             -o /tmp/ghost-plane-event-bridge-portable-check
           /tmp/ghost-plane-event-bridge-portable-check
+          swiftc glass/Sources/Core/Plugin/GhostPlaneEventBridge.swift \
+            glass/Sources/Core/Plugin/GhostPlaneBridgeWireDecoder.swift \
+            glass/ci/ghost-plane-bridge-wire-decoder-portable-check.swift \
+            -o /tmp/ghost-plane-bridge-wire-decoder-portable-check
+          /tmp/ghost-plane-bridge-wire-decoder-portable-check
           swiftc glass/Sources/Core/Plugin/GhostPlanePermissionBroker.swift \
             glass/ci/ghost-plane-permission-broker-portable-check.swift \
             -o /tmp/ghost-plane-permission-broker-portable-check
