@@ -46,12 +46,18 @@ final class RawEventReplayReducerTests: XCTestCase {
         let chat = reducer.snapshot(target: "chat")
         let tool = tryUnwrap(chat.first(where: { $0.kind == "tool-call" })?.data as? CoreToolCallNode)
         let assistant = tryUnwrap(chat.first(where: { $0.kind == "assistant-step" })?.data as? CoreAssistantNode)
+        XCTAssertEqual(chat.map(\.kind), ["tool-call", "assistant-step"])
+        XCTAssertEqual(chat.map(\.key), [
+            conversationContextKey(kind: "tool-call", id: "fixture-call-1"),
+            conversationContextKey(kind: "assistant-step", id: "4:1"),
+        ])
         XCTAssertEqual(tool.callID, "fixture-call-1")
         XCTAssertEqual(tool.status, .settled)
         XCTAssertEqual(tool.resultContent.first?.text, "fixture result")
         XCTAssertEqual(assistant.status, .running)
         XCTAssertEqual(assistant.blocks.first?.text, "working")
         XCTAssertEqual(Set(chat.map(\.key)).count, chat.count)
+        XCTAssertTrue(reducer.snapshot(target: "inspector").isEmpty)
     }
 
     func testLongSessionReplayMaterializesEveryTurnWithoutDuplicateKeys() throws {
