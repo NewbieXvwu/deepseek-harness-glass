@@ -2146,6 +2146,36 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertTrue(store.isSubmittingApproval)
     }
 
+    func testDisconnectCancelsPendingQuestionCancellationBeforeLateFailure() async {
+        let cancellationReached = expectation(description: "question cancellation reaches Host before disconnect")
+        let cancellationCancelled = expectation(description: "question cancellation Task cancels on disconnect")
+        let api = DelayedReplacingQuestionCancelSessionAPI(
+            oldCancellationReached: cancellationReached,
+            oldCancellationCancelled: cancellationCancelled
+        )
+        let store = NativeSessionStore()
+        let sessionID = "disconnected-question-session"
+        store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+        await eventually(timeout: 1) { store.phase == .ready(sessionID: sessionID) }
+        store.applyMuxFrame(.init(type: "server-request", rpcId: "question-rpc", method: "question/requested", payload: .object([
+            "type": .string("question/requested"),
+            "sessionId": .string(sessionID),
+            "questions": .array([.object(["id": .string("q-1"), "question": .string("Proceed?")])]),
+        ])), sessionID: sessionID)
+
+        store.cancelQuestion()
+        await fulfillment(of: [cancellationReached], timeout: 1)
+        XCTAssertTrue(store.isSubmittingQuestion)
+
+        store.disconnect()
+        await fulfillment(of: [cancellationCancelled], timeout: 1)
+        for _ in 0 ..< 20 { await Task.yield() }
+
+        XCTAssertNil(store.selectedSessionID)
+        XCTAssertNil(store.pendingQuestion)
+        XCTAssertFalse(store.isSubmittingQuestion)
+    }
+
     func testReplacingQuestionCancelsOldCancellationBeforeItCanMutateNewRequest() async {
         let oldCancellationReached = expectation(description: "old question cancellation reaches Host before pending replacement")
         let oldCancellationCancelled = expectation(description: "old question cancellation Task cancels when a new question replaces it")
