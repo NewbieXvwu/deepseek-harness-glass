@@ -1030,6 +1030,23 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertFalse(store.isRunning)
     }
 
+    func testSnapshotModelSelectionFixturePublishesCompleteHostDirectory() {
+        let store = NativeSessionStore()
+        store.loadSnapshotModelSelectionFixture()
+
+        XCTAssertEqual(store.selectedSessionID, "fx-alpha")
+        XCTAssertEqual(store.modelDirectory?.current.provider, "deepseek-official")
+        XCTAssertEqual(store.modelDirectory?.current.model, "deepseek-v4")
+        XCTAssertEqual(store.modelDirectory?.current.reasoningEffort, "balanced")
+        XCTAssertTrue(store.modelDirectory?.routable == true)
+        XCTAssertEqual(store.modelDirectory?.groups.map(\.id), ["deepseek-official", "local"])
+        XCTAssertEqual(store.modelDirectory?.groups.first?.models.map(\.id), ["deepseek-v4", "deepseek-v4-fast"])
+        XCTAssertEqual(store.modelDirectory?.groups.first?.models.first?.reasoningEfforts.map(\.id), ["balanced", "deep"])
+        XCTAssertEqual(store.modelDirectory?.failures.map(\.id), ["fixture-unavailable"])
+        XCTAssertFalse(store.isSelectingModel)
+        XCTAssertFalse(store.isRunning)
+    }
+
     func testSnapshotJobsFixtureUsesCurrentHostSessionAndWholeJobSet() {
         let store = NativeSessionStore()
         store.loadSnapshotJobsFixture()

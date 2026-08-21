@@ -150,6 +150,26 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         XCTAssertTrue(rendered.allSatisfy(officialValues.contains))
     }
 
+    func testNativeModelSelectUsesLockedModelSelectionLocaleCatalog() {
+        let officialValues = Set(OfficialUISpec.LocaleCatalog.values.values)
+        let rendered = [
+            NativeComposerModelSelector.localizedValue(key: "trigger.selectAria", language: "en"),
+            NativeComposerModelSelector.localizedValue(key: "menu.aria", language: "en"),
+            NativeComposerModelSelector.localizedValue(key: "menu.model", language: "en"),
+            NativeComposerModelSelector.localizedValue(key: "menu.effort", language: "en"),
+            NativeComposerModelSelector.localizedValue(key: "status.loading", language: "en"),
+            NativeComposerModelSelector.localizedValue(key: "empty.models", language: "en"),
+            NativeComposerModelSelector.localizedValue(key: "empty.efforts", language: "en"),
+            NativeComposerModelSelector.localizedValue(key: "warning.groupLoad", language: "en", replacements: ["name": "Provider", "message": "offline"]),
+        ]
+        XCTAssertTrue(rendered.dropLast().allSatisfy(officialValues.contains))
+        XCTAssertEqual(
+            NativeComposerModelSelector.localizedValue(key: "menu.aria", language: "zh"),
+            OfficialUISpec.LocaleCatalog.value(namespace: "ui-model-selection", key: "menu.aria", language: "zh")
+        )
+        XCTAssertNotEqual(rendered.last, "warning.groupLoad", "interpolated warning must not fall back to an unregistered product literal")
+    }
+
     func testCompactionRendererUsesOfficialLocaleForSummaryStates() {
         let officialValues = Set(OfficialUISpec.LocaleCatalog.values.values)
         let rendered = [

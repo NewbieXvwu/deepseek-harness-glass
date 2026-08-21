@@ -755,6 +755,8 @@ private struct NativeInteractiveComposerCard: View {
 
                 Spacer(minLength: 0)
 
+                NativeComposerModelSelector(sessionStore: sessionStore)
+
                 if sessionStore.isRunning {
                     Button(action: sessionStore.cancelRunningTurn) {
                         OfficialAssetImage(name: "icon-stop", template: true)

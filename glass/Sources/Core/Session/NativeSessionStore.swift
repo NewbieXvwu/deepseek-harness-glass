@@ -2160,6 +2160,57 @@ final class NativeSessionStore: ObservableObject {
         appliedSequences = Set(conversationEvents.map(\.event.seq))
     }
 
+    /// Snapshot-only Host-shaped `session.models` fixture. It gives the native
+    /// composer a complete routable directory with two models and reasoning
+    /// effort choices; it never stands in for a live selection mutation.
+    func loadSnapshotModelSelectionFixture() {
+        let sessionID = "fx-alpha"
+        phase = .ready(sessionID: sessionID)
+        activeSessionID = sessionID
+        items = []
+        resetConversationWindow()
+        toolInvocations = []
+        queuedMessages = []
+        backgroundJobs = []
+        modelDirectory = .init(response: .init(
+            current: .init(provider: "deepseek-official", model: "deepseek-v4", reasoningEffort: "balanced"),
+            routable: true,
+            groups: [
+                .init(id: "deepseek-official", name: "DeepSeek", models: [
+                    .init(id: "deepseek-v4", name: "DeepSeek V4", description: "General reasoning", reasoning: .init(
+                        efforts: [
+                            .init(id: "balanced", name: "Balanced", description: "Default quality and speed"),
+                            .init(id: "deep", name: "Deep", description: "More deliberate reasoning"),
+                        ],
+                        defaultEffort: "balanced"
+                    )),
+                    .init(id: "deepseek-v4-fast", name: "DeepSeek V4 Fast", description: "Lower-latency responses", reasoning: .init(
+                        efforts: [.init(id: "fast", name: "Fast", description: "Prioritizes latency")],
+                        defaultEffort: "fast"
+                    )),
+                ]),
+                .init(id: "local", name: "Local", models: [
+                    .init(id: "offline", name: "Offline", description: "Local development model", reasoning: nil),
+                ]),
+            ],
+            failures: [.init(id: "fixture-unavailable", name: "Optional provider", message: "Catalog unavailable")]
+        ))
+        isSelectingModel = false
+        selectedToolCallID = nil
+        pendingApproval = nil
+        pendingQuestion = nil
+        isSubmittingApproval = false
+        isSubmittingQuestion = false
+        isRunning = false
+        hasMoreHistory = false
+        isLoadingOlderHistory = false
+        isSubmittingPrompt = false
+        draft = ""
+        pendingImages = []
+        lastError = nil
+        appliedSequences = []
+    }
+
     /// Snapshot-only Host-shaped approval fixture. It exercises the same
     /// `PendingApproval` holder that a live `approval/requested` mux frame sets.
     func loadSnapshotApprovalFixture() {
