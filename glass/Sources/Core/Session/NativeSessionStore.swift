@@ -1997,7 +1997,11 @@ final class NativeSessionStore: ObservableObject {
                     ]),
                     "content": .array([]),
                 ]),
-                surfaceOp: .init(op: "replace", start: 1, end: 9)
+                surfaceOp: .object([
+                    "op": .string("replace"),
+                    "start": .number(1),
+                    "end": .number(9),
+                ])
             )),
         ]
         for input in events {
