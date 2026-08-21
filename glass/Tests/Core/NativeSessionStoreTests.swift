@@ -945,6 +945,36 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.items.map(\.sequence), [1, 2])
     }
 
+    func testResidentResyncSupersedesInFlightWatermarkSecondPull() async {
+        let staleHistoryReached = expectation(description: "watermark second pull history is delayed")
+        let resyncedHistoryReached = expectation(description: "resident resync replaces watermark authority")
+        let api = SupersedingGapRecoverySessionAPI(
+            staleHistoryReached: staleHistoryReached,
+            newHistoryReached: resyncedHistoryReached
+        )
+        let store = NativeSessionStore()
+        let sessionID = "resident-resync-watermark"
+        store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+        await eventually(timeout: 1) { store.phase == .ready(sessionID: sessionID) && store.items.map(\.text) == ["baseline"] }
+
+        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "ahead-watermark", method: "session/subscribed", payload: .object([
+            "type": .string("session/subscribed"),
+            "sessionId": .string(sessionID),
+            "lastSeq": .number(2),
+        ])), sessionID: sessionID)
+        await fulfillment(of: [staleHistoryReached], timeout: 1)
+
+        store.resyncActiveSession()
+        await fulfillment(of: [resyncedHistoryReached], timeout: 1)
+        await api.releaseStaleHistory()
+        await eventually(timeout: 1) {
+            store.phase == .ready(sessionID: sessionID)
+                && store.items.map(\.text) == ["baseline", "new host authority"]
+                && store.modelDirectory?.current.model == "model-new"
+        }
+        XCTAssertFalse(store.items.contains(where: { $0.text == "stale authority" }))
+    }
+
     func testAheadWatermarkFailureKeepsFirstWindowReady() async {
         let recoveryHistoryReached = expectation(description: "ahead watermark recovery history is held")
         let api = CoalescingGapFailureSessionAPI(recoveryHistoryReached: recoveryHistoryReached)
