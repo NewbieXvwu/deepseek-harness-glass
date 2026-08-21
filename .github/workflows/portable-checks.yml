@@ -252,6 +252,10 @@ jobs:
             glass/ci/host-runtime-ladder-portable-check.swift \
             -o /tmp/host-runtime-ladder-portable-check
           /tmp/host-runtime-ladder-portable-check
+          swiftc glass/Sources/Core/Host/HostRuntimeStaticInstallationScanner.swift \
+            glass/ci/host-runtime-static-installation-scanner-portable-check.swift \
+            -o /tmp/host-runtime-static-installation-scanner-portable-check
+          /tmp/host-runtime-static-installation-scanner-portable-check
           swiftc glass/Sources/Core/Plugin/GhostPlaneSkeleton.swift \
             glass/Sources/Core/Plugin/OfficialGhostPlaneContract.swift \
             glass/ci/official-ghost-plane-contract-portable-check.swift \
