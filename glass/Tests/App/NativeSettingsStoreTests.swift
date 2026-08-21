@@ -51,6 +51,26 @@ final class NativeSettingsStoreTests: XCTestCase {
         XCTAssertFalse(store.isDirty(namespace: "ui-theme"))
     }
 
+    func testAgentPresetDefaultUsesCurrentRevisionAndRejectsBrokenRosterRows() async throws {
+        let initial = agentPresetNamespace(value: "standard", revision: 17)
+        let accepted = agentPresetNamespace(value: "minimal", revision: 18)
+        let api = AgentPresetDefaultMutationAPI(initial: initial, accepted: accepted)
+        let store = NativeSettingsStore()
+        let selectable = AgentPresetEntryDTO(id: "minimal", trust: "system", isDefault: false, name: "Minimal", description: nil, broken: nil)
+        let broken = AgentPresetEntryDTO(id: "broken", trust: "user", isDefault: false, name: nil, description: nil, broken: "Host failure")
+
+        store.load(using: api)
+        await eventually { store.agentPresetDefault.current == "standard" }
+        try await store.selectAgentPresetDefault(selectable, using: api)
+        try await store.selectAgentPresetDefault(broken, using: api)
+
+        XCTAssertEqual(api.mutations, [[.set(path: ["default"], value: .string("minimal"))]])
+        XCTAssertEqual(api.expectedRevisions, [Optional(17)])
+        XCTAssertEqual(store.agentPresetDefault.current, "minimal")
+        XCTAssertEqual(store.agentPresetDefault.revision, 18)
+        XCTAssertFalse(store.isDirty(namespace: "agent-presets"))
+    }
+
     func testPluginCardSaveUsesOneCurrentRevisionFencedHostMutation() async throws {
         let initial = shellNamespace(timeout: 60_000, outputCap: 64_000, revision: 12)
         let accepted = shellNamespace(timeout: 9_000, outputCap: 1_024, revision: 13)
@@ -109,6 +129,7 @@ final class NativeSettingsStoreTests: XCTestCase {
         XCTAssertEqual(NativeSettingsRoot.SectionID.general.title, OfficialUISpec.LocaleCatalog.value(namespace: "ui-settings-general", key: "general.nav", language: "en"))
         XCTAssertEqual(NativeSettingsRoot.SectionID.models.title, OfficialUISpec.LocaleCatalog.value(namespace: "ui-settings-models", key: "nav", language: "en"))
         XCTAssertEqual(NativeSettingsRoot.SectionID.plugins.title, OfficialUISpec.LocaleCatalog.value(namespace: "ui-settings-plugins", key: "nav", language: "en"))
+        XCTAssertEqual(NativeSettingsRoot.SectionID.agentPresets.title, OfficialUISpec.LocaleCatalog.value(namespace: "ui-agent-preset", key: "nav", language: "en"))
     }
 
     func testShellSettingsOpenAndCloseUseTypedStoreWithoutInventingHostAuthority() {
@@ -263,6 +284,19 @@ final class NativeSettingsStoreTests: XCTestCase {
         )
     }
 
+    private func agentPresetNamespace(value: String, revision: Int) -> SettingsNamespaceDTO {
+        .init(
+            ns: "agent-presets",
+            schema: .object([:]),
+            value: .object(["default": .string(value)]),
+            base: nil,
+            user: nil,
+            applies: "new-sessions",
+            secrets: [],
+            revision: revision
+        )
+    }
+
     private func permissionNamespace(value: String, revision: Int) -> SettingsNamespaceDTO {
         .init(
             ns: "permission",
@@ -372,6 +406,34 @@ final class NativeSettingsStoreTests: XCTestCase {
             expectedRevision: Int?
         ) async throws -> SettingsNamespaceDTO {
             XCTAssertEqual(namespace, "shell")
+            mutations.append(operations)
+            expectedRevisions.append(expectedRevision)
+            return accepted
+        }
+    }
+
+    @MainActor
+    private final class AgentPresetDefaultMutationAPI: NativeSettingsAPI {
+        private let initial: SettingsNamespaceDTO
+        private let accepted: SettingsNamespaceDTO
+        private(set) var mutations: [[SettingsPathOperationDTO]] = []
+        private(set) var expectedRevisions: [Int?] = []
+
+        init(initial: SettingsNamespaceDTO, accepted: SettingsNamespaceDTO) {
+            self.initial = initial
+            self.accepted = accepted
+        }
+
+        func describe() async throws -> SettingsDescribeResponse {
+            .init(writable: true, hasDocument: true, namespaces: [initial])
+        }
+
+        func mutate(
+            namespace: String,
+            operations: [SettingsPathOperationDTO],
+            expectedRevision: Int?
+        ) async throws -> SettingsNamespaceDTO {
+            XCTAssertEqual(namespace, "agent-presets")
             mutations.append(operations)
             expectedRevisions.append(expectedRevision)
             return accepted

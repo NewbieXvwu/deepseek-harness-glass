@@ -347,6 +347,18 @@ final class NativeShellPresentation: ObservableObject {
         await agentPresetStore.remove(agentPreset: agentPreset, using: apis?.agentPresets)
     }
 
+    func selectAgentPresetDefault(_ preset: AgentPresetEntryDTO) async -> Bool {
+        guard let settingsAPI = apis?.settings else { return false }
+        do {
+            try await settingsStore.selectAgentPresetDefault(preset, using: settingsAPI)
+            guard settingsStore.agentPresetDefault.current == preset.id else { return false }
+            await agentPresetStore.refresh(using: apis?.agentPresets)
+            return agentPresetStore.presets.contains(where: { $0.id == preset.id && $0.isDefault })
+        } catch {
+            return false
+        }
+    }
+
     func selectThemePreference(_ preference: CoreThemePreference) {
         guard let api = apis?.settings else { return }
         Task { [weak self] in
@@ -750,6 +762,10 @@ final class NativeShellController: NativeSplitViewController {
             removeAgentPreset: { [weak presentation] agentPreset in
                 guard let presentation else { return false }
                 return await presentation.removeAgentPreset(agentPreset)
+            },
+            selectAgentPresetDefault: { [weak presentation] preset in
+                guard let presentation else { return false }
+                return await presentation.selectAgentPresetDefault(preset)
             },
             refreshCredential: { [weak presentation] reference in
                 await presentation?.refreshCredential(reference)

@@ -57,6 +57,14 @@ final class NativeSettingsStore: ObservableObject {
         current: nil,
         revision: nil
     )
+    /// Host-derived `agent-presets.default` state. Choices remain sourced from
+    /// `agentPreset.list`; settings only owns the persisted default field.
+    @Published private(set) var agentPresetDefault = CoreAgentPresetDefaultState(
+        status: .unavailable,
+        writable: false,
+        current: nil,
+        revision: nil
+    )
 
     private var loadTask: Task<Void, Never>?
     private var authorityGeneration = 0
@@ -86,6 +94,10 @@ final class NativeSettingsStore: ObservableObject {
                     writable: response.writable
                 )
                 self?.themePreference = ThemePreferenceProjection.state(
+                    namespaces: response.namespaces,
+                    writable: response.writable
+                )
+                self?.agentPresetDefault = AgentPresetDefaultProjection.state(
                     namespaces: response.namespaces,
                     writable: response.writable
                 )
@@ -140,6 +152,10 @@ final class NativeSettingsStore: ObservableObject {
             namespaces: namespaces,
             writable: writable
         )
+        agentPresetDefault = AgentPresetDefaultProjection.state(
+            namespaces: namespaces,
+            writable: writable
+        )
     }
 
     func mutate(
@@ -176,6 +192,10 @@ final class NativeSettingsStore: ObservableObject {
             namespaces: namespaces,
             writable: writable
         )
+        agentPresetDefault = AgentPresetDefaultProjection.state(
+            namespaces: namespaces,
+            writable: writable
+        )
         return true
     }
 
@@ -184,6 +204,17 @@ final class NativeSettingsStore: ObservableObject {
     func selectThemePreference(_ preference: CoreThemePreference, using api: (any NativeSettingsAPI)?) async throws {
         guard let namespace = namespaces.first(where: { $0.ns == ThemePreferenceProjection.namespace }),
               let operation = themePreference.mutation(selecting: preference)
+        else { return }
+        try await mutate(namespace: namespace, operation: operation, using: api)
+    }
+
+    /// Writes only a current Host roster row that can compose a new session to
+    /// the official `agent-presets.default` field. The Host's returned namespace
+    /// replaces the local settings authority after the revision-fenced mutation.
+    func selectAgentPresetDefault(_ preset: AgentPresetEntryDTO, using api: (any NativeSettingsAPI)?) async throws {
+        guard preset.broken == nil,
+              let namespace = namespaces.first(where: { $0.ns == AgentPresetDefaultProjection.namespace }),
+              let operation = agentPresetDefault.mutation(selecting: preset.id)
         else { return }
         try await mutate(namespace: namespace, operation: operation, using: api)
     }
@@ -211,6 +242,12 @@ final class NativeSettingsStore: ObservableObject {
             revision: nil
         )
         themePreference = .init(
+            status: .unavailable,
+            writable: false,
+            current: nil,
+            revision: nil
+        )
+        agentPresetDefault = .init(
             status: .unavailable,
             writable: false,
             current: nil,

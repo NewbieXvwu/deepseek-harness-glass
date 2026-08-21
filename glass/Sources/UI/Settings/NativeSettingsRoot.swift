@@ -41,6 +41,7 @@ struct NativeSettingsRoot: View {
     let openAgentPresetDocument: (String) async -> Bool
     let copyAgentPreset: (AgentPresetCopyRequest) async -> Bool
     let removeAgentPreset: (String) async -> Bool
+    let selectAgentPresetDefault: (AgentPresetEntryDTO) async -> Bool
     let refreshCredential: (String) async -> Void
     let setCredential: (String, String) async -> Bool
     let savePluginCard: (NativePluginCardDraft) async -> Bool
@@ -200,6 +201,12 @@ struct NativeSettingsRoot: View {
                                     copyName = ""
                                 }
                                 .disabled(!agentPresetStore.authorable || preset.broken != nil)
+                                if !preset.isDefault, preset.broken == nil {
+                                    Button(official(namespace: "ui-agent-preset", key: "setDefault")) {
+                                        Task { _ = await selectAgentPresetDefault(preset) }
+                                    }
+                                    .disabled(!store.agentPresetDefault.writable)
+                                }
                                 if preset.trust == "user" {
                                     Button(official(namespace: "ui-agent-preset", key: "delete"), role: .destructive) {
                                         pendingDelete = preset
