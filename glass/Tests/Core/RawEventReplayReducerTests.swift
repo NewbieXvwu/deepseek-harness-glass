@@ -28,10 +28,14 @@ final class RawEventReplayReducerTests: XCTestCase {
         let events = try events(for: "retry-error-turn")
 
         XCTAssertEqual(reducer.replaceWindow(events.map { .init(event: $0) }, hasMore: false), .immediate)
-        let retry = tryUnwrap(reducer.snapshot(target: "chat").first(where: { $0.kind == "model-retry" })?.data as? CoreRetryNode)
+        let chat = reducer.snapshot(target: "chat")
+        let retryNode = tryUnwrap(chat.first(where: { $0.kind == "model-retry" }))
+        let retry = tryUnwrap(retryNode.data as? CoreRetryNode)
+        XCTAssertEqual(chat.map(\.kind), ["model-retry"])
+        XCTAssertEqual(retryNode.key, "model-retry:fixture-retry-1")
         XCTAssertEqual(retry.attempts.map(\.state), [.cancelled])
         XCTAssertEqual(retry.attempts.first?.failureMessage, "fixture transport failure")
-        XCTAssertEqual(reducer.snapshot(target: "chat").filter { $0.kind == "model-retry" }.count, 1)
+        XCTAssertTrue(reducer.snapshot(target: "inspector").isEmpty)
     }
 
     func testConcurrentToolAndAssistantReplayPreservesBothTypedNodes() throws {
