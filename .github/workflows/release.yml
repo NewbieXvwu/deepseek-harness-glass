@@ -15,26 +15,36 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Read pinned Host payload metadata
+        run: |
+          python3 tools/check-host-upgrade-report.py --self-test
+          IFS=$'\t' read -r NODE_RUNTIME_VERSION DSH_VERSION WEB_FRONTEND_VERSION < <(python3 tools/emit-build-manifest.py --release-inputs)
+          {
+            echo "NODE_RUNTIME_VERSION=$NODE_RUNTIME_VERSION"
+            echo "DSH_VERSION=$DSH_VERSION"
+            echo "WEB_FRONTEND_VERSION=$WEB_FRONTEND_VERSION"
+          } >> "$GITHUB_ENV"
+
       - name: Download bundled Node (pinned)
         run: |
-          curl -fsSL https://nodejs.org/dist/v24.19.0/node-v24.19.0-darwin-arm64.tar.gz -o /tmp/node.tgz
+          curl -fsSL "https://nodejs.org/dist/v${NODE_RUNTIME_VERSION}/node-v${NODE_RUNTIME_VERSION}-darwin-arm64.tar.gz" -o /tmp/node.tgz
           tar -xzf /tmp/node.tgz -C /tmp
           mkdir -p glass/build/node
-          cp /tmp/node-v24.19.0-darwin-arm64/bin/node glass/build/node/node
+          cp "/tmp/node-v${NODE_RUNTIME_VERSION}-darwin-arm64/bin/node" glass/build/node/node
           chmod +x glass/build/node/node
 
       - name: Install backend payload (pinned)
         run: |
           mkdir -p glass/build/backend
           cd glass/build/backend
-          cat > package.json <<'EOF'
+          cat > package.json <<EOF
           {
             "name": "dsh-backend-payload",
             "private": true,
             "description": "Pinned dsh backend payload for DeepSeek Harness Glass",
             "dependencies": {
-              "@deepseek-ai/dsh": "0.1.1-rc.1",
-              "@deepseek-ai/dsh-web-frontend": "0.1.1-rc.1"
+              "@deepseek-ai/dsh": "${DSH_VERSION}",
+              "@deepseek-ai/dsh-web-frontend": "${WEB_FRONTEND_VERSION}"
             }
           }
           EOF

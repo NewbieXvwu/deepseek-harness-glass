@@ -81,9 +81,11 @@ def main() -> int:
     parser.add_argument("--app-source-revision")
     parser.add_argument("--output", type=Path)
     parser.add_argument("--payload-versions", action="store_true", help="write default dsh and frontend versions as one tab-delimited line")
+    parser.add_argument("--release-inputs", action="store_true", help="write Node, dsh and frontend versions as one tab-delimited line")
     args = parser.parse_args()
-    if args.payload_versions == (args.output is not None):
-        parser.error("choose exactly one of --payload-versions or --output")
+    selected_modes = int(args.payload_versions) + int(args.release_inputs) + int(args.output is not None)
+    if selected_modes != 1:
+        parser.error("choose exactly one of --payload-versions, --release-inputs or --output")
     if args.output is not None and not args.app_source_revision:
         parser.error("--app-source-revision is required with --output")
     try:
@@ -93,6 +95,9 @@ def main() -> int:
         return 1
     if args.payload_versions:
         print(f"{manifest['dshPackageVersion']}\t{manifest['webFrontendPackageVersion']}")
+        return 0
+    if args.release_inputs:
+        print(f"{manifest['nodeRuntimeVersion']}\t{manifest['dshPackageVersion']}\t{manifest['webFrontendPackageVersion']}")
         return 0
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
