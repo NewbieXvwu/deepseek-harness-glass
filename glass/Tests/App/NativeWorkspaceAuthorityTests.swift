@@ -106,6 +106,61 @@ final class NativeWorkspaceAuthorityTests: XCTestCase {
         }
     }
 
+    func testWorkspaceReorderReceiptLeavesBrowserAtLastHostListUntilRefresh() async throws {
+        let store = NativeWorkspaceStore()
+        let apis = HarnessAPIs(
+            baseURL: URL(string: "http://127.0.0.1:9788/")!,
+            accessPolicy: HostRPCAccessPolicy(trust: .verified(verifiedBuild)),
+            diagnostics: HostDiagnosticRecorder(dshHome: "/tmp/t72-workspace-reorder-authority"),
+            session: mockSession()
+        )
+
+        store.refresh(using: apis)
+        try await eventually {
+            store.snapshot.workspaces.map(\.workspaceId) == ["old-workspace"]
+                && store.snapshot.sessions.map(\.sessionId) == ["old-session"]
+        }
+        let receipt = try await apis.workspaces.insertBefore(workspaceID: "old-workspace")
+        XCTAssertEqual(receipt.workspaceIds, ["new-workspace"])
+        XCTAssertEqual(store.snapshot.workspaces.map(\.workspaceId), ["old-workspace"])
+        XCTAssertEqual(store.snapshot.sessions.map(\.sessionId), ["old-session"])
+
+        store.refresh(using: apis)
+        try await eventually {
+            store.snapshot.workspaces.map(\.workspaceId) == ["new-workspace"]
+                && store.snapshot.sessions.map(\.sessionId) == ["new-session"]
+        }
+    }
+
+    func testSessionReorderReceiptLeavesBrowserAtLastHostListUntilRefresh() async throws {
+        let store = NativeWorkspaceStore()
+        let apis = HarnessAPIs(
+            baseURL: URL(string: "http://127.0.0.1:9788/")!,
+            accessPolicy: HostRPCAccessPolicy(trust: .verified(verifiedBuild)),
+            diagnostics: HostDiagnosticRecorder(dshHome: "/tmp/t72-session-reorder-authority"),
+            session: mockSession()
+        )
+
+        store.refresh(using: apis)
+        try await eventually {
+            store.snapshot.workspaces.map(\.workspaceId) == ["old-workspace"]
+                && store.snapshot.sessions.map(\.sessionId) == ["old-session"]
+        }
+        let receipt = try await apis.workspaces.insertSessionBefore(
+            workspaceID: "old-workspace",
+            sessionID: "old-session"
+        )
+        XCTAssertEqual(receipt.workspace.workspaceId, "new-workspace")
+        XCTAssertEqual(store.snapshot.workspaces.map(\.workspaceId), ["old-workspace"])
+        XCTAssertEqual(store.snapshot.sessions.map(\.sessionId), ["old-session"])
+
+        store.refresh(using: apis)
+        try await eventually {
+            store.snapshot.workspaces.map(\.workspaceId) == ["new-workspace"]
+                && store.snapshot.sessions.map(\.sessionId) == ["new-session"]
+        }
+    }
+
     func testWorkspaceChangedHostEventRefreshesCompleteAuthorityWithoutApplyingPayload() async throws {
         let store = NativeWorkspaceStore()
         let apis = HarnessAPIs(
@@ -321,6 +376,17 @@ private final class WorkspaceAuthorityURLProtocol: URLProtocol, @unchecked Senda
             ])
         case "workspace.archiveSession":
             value = .object(["archivedSessionIds": .array([.string("old-session")])])
+        case "workspace.insertBefore":
+            value = .object(["workspaceIds": .array([.string("new-workspace")])])
+        case "workspace.insertSessionBefore":
+            value = .object(["workspace": .object([
+                "workspaceId": .string("new-workspace"),
+                "path": .string("/new"),
+                "title": .string("new"),
+                "sessionIds": .array([.string("new-session")]),
+                "createdAt": .string("2026-01-01T00:00:00.000Z"),
+                "updatedAt": .string("2026-01-01T00:00:00.000Z"),
+            ])])
         case "workspace.create":
             value = .object([
                 "workspace": .object([
