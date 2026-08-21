@@ -51,6 +51,21 @@ final class NativeModelDiscoveryStoreTests: XCTestCase {
         XCTAssertEqual(store.candidates.map(\.id), ["fresh-model"])
     }
 
+    func testDismissSuppressesLateDiscoveryCandidates() async {
+        let oldReached = expectation(description: "discovery reaches Host before dismiss")
+        let api = DelayedDiscoveryAPI(oldReached: oldReached)
+        let store = NativeModelDiscoveryStore()
+        let task = Task { await store.discover(request(provider: "slow"), using: api) }
+        await fulfillment(of: [oldReached], timeout: 1)
+
+        store.dismiss()
+        await api.releaseOldResponse()
+        await task.value
+
+        XCTAssertEqual(store.phase, .idle)
+        XCTAssertTrue(store.candidates.isEmpty)
+    }
+
     private func request(provider: String = "provider") -> LLMDiscoverModelsRequest {
         .init(settingsNs: "provider-settings", provider: provider, baseURL: "https://models.test", api: nil, apiKey: "ephemeral-test-key")
     }
