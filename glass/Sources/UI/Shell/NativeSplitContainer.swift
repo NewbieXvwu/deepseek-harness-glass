@@ -650,6 +650,7 @@ final class NativeShellController: NativeSplitViewController {
         window.setContentSize(NSSize(width: 760, height: 520))
         window.center()
         window.isReleasedWhenClosed = false
+        window.delegate = self
         window.makeKeyAndOrderFront(nil)
         settingsWindow = window
     }
@@ -714,6 +715,14 @@ final class NativeShellController: NativeSplitViewController {
             sessionStore: presentation.sessionStore,
             close: { presentation.closeDetails() }
         )
+    }
+}
+
+extension NativeShellController: NSWindowDelegate {
+    func windowWillClose(_ notification: Notification) {
+        guard let closing = notification.object as? NSWindow, closing === settingsWindow else { return }
+        settingsWindow = nil
+        if presentation.settingsPresented { presentation.closeSettings() }
     }
 }
 
