@@ -263,7 +263,7 @@ final class SSEClientTests: XCTestCase {
                 if opener.openedEndpoints().count == 1 { return ignored }
                 return SSEFrameStream { continuation in
                     let producer = Task {
-                        continuation.yield(sessionEvent(rpcId: "reconnected-first", sequence: 1))
+                        continuation.yield(Self.sessionEvent(rpcId: "reconnected-first", sequence: 1))
                         secondCarrierProduced.fulfill()
                         await gate.wait()
                         if Task.isCancelled { secondCarrierCancelled.fulfill() }
@@ -417,7 +417,15 @@ final class SSEClientTests: XCTestCase {
         XCTAssertEqual(valid?.method, "session/event")
     }
 
-    private func sessionEvent(rpcId: String, sequence: Int, sessionID: String = "fixture-session") -> RPCServerRequest {
+    private func tryUnwrap<T>(_ value: T?, file: StaticString = #filePath, line: UInt = #line) -> T {
+        guard let value else {
+            XCTFail("Expected non-nil value", file: file, line: line)
+            fatalError("Expected non-nil value")
+        }
+        return value
+    }
+
+    private static func sessionEvent(rpcId: String, sequence: Int, sessionID: String = "fixture-session") -> RPCServerRequest {
         RPCServerRequest(
             type: "server-request",
             rpcId: rpcId,
