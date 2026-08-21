@@ -266,6 +266,7 @@ struct CredentialsAPI: Sendable, NativeCredentialAPI {
 protocol NativeLLMDirectoryAPI: Sendable {
     func providers() async throws -> LLMProvidersResponse
     func models() async throws -> LLMModelsResponse
+    func discoverModels(_ request: LLMDiscoverModelsRequest) async throws -> LLMDiscoverModelsResponse
 }
 
 struct LLMAPI: Sendable, NativeLLMDirectoryAPI {

@@ -66,5 +66,10 @@ final class NativeModelDirectoryStoreTests: XCTestCase {
             if shouldFail { throw DSHTransportError.network("offline") }
             return modelResponse
         }
+
+        func discoverModels(_ request: LLMDiscoverModelsRequest) async throws -> LLMDiscoverModelsResponse {
+            if shouldFail { throw DSHTransportError.network("offline") }
+            return .init(models: [])
+        }
     }
 }
