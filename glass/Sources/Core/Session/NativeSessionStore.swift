@@ -1795,6 +1795,40 @@ final class NativeSessionStore: ObservableObject {
         }
     }
 
+    /// Source: RC8 `Session.resync`. A resident session discards its old
+    /// history window and pending server requests, then reopens against a new
+    /// Host authority baseline. Cold instances have no transport to rebuild.
+    /// Queue/jobs deliberately remain until the fresh `session/subscribed`
+    /// mux boundary supplies their ordered whole snapshots.
+    func resyncActiveSession() {
+        guard let sessionID = activeSessionID,
+              api != nil,
+              endpoint != nil
+        else { return }
+
+        historyTask?.cancel()
+        historyTask = nil
+        olderHistoryTask?.cancel()
+        olderHistoryTask = nil
+        isLoadingOlderHistory = false
+        recoveryLiveBuffer = []
+        recoveryBufferGeneration = nil
+        interactionGeneration &+= 1
+        pendingApproval = nil
+        pendingQuestion = nil
+        isSubmittingApproval = false
+        isSubmittingQuestion = false
+        resetConversationWindow()
+        items = []
+        toolInvocations = []
+        selectedToolCallID = nil
+        appliedSequences = []
+        hasMoreHistory = false
+        lastError = nil
+        phase = .loading(sessionID: sessionID)
+        requestAuthorityRecovery(sessionID: sessionID, reason: .residentResync)
+    }
+
     private func observeMux(sessionID: String, endpoint: URL) {
         streamTask?.cancel()
         let client = SSEClient(baseURL: endpoint)
@@ -1932,6 +1966,7 @@ final class NativeSessionStore: ObservableObject {
     private enum AuthorityRecoveryReason {
         case eventGap
         case subscriptionWatermark
+        case residentResync
     }
 
     private func bufferRecoveryLiveEvent(_ event: SessionEventDTO, view: ToolEventViewDTO?) {

@@ -1606,6 +1606,47 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertFalse(store.isSubmittingQuestion)
     }
 
+    func testResidentResyncRebuildsWindowClearsPendingAndColdInstanceNoOps() async {
+        let cold = NativeSessionStore()
+        cold.resyncActiveSession()
+        XCTAssertNil(cold.selectedSessionID)
+        XCTAssertTrue(cold.chatNodes.isEmpty)
+
+        let resyncHistoryReached = expectation(description: "resident resync reaches Host history")
+        let api = GatedResidentResyncSessionAPI(resyncHistoryReached: resyncHistoryReached)
+        let store = NativeSessionStore()
+        let sessionID = "resident-resync-session"
+        store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+        await eventually(timeout: 1) { store.phase == .ready(sessionID: sessionID) && store.items.map(\.text) == ["initial authority"] }
+
+        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "stale-approval", method: "approval/requested", payload: .object([
+            "type": .string("approval/requested"),
+            "sessionId": .string(sessionID),
+            "approvalId": .string("approval-1"),
+            "toolName": .string("bash"),
+        ])), sessionID: sessionID)
+        XCTAssertNotNil(store.pendingApproval)
+
+        store.resyncActiveSession()
+        await fulfillment(of: [resyncHistoryReached], timeout: 1)
+        XCTAssertEqual(store.phase, .loading(sessionID: sessionID))
+        XCTAssertTrue(store.items.isEmpty)
+        XCTAssertTrue(store.chatNodes.isEmpty)
+        XCTAssertFalse(store.hasMoreHistory)
+        XCTAssertNil(store.pendingApproval)
+        XCTAssertNil(store.pendingQuestion)
+        XCTAssertFalse(store.isSubmittingApproval)
+        XCTAssertFalse(store.isSubmittingQuestion)
+
+        await api.releaseResyncHistory()
+        await eventually(timeout: 1) {
+            store.phase == .ready(sessionID: sessionID)
+                && store.items.map(\.text) == ["resynced authority"]
+        }
+        XCTAssertEqual(api.historyCalls, 2)
+        XCTAssertEqual(api.modelsCalls, 2)
+    }
+
     func testLoadOlderHistoryGuardsKeepWindowAndAdoptEmptyPageHasMore() async {
         let cold = NativeSessionStore()
         cold.loadOlderHistory()
@@ -2229,6 +2270,59 @@ final class NativeSessionStoreTests: XCTestCase {
         }
 
         func releaseStaleHistory() async { await staleHistoryGate.open() }
+        func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
+        func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
+        func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+        func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+        func cancelQuestion(rpcID _: String) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+
+        private func historyEntry(seq: Int, id: String, text: String) -> SessionHistoryEntryDTO {
+            .init(event: .init(
+                type: "user/message",
+                seq: seq,
+                time: Double(seq),
+                data: .object([
+                    "id": .string(id),
+                    "content": .array([.object(["type": .string("text"), "text": .string(text)])]),
+                    "source": .object(["kind": .string("user")]),
+                ]),
+                surfaceOp: .string("append"),
+                sourceEventSeqs: nil,
+                ignorable: nil
+            ), view: nil)
+        }
+    }
+
+    @MainActor
+    private final class GatedResidentResyncSessionAPI: NativeSessionAPI {
+        let resyncHistoryReached: XCTestExpectation
+        private let historyGate = RecoveryGate()
+        private(set) var historyCalls = 0
+        private(set) var modelsCalls = 0
+
+        init(resyncHistoryReached: XCTestExpectation) {
+            self.resyncHistoryReached = resyncHistoryReached
+        }
+
+        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
+            historyCalls += 1
+            if historyCalls == 1 {
+                return .init(events: [historyEntry(seq: 1, id: "initial", text: "initial authority")], hasMore: true, projections: nil)
+            }
+            resyncHistoryReached.fulfill()
+            await historyGate.wait()
+            return .init(events: [historyEntry(seq: 3, id: "resynced", text: "resynced authority")], hasMore: false, projections: nil)
+        }
+
+        func models(sessionID _: String) async throws -> SessionModelsResponse {
+            modelsCalls += 1
+            return .init(current: .init(provider: "provider", model: "model", reasoningEffort: nil), routable: true, groups: [], failures: [])
+        }
+
+        func releaseResyncHistory() async {
+            await historyGate.open()
+        }
+
         func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
         func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
         func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
