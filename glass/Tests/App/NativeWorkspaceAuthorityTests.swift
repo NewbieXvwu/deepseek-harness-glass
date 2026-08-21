@@ -129,7 +129,7 @@ private final class WorkspaceAuthorityURLProtocol: URLProtocol, @unchecked Senda
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
-        guard let body = request.httpBody,
+        guard let body = request.httpBody ?? Self.readBody(from: request.httpBodyStream),
               let rpc = try? JSONDecoder().decode(RPCClientRequest.self, from: body)
         else {
             client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
@@ -149,6 +149,26 @@ private final class WorkspaceAuthorityURLProtocol: URLProtocol, @unchecked Senda
     override func stopLoading() {
         // Intentional: a stale carrier may still finish after task cancellation.
         // The store's cancellation fence must reject it before publication.
+    }
+
+    /// Foundation may materialize a URLProtocol request body as an input stream
+    /// on macOS, even when the originating `URLRequest` used `httpBody`.
+    /// Consume either carrier so this authority-race test exercises the RPC
+    /// responses rather than a platform-specific test-double decoding failure.
+    private static func readBody(from stream: InputStream?) -> Data? {
+        guard let stream else { return nil }
+        stream.open()
+        defer { stream.close() }
+
+        var data = Data()
+        var buffer = [UInt8](repeating: 0, count: 4_096)
+        while stream.hasBytesAvailable {
+            let count = stream.read(&buffer, maxLength: buffer.count)
+            guard count >= 0 else { return nil }
+            guard count > 0 else { break }
+            data.append(contentsOf: buffer.prefix(count))
+        }
+        return data
     }
 
     private func deliver(_ rpc: RPCClientRequest, generation: Generation) {
