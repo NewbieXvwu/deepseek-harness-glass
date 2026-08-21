@@ -3,25 +3,25 @@ import Foundation
 /// A fail-closed native admission layer for the official `__DSH_BOOT__` graph.
 /// It validates wire data before any WebKit document receives a module URL; it
 /// does not execute factories or emulate the JavaScript module system.
-struct GhostPlaneModuleManifest: Codable, Equatable, Sendable {
-    struct Entry: Codable, Equatable, Sendable, Identifiable {
-        let id: String
-        let url: String
-        let rev: String
-        let inject: [String]
-        let immediately: Bool
-        let external: [String]
+public struct GhostPlaneModuleManifest: Codable, Equatable, Sendable {
+    public struct Entry: Codable, Equatable, Sendable, Identifiable {
+        public let id: String
+        public let url: String
+        public let rev: String
+        public let inject: [String]
+        public let immediately: Bool
+        public let external: [String]
     }
 
-    let rev: String
-    let entries: [Entry]
+    public let rev: String
+    public let entries: [Entry]
 
-    enum Admission: Equatable, Sendable {
+    public enum Admission: Equatable, Sendable {
         case admitted(GhostPlaneModuleManifest)
         case rejected(Reason)
     }
 
-    enum Reason: Equatable, Sendable {
+    public enum Reason: Equatable, Sendable {
         case malformedWire
         case emptyGraphRevision
         case duplicateEntryID
@@ -35,7 +35,7 @@ struct GhostPlaneModuleManifest: Codable, Equatable, Sendable {
         case dependencyAfterConsumer
     }
 
-    static func admit(
+    public static func admit(
         data: Data,
         policy: GhostPlaneLoopbackPolicy,
         staticModuleSpecifiers: Set<String>

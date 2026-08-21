@@ -52,3 +52,21 @@ GP-2 后续的独立 Plugin target 才可创建 `WKWebView`。它必须将每一
 后续 T11.4 的诊断模型必须保留上述 plugin/package/run 三重身份以及 `active`、`waitingFor`、`evaluate`/`module-import`/`activate` failure 原因；不得仅以 package display name 或历史数组判断当前运行轨。当前 `GhostPlaneModuleManifest` 仅验证 boot graph，不模拟 Cordis fiber/SlotRegistry lifecycle。
 
 [2]: https://github.com/deepseek-ai/deepseek-harness/blob/528c682e061696f5a160f363f236ecbf53cbd006/packages/extensions/cordis-client-runner/src/client/runtime.ts "Official dynamic Cordis browser lifecycle"
+
+## 7. 受控 `tapIndex` 重放计划
+
+锁定官方 `WebServer` 先渲染结构化 index injections，随后按注册顺序把任意 `tapIndex((html) => html)` 回调作用到原始 HTML。[3] 该 callback 面在 Node/官方网页可执行任意字符串重写，**不能**原样跨越到 Ghost Plane：若把回调源码、HTML fragment、selector 或事件属性交给 WebKit，便会绕过 native skeleton、manifest admission 和 Plugin target 的唯一加载入口。
+
+`GhostPlaneTapIndexReplay` 因而不是一般 HTML sanitizer，而是一个刻意狭窄的 host-side 兼容语言。每项记录都携带 `(pluginID, revision)`，并且只在已 admitted `GhostPlaneModuleManifest` 中存在相同 plugin ID 与精确 bundle revision 时生效。相同 target/mutation 的重复写入 fail-closed，避免把效果交给偶然的注册顺序；输出为 JSON-compatible primitive payload，未来 WebKit 只能通过参数化 `callAsyncJavaScript` 传入，而不得以字符串插值生成脚本。
+
+| 允许 mutation | target | 约束 |
+|---|---|---|
+| `setCustomProperty` | 8 个原生固定 skeleton element ID | property 必须是 `--dsh-*` 或 `--ghost-*`；值限受控字符集，并拒绝 `url`、`expression`、`@import`。 |
+| `setDataAttribute` | 同上 | attribute 必须是 `data-ghost-*`，值仅限 ASCII token。 |
+| `addCompatibilityClass` | 同上 | class 必须是 `ghost-compat-*`。 |
+
+该表故意不含 HTML、CSS selector、URL、事件 handler、style declaration、script source 或任意 bridge 名称。`GhostPlaneTapIndexReplayTests` 与 `glass/ci/ghost-plane-tap-index-replay-portable-check.swift` 覆盖图身份、revision、重复冲突、可执行 CSS URL、未限定 attribute 与 plugin class 负例；后者在 Linux Swift 6.2.4 通过并接入 `portable-checks`。
+
+> 此阶段只完成受控 replay plan 的纯 Core admission；尚未在 `GhostPlaneWebViewHost` 中应用它，且没有宣称 WebKit 已提供官方 ModuleLoader、SlotRegistry 或 typed injection services。
+
+[3]: https://github.com/deepseek-ai/deepseek-harness/blob/528c682e061696f5a160f363f236ecbf53cbd006/packages/host/webserver/src/index.ts "Official WebServer index injection and tap order"
