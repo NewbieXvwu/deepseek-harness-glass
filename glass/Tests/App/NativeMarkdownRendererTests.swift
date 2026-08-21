@@ -91,6 +91,16 @@ final class NativeMarkdownRendererTests: XCTestCase {
         )
     }
 
+    func testHighlighterPreservesLongCodeInputAndUnknownLanguagesRemainSinglePlainRun() {
+        let code = (0..<1_000).map { "let value\($0) = \($0) // line \($0)" }.joined(separator: "\n")
+        let highlighted = NativeCodeHighlighter.fragments(code: code, language: "swift")
+        XCTAssertEqual(highlighted.map(\.text).joined(), code)
+        XCTAssertFalse(highlighted.isEmpty)
+
+        let unknown = NativeCodeHighlighter.fragments(code: code, language: "unregistered-language")
+        XCTAssertEqual(unknown, [.init(text: code, kind: .plain)])
+    }
+
     func testQuoteAndListsBecomeStableNativeBlocksWithoutUnsafeLinkActivation() {
         let blocks = NativeMarkdownDocument.parse(
             "intro\n> quoted [safe](https://example.com)\n> `file:///private`\n- first\n- [unsafe](file:///tmp/private)\n1. ordered\n2. second\nafter"
