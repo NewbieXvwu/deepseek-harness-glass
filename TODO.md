@@ -448,6 +448,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 - [ ] **T10.4：实现 Models 与 Credentials 页面。** 支持 provider、endpoint、protocol、model discovery、reasoning effort、secret configured 状态、credential 写入/清除和模型目录刷新。
   - 依赖：T10.2、T4.5。
   - 验收：secret 不出现在 UI state dump、log、screenshot、错误提示或 readback；模型发现失败只显示 Host 可安全暴露的错误。
+  - 进度：新增 `NativeCredentialStatusPresentation`，只从 typed `CredentialViewDTO.configured/source/writable` 派生编辑性及锁定官方 keyStored/keyEnvLocked/keyPlaceholderNative 状态文案；configured、环境只读和未配置 fixture 均验证 status 不携带 source/value 原文。Models/Credentials 完整页面、provider/discovery、凭据 set/unset 交互、模型刷新与 macOS 证据仍待完成，故保持未勾选。
 
 - [ ] **T10.5：实现官方 Plugin configuration 页面。** 先完成官方内置的 bash、agent-loop 和 web-search 的原生专用卡片，以官方字段、copy、draft、reset 和 save 语义为准。[14]
   - 依赖：T10.2、T11.1。
