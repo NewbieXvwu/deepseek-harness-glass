@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation
 
 #if DEEPSEEK_HARNESS_PACKAGE
 @testable import GlassCore
@@ -83,10 +84,12 @@ struct NativeToolRow: View {
     }
 
     private var summary: String {
-        let firstLine = invocation.arguments.split(separator: "\n", maxSplits: 1).first.map(String.init) ?? ""
-        return variant == .others && !invocation.name.isEmpty
-            ? "\(invocation.name) \(OfficialUISpec.Text.toolSummarySeparator) \(firstLine)"
-            : firstLine
+        NativeToolRowModel.summary(
+            toolName: invocation.name,
+            arguments: invocation.arguments,
+            isGeneric: variant == .others,
+            separator: OfficialUISpec.Text.toolSummarySeparator
+        )
     }
 
     private var state: NativeSessionStore.ToolInvocation.State { invocation.state }
@@ -141,6 +144,36 @@ struct NativeToolRow: View {
         case "run_code": .code
         default: .others
         }
+    }
+}
+
+/// Native RC8 `toolRowModel` summary derivation. File tools deliberately use
+/// `path`/`file_path` rather than showing their raw JSON arguments in the
+/// collapsed row; this is also the summary that a file-mutation tool view uses.
+enum NativeToolRowModel {
+    static func summary(toolName: String, arguments: String, isGeneric: Bool, separator: String) -> String {
+        let fallback = firstLine(arguments)
+        let path = filePath(toolName: toolName, arguments: arguments)
+        let base = path ?? fallback
+        return isGeneric && !toolName.isEmpty ? "\(toolName) \(separator) \(base)" : base
+    }
+
+    private static func filePath(toolName: String, arguments: String) -> String? {
+        guard ["read", "write", "edit"].contains(toolName),
+              let data = arguments.data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data),
+              let values = object as? [String: Any]
+        else { return nil }
+        for key in ["path", "file_path"] {
+            if let value = values[key] as? String, !value.isEmpty {
+                return firstLine(value)
+            }
+        }
+        return nil
+    }
+
+    private static func firstLine(_ value: String) -> String {
+        value.split(separator: "\n", maxSplits: 1).first.map(String.init) ?? ""
     }
 }
 
