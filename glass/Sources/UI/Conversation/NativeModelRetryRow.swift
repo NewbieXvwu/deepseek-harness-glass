@@ -5,6 +5,31 @@ import SwiftUI
 @testable import GlassSpec
 #endif
 
+/// Typed RC8 retry presentation. It consumes only reducer attempts and official
+/// locale formatting; raw `llm/retry` payloads never reach the renderer.
+enum NativeModelRetryPresentation {
+    static func scheduledSeconds(for attempt: CoreRetryAttempt) -> Int {
+        max(0, Int(ceil(Double(attempt.delayMilliseconds) / 1_000)))
+    }
+
+    static func label(for state: CoreRetryAttempt.State) -> String {
+        switch state {
+        case .scheduled: OfficialUISpec.Text.retryScheduled
+        case .started: OfficialUISpec.Text.retryStarted
+        case .cancelled: OfficialUISpec.Text.retryCancelled
+        }
+    }
+
+    static func status(_ attempt: CoreRetryAttempt, seconds: Int? = nil) -> String {
+        OfficialUISpec.Text.retryStatus(
+            label: label(for: attempt.state),
+            retry: attempt.retry,
+            maximum: attempt.unlimited ? "∞" : String(attempt.maximumRetries ?? attempt.retry),
+            seconds: seconds ?? scheduledSeconds(for: attempt)
+        )
+    }
+}
+
 /// Native RC8 `ModelRetryItem` counterpart. It reads the reducer's current
 /// typed retry attempt, never raw `llm/retry` JSON. Scheduled attempts refresh
 /// their official remaining-seconds label at the same 250ms cadence as RC8.
@@ -26,12 +51,7 @@ struct NativeModelRetryRow: View {
                 }
                 .padding(.top, OfficialUISpec.Spacing.p8)
             } label: {
-                Text(OfficialUISpec.Text.retryStatus(
-                    label: label(for: current.state),
-                    retry: current.retry,
-                    maximum: current.unlimited ? "∞" : String(current.maximumRetries ?? current.retry),
-                    seconds: displayedSeconds(for: current)
-                ))
+                Text(NativeModelRetryPresentation.status(current, seconds: displayedSeconds(for: current)))
                 .font(OfficialUISpec.Typography.xs13)
                 .foregroundStyle(OfficialUISpec.Token.secondary)
             }
@@ -61,7 +81,7 @@ struct NativeModelRetryRow: View {
     }
 
     private func scheduledSeconds(for attempt: CoreRetryAttempt) -> Int {
-        max(0, Int(ceil(Double(attempt.delayMilliseconds) / 1_000)))
+        NativeModelRetryPresentation.scheduledSeconds(for: attempt)
     }
 
     /// Source: RC8 ModelRetryItem schedules 250ms refreshes only for a typed
@@ -85,11 +105,4 @@ struct NativeModelRetryRow: View {
         max(0, Int(ceil(countdownDeadline.timeIntervalSinceNow)))
     }
 
-    private func label(for state: CoreRetryAttempt.State) -> String {
-        switch state {
-        case .scheduled: OfficialUISpec.Text.retryScheduled
-        case .started: OfficialUISpec.Text.retryStarted
-        case .cancelled: OfficialUISpec.Text.retryCancelled
-        }
-    }
 }
