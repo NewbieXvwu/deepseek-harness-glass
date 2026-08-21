@@ -1606,6 +1606,39 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertFalse(store.isSubmittingQuestion)
     }
 
+    func testLoadOlderHistoryGuardsKeepWindowAndAdoptEmptyPageHasMore() async {
+        let cold = NativeSessionStore()
+        cold.loadOlderHistory()
+        XCTAssertFalse(cold.isLoadingOlderHistory)
+        XCTAssertFalse(cold.hasMoreHistory)
+
+        let api = PagingHistorySessionAPI()
+        let store = NativeSessionStore()
+        let sessionID = "paging-session"
+        store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+        await eventually(timeout: 1) { store.phase == .ready(sessionID: sessionID) }
+        XCTAssertEqual(api.historyBeforeSequences, [nil])
+        XCTAssertEqual(store.chatNodes.count, 1)
+        XCTAssertTrue(store.hasMoreHistory)
+
+        api.enqueuePage(.failure)
+        store.loadOlderHistory()
+        await eventually(timeout: 1) { api.historyBeforeSequences.count == 2 && !store.isLoadingOlderHistory }
+        XCTAssertEqual(store.chatNodes.count, 1)
+        XCTAssertTrue(store.hasMoreHistory)
+
+        api.enqueuePage(.empty(hasMore: false))
+        store.loadOlderHistory()
+        await eventually(timeout: 1) { api.historyBeforeSequences.count == 3 && !store.isLoadingOlderHistory }
+        XCTAssertEqual(store.chatNodes.count, 1)
+        XCTAssertFalse(store.hasMoreHistory)
+
+        let exhaustedCalls = api.historyBeforeSequences.count
+        store.loadOlderHistory()
+        XCTAssertEqual(api.historyBeforeSequences.count, exhaustedCalls)
+        XCTAssertFalse(store.isLoadingOlderHistory)
+    }
+
     func testReplayedQuestionKeepsNewBusyStateWhenOldSubmissionFailsLate() async {
         let oldAnswerReached = expectation(description: "old answer reaches Host before restart")
         let api = DelayedReplayedQuestionSessionAPI(oldAnswerReached: oldAnswerReached)
@@ -2196,6 +2229,61 @@ final class NativeSessionStoreTests: XCTestCase {
         }
 
         func releaseStaleHistory() async { await staleHistoryGate.open() }
+        func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
+        func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
+        func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+        func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+        func cancelQuestion(rpcID _: String) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+
+        private func historyEntry(seq: Int, id: String, text: String) -> SessionHistoryEntryDTO {
+            .init(event: .init(
+                type: "user/message",
+                seq: seq,
+                time: Double(seq),
+                data: .object([
+                    "id": .string(id),
+                    "content": .array([.object(["type": .string("text"), "text": .string(text)])]),
+                    "source": .object(["kind": .string("user")]),
+                ]),
+                surfaceOp: .string("append"),
+                sourceEventSeqs: nil,
+                ignorable: nil
+            ), view: nil)
+        }
+    }
+
+    @MainActor
+    private final class PagingHistorySessionAPI: NativeSessionAPI {
+        enum PageOutcome {
+            case failure
+            case empty(hasMore: Bool)
+        }
+
+        private var pages: [PageOutcome] = []
+        private(set) var historyBeforeSequences: [Int?] = []
+
+        func enqueuePage(_ page: PageOutcome) {
+            pages.append(page)
+        }
+
+        func history(sessionID _: String, beforeSeq: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
+            historyBeforeSequences.append(beforeSeq)
+            guard beforeSeq != nil else {
+                return .init(events: [historyEntry(seq: 7, id: "newest", text: "newest")], hasMore: true, projections: nil)
+            }
+            guard !pages.isEmpty else { throw DSHTransportError.invalidEndpoint }
+            switch pages.removeFirst() {
+            case .failure:
+                throw DSHTransportError.invalidEndpoint
+            case let .empty(hasMore):
+                return .init(events: [], hasMore: hasMore, projections: nil)
+            }
+        }
+
+        func models(sessionID _: String) async throws -> SessionModelsResponse {
+            .init(current: .init(provider: "provider", model: "model", reasoningEffort: nil), routable: true, groups: [], failures: [])
+        }
+
         func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
         func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
         func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
