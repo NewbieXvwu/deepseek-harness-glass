@@ -2390,6 +2390,52 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertTrue(store.isSubmittingQuestion)
     }
 
+    func testPendingInteractionAndProjectionFramesHaveExactSnapshotBoundaries() {
+        let store = NativeSessionStore()
+        store.loadSnapshotToolingFixture()
+        let sessionID = "snapshot-tooling"
+
+        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "projection-current", method: "session/projection", payload: .object([
+            "type": .string("session/projection"), "sessionId": .string(sessionID),
+            "key": .string("interaction-matrix"), "value": .string("current"), "seq": .number(8),
+        ])), sessionID: sessionID)
+        XCTAssertEqual(store.projections.row(sessionID: sessionID, key: "interaction-matrix"), .init(value: .string("current"), seq: 8))
+
+        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "projection-stale", method: "session/projection", payload: .object([
+            "type": .string("session/projection"), "sessionId": .string(sessionID),
+            "key": .string("interaction-matrix"), "value": .string("stale"), "seq": .number(7),
+        ])), sessionID: sessionID)
+        XCTAssertEqual(store.projections.row(sessionID: sessionID, key: "interaction-matrix"), .init(value: .string("current"), seq: 8))
+
+        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "approval-matrix", method: "approval/requested", payload: .object([
+            "type": .string("approval/requested"), "sessionId": .string(sessionID),
+            "approvalId": .string("approval-matrix"), "toolName": .string("bash"),
+        ])), sessionID: sessionID)
+        XCTAssertEqual(store.pendingApproval?.rpcID, "approval-matrix")
+        XCTAssertNil(store.pendingQuestion)
+
+        // A newer question request is an exclusive Host takeover and clears the
+        // prior approval rather than allowing two native interaction surfaces.
+        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "question-matrix", method: "question/requested", payload: .object([
+            "type": .string("question/requested"), "sessionId": .string(sessionID),
+            "questions": .array([.object(["id": .string("q-matrix"), "question": .string("Continue?")])]),
+        ])), sessionID: sessionID)
+        XCTAssertNil(store.pendingApproval)
+        XCTAssertEqual(store.pendingQuestion?.rpcID, "question-matrix")
+        XCTAssertEqual(store.pendingQuestion?.items.map(\.id), ["q-matrix"])
+
+        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "question-wrong", method: "question/resolved", payload: .object([
+            "type": .string("question/resolved"), "sessionId": .string(sessionID), "questionRpcId": .string("other"),
+        ])), sessionID: sessionID)
+        XCTAssertEqual(store.pendingQuestion?.rpcID, "question-matrix")
+
+        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "question-right", method: "question/resolved", payload: .object([
+            "type": .string("question/resolved"), "sessionId": .string(sessionID), "questionRpcId": .string("question-matrix"),
+        ])), sessionID: sessionID)
+        XCTAssertNil(store.pendingQuestion)
+        XCTAssertNil(store.pendingApproval)
+    }
+
     func testPendingApprovalAndQuestionClearOnlyOnMatchingHostResolution() {
         let store = NativeSessionStore()
         store.loadSnapshotToolingFixture()
