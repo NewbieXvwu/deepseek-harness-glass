@@ -384,7 +384,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 - [ ] **T8.6：实现模型与权限控制。** 在 composer 固定官方位置渲染 model selector、reasoning effort、context meter、permission preset 和高风险确认。
   - 依赖：T4.5、T6.3、T8.4。
   - 验收：无可用 model 时 composer 被官方原因文案阻止；选择模型后 unblock；高风险权限必须经确认。
-  - 进度：`NativeSessionStore.isPromptRouteAvailable` 将已加载但 `routable=false` 的 `session.models` 明确视作 Host 禁止 prompt（尚未加载保持 unknown，不伪造默认 route）；core `submitDraft` 和 Composer send enabled 均受此同一 authority 约束，Composer 原因文案引用锁定 `ui-model-selection.blocked.composer` locale。`NativeSessionStoreTests` 已覆盖不可路由 Host directory 不派发 typed prompt，reload 获得 routable directory 后才解除并以原草稿发送。完整模型菜单交互、context meter、高风险权限确认与 macOS 视觉无障碍证据仍待完成，故保持未勾选。
+  - 进度：`NativeSessionStore.isPromptRouteAvailable` 将已加载但 `routable=false` 的 `session.models` 明确视作 Host 禁止 prompt（尚未加载保持 unknown，不伪造默认 route）；core `submitDraft` 和 Composer send enabled 均受此同一 authority 约束，Composer 原因文案引用锁定 `ui-model-selection.blocked.composer` locale。`NativeSessionStoreTests` 已覆盖不可路由 Host directory 不派发 typed prompt，reload 获得 routable directory 后才解除并以原草稿发送。permission command 现有 session-switch cancellation 回归：`/permission danger-full-access` 到达 Host 后切换会话会取消旧 Task，迟到 acceptance 不得保留 permission busy、改写新 session 或复活旧 projection。完整模型菜单、model/reasoning effort 交互、context meter、高风险权限确认与 macOS 视觉无障碍证据仍待完成，故保持未勾选。
 
 - [ ] **T8.7：实现队列、todo、goal、stats dock。** 使用 projection 或官方 API 真源展示，支持折叠、计数、状态和溢出行为。
   - 依赖：T6.3、T6.6、T8.4。

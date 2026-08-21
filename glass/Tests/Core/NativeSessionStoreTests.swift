@@ -500,6 +500,39 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertNil(store.extensionState?.permissions, "malformed Host projection must hide the optional capability")
     }
 
+    func testSessionSwitchCancelsPendingPermissionCommandBeforeLateAcceptanceCanAffectNewSession() async {
+        let commandReached = expectation(description: "permission command reaches Host before session switch")
+        let commandCancelled = expectation(description: "permission command Task cancels on session switch")
+        let api = DelayedPromptSessionAPI(oldPromptReached: commandReached, oldPromptCancelled: commandCancelled)
+        let store = NativeSessionStore()
+        store.loadSnapshotToolingFixture()
+        let oldSessionID = tryUnwrap(store.selectedSessionID)
+        store.projections.apply(
+            sessionID: oldSessionID,
+            key: "permissions",
+            value: .object([
+                "options": .array([
+                    .object(["value": .string("workspace-write"), "name": .string("workspace-write")]),
+                    .object(["value": .string("danger-full-access"), "name": .string("danger-full-access")]),
+                ]),
+                "currentValue": .string("workspace-write"),
+            ]),
+            seq: 12
+        )
+        store.setSessionAPIForTesting(api)
+        store.selectPermissionPreset("danger-full-access")
+        await fulfillment(of: [commandReached], timeout: 1)
+        XCTAssertTrue(store.isSubmittingPermission)
+
+        store.open(sessionID: "new-permission-session", using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+        await fulfillment(of: [commandCancelled], timeout: 1)
+        await eventually(timeout: 1) { store.phase == .ready(sessionID: "new-permission-session") }
+
+        XCTAssertFalse(store.isSubmittingPermission)
+        XCTAssertEqual(store.selectedSessionID, "new-permission-session")
+        XCTAssertNil(store.extensionState?.permissions)
+    }
+
     func testKnownUnroutableModelDirectoryBlocksPromptUntilHostReloadRestoresRoute() async {
         let api = PromptRouteSessionAPI()
         let store = NativeSessionStore()
