@@ -465,11 +465,11 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
   - 依赖：T11.1、T11.3、GP-2。
   - 验收：无任何专有适配文件的第三方 React 插件自动路由至 Ghost Plane；诊断页清晰展示每个插件当前激活的运行轨与原因；`upstream-defect` 类（如硬编码 Windows 进程）有明确标注而非静默失败。
 
-- [ ] **T11.5：实现 Ghost Plane host（固定锚点平面）。** 单一共享的全窗口近透明 WKWebView：内置官方模块表（`window.__ModuleLoader__` 契约）、真实 SlotRegistry、官方 CSS Token，构建页面时依序重放 `webServer.tapIndex` 变换；加载 `/plugins/<id>/client.js` 并按官方语义挂载。配套隐形骨架 DOM（结构真、内容空、几何真，几何由 `OfficialColumnLayoutFixtures` 算法驱动）与平台 API 字典第一批 shim（Notification→UNUserNotificationCenter、clipboard→NSPasteboard、visibilityState←窗口状态、download→NSSavePanel）。限制为 loopback same-origin、禁止外网导航、禁止读取非插件本地资源。
+- [ ] **T11.5：实现 Ghost Plane host（固定锚点平面）。** 单一共享的全窗口近透明 WKWebView：内置官方模块表（`window.__ModuleLoader__` 契约）、真实 SlotRegistry、官方 CSS Token，构建页面时依序重放 `webServer.tapIndex` 变换（限定受控兼容通道，先净化与来源追踪）；加载 `/plugins/<id>/client.js` 并按官方语义挂载，typed bridge 服务须在 entry 激活前以官方一致方式提供（hard injection gate）。配套隐形骨架 DOM（结构真、内容空、几何真，几何由 `OfficialColumnLayoutFixtures` 算法驱动）与平台 API 字典第一批 shim（Notification→UNUserNotificationCenter、clipboard→NSPasteboard、visibilityState←窗口状态、download→NSSavePanel）。限制为 loopback same-origin、禁止外网导航、禁止读取非插件本地资源。
   - 依赖：GP-1、GP-2。
   - 验收：P0 试金石插件（`dsh-review-loop`、`dsh-open-in-vscode`）在零修改下达到提案预期兼容度；网络策略阻断外站请求与 file URL；tapIndex 重放后令牌类插件写操作可用。
 
-- [ ] **T11.6：实现内联切片与事件桥。** 滚动内容内锚点（`turnTail`、`toolview`）以 NSViewRepresentable 内联切片承载，经 BroadcastChannel 与主平面镜像 ctx；事件桥四件套——按键分诊器（KeyboardEvent 完整语义转发 + draft 回写）、粘贴桥（粘贴板图像 → 合成 ClipboardEvent）、选区投影（Selection API 完整面双向对称，含回环抑制）、拖拽桥（NSDragging ⇄ DataTransfer）；z 序双实例（基础层 + portal 浮层）与焦点协调。
+- [ ] **T11.6：实现单一主 document 平面与事件桥。** 固定锚点与滚动内容锚点（`turnTail`、`toolview`）全部同住一个 WKWebView 主 document；滚动同步退化为向平面传递 `scrollOffset` 标量（提案 v2 M2，废弃 v1 的内联切片/BroadcastChannel 设计）。事件桥四件套——按键分诊器（KeyboardEvent 完整语义转发 + draft 回写）、粘贴桥（粘贴板图像 → 合成 ClipboardEvent）、选区投影（Selection API 完整面双向对称，含回环抑制）、拖拽桥（NSDragging ⇄ DataTransfer）；z 序双实例（基础层 + portal 浮层）与焦点协调。
   - 依赖：T11.5。
   - 验收：`at-file` @ 补全全键盘可用；vision 类贴图即析；`sidebar-qa` 划词追问闭环；快速惯性滚动下切片无可见错位；VoiceOver 焦点顺序可测。
 
@@ -477,9 +477,9 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
   - 依赖：T11.5。
   - 验收：真实运行态 diagnostics/NSView tree test 报告红区 WebView 数量始终为 0，且以注入真实 WebView 的负例证明确实可拒绝违规；Plugin target 接入后必须以 `swift package describe --type json` 的允许/禁止 target graph 与运行态 host view isolation 测试证明仅明确登记的隔离插件路由 target 可连接该平面，绝不对 Core/UI/App 的 Swift 源码做 import 或 symbol 关键词扫描。
 
-- [ ] **T11.8：骨架契约防漂移门禁。** 骨架 DOM 的 selector/契约属性清单（`[role=menu]`、`data-chat-anchor-key`、`data-streaming` 等）纳入 spec-drift CI：对官方锁定 build 页面抓取契约快照并与骨架定义 diff，漂移即红。
+- [ ] **T11.8：骨架契约防漂移门禁。** 骨架 DOM 的 selector/契约属性清单（`[role=menu]`、`data-chat-anchor-key`、`data-streaming` 等）**以及 SlotMap、服务声明、module manifest** 纳入 spec-drift CI：对官方锁定 build 页面抓取契约快照并与骨架定义 diff，漂移即红。仅快照 selector 不足以捕获 slot/注入签名变化——DOM 看似一致时插件仍可能死于 injection gate。
   - 依赖：T2.x OfficialUISpec 门禁体系。
-  - 验收：人为篡改骨架契约时 CI 失败；官方 build 升级流程自动产出新快照供评审。
+  - 验收：人为篡改骨架契约或 SlotMap/服务声明时 CI 失败；官方 build 升级流程自动产出新快照供评审。
 
 ### GP 任务族：Ghost Plane 基础设施（T11.5/T11.6 的前置件，设计见提案 §2/§5）
 
@@ -489,14 +489,14 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 - [ ] **GP-2：固定锚点平面 host。** 单一共享近透明 WKWebView + 官方模块表 + SlotRegistry + token 注入 + tapIndex 重放；settings 卡片作为其固定锚点特例。
   - 验收：官方 loader 契约下插件 client entry 正常激活（inject 服务齐备）。
 
-- [ ] **GP-3：内联切片与 ctx 镜像。** 滚动内容锚点的 NSViewRepresentable 切片；BroadcastChannel + localStorage 与主平面共享 ctx 状态。
-  - 验收：切片随原生滚动零错位；跨切片服务调用与主平面一致。
+- [ ] **GP-3：滚动标量同步引擎。** 原生会话流滚动 → 向主 document 传递 `scrollOffset` 标量 → 平面内 transform 内容；惯性滚动下插件卡片仅允许轻微拖影（视觉瑕疵），禁止功能错位；需 120Hz ProMotion 实测（开放验证项）。
+  - 验收：切片随原生滚动零功能错位；跨插件服务调用一致（单 document 保证互操作）。
 
 - [ ] **GP-4：事件桥四件套。** 按键分诊器、粘贴桥、选区投影（双向对称）、拖拽桥；z 序双实例与焦点协调。
   - 验收：各桥按平台 API 完整契约面定义行为（非逐插件键位/样本）；回环抑制有测试。
 
-- [ ] **GP-5：平台 API 字典第一批。** Notification→UNUserNotificationCenter、clipboard→NSPasteboard、visibilityState←窗口状态、online/offline←NWPathMonitor、download→NSSavePanel、文件选择→NSOpenPanel；权限统一 TCC。
-  - 验收：纯通知类插件零修改达到可用；权限请求走系统授权对话框。
+- [ ] **GP-5：平台 API 字典第一批 + PermissionBroker。** Notification→UNUserNotificationCenter、clipboard→NSPasteboard、visibilityState←窗口状态、online/offline←NWPathMonitor、download→NSSavePanel、文件选择→NSOpenPanel。PermissionBroker 实现浏览器式初次调用授权：`(pluginId, capability)` 记忆 granted/denied，首调弹原生对话框（插件名 + 能力说明）；settings 仅提供事后查看与撤销；外链/OAuth 跳转前确认 URL。
+  - 验收：纯通知类插件零修改达到可用，TCC 首调弹窗由系统接管；权限记录可撤销；无预授权设置入口。
 
 - [ ] **GP-6：profile 共享与装载过滤。** 默认复用 `~/.dsh/profiles/web`；竞争 stdio 的 runtime/TUI 类拒绝装入并提示独立 profile；settings 提供独立 profile 开关（默认关）。
   - 验收：marketplace 类安装器写入对 glass Host 即时生效；过滤规则有诊断可见原因。
@@ -532,7 +532,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
   - 依赖：T8–T10。
   - 验收：建立帧率（60fps+）与内存基准线，拖拽 resize 与长文本滚动无主线程卡顿。
 
-- [ ] **T12.7：安全隔离与插件平面审查。** 审查 loopback 信任边界、RPC 内容类型、下载路径安全、Markdown 外部链接拦截、凭据内存生命周期与 Ghost Plane 严格隔离（红/绿区 target 登记、tapIndex 重放的 HTML 净化、平面内外网与 file:// 阻断、TCC 权限语义统一）。
+- [ ] **T12.7：安全隔离与插件平面审查。** 审查 loopback 信任边界、RPC 内容类型、下载路径安全、Markdown 外部链接拦截、凭据内存生命周期与 Ghost Plane 严格隔离（红/绿区 + T4 容器 target 登记、tapIndex 重放的 HTML 净化限定受控通道、平面内外网与 file:// 阻断、TCC 权限语义统一、PermissionBroker 首调授权、profile 变更原子回滚）。安全立场为安装时刻信任边界（npm 包模型）：client 桥能力为同插件 Host 半区严格子集，不构成新攻击面。
   - 依赖：T3–T4、T8.3、T10.4、T11。
   - 验收：安全 checklist 全部通过，插件平面完全限制在登记制的绿区边界内。
 
