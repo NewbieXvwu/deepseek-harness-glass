@@ -307,7 +307,16 @@ struct SkillsAPI: Sendable {
     }
 }
 
-struct AgentPresetsAPI: Sendable {
+protocol NativeAgentPresetAPI: Sendable {
+    func list() async throws -> AgentPresetListResponse
+    func select(sessionID: String, agentPreset: String) async throws -> AgentPresetSelectResponse
+    func read(agentPreset: String) async throws -> AgentPresetReadResponse
+    func copy(_ request: AgentPresetCopyRequest) async throws -> AgentPresetCopyResponse
+    func openDocument(agentPreset: String) async throws -> AgentPresetOpenDocumentResponse
+    func remove(agentPreset: String) async throws -> EmptyRPCResponse
+}
+
+struct AgentPresetsAPI: Sendable, NativeAgentPresetAPI {
     private let client: DSHAPIClient
     init(client: DSHAPIClient) { self.client = client }
 

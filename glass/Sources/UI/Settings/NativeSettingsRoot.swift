@@ -13,6 +13,7 @@ struct NativeSettingsRoot: View {
         case general
         case models
         case plugins
+        case agentPresets
 
         var id: String { rawValue }
 
@@ -21,6 +22,7 @@ struct NativeSettingsRoot: View {
             case .general: NativeSettingsRoot.official(namespace: "ui-settings-general", key: "general.nav")
             case .models: NativeSettingsRoot.official(namespace: "ui-settings-models", key: "nav")
             case .plugins: NativeSettingsRoot.official(namespace: "ui-settings-plugins", key: "nav")
+            case .agentPresets: NativeSettingsRoot.official(namespace: "ui-agent-preset", key: "nav")
             }
         }
     }
@@ -32,7 +34,10 @@ struct NativeSettingsRoot: View {
     let selectTheme: (CoreThemePreference) -> Void
     @ObservedObject var credentialStore: NativeCredentialStore
     @ObservedObject var modelDirectoryStore: NativeModelDirectoryStore
+    @ObservedObject var agentPresetStore: NativeAgentPresetStore
     let refreshModelDirectory: () async -> Void
+    let refreshAgentPresets: () async -> Void
+    let readAgentPreset: (String) async -> Bool
     let refreshCredential: (String) async -> Void
     let setCredential: (String, String) async -> Bool
     let savePluginCard: (NativePluginCardDraft) async -> Bool
@@ -70,6 +75,8 @@ struct NativeSettingsRoot: View {
         case .ready:
             if selection == .models {
                 modelsDetail
+            } else if selection == .agentPresets {
+                agentPresetsDetail
             } else if selection == .plugins {
                 let cards = NativeBuiltinPluginCard.dispatched(from: store.namespaces)
                 List {
@@ -119,6 +126,65 @@ struct NativeSettingsRoot: View {
                                     .foregroundStyle(OfficialUISpec.Token.caption)
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var agentPresetsDetail: some View {
+        switch agentPresetStore.phase {
+        case .idle, .loading:
+            ProgressView(official(namespace: "ui-agent-preset", key: "loading"))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .failed:
+            VStack(spacing: OfficialUISpec.Spacing.p12) {
+                Text(official(namespace: "ui-agent-preset", key: "error"))
+                Button(official(namespace: "ui-agent-preset", key: "retry")) {
+                    Task { await refreshAgentPresets() }
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .unavailable:
+            List {
+                Text(official(namespace: "ui-agent-preset", key: "sectionIntro"))
+                    .font(OfficialUISpec.Typography.xs13)
+                    .foregroundStyle(OfficialUISpec.Token.caption)
+            }
+        case .ready:
+            List {
+                Section(official(namespace: "ui-agent-preset", key: "title")) {
+                    Text(official(namespace: "ui-agent-preset", key: "sectionIntro"))
+                        .font(OfficialUISpec.Typography.xs13)
+                        .foregroundStyle(OfficialUISpec.Token.caption)
+                    ForEach(agentPresetStore.presets) { preset in
+                        VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p4) {
+                            HStack {
+                                Text(preset.name ?? preset.id)
+                                if preset.broken != nil {
+                                    Text(official(namespace: "ui-agent-preset", key: "brokenBadge"))
+                                        .font(OfficialUISpec.Typography.xs13)
+                                        .foregroundStyle(OfficialUISpec.Token.caption)
+                                }
+                            }
+                            Text(preset.description ?? official(namespace: "ui-agent-preset", key: "noDescription"))
+                                .font(OfficialUISpec.Typography.xs13)
+                                .foregroundStyle(OfficialUISpec.Token.caption)
+                            Text(preset.id)
+                                .font(OfficialUISpec.Typography.xs13.monospaced())
+                                .foregroundStyle(OfficialUISpec.Token.caption)
+                            Button(official(namespace: "ui-agent-preset", key: "view")) {
+                                Task { _ = await readAgentPreset(preset.id) }
+                            }
+                        }
+                    }
+                }
+                if let detail = agentPresetStore.detail {
+                    Section(official(namespace: "ui-agent-preset", key: "composition")) {
+                        Text(detail.content)
+                            .font(OfficialUISpec.Typography.xs13.monospaced())
+                            .textSelection(.enabled)
                     }
                 }
             }

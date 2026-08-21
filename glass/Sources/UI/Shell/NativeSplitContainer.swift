@@ -94,6 +94,7 @@ final class NativeShellPresentation: ObservableObject {
     let settingsStore: NativeSettingsStore
     let credentialStore: NativeCredentialStore
     let modelDirectoryStore: NativeModelDirectoryStore
+    let agentPresetStore: NativeAgentPresetStore
     @Published var settingsPresented = false
     /// Window-resident native counterparts of RC8's contribution ledgers.
     /// They deliberately outlive individual SwiftUI root-view assignments.
@@ -121,6 +122,7 @@ final class NativeShellPresentation: ObservableObject {
         settingsStore: NativeSettingsStore? = nil,
         credentialStore: NativeCredentialStore? = nil,
         modelDirectoryStore: NativeModelDirectoryStore? = nil,
+        agentPresetStore: NativeAgentPresetStore? = nil,
         workspaceSnapshotDialog: WorkspaceBrowserView.SnapshotDialog = .none,
         jobsPopoverInitiallyOpen: Bool = false,
         jobsSnapshotLanguageCode: String? = nil,
@@ -134,6 +136,7 @@ final class NativeShellPresentation: ObservableObject {
         self.settingsStore = settingsStore ?? NativeSettingsStore()
         self.credentialStore = credentialStore ?? NativeCredentialStore()
         self.modelDirectoryStore = modelDirectoryStore ?? NativeModelDirectoryStore()
+        self.agentPresetStore = agentPresetStore ?? NativeAgentPresetStore()
         self.workspaceSnapshotDialog = workspaceSnapshotDialog
         self.jobsPopoverInitiallyOpen = jobsPopoverInitiallyOpen
         self.jobsSnapshotLanguageCode = jobsSnapshotLanguageCode
@@ -237,6 +240,7 @@ final class NativeShellPresentation: ObservableObject {
         if settingsPresented {
             settingsStore.load(using: apis.settings)
             Task { [weak self] in await self?.modelDirectoryStore.refresh(using: apis.llm) }
+            Task { [weak self] in await self?.agentPresetStore.refresh(using: apis.agentPresets) }
         }
         workspaceStore.observeHostEvents(at: connection.endpoint, using: apis, diagnostics: connection.diagnostics)
         if let selectedSessionID {
@@ -299,6 +303,7 @@ final class NativeShellPresentation: ObservableObject {
         sessionStore.disconnect()
         settingsStore.load(using: nil)
         Task { [weak self] in await self?.modelDirectoryStore.refresh(using: nil) }
+        Task { [weak self] in await self?.agentPresetStore.refresh(using: nil) }
         settingsPresented = false
         mode = .welcome
         closeDetails()
@@ -308,6 +313,7 @@ final class NativeShellPresentation: ObservableObject {
         settingsPresented = true
         settingsStore.load(using: apis?.settings)
         Task { [weak self] in await self?.modelDirectoryStore.refresh(using: self?.apis?.llm) }
+        Task { [weak self] in await self?.agentPresetStore.refresh(using: self?.apis?.agentPresets) }
     }
 
     func closeSettings() {
@@ -319,6 +325,14 @@ final class NativeShellPresentation: ObservableObject {
     /// remains authoritative and no local durable preference is manufactured.
     func refreshModelDirectory() async {
         await modelDirectoryStore.refresh(using: apis?.llm)
+    }
+
+    func refreshAgentPresets() async {
+        await agentPresetStore.refresh(using: apis?.agentPresets)
+    }
+
+    func readAgentPreset(_ agentPreset: String) async -> Bool {
+        await agentPresetStore.read(agentPreset: agentPreset, using: apis?.agentPresets)
     }
 
     func selectThemePreference(_ preference: CoreThemePreference) {
@@ -702,8 +716,16 @@ final class NativeShellController: NativeSplitViewController {
             },
             credentialStore: presentation.credentialStore,
             modelDirectoryStore: presentation.modelDirectoryStore,
+            agentPresetStore: presentation.agentPresetStore,
             refreshModelDirectory: { [weak presentation] in
                 await presentation?.refreshModelDirectory()
+            },
+            refreshAgentPresets: { [weak presentation] in
+                await presentation?.refreshAgentPresets()
+            },
+            readAgentPreset: { [weak presentation] agentPreset in
+                guard let presentation else { return false }
+                return await presentation.readAgentPreset(agentPreset)
             },
             refreshCredential: { [weak presentation] reference in
                 await presentation?.refreshCredential(reference)
