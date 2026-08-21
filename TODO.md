@@ -547,6 +547,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 - [ ] **T13.1：迁移构建脚本。** 更新 `assemble.sh`、`repair-backend.sh` 与 release workflow，使其组装原生 app、固定 Host payload、生成 `SupportedHostBuilds.json`、打包 spec assets 并执行 smoke tests。
   - 依赖：T3.6、T12.1。
   - 验收：clean environment 可从零构建；构建产物清单可追溯到 Node、dsh、spec、App 源提交。
+  - 进度：新增 `tools/emit-build-manifest.py`，仅从结构化 `SupportedHostBuilds.json` 和 `HostUpgradeReport.json` 生成 schema v2 `BuildManifest.json`：default Host build、official commit、dsh/frontend/Node、macOS/arch，以及 UI spec/protocol/raw-event revisions 均在 app resource 可追溯。`assemble.sh` 已改为调用该生成器并随 app 打包 `SupportedHostBuilds.json` 与 `HostUpgradeReport.json`；`repair-backend.sh` 同时以 generator 的 payload-version query 取得精确 dsh/frontend pin，消除两个 shell 脚本的硬编码版本分叉。generator output 及 shell `bash -n` 均已本地验证。release workflow 的同源化、clean macOS assembly/启动 smoke 与发布工件清单仍待完成，故保持未勾选。
 
 - [ ] **T13.2：实行代码签名与分发治理。** 支持标准的 Ad-hoc 签名与 Developer ID 签名分发路径；针对开源分发提供清晰的 Gatekeeper 右键打开引导，不将付费 Apple 开发者证书作为阻塞 Release 的强前提。
   - 依赖：T13.1。

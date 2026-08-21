@@ -8,8 +8,9 @@ cd "$ROOT"
 
 export PATH="$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
-DSH_VERSION="${DSH_VERSION:-0.1.1-rc.1}"
-FRONTEND_VERSION="${FRONTEND_VERSION:-0.1.1-rc.1}"
+IFS=$'\t' read -r DEFAULT_DSH_VERSION DEFAULT_FRONTEND_VERSION < <(python3 ../tools/emit-build-manifest.py --repo .. --payload-versions)
+DSH_VERSION="${DSH_VERSION:-$DEFAULT_DSH_VERSION}"
+FRONTEND_VERSION="${FRONTEND_VERSION:-$DEFAULT_FRONTEND_VERSION}"
 
 echo "== 1/3 重建后端 payload（npm 精确 pin）=="
 mkdir -p build/backend

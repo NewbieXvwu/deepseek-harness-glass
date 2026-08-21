@@ -51,22 +51,14 @@ cp -RL "build/backend/node_modules" \
 echo "== 4/4 Info.plist / 官方基线 / 图标 / 签名 / 原子替换 =="
 cp Info.plist "$STAGE/Contents/Info.plist"
 cp Sources/Spec/SupportedHostBuilds.json "$STAGE/Contents/Resources/SupportedHostBuilds.json"
+cp Sources/Spec/HostUpgradeReport.json "$STAGE/Contents/Resources/HostUpgradeReport.json"
 cp Sources/Spec/Fixtures/official-column-layout-fixtures.json "$STAGE/Contents/Resources/official-column-layout-fixtures.json"
 cp Sources/Core/Resources/official-host-rpc-fixtures.json "$STAGE/Contents/Resources/official-host-rpc-fixtures.json"
-OFFICIAL_SOURCE_COMMIT="528c682e061696f5a160f363f236ecbf53cbd006"
 APP_SOURCE_REVISION="$(git -C .. rev-parse HEAD 2>/dev/null || echo unknown)"
-cat > "$STAGE/Contents/Resources/BuildManifest.json" <<EOF
-{
-  "schemaVersion": 1,
-  "appSourceRevision": "$APP_SOURCE_REVISION",
-  "officialSourceCommit": "$OFFICIAL_SOURCE_COMMIT",
-  "dshPackageVersion": "0.1.1-rc.1",
-  "webFrontendPackageVersion": "0.1.1-rc.1",
-  "nodeRuntimeVersion": "24.19.0",
-  "minimumMacOS": "26.0",
-  "supportedArchitectures": ["arm64"]
-}
-EOF
+python3 ../tools/emit-build-manifest.py \
+  --repo .. \
+  --app-source-revision "$APP_SOURCE_REVISION" \
+  --output "$STAGE/Contents/Resources/BuildManifest.json"
 cp ../build/icon.icns "$STAGE/Contents/Resources/icon.icns"
 cp assets/*.svg "$STAGE/Contents/Resources/"
 codesign --force --deep -s - "$STAGE"
