@@ -1703,7 +1703,11 @@ final class NativeSessionStore: ObservableObject {
             }
             do {
                 let response = try await api.updateQueue(.init(sessionId: sessionID, itemId: itemID, action: action))
-                guard response.accepted, !Task.isCancelled, self?.activeSessionID == sessionID else { return }
+                guard response.accepted,
+                      !Task.isCancelled,
+                      self?.activeSessionID == sessionID,
+                      self?.queuedMessages.contains(where: { $0.id == itemID && $0.placement == .queued }) == true
+                else { return }
                 self?.queueActionCompletion = .init(itemID: itemID, action: action)
             } catch {
                 guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }

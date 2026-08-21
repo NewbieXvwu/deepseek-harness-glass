@@ -1761,6 +1761,31 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.queuedMessages.map(\.preview), ["original"], "queue content remains Host-owned until session/queue sends a replacement snapshot")
     }
 
+    func testLateQueueReceiptDoesNotCompleteRowAlreadyRetiredByHostSnapshot() async {
+        let store = NativeSessionStore()
+        store.loadSnapshotToolingFixture()
+        let sessionID = tryUnwrap(store.selectedSessionID)
+        store.applyMuxFrame(queueFrame(sessionID: sessionID, items: [
+            queuedItem(id: "q-race", messageID: "m-race", placement: "queued", content: [.object(["type": .string("text"), "text": .string("Host owns retirement")])]),
+        ]), sessionID: sessionID)
+        let reached = expectation(description: "queue action reaches Host before late receipt")
+        let api = DelayedQueueSessionAPI(reached: reached)
+        store.setSessionAPIForTesting(api)
+
+        store.updateQueuedMessage(itemID: "q-race", action: .remove)
+        await fulfillment(of: [reached], timeout: 1)
+        XCTAssertEqual(store.updatingQueueItemID, "q-race")
+
+        store.applyMuxFrame(queueFrame(sessionID: sessionID, items: []), sessionID: sessionID)
+        XCTAssertTrue(store.queuedMessages.isEmpty)
+        await api.release()
+        await eventually(timeout: 1) { store.updatingQueueItemID == nil }
+
+        XCTAssertNil(store.queueActionCompletion)
+        XCTAssertNil(store.queueActionFailure)
+        XCTAssertTrue(store.queuedMessages.isEmpty)
+    }
+
     func testQueueActionFailureIsScopedToTheActionAndDoesNotRetireRow() async {
         let store = NativeSessionStore()
         store.loadSnapshotToolingFixture()
@@ -2685,6 +2710,33 @@ final class NativeSessionStoreTests: XCTestCase {
             return .init(accepted: true)
         }
 
+        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse { throw DSHTransportError.invalidEndpoint }
+        func models(sessionID _: String) async throws -> SessionModelsResponse { throw DSHTransportError.invalidEndpoint }
+        func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
+        func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
+        func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+        func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+        func cancelQuestion(rpcID _: String) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+    }
+
+    @MainActor
+    private final class DelayedQueueSessionAPI: NativeSessionAPI {
+        let reached: XCTestExpectation
+        private let gate = RecoveryGate()
+
+        init(reached: XCTestExpectation) {
+            self.reached = reached
+        }
+
+        func release() async {
+            await gate.open()
+        }
+
+        func updateQueue(_ request: SessionUpdateQueueRequest) async throws -> SessionUpdateQueueResponse {
+            reached.fulfill()
+            await gate.wait()
+            return .init(accepted: true)
+        }
         func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse { throw DSHTransportError.invalidEndpoint }
         func models(sessionID _: String) async throws -> SessionModelsResponse { throw DSHTransportError.invalidEndpoint }
         func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
