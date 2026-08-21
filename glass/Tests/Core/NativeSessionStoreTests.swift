@@ -1412,6 +1412,40 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.pendingQuestion?.items.first?.intent, .planReview(approve: "Approve plan"))
     }
 
+    func testSubscriptionRestartClearsPendingInteractionsUntilHostReplay() {
+        let store = NativeSessionStore()
+        let sessionID = "snapshot-tooling"
+        store.loadSnapshotToolingFixture()
+        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "restart-approval", method: "approval/requested", payload: .object([
+            "type": .string("approval/requested"),
+            "sessionId": .string(sessionID),
+            "approvalId": .string("restart-approval-id"),
+            "toolName": .string("bash"),
+        ])), sessionID: sessionID)
+        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "restart-question", method: "question/requested", payload: .object([
+            "type": .string("question/requested"),
+            "sessionId": .string(sessionID),
+            "questions": .array([.object([
+                "id": .string("restart-question-id"),
+                "question": .string("Replayed after reconnect?"),
+                "options": .array([.object(["label": .string("Yes")])]),
+            ])]),
+        ])), sessionID: sessionID)
+        XCTAssertNotNil(store.pendingApproval)
+        XCTAssertNotNil(store.pendingQuestion)
+
+        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "restart-subscription", method: "session/subscribed", payload: .object([
+            "type": .string("session/subscribed"),
+            "sessionId": .string(sessionID),
+            "lastSeq": .number(0),
+        ])), sessionID: sessionID)
+
+        XCTAssertNil(store.pendingApproval)
+        XCTAssertNil(store.pendingQuestion)
+        XCTAssertFalse(store.isSubmittingApproval)
+        XCTAssertFalse(store.isSubmittingQuestion)
+    }
+
     func testPendingApprovalAndQuestionClearOnlyOnMatchingHostResolution() {
         let store = NativeSessionStore()
         store.loadSnapshotToolingFixture()
