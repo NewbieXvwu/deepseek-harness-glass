@@ -106,6 +106,65 @@ final class NativeWorkspaceAuthorityTests: XCTestCase {
         }
     }
 
+    func testWorkspaceChangedHostEventRefreshesCompleteAuthorityWithoutApplyingPayload() async throws {
+        let store = NativeWorkspaceStore()
+        let apis = HarnessAPIs(
+            baseURL: URL(string: "http://127.0.0.1:9788/")!,
+            accessPolicy: HostRPCAccessPolicy(trust: .verified(verifiedBuild)),
+            diagnostics: HostDiagnosticRecorder(dshHome: "/tmp/t72-workspace-host-change"),
+            session: mockSession()
+        )
+
+        store.refresh(using: apis)
+        try await eventually {
+            store.phase == .ready
+                && store.snapshot.workspaces.map(\.workspaceId) == ["old-workspace"]
+                && store.snapshot.sessions.map(\.sessionId) == ["old-session"]
+        }
+
+        // RC8 emits `host/workspace-changed`. Its payload is a notification,
+        // not a browser snapshot, and must never be spliced into the native tree.
+        store.receiveHostEvent(
+            RPCServerRequest(
+                type: "server-request",
+                rpcId: "workspace-change",
+                method: "host/workspace-changed",
+                payload: .object(["workspace": .object(["workspaceId": .string("payload-only")])])
+            ),
+            using: apis
+        )
+
+        try await waitForRequestCount(4)
+        try await eventually {
+            store.phase == .ready
+                && store.snapshot.workspaces.map(\.workspaceId) == ["new-workspace"]
+                && store.snapshot.sessions.map(\.sessionId) == ["new-session"]
+        }
+        let methods = WorkspaceAuthorityURLProtocol.capturedMethods()
+        XCTAssertEqual(methods.filter { $0 == "workspace.list" }.count, 2)
+        XCTAssertEqual(methods.filter { $0 == "session.list" }.count, 2)
+        XCTAssertFalse(store.snapshot.workspaces.map(\.workspaceId).contains("payload-only"))
+    }
+
+    func testUnrelatedHostEventDoesNotRefreshWorkspaceAuthority() async throws {
+        let store = NativeWorkspaceStore()
+        let apis = HarnessAPIs(
+            baseURL: URL(string: "http://127.0.0.1:9788/")!,
+            accessPolicy: HostRPCAccessPolicy(trust: .verified(verifiedBuild)),
+            diagnostics: HostDiagnosticRecorder(dshHome: "/tmp/t72-workspace-unrelated-event"),
+            session: mockSession()
+        )
+
+        store.receiveHostEvent(
+            RPCServerRequest(type: "server-request", rpcId: "ignored", method: "host/diagnostics", payload: .null),
+            using: apis
+        )
+        try await Task.sleep(for: .milliseconds(350))
+        XCTAssertTrue(WorkspaceAuthorityURLProtocol.capturedMethods().isEmpty)
+        XCTAssertEqual(store.phase, .idle)
+        XCTAssertEqual(store.snapshot.workspaces, [])
+    }
+
     private func mockSession() -> URLSession {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [WorkspaceAuthorityURLProtocol.self]

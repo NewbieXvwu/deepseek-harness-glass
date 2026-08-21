@@ -170,8 +170,7 @@ final class NativeWorkspaceStore: ObservableObject {
             do {
                 for try await frame in stream {
                     await diagnostics.recordSSEActivity()
-                    guard Self.browserAffectingHostMethods.contains(frame.method) else { continue }
-                    self?.scheduleRefresh(using: apis)
+                    self?.receiveHostEvent(frame, using: apis)
                 }
             } catch is CancellationError {
                 return
@@ -181,6 +180,14 @@ final class NativeWorkspaceStore: ObservableObject {
                 // lifecycle ownership still replaces this stream on endpoint change.
             }
         }
+    }
+
+    /// Applies a server-request already accepted by the verified Host carrier.
+    /// The notification itself is not a partial browser snapshot: it only
+    /// schedules a full `workspace.list` + `session.list` authority refresh.
+    func receiveHostEvent(_ frame: RPCServerRequest, using apis: HarnessAPIs) {
+        guard Self.browserAffectingHostMethods.contains(frame.method) else { return }
+        scheduleRefresh(using: apis)
     }
 
     func stopObservingHostEvents() {
