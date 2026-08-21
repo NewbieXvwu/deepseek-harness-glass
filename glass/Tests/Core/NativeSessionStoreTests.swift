@@ -435,6 +435,35 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.items.map(\.sequence), [1, 2])
     }
 
+    func testGapRecoveryReplacesWholeProjectionBaselineFromLatestHostAuthority() async {
+        let recoveryReachedHistory = expectation(description: "gap refreshes history projection baseline")
+        let api = GapRecoveringSessionAPI(recoveryReachedHistory: recoveryReachedHistory)
+        let store = NativeSessionStore()
+        store.open(sessionID: "recovery-session", using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+        await eventually(timeout: 1) {
+            store.projections.value(sessionID: "recovery-session", key: "obsolete-host-value") == .string("initial baseline")
+        }
+
+        store.applyMuxFrame(sessionEventFrame(
+            sessionID: "recovery-session",
+            seq: 3,
+            type: "user/message",
+            data: .object([
+                "id": .string("gap-projections"),
+                "content": .array([.object(["type": .string("text"), "text": .string("must not append")])]),
+                "source": .object(["kind": .string("user")]),
+            ]),
+            surfaceOp: "append"
+        ), sessionID: "recovery-session")
+        await fulfillment(of: [recoveryReachedHistory], timeout: 1)
+        await eventually(timeout: 1) {
+            store.projections.value(sessionID: "recovery-session", key: "latest-host-value") == .string("recovered baseline")
+        }
+
+        XCTAssertNil(store.projections.value(sessionID: "recovery-session", key: "obsolete-host-value"))
+        XCTAssertEqual(store.projections.row(sessionID: "recovery-session", key: "latest-host-value")?.seq, 2)
+    }
+
     func testGapRecoveryRebuildsModelDirectoryFromLatestHostBaseline() async {
         let recoveryReachedHistory = expectation(description: "gap refreshes model directory with authority history")
         let api = GapRecoveringSessionAPI(recoveryReachedHistory: recoveryReachedHistory)
@@ -1475,12 +1504,20 @@ final class NativeSessionStoreTests: XCTestCase {
             if historyCount > 1 { recoveryReachedHistory.fulfill() }
             let first = historyEntry(seq: 1, id: "baseline", text: "baseline")
             if historyCount == 1 {
-                return .init(events: [first], hasMore: false, projections: nil)
+                return .init(
+                    events: [first],
+                    hasMore: false,
+                    projections: .init(asOfSeq: 1, values: [
+                        "obsolete-host-value": .string("initial baseline"),
+                    ])
+                )
             }
             return .init(
                 events: [first, historyEntry(seq: 2, id: "recovered", text: "recovered authority")],
                 hasMore: false,
-                projections: nil
+                projections: .init(asOfSeq: 2, values: [
+                    "latest-host-value": .string("recovered baseline"),
+                ])
             )
         }
 

@@ -319,7 +319,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 - [ ] **T6.7：实现 reconnect/replay 算法。** 在 transport 断开、Host 重启或 session 从 cold 到 live 时，重新拉取 authority baseline，并以 raw history + projection + current session status 恢复。
   - 依赖：T6.1–T6.6。
   - 验收：在任一 event 序列点断开、重连后，状态与连续运行参考结果一致。
-  - 进度：现有 authority recovery 已在 event gap 与 `session/subscribed` watermark rollback 时重新拉取 `session.models` 与history whole baseline，并以session/recovery/endpoint fence阻断旧响应；本次依据RC8 runtime的模型目录重连规则补充Core回归：gap recovery必须采用第二次Host `models()` 返回的provider/model并发布ready，而不可保留首次目录。另已覆盖event-gap恰逢非协作 `selectModel` pending：recovery会取消旧selection task、递增selection/directory generation、清除busy，晚到Host `selected` 不可覆盖新的recovery model baseline。完整断线点矩阵、projection/replay组合、Host restart与连续参考等价性仍待实现，故保持未勾选。
+  - 进度：现有 authority recovery 已在 event gap 与 `session/subscribed` watermark rollback 时重新拉取 `session.models` 与history whole baseline，并以session/recovery/endpoint fence阻断旧响应；本次依据RC8 runtime的模型目录重连规则补充Core回归：gap recovery必须采用第二次Host `models()` 返回的provider/model并发布ready，而不可保留首次目录。另已覆盖event-gap恰逢非协作 `selectModel` pending：recovery会取消旧selection task、递增selection/directory generation、清除busy，晚到Host `selected` 不可覆盖新的recovery model baseline。进一步按锁定RC8 `ProjectionValueStore.seed` whole-baseline语义补充event-gap projection回归：history recovery以新的`asOfSeq`值替换旧键，且必须清除Host在该cut省略、又没有更新frame覆盖的旧projection键。完整断线点矩阵、projection/replay组合、Host restart与连续参考等价性及macOS当前SHA证据仍待实现，故保持未勾选。
 
 ## 7. 侧栏、工作区与会话浏览器
 
