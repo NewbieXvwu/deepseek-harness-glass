@@ -304,7 +304,10 @@ if announcedOutput.count > 32_768 {
         guard let endpoint = URL(string: rawURL),
               endpoint.scheme == "http",
               endpoint.host == "127.0.0.1",
-              endpoint.port != nil else { return nil }
+              endpoint.user == nil,
+              endpoint.password == nil,
+              let port = endpoint.port,
+              port > 0 else { return nil }
         return endpoint
     }
 

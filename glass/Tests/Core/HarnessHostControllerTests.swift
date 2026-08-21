@@ -224,6 +224,8 @@ extension HarnessHostControllerTests {
         XCTAssertNil(HarnessHostController.announcedEndpoint(in: "dsh web: https://127.0.0.1:43123", fromUTF16Offset: 0))
         XCTAssertNil(HarnessHostController.announcedEndpoint(in: "dsh web: http://localhost:43123", fromUTF16Offset: 0))
         XCTAssertNil(HarnessHostController.announcedEndpoint(in: "dsh web: http://127.0.0.1", fromUTF16Offset: 0))
+        XCTAssertNil(HarnessHostController.announcedEndpoint(in: "dsh web: http://fixture-user@127.0.0.1:43123", fromUTF16Offset: 0))
+        XCTAssertNil(HarnessHostController.announcedEndpoint(in: "dsh web: http://127.0.0.1:0", fromUTF16Offset: 0))
         XCTAssertNil(HarnessHostController.announcedEndpoint(in: output, fromUTF16Offset: -1))
     }
 
