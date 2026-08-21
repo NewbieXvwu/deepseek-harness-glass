@@ -260,8 +260,8 @@
     },
     {
       "id": "model-selector-light",
-      "officialTest": "apps/web/tests/capture-official-welcome.e2e.ts",
-      "sourceLines": "445-482",
+      "officialTest": "packages/client/ui-model-selection/src/client/ModelSelect.tsx",
+      "sourceLines": "67-103,219-263",
       "hostFixture": { "kind": "fresh-scaffold", "modelCalls": "none", "workspace": "connectFreshWorkspace with the default real provider directory" },
       "viewport": { "width": 1280, "height": 840 },
       "colorScheme": "light",
