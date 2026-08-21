@@ -75,6 +75,37 @@ final class NativeWorkspaceAuthorityTests: XCTestCase {
         }
     }
 
+    func testCreateReceiptLeavesWorkspaceSnapshotUntouchedUntilHostListRefresh() async throws {
+        let store = NativeWorkspaceStore()
+        let apis = HarnessAPIs(
+            baseURL: URL(string: "http://127.0.0.1:9788/")!,
+            accessPolicy: HostRPCAccessPolicy(trust: .verified(verifiedBuild)),
+            diagnostics: HostDiagnosticRecorder(dshHome: "/tmp/t72-workspace-create-authority"),
+            session: mockSession()
+        )
+
+        store.refresh(using: apis)
+        try await eventually {
+            store.phase == .ready
+                && store.snapshot.workspaces.map(\.workspaceId) == ["old-workspace"]
+        }
+
+        let receipt = try await apis.workspaces.create(path: "/new")
+        XCTAssertTrue(receipt.created)
+        XCTAssertEqual(receipt.workspace.workspaceId, "new-workspace")
+        // The receipt is not a browser snapshot. Do not splice it into the
+        // local tree; a complete Host list defines visibility and ordering.
+        XCTAssertEqual(store.snapshot.workspaces.map(\.workspaceId), ["old-workspace"])
+        XCTAssertEqual(store.snapshot.sessions.map(\.sessionId), ["old-session"])
+
+        store.refresh(using: apis)
+        try await eventually {
+            store.phase == .ready
+                && store.snapshot.workspaces.map(\.workspaceId) == ["new-workspace"]
+                && store.snapshot.sessions.map(\.sessionId) == ["new-session"]
+        }
+    }
+
     private func mockSession() -> URLSession {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [WorkspaceAuthorityURLProtocol.self]
@@ -231,6 +262,18 @@ private final class WorkspaceAuthorityURLProtocol: URLProtocol, @unchecked Senda
             ])
         case "workspace.archiveSession":
             value = .object(["archivedSessionIds": .array([.string("old-session")])])
+        case "workspace.create":
+            value = .object([
+                "workspace": .object([
+                    "workspaceId": .string("new-workspace"),
+                    "path": .string("/new"),
+                    "title": .string("new"),
+                    "sessionIds": .array([.string("new-session")]),
+                    "createdAt": .string("2026-01-01T00:00:00.000Z"),
+                    "updatedAt": .string("2026-01-01T00:00:00.000Z"),
+                ]),
+                "created": .bool(true),
+            ])
         default:
             client?.urlProtocol(self, didFailWithError: URLError(.badURL))
             return
