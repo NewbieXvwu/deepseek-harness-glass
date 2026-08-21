@@ -494,6 +494,11 @@ final class NativeSessionStore: ObservableObject {
     /// applying models/history/projections after a newer authority request.
     private var recoveryTask: Task<Void, Never>?
     private var recoveryGeneration: UInt = 0
+    /// RC8 `Session.liveBuffer` equivalent. While a full authority recovery is
+    /// rebuilding the history window, live frames must wait to be stitched on
+    /// top of that cut rather than being discarded or folded into an old window.
+    private var recoveryLiveBuffer: [SessionHistoryEntryDTO] = []
+    private var recoveryBufferGeneration: UInt?
     private var endpoint: URL?
     private var api: (any NativeSessionAPI)?
     private var goalAPI: (any NativeGoalAPI)?
@@ -1004,6 +1009,8 @@ final class NativeSessionStore: ObservableObject {
         cancelTask?.cancel()
         streamTask?.cancel()
         recoveryTask?.cancel()
+        recoveryLiveBuffer = []
+        recoveryBufferGeneration = nil
         goalTask?.cancel()
         goalTask = nil
         subagentCatalogTask?.cancel()
@@ -1161,6 +1168,8 @@ final class NativeSessionStore: ObservableObject {
         recoveryTask?.cancel()
         recoveryTask = nil
         recoveryGeneration &+= 1
+        recoveryLiveBuffer = []
+        recoveryBufferGeneration = nil
         messageFeedbackTask?.cancel()
         messageFeedbackTask = nil
         messageFeedbackMutationTask?.cancel()
@@ -1234,6 +1243,8 @@ final class NativeSessionStore: ObservableObject {
         recoveryTask?.cancel()
         recoveryTask = nil
         recoveryGeneration &+= 1
+        recoveryLiveBuffer = []
+        recoveryBufferGeneration = nil
         messageFeedbackTask?.cancel()
         messageFeedbackTask = nil
         messageFeedbackMutationTask?.cancel()
@@ -1772,11 +1783,16 @@ final class NativeSessionStore: ObservableObject {
             guard let eventValue = object["event"],
                   let event = decode(SessionEventDTO.self, from: eventValue)
             else { return }
+            let view = object["view"].flatMap { decode(ToolEventViewDTO.self, from: $0) }
+            if recoveryBufferGeneration != nil {
+                bufferRecoveryLiveEvent(event, view: view)
+                return
+            }
             guard !liveEventRequiresAuthorityRecovery(event) else {
+                bufferRecoveryLiveEvent(event, view: view)
                 requestAuthorityRecovery(sessionID: sessionID, reason: .eventGap)
                 return
             }
-            let view = object["view"].flatMap { decode(ToolEventViewDTO.self, from: $0) }
             appendConversationEvent(.init(event: event, view: view))
             apply(event: event, view: view?.view)
         case "session/subscribed":
@@ -1831,6 +1847,27 @@ final class NativeSessionStore: ObservableObject {
         case subscriptionWatermark
     }
 
+    private func bufferRecoveryLiveEvent(_ event: SessionEventDTO, view: ToolEventViewDTO?) {
+        recoveryLiveBuffer.append(.init(event: event, view: view))
+    }
+
+    /// RC8 `installWindow` stitches the buffered live tail only after the Host
+    /// history cut has replaced the old window. Sequence is the sole dedup key:
+    /// replay overlap at or below the recovered tail is ignored, while a newer
+    /// frame is applied through the normal typed event path.
+    private func stitchRecoveryLiveBuffer(generation: UInt) {
+        guard recoveryBufferGeneration == generation else { return }
+        let buffered = recoveryLiveBuffer.sorted { $0.event.seq < $1.event.seq }
+        recoveryLiveBuffer = []
+        recoveryBufferGeneration = nil
+        for entry in buffered {
+            let tail = conversationReducer.rawWindow().map(\.event.seq).max()
+            guard tail == nil || entry.event.seq > tail! else { continue }
+            appendConversationEvent(.init(entry: entry))
+            apply(event: entry.event, view: entry.view?.view)
+        }
+    }
+
     private func liveEventRequiresAuthorityRecovery(_ event: SessionEventDTO) -> Bool {
         let window = conversationReducer.rawWindow()
         guard let highest = window.map(\.event.seq).max() else { return false }
@@ -1851,6 +1888,7 @@ final class NativeSessionStore: ObservableObject {
         recoveryGeneration &+= 1
         modelDirectoryGeneration &+= 1
         let generation = recoveryGeneration
+        recoveryBufferGeneration = generation
         let directoryGeneration = modelDirectoryGeneration
         modelDirectoryStatus = .loading
         recoveryTask = Task { [weak self] in
@@ -1880,6 +1918,7 @@ final class NativeSessionStore: ObservableObject {
                 }
                 self?.hasMoreHistory = history.hasMore
                 self?.phase = .ready(sessionID: sessionID)
+                self?.stitchRecoveryLiveBuffer(generation: generation)
             } catch {
                 guard !Task.isCancelled,
                       self?.recoveryGeneration == generation,
@@ -1888,6 +1927,9 @@ final class NativeSessionStore: ObservableObject {
                 else { return }
                 if case .loading = self?.modelDirectoryStatus {
                     self?.modelDirectoryStatus = .error(error.localizedDescription)
+                }
+                if self?.recoveryBufferGeneration == generation {
+                    self?.recoveryBufferGeneration = nil
                 }
                 // Keep the last complete authority window visible. A newer
                 // mux/recovery generation or a finite stream failure owns any
