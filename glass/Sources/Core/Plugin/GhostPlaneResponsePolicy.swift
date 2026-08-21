@@ -1,0 +1,75 @@
+import Foundation
+
+/// Response-side counterpart to `GhostPlaneLoopbackPolicy`. A request that was
+/// safe to start is not safe to render unless its final URL remains identical,
+/// it completed successfully, and its MIME type matches the small Ghost Plane
+/// resource surface.
+public struct GhostPlaneResponsePolicy: Equatable, Sendable {
+    public enum Decision: Equatable, Sendable {
+        case allowSkeletonDocument
+        case allowPluginResource(pluginID: String)
+        case deny(Denial)
+    }
+
+    public enum Denial: Equatable, Sendable {
+        case requestDenied(GhostPlaneLoopbackPolicy.Denial)
+        case responseDenied(GhostPlaneLoopbackPolicy.Denial)
+        case redirect
+        case nonSuccessStatus
+        case missingMIMEType
+        case unexpectedMIMEType
+        case pathMIMEMismatch
+    }
+
+    private let loopback: GhostPlaneLoopbackPolicy
+
+    public init(loopback: GhostPlaneLoopbackPolicy) { self.loopback = loopback }
+
+    /// Validates the final network response against the navigation target. The
+    /// URL equality check makes all redirects fail closed, including a redirect
+    /// that remains on loopback or inside the same plugin root.
+    public func decision(
+        requestURL: URL,
+        responseURL: URL,
+        statusCode: Int,
+        mimeType: String?
+    ) -> Decision {
+        switch loopback.decision(for: requestURL) {
+        case .allowSkeletonDocument, .allowPluginResource:
+            break
+        case .deny(let reason):
+            return .deny(.requestDenied(reason))
+        }
+        guard requestURL == responseURL else { return .deny(.redirect) }
+        guard (200...299).contains(statusCode) else { return .deny(.nonSuccessStatus) }
+        let normalizedMIME = mimeType?.split(separator: ";", maxSplits: 1).first?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard let normalizedMIME, !normalizedMIME.isEmpty else { return .deny(.missingMIMEType) }
+
+        switch loopback.decision(for: responseURL) {
+        case .deny(let reason): return .deny(.responseDenied(reason))
+        case .allowSkeletonDocument:
+            return normalizedMIME == "text/html" ? .allowSkeletonDocument : .deny(.unexpectedMIMEType)
+        case .allowPluginResource(let pluginID):
+            guard allowedPluginMIME(normalizedMIME) else { return .deny(.unexpectedMIMEType) }
+            guard pathMIMEMatches(responseURL.path, mime: normalizedMIME) else { return .deny(.pathMIMEMismatch) }
+            return .allowPluginResource(pluginID: pluginID)
+        }
+    }
+
+    private func allowedPluginMIME(_ mime: String) -> Bool {
+        ["text/javascript", "application/javascript", "application/ecmascript", "text/css", "application/json", "image/png", "image/jpeg", "image/gif", "image/webp", "font/woff2", "application/font-woff2"].contains(mime)
+    }
+
+    private func pathMIMEMatches(_ path: String, mime: String) -> Bool {
+        let lower = path.lowercased()
+        if lower.hasSuffix(".js") { return ["text/javascript", "application/javascript", "application/ecmascript"].contains(mime) }
+        if lower.hasSuffix(".css") { return mime == "text/css" }
+        if lower.hasSuffix(".json") { return mime == "application/json" }
+        if lower.hasSuffix(".png") { return mime == "image/png" }
+        if lower.hasSuffix(".jpg") || lower.hasSuffix(".jpeg") { return mime == "image/jpeg" }
+        if lower.hasSuffix(".gif") { return mime == "image/gif" }
+        if lower.hasSuffix(".webp") { return mime == "image/webp" }
+        if lower.hasSuffix(".woff2") { return ["font/woff2", "application/font-woff2"].contains(mime) }
+        return false
+    }
+}

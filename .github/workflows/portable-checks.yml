@@ -181,6 +181,11 @@ jobs:
             -o /tmp/ghost-plane-loopback-policy-portable-check
           /tmp/ghost-plane-loopback-policy-portable-check
           swiftc glass/Sources/Core/Plugin/GhostPlaneLoopbackPolicy.swift \
+            glass/Sources/Core/Plugin/GhostPlaneResponsePolicy.swift \
+            glass/ci/ghost-plane-response-policy-portable-check.swift \
+            -o /tmp/ghost-plane-response-policy-portable-check
+          /tmp/ghost-plane-response-policy-portable-check
+          swiftc glass/Sources/Core/Plugin/GhostPlaneLoopbackPolicy.swift \
             glass/Sources/Core/Plugin/GhostPlaneModuleManifest.swift \
             glass/ci/ghost-plane-module-manifest-portable-check.swift \
             -o /tmp/ghost-plane-module-manifest-portable-check
