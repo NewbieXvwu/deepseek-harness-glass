@@ -569,6 +569,42 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.modelDirectoryStatus, .ready)
     }
 
+    func testGapRecoveryDoesNotRegressNewerLiveProjectionWithHistoryBaseline() async {
+        let recoveryReachedHistory = expectation(description: "gap recovery history remains gated for projection frame")
+        let api = StitchingGapRecoverySessionAPI(recoveryReachedHistory: recoveryReachedHistory)
+        let store = NativeSessionStore()
+        store.open(sessionID: "recovery-session", using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+        await eventually(timeout: 1) { store.items.map(\.text) == ["baseline"] }
+
+        store.applyMuxFrame(sessionEventFrame(
+            sessionID: "recovery-session",
+            seq: 3,
+            type: "user/message",
+            data: .object([
+                "id": .string("gap-for-projection"),
+                "content": .array([.object(["type": .string("text"), "text": .string("buffered gap")])]),
+                "source": .object(["kind": .string("user")]),
+            ]),
+            surfaceOp: "append"
+        ), sessionID: "recovery-session")
+        await fulfillment(of: [recoveryReachedHistory], timeout: 1)
+
+        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "newer-projection", method: "session/projection", payload: .object([
+            "type": .string("session/projection"),
+            "sessionId": .string("recovery-session"),
+            "key": .string("recovery-projection"),
+            "value": .string("live push wins"),
+            "seq": .number(3),
+        ])), sessionID: "recovery-session")
+        await api.releaseRecoveryHistory()
+        await eventually(timeout: 1) {
+            store.projections.value(sessionID: "recovery-session", key: "recovery-projection") == .string("live push wins")
+        }
+
+        XCTAssertEqual(store.projections.row(sessionID: "recovery-session", key: "recovery-projection")?.seq, 3)
+        XCTAssertEqual(store.items.map(\.sequence), [1, 2, 3])
+    }
+
     func testHostRestartRecoverySupersedesStaleGapRepairWithoutDroppingLiveBuffer() async {
         let staleHistoryReached = expectation(description: "initial gap repair history is delayed")
         let newHistoryReached = expectation(description: "Host restart issues newer recovery history")
@@ -1826,7 +1862,9 @@ final class NativeSessionStoreTests: XCTestCase {
             return .init(
                 events: [first, historyEntry(seq: 2, id: "recovered", text: "recovered authority")],
                 hasMore: false,
-                projections: nil
+                projections: .init(asOfSeq: 2, values: [
+                    "recovery-projection": .string("history baseline"),
+                ])
             )
         }
 
