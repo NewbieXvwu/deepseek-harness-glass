@@ -1823,6 +1823,26 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.queuedMessages.map(\.preview), ["original"], "queue content remains Host-owned until session/queue sends a replacement snapshot")
     }
 
+    func testQueueEditFailureIsScopedToTheActionAndRetainsHostRowForRetry() async {
+        let store = NativeSessionStore()
+        store.loadSnapshotToolingFixture()
+        let sessionID = tryUnwrap(store.selectedSessionID)
+        store.applyMuxFrame(queueFrame(sessionID: sessionID, items: [
+            queuedItem(id: "q-edit-reject", messageID: "m-edit-reject", placement: "queued", content: [.object(["type": .string("text"), "text": .string("original Host queue row")])]),
+        ]), sessionID: sessionID)
+        let invoked = expectation(description: "rejected queue edit reaches typed session facade")
+        let api = RecordingQueueSessionAPI(invoked: invoked, error: DSHTransportError.invalidEndpoint)
+        store.setSessionAPIForTesting(api)
+
+        store.updateQueuedMessage(itemID: "q-edit-reject", action: .edit(content: [.text(text: "edited")]))
+        await fulfillment(of: [invoked], timeout: 1)
+        await eventually(timeout: 1) { store.updatingQueueItemID == nil }
+
+        XCTAssertEqual(store.queueActionFailure, .init(itemID: "q-edit-reject", kind: .edit))
+        XCTAssertNil(store.queueActionCompletion)
+        XCTAssertEqual(store.queuedMessages.map(\.preview), ["original Host queue row"])
+    }
+
     func testLateQueueReceiptDoesNotCompleteRowAlreadyRetiredByHostSnapshot() async {
         let store = NativeSessionStore()
         store.loadSnapshotToolingFixture()
