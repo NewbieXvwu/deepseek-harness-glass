@@ -117,34 +117,19 @@ struct NativeComposerPermissionSelector: View {
     }
 
     private var fullAccessConfirmation: some View {
-        VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p12) {
-            Text(t("access.confirm.title"))
-                .font(OfficialUISpec.Typography.baseStrong16)
-            Text(t("access.confirm.description"))
-                .font(OfficialUISpec.Typography.s14)
-                .foregroundStyle(OfficialUISpec.Token.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            Toggle(t("access.confirm.acknowledge"), isOn: $acknowledgedFullAccess)
-                .font(OfficialUISpec.Typography.s14)
-            HStack(spacing: OfficialUISpec.Spacing.p8) {
-                Button(t("access.confirm.cancel")) {
-                    pendingFullAccess = false
-                    acknowledgedFullAccess = false
-                }
-                .buttonStyle(.bordered)
-                Spacer(minLength: OfficialUISpec.Spacing.p0)
-                Button(t("access.confirm.enable")) {
-                    pendingFullAccess = false
-                    sessionStore.selectPermissionPreset(PermissionPresetProjection.fullAccessPreset)
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(!acknowledgedFullAccess || sessionStore.isSubmittingPermission)
+        NativeFullAccessPermissionConfirmation(
+            acknowledged: $acknowledgedFullAccess,
+            submitting: sessionStore.isSubmittingPermission,
+            language: language,
+            cancel: {
+                pendingFullAccess = false
+                acknowledgedFullAccess = false
+            },
+            enable: {
+                pendingFullAccess = false
+                sessionStore.selectPermissionPreset(PermissionPresetProjection.fullAccessPreset)
             }
-        }
-        .padding(OfficialUISpec.Spacing.p16)
-        .frame(width: OfficialUISpec.Geometry.px320)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(t("access.confirm.title"))
+        )
     }
 
     /// Product text remains in the locked RC8 `ui-conversation` locale catalog.
@@ -166,5 +151,46 @@ struct NativeComposerPermissionSelector: View {
             value = value.replacingOccurrences(of: "{\(token)}", with: replacement)
         }
         return value
+    }
+}
+
+/// Native RC8 confirmation content for the `danger-full-access` access preset.
+/// It is separate from the selector menu only to permit direct macOS AX testing;
+/// the owning selector still presents this exact view in its native popover.
+@MainActor
+struct NativeFullAccessPermissionConfirmation: View {
+    @Binding var acknowledged: Bool
+    let submitting: Bool
+    let language: String
+    let cancel: () -> Void
+    let enable: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p12) {
+            Text(t("access.confirm.title"))
+                .font(OfficialUISpec.Typography.baseStrong16)
+            Text(t("access.confirm.description"))
+                .font(OfficialUISpec.Typography.s14)
+                .foregroundStyle(OfficialUISpec.Token.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Toggle(t("access.confirm.acknowledge"), isOn: $acknowledged)
+                .font(OfficialUISpec.Typography.s14)
+            HStack(spacing: OfficialUISpec.Spacing.p8) {
+                Button(t("access.confirm.cancel"), action: cancel)
+                    .buttonStyle(.bordered)
+                Spacer(minLength: OfficialUISpec.Spacing.p0)
+                Button(t("access.confirm.enable"), action: enable)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!acknowledged || submitting)
+            }
+        }
+        .padding(OfficialUISpec.Spacing.p16)
+        .frame(width: OfficialUISpec.Geometry.px320)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(t("access.confirm.title"))
+    }
+
+    private func t(_ key: String) -> String {
+        NativeComposerPermissionSelector.localizedValue(key: key, language: language)
     }
 }

@@ -215,6 +215,26 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         XCTAssertNotEqual(rendered.first, "input.accessMode", "interpolated access label must not fall back to an unregistered product literal")
     }
 
+    func testNativeFullAccessConfirmationExportsOfficialAccessibleControls() throws {
+        let language = "en"
+        let title = NativeComposerPermissionSelector.localizedValue(key: "access.confirm.title", language: language)
+        let acknowledge = NativeComposerPermissionSelector.localizedValue(key: "access.confirm.acknowledge", language: language)
+        let cancel = NativeComposerPermissionSelector.localizedValue(key: "access.confirm.cancel", language: language)
+        let enable = NativeComposerPermissionSelector.localizedValue(key: "access.confirm.enable", language: language)
+
+        try assertAccessibleLabels(
+            in: NativeFullAccessPermissionConfirmation(
+                acknowledged: .constant(false),
+                submitting: false,
+                language: language,
+                cancel: {},
+                enable: {}
+            ),
+            expected: [title, acknowledge, cancel, enable],
+            expectedCounts: [title: 1, acknowledge: 1, cancel: 1, enable: 1]
+        )
+    }
+
     func testCompactionRendererUsesOfficialLocaleForSummaryStates() {
         let officialValues = Set(OfficialUISpec.LocaleCatalog.values.values)
         let rendered = [
