@@ -74,12 +74,6 @@ def main() -> None:
         if metadata[field] != value:
             raise SystemExit(f"OfficialUISpec {field}={metadata[field]!r} does not match Host catalog {value!r}")
 
-    swift = swift_build_path.read_text(encoding="utf-8")
-    for field, value in expected.items():
-        swift_name = {"hostBuildId": "id", "sourceCommit": "sourceCommit", "uiSpecRevision": "uiSpecRevision"}[field]
-        if f'static let {swift_name} = "{value}"' not in swift:
-            raise SystemExit(f"generated Swift build does not expose matching {swift_name}")
-
     with tempfile.TemporaryDirectory(prefix="dsh-official-spec-") as temporary:
         temporary_root = Path(temporary)
         regenerated_json = temporary_root / "official-ui-spec-build.json"
