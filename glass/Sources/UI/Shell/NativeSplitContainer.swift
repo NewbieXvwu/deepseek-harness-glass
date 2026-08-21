@@ -94,6 +94,7 @@ final class NativeShellPresentation: ObservableObject {
     let settingsStore: NativeSettingsStore
     let credentialStore: NativeCredentialStore
     let modelDirectoryStore: NativeModelDirectoryStore
+    let modelDiscoveryStore: NativeModelDiscoveryStore
     let agentPresetStore: NativeAgentPresetStore
     @Published var settingsPresented = false
     /// Window-resident native counterparts of RC8's contribution ledgers.
@@ -122,6 +123,7 @@ final class NativeShellPresentation: ObservableObject {
         settingsStore: NativeSettingsStore? = nil,
         credentialStore: NativeCredentialStore? = nil,
         modelDirectoryStore: NativeModelDirectoryStore? = nil,
+        modelDiscoveryStore: NativeModelDiscoveryStore? = nil,
         agentPresetStore: NativeAgentPresetStore? = nil,
         workspaceSnapshotDialog: WorkspaceBrowserView.SnapshotDialog = .none,
         jobsPopoverInitiallyOpen: Bool = false,
@@ -136,6 +138,7 @@ final class NativeShellPresentation: ObservableObject {
         self.settingsStore = settingsStore ?? NativeSettingsStore()
         self.credentialStore = credentialStore ?? NativeCredentialStore()
         self.modelDirectoryStore = modelDirectoryStore ?? NativeModelDirectoryStore()
+        self.modelDiscoveryStore = modelDiscoveryStore ?? NativeModelDiscoveryStore()
         self.agentPresetStore = agentPresetStore ?? NativeAgentPresetStore()
         self.workspaceSnapshotDialog = workspaceSnapshotDialog
         self.jobsPopoverInitiallyOpen = jobsPopoverInitiallyOpen
@@ -301,6 +304,7 @@ final class NativeShellPresentation: ObservableObject {
         sessionStore.disconnect()
         settingsStore.load(using: nil)
         Task { [weak self] in await self?.modelDirectoryStore.refresh(using: nil) }
+        modelDiscoveryStore.dismiss()
         Task { [weak self] in await self?.agentPresetStore.refresh(using: nil) }
         settingsPresented = false
         mode = .welcome
@@ -323,6 +327,30 @@ final class NativeShellPresentation: ObservableObject {
     /// remains authoritative and no local durable preference is manufactured.
     func refreshModelDirectory() async {
         await modelDirectoryStore.refresh(using: apis?.llm)
+    }
+
+    func discoverModels(_ request: LLMDiscoverModelsRequest) async {
+        await modelDiscoveryStore.discover(request, using: apis?.llm)
+    }
+
+    func adoptDiscoveredModels(
+        _ candidates: [LLMDiscoveredModelDTO],
+        selectedIDs: Set<String>,
+        for provider: LLMProviderDTO
+    ) async -> Bool {
+        guard let settingsAPI = apis?.settings else { return false }
+        do {
+            let adopted = try await settingsStore.adoptDiscoveredModels(
+                candidates,
+                selectedIDs: selectedIDs,
+                for: provider,
+                using: settingsAPI
+            )
+            if adopted { await modelDirectoryStore.refresh(using: apis?.llm) }
+            return adopted
+        } catch {
+            return false
+        }
     }
 
     func refreshAgentPresets() async {
@@ -757,9 +785,17 @@ final class NativeShellController: NativeSplitViewController {
             },
             credentialStore: presentation.credentialStore,
             modelDirectoryStore: presentation.modelDirectoryStore,
+            modelDiscoveryStore: presentation.modelDiscoveryStore,
             agentPresetStore: presentation.agentPresetStore,
             refreshModelDirectory: { [weak presentation] in
                 await presentation?.refreshModelDirectory()
+            },
+            discoverModels: { [weak presentation] request in
+                await presentation?.discoverModels(request)
+            },
+            adoptDiscoveredModels: { [weak presentation] candidates, selectedIDs, provider in
+                guard let presentation else { return false }
+                return await presentation.adoptDiscoveredModels(candidates, selectedIDs: selectedIDs, for: provider)
             },
             refreshAgentPresets: { [weak presentation] in
                 await presentation?.refreshAgentPresets()

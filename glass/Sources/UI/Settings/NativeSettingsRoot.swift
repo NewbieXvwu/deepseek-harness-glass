@@ -34,8 +34,11 @@ struct NativeSettingsRoot: View {
     let selectTheme: (CoreThemePreference) -> Void
     @ObservedObject var credentialStore: NativeCredentialStore
     @ObservedObject var modelDirectoryStore: NativeModelDirectoryStore
+    @ObservedObject var modelDiscoveryStore: NativeModelDiscoveryStore
     @ObservedObject var agentPresetStore: NativeAgentPresetStore
     let refreshModelDirectory: () async -> Void
+    let discoverModels: (LLMDiscoverModelsRequest) async -> Void
+    let adoptDiscoveredModels: ([LLMDiscoveredModelDTO], Set<String>, LLMProviderDTO) async -> Bool
     let refreshAgentPresets: () async -> Void
     let readAgentPreset: (String) async -> Bool
     let openAgentPresetDocument: (String) async -> Bool
@@ -53,6 +56,9 @@ struct NativeSettingsRoot: View {
     @State private var copyInFlight = false
     @State private var pendingDelete: AgentPresetEntryDTO?
     @State private var deleteInFlight = false
+    @State private var discoveryProvider: LLMProviderDTO?
+    @State private var selectedDiscoveredModelIDs: Set<String> = []
+    @State private var discoveryAdoptionInFlight = false
 
     var body: some View {
         NavigationSplitView {
@@ -325,6 +331,10 @@ struct NativeSettingsRoot: View {
                             Text(provider.settingsNs)
                                 .font(OfficialUISpec.Typography.xs13)
                                 .foregroundStyle(OfficialUISpec.Token.caption)
+                            Button(official(namespace: "ui-settings-models", key: "fetchModels")) {
+                                beginModelDiscovery(for: provider)
+                            }
+                            .disabled(!store.writable)
                             if let reference = NativeProviderCredentialReferencePresentation.reference(
                                 for: provider,
                                 namespaces: store.namespaces
@@ -362,7 +372,123 @@ struct NativeSettingsRoot: View {
             .task(id: providerCredentialReferences) {
                 await refreshCredentials(providerCredentialReferences)
             }
+            .sheet(item: $discoveryProvider) { provider in
+                modelDiscoveryPicker(for: provider)
+            }
+            .onChange(of: modelDiscoveryStore.phase) { _, phase in
+                guard phase == .ready,
+                      let provider = discoveryProvider,
+                      let namespace = store.namespaces.first(where: { $0.ns == provider.settingsNs })
+                else { return }
+                selectedDiscoveredModelIDs = NativeDiscoveredModelSelection.initiallySelectedIDs(
+                    candidates: modelDiscoveryStore.candidates,
+                    existingModels: NativeDiscoveredModelSelection.models(
+                        in: namespace,
+                        providerPath: provider.settingsPath
+                    )
+                )
+            }
         }
+    }
+
+    @ViewBuilder
+    private func modelDiscoveryPicker(for provider: LLMProviderDTO) -> some View {
+        VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p12) {
+            Text(official(namespace: "ui-settings-models", key: "fetchTitle"))
+                .font(OfficialUISpec.Typography.baseStrong16)
+            switch modelDiscoveryStore.phase {
+            case .idle, .loading:
+                ProgressView(official(namespace: "locale", key: "loading"))
+            case .empty:
+                Text(official(namespace: "ui-settings-models", key: "fetchEmpty"))
+                    .font(OfficialUISpec.Typography.xs13)
+                    .foregroundStyle(OfficialUISpec.Token.caption)
+            case .failed:
+                Text(official(namespace: "ui-settings-models", key: "loadFailed"))
+                    .font(OfficialUISpec.Typography.xs13)
+                    .foregroundStyle(OfficialUISpec.Token.caption)
+            case .ready:
+                List(modelDiscoveryStore.candidates) { candidate in
+                    Toggle(isOn: selectedCandidateBinding(candidate.id)) {
+                        Text(candidate.name ?? candidate.id)
+                    }
+                }
+                HStack(spacing: OfficialUISpec.Spacing.p8) {
+                    Button(allDiscoveredCandidatesSelected
+                        ? official(namespace: "ui-settings-models", key: "fetchDeselectAll")
+                        : official(namespace: "ui-settings-models", key: "fetchSelectAll")) {
+                        toggleAllDiscoveredCandidates()
+                    }
+                    Spacer()
+                    Button(official(namespace: "ui-settings-models", key: "cancel")) {
+                        dismissModelDiscovery()
+                    }
+                    Button(official(namespace: "ui-settings-models", key: "fetchAdopt")) {
+                        Task { await adoptCurrentDiscoveredModels(for: provider) }
+                    }
+                    .disabled(discoveryAdoptionInFlight || selectedDiscoveredModelIDs.isEmpty)
+                }
+            }
+        }
+        .padding(OfficialUISpec.Spacing.p16)
+        .frame(minWidth: 420, minHeight: 240)
+    }
+
+    private var allDiscoveredCandidatesSelected: Bool {
+        !modelDiscoveryStore.candidates.isEmpty
+            && modelDiscoveryStore.candidates.allSatisfy { selectedDiscoveredModelIDs.contains($0.id) }
+    }
+
+    private func selectedCandidateBinding(_ id: String) -> Binding<Bool> {
+        Binding(
+            get: { selectedDiscoveredModelIDs.contains(id) },
+            set: { selected in
+                if selected {
+                    selectedDiscoveredModelIDs.insert(id)
+                } else {
+                    selectedDiscoveredModelIDs.remove(id)
+                }
+            }
+        )
+    }
+
+    private func toggleAllDiscoveredCandidates() {
+        if allDiscoveredCandidatesSelected {
+            selectedDiscoveredModelIDs = []
+        } else {
+            selectedDiscoveredModelIDs = Set(modelDiscoveryStore.candidates.map(\.id))
+        }
+    }
+
+    private func beginModelDiscovery(for provider: LLMProviderDTO) {
+        discoveryProvider = provider
+        selectedDiscoveredModelIDs = []
+        Task {
+            await discoverModels(.init(
+                settingsNs: provider.settingsNs,
+                provider: provider.provider,
+                baseURL: nil,
+                api: nil,
+                apiKey: nil
+            ))
+        }
+    }
+
+    private func dismissModelDiscovery() {
+        discoveryProvider = nil
+        selectedDiscoveredModelIDs = []
+        modelDiscoveryStore.dismiss()
+    }
+
+    private func adoptCurrentDiscoveredModels(for provider: LLMProviderDTO) async {
+        discoveryAdoptionInFlight = true
+        defer { discoveryAdoptionInFlight = false }
+        let adopted = await adoptDiscoveredModels(
+            modelDiscoveryStore.candidates,
+            selectedDiscoveredModelIDs,
+            provider
+        )
+        if adopted { dismissModelDiscovery() }
     }
 
     private var providerCredentialReferences: [String] {
