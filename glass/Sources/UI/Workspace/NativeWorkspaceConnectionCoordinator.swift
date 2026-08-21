@@ -20,8 +20,9 @@ final class NativeWorkspaceConnectionCoordinator {
         }
         tasks[workspaceID] = task
         defer {
-            guard generations[workspaceID] == generation else { return }
-            tasks[workspaceID] = nil
+            if generations[workspaceID] == generation {
+                tasks[workspaceID] = nil
+            }
         }
         return try await task.value
     }

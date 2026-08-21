@@ -403,8 +403,8 @@ final class NativeShellPresentation: ObservableObject {
                 try await self?.settingsStore.selectThemePreference(preference, using: api)
                 guard self?.settingsStore.themePreference.current == preference else { return }
                 switch preference {
-                case .light: NSApp.appearance = .aqua
-                case .dark: NSApp.appearance = .darkAqua
+                case .light: NSApp.appearance = NSAppearance(named: NSAppearance.Name.aqua)
+                case .dark: NSApp.appearance = NSAppearance(named: NSAppearance.Name.darkAqua)
                 case .system: NSApp.appearance = nil
                 }
             } catch {
