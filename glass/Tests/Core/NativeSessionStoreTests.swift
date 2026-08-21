@@ -849,6 +849,30 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.modelDirectoryStatus, .ready)
     }
 
+    func testNewEndpointOpenSupersedesStaleInitialHistoryAuthority() async {
+        let staleHistoryReached = expectation(description: "stale initial history is delayed")
+        let staleAPI = DelayedOpeningHistorySessionAPI(staleHistoryReached: staleHistoryReached)
+        let freshAPI = FixedOpeningSessionAPI(model: "fresh-model", text: "fresh authority")
+        let store = NativeSessionStore()
+        let sessionID = "recovery-session"
+        let staleEndpoint = URL(string: "http://127.0.0.1:1")!
+        let freshEndpoint = URL(string: "http://127.0.0.1:2")!
+
+        store.open(sessionID: sessionID, using: staleAPI, endpoint: staleEndpoint)
+        await fulfillment(of: [staleHistoryReached], timeout: 1)
+        store.open(sessionID: sessionID, using: freshAPI, endpoint: freshEndpoint)
+        await eventually(timeout: 1) {
+            store.items.map(\.text) == ["fresh authority"] && store.modelDirectory?.current.model == "fresh-model"
+        }
+
+        await staleAPI.releaseHistory()
+        await eventually(timeout: 1) {
+            store.items.map(\.text) == ["fresh authority"] && store.modelDirectory?.current.model == "fresh-model"
+        }
+        XCTAssertEqual(store.selectedSessionID, sessionID)
+        XCTAssertEqual(store.modelDirectoryStatus, .ready)
+    }
+
     func testConcurrentGapFramesCoalesceIntoOneAuthorityRecovery() async {
         let recoveryHistoryReached = expectation(description: "first gap recovery history is held")
         let api = CoalescingGapFailureSessionAPI(recoveryHistoryReached: recoveryHistoryReached)
@@ -2095,6 +2119,86 @@ final class NativeSessionStoreTests: XCTestCase {
                 ignorable: nil
             ), view: nil)
         }
+    }
+
+    @MainActor
+    private final class DelayedOpeningHistorySessionAPI: NativeSessionAPI {
+        let staleHistoryReached: XCTestExpectation
+        private let historyGate = RecoveryGate()
+
+        init(staleHistoryReached: XCTestExpectation) {
+            self.staleHistoryReached = staleHistoryReached
+        }
+
+        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
+            staleHistoryReached.fulfill()
+            await historyGate.wait()
+            return .init(events: [historyEntry(seq: 1, id: "stale", text: "stale authority")], hasMore: false, projections: nil)
+        }
+
+        func models(sessionID _: String) async throws -> SessionModelsResponse {
+            .init(current: .init(provider: "provider", model: "stale-model", reasoningEffort: nil), routable: true, groups: [], failures: [])
+        }
+
+        func releaseHistory() async { await historyGate.open() }
+        func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
+        func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
+        func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+        func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+        func cancelQuestion(rpcID _: String) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+
+        private func historyEntry(seq: Int, id: String, text: String) -> SessionHistoryEntryDTO {
+            .init(event: .init(
+                type: "user/message",
+                seq: seq,
+                time: Double(seq),
+                data: .object([
+                    "id": .string(id),
+                    "content": .array([.object(["type": .string("text"), "text": .string(text)])]),
+                    "source": .object(["kind": .string("user")]),
+                ]),
+                surfaceOp: .string("append"),
+                sourceEventSeqs: nil,
+                ignorable: nil
+            ), view: nil)
+        }
+    }
+
+    @MainActor
+    private final class FixedOpeningSessionAPI: NativeSessionAPI {
+        let model: String
+        let text: String
+
+        init(model: String, text: String) {
+            self.model = model
+            self.text = text
+        }
+
+        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
+            .init(events: [.init(event: .init(
+                type: "user/message",
+                seq: 1,
+                time: 1,
+                data: .object([
+                    "id": .string("fresh"),
+                    "content": .array([.object(["type": .string("text"), "text": .string(text)])]),
+                    "source": .object(["kind": .string("user")]),
+                ]),
+                surfaceOp: .string("append"),
+                sourceEventSeqs: nil,
+                ignorable: nil
+            ), view: nil)], hasMore: false, projections: nil)
+        }
+
+        func models(sessionID _: String) async throws -> SessionModelsResponse {
+            .init(current: .init(provider: "provider", model: model, reasoningEffort: nil), routable: true, groups: [], failures: [])
+        }
+
+        func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
+        func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
+        func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+        func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+        func cancelQuestion(rpcID _: String) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
     }
 
     @MainActor
