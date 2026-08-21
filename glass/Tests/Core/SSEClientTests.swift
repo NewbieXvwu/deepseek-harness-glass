@@ -250,6 +250,48 @@ final class SSEClientTests: XCTestCase {
         XCTAssertEqual(traces.last?.outcome, .cancelled)
     }
 
+    func testConsumerTerminationAfterReconnectCancelsSecondCarrierWithoutThirdOpen() async throws {
+        let secondCarrierProduced = expectation(description: "reconnected carrier produces its first frame")
+        let secondCarrierCancelled = expectation(description: "reconnected carrier observes consumer cancellation")
+        let secondCarrierStopped = expectation(description: "reconnected carrier producer stops")
+        let gate = RecoveryGate()
+        let opener = RecordedSSEOpener(scripts: [[.failure(.network("fixture-disconnect"))]])
+        let client = SSEClient(
+            baseURL: URL(string: "http://127.0.0.1:9242/")!,
+            testStreamOpener: { endpoint in
+                let ignored = opener.open(endpoint)
+                if opener.openedEndpoints().count == 1 { return ignored }
+                return SSEFrameStream { continuation in
+                    let producer = Task {
+                        continuation.yield(sessionEvent(rpcId: "reconnected-first", sequence: 1))
+                        secondCarrierProduced.fulfill()
+                        await gate.wait()
+                        if Task.isCancelled { secondCarrierCancelled.fulfill() }
+                        secondCarrierStopped.fulfill()
+                        continuation.finish()
+                    }
+                    continuation.onTermination = { _ in producer.cancel() }
+                }
+            }
+        )
+
+        let consumer = Task { () throws -> [RPCServerRequest] in
+            let stream = await client.reconnectingStream(.mux, policy: .init(initialDelay: 0.01, maximumDelay: 0.02, multiplier: 2))
+            for try await frame in stream { return [frame] }
+            return []
+        }
+        await fulfillment(of: [secondCarrierProduced], timeout: 1)
+        let frames = try await consumer.value
+        await fulfillment(of: [secondCarrierCancelled, secondCarrierStopped], timeout: 1)
+        try await Task.sleep(for: .milliseconds(25))
+
+        XCTAssertEqual(frames.map(\.rpcId), ["reconnected-first"])
+        XCTAssertEqual(opener.openedEndpoints(), [.mux, .mux])
+        let traces = await client.recentReconnectTraces()
+        XCTAssertTrue(traces.contains { $0.outcome == .reconnecting && $0.errorCategory == "network" })
+        XCTAssertEqual(traces.last?.outcome, .cancelled)
+    }
+
     func testFinalCancellationStopsRetryLoopWithoutFurtherOpen() async throws {
         let opener = RecordedSSEOpener(scripts: [[.failure(.network("fixture-disconnect"))]])
         let client = SSEClient(
