@@ -66,14 +66,14 @@ struct NativeSettingsRoot: View {
             List(SectionID.allCases, selection: $selection) { section in
                 Text(section.title).tag(Optional(section))
             }
-            .navigationTitle(official(namespace: "ui-settings-general", key: "title"))
+            .navigationTitle(Self.official(namespace: "ui-settings-general", key: "title"))
         } detail: {
             detail
         }
         .frame(minWidth: 620, minHeight: 420)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button(official(namespace: "ui-settings-plugins", key: "collapse"), action: close)
+                Button(Self.official(namespace: "ui-settings-plugins", key: "collapse"), action: close)
             }
         }
     }
@@ -82,12 +82,12 @@ struct NativeSettingsRoot: View {
     private var detail: some View {
         switch store.phase {
         case .idle, .loading:
-            ProgressView(official(namespace: "locale", key: "loading"))
+            ProgressView(Self.official(namespace: "locale", key: "loading"))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .failed:
             VStack(spacing: OfficialUISpec.Spacing.p12) {
-                Text(official(namespace: "locale", key: "load.failed"))
-                Button(official(namespace: "locale", key: "retry"), action: retry)
+                Text(Self.official(namespace: "locale", key: "load.failed"))
+                Button(Self.official(namespace: "locale", key: "retry"), action: retry)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .ready:
@@ -99,7 +99,7 @@ struct NativeSettingsRoot: View {
                 let cards = NativeBuiltinPluginCard.dispatched(from: store.namespaces)
                 List {
                     if cards.isEmpty {
-                        Text(official(namespace: "ui-settings-plugins", key: "empty"))
+                        Text(Self.official(namespace: "ui-settings-plugins", key: "empty"))
                     } else {
                         ForEach(cards) { card in
                             if let namespace = store.namespaces.first(where: { $0.ns == card.namespace }) {
@@ -118,13 +118,13 @@ struct NativeSettingsRoot: View {
                 }
             } else if selection == .general, store.themePreference.status == .ready {
                 List {
-                    Section(official(namespace: "ui-theme", key: "appearance.title")) {
+                    Section(Self.official(namespace: "ui-theme", key: "appearance.title")) {
                         HStack(spacing: OfficialUISpec.Spacing.p8) {
                             ForEach(CoreThemePreference.allCases, id: \.rawValue) { preference in
                                 Button {
                                     selectTheme(preference)
                                 } label: {
-                                    Text(official(namespace: "ui-theme", key: "appearance." + preference.rawValue))
+                                    Text(Self.official(namespace: "ui-theme", key: "appearance." + preference.rawValue))
                                 }
                                 .buttonStyle(.bordered)
                                 .disabled(!store.themePreference.writable)
@@ -154,26 +154,26 @@ struct NativeSettingsRoot: View {
     private var agentPresetsDetail: some View {
         switch agentPresetStore.phase {
         case .idle, .loading:
-            ProgressView(official(namespace: "ui-agent-preset", key: "loading"))
+            ProgressView(Self.official(namespace: "ui-agent-preset", key: "loading"))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .failed:
             VStack(spacing: OfficialUISpec.Spacing.p12) {
-                Text(official(namespace: "ui-agent-preset", key: "error"))
-                Button(official(namespace: "ui-agent-preset", key: "retry")) {
+                Text(Self.official(namespace: "ui-agent-preset", key: "error"))
+                Button(Self.official(namespace: "ui-agent-preset", key: "retry")) {
                     Task { await refreshAgentPresets() }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .unavailable:
             List {
-                Text(official(namespace: "ui-agent-preset", key: "sectionIntro"))
+                Text(Self.official(namespace: "ui-agent-preset", key: "sectionIntro"))
                     .font(OfficialUISpec.Typography.xs13)
                     .foregroundStyle(OfficialUISpec.Token.caption)
             }
         case .ready:
             List {
-                Section(official(namespace: "ui-agent-preset", key: "title")) {
-                    Text(official(namespace: "ui-agent-preset", key: "sectionIntro"))
+                Section(Self.official(namespace: "ui-agent-preset", key: "title")) {
+                    Text(Self.official(namespace: "ui-agent-preset", key: "sectionIntro"))
                         .font(OfficialUISpec.Typography.xs13)
                         .foregroundStyle(OfficialUISpec.Token.caption)
                     ForEach(agentPresetStore.presets) { preset in
@@ -181,12 +181,12 @@ struct NativeSettingsRoot: View {
                             HStack {
                                 Text(preset.name ?? preset.id)
                                 if preset.broken != nil {
-                                    Text(official(namespace: "ui-agent-preset", key: "brokenBadge"))
+                                    Text(Self.official(namespace: "ui-agent-preset", key: "brokenBadge"))
                                         .font(OfficialUISpec.Typography.xs13)
                                         .foregroundStyle(OfficialUISpec.Token.caption)
                                 }
                             }
-                            Text(preset.description ?? official(namespace: "ui-agent-preset", key: "noDescription"))
+                            Text(preset.description ?? Self.official(namespace: "ui-agent-preset", key: "noDescription"))
                                 .font(OfficialUISpec.Typography.xs13)
                                 .foregroundStyle(OfficialUISpec.Token.caption)
                             Text(preset.id)
@@ -194,35 +194,35 @@ struct NativeSettingsRoot: View {
                                 .foregroundStyle(OfficialUISpec.Token.caption)
                             HStack(spacing: OfficialUISpec.Spacing.p8) {
                                 if preset.trust == "system", preset.broken == nil {
-                                    Button(official(namespace: "ui-agent-preset", key: "view")) {
+                                    Button(Self.official(namespace: "ui-agent-preset", key: "view")) {
                                         Task { _ = await readAgentPreset(preset.id) }
                                     }
                                 }
                                 if preset.trust == "user" {
-                                    Button(official(namespace: "ui-agent-preset", key: agentPresetStore.hasDocument ? "openLocation" : "showLocation")) {
+                                    Button(Self.official(namespace: "ui-agent-preset", key: agentPresetStore.hasDocument ? "openLocation" : "showLocation")) {
                                         Task { _ = await openAgentPresetDocument(preset.id) }
                                     }
                                 }
-                                Button(official(namespace: "ui-agent-preset", key: "duplicate")) {
+                                Button(Self.official(namespace: "ui-agent-preset", key: "duplicate")) {
                                     copySource = preset
                                     copyID = ""
                                     copyName = ""
                                 }
                                 .disabled(!agentPresetStore.authorable || preset.broken != nil)
                                 if !preset.isDefault, preset.broken == nil {
-                                    Button(official(namespace: "ui-agent-preset", key: "setDefault")) {
+                                    Button(Self.official(namespace: "ui-agent-preset", key: "setDefault")) {
                                         Task { _ = await selectAgentPresetDefault(preset) }
                                     }
                                     .disabled(!store.agentPresetDefault.writable)
                                 }
                                 if preset.trust == "user" {
-                                    Button(official(namespace: "ui-agent-preset", key: "delete"), role: .destructive) {
+                                    Button(Self.official(namespace: "ui-agent-preset", key: "delete"), role: .destructive) {
                                         pendingDelete = preset
                                     }
                                 }
                             }
                             if let path = agentPresetStore.revealedPaths[preset.id] {
-                                Text(official(namespace: "ui-agent-preset", key: "revealedPathLabel") + " " + path)
+                                Text(Self.official(namespace: "ui-agent-preset", key: "revealedPathLabel") + " " + path)
                                     .font(OfficialUISpec.Typography.xs13)
                                     .textSelection(.enabled)
                                     .foregroundStyle(OfficialUISpec.Token.caption)
@@ -231,7 +231,7 @@ struct NativeSettingsRoot: View {
                     }
                 }
                 if let detail = agentPresetStore.detail {
-                    Section(official(namespace: "ui-agent-preset", key: "composition")) {
+                    Section(Self.official(namespace: "ui-agent-preset", key: "composition")) {
                         Text(detail.content)
                             .font(OfficialUISpec.Typography.xs13.monospaced())
                             .textSelection(.enabled)
@@ -242,17 +242,17 @@ struct NativeSettingsRoot: View {
                 copySheet(source: source)
             }
             .confirmationDialog(
-                official(namespace: "ui-agent-preset", key: "deleteTitle"),
+                Self.official(namespace: "ui-agent-preset", key: "deleteTitle"),
                 isPresented: Binding(
                     get: { pendingDelete != nil },
                     set: { if !$0 { pendingDelete = nil } }
                 ),
                 titleVisibility: .visible
             ) {
-                Button(official(namespace: "ui-agent-preset", key: "cancel"), role: .cancel) {
+                Button(Self.official(namespace: "ui-agent-preset", key: "cancel"), role: .cancel) {
                     pendingDelete = nil
                 }
-                Button(deleteInFlight ? official(namespace: "ui-agent-preset", key: "deleting") : official(namespace: "ui-agent-preset", key: "deleteConfirm"), role: .destructive) {
+                Button(deleteInFlight ? Self.official(namespace: "ui-agent-preset", key: "deleting") : Self.official(namespace: "ui-agent-preset", key: "deleteConfirm"), role: .destructive) {
                     guard let pendingDelete else { return }
                     deleteInFlight = true
                     Task {
@@ -263,25 +263,25 @@ struct NativeSettingsRoot: View {
                 }
                 .disabled(deleteInFlight)
             } message: {
-                Text(official(namespace: "ui-agent-preset", key: "deleteDescription"))
+                Text(Self.official(namespace: "ui-agent-preset", key: "deleteDescription"))
             }
         }
     }
 
     private func copySheet(source: AgentPresetEntryDTO) -> some View {
         VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p12) {
-            Text(official(namespace: "ui-agent-preset", key: "copyIntro"))
+            Text(Self.official(namespace: "ui-agent-preset", key: "copyIntro"))
                 .font(OfficialUISpec.Typography.xs13)
                 .foregroundStyle(OfficialUISpec.Token.caption)
-            Text(official(namespace: "ui-agent-preset", key: "copyOf") + " " + (source.name ?? source.id))
-            TextField(official(namespace: "ui-agent-preset", key: "presetId"), text: $copyID, prompt: Text(official(namespace: "ui-agent-preset", key: "presetIdPlaceholder")))
-            TextField(official(namespace: "ui-agent-preset", key: "displayName"), text: $copyName, prompt: Text(official(namespace: "ui-agent-preset", key: "displayNamePlaceholder")))
+            Text(Self.official(namespace: "ui-agent-preset", key: "copyOf") + " " + (source.name ?? source.id))
+            TextField(Self.official(namespace: "ui-agent-preset", key: "presetId"), text: $copyID, prompt: Text(Self.official(namespace: "ui-agent-preset", key: "presetIdPlaceholder")))
+            TextField(Self.official(namespace: "ui-agent-preset", key: "displayName"), text: $copyName, prompt: Text(Self.official(namespace: "ui-agent-preset", key: "displayNamePlaceholder")))
             HStack {
-                Button(official(namespace: "ui-agent-preset", key: "cancel")) {
+                Button(Self.official(namespace: "ui-agent-preset", key: "cancel")) {
                     copySource = nil
                 }
                 Spacer()
-                Button(copyInFlight ? official(namespace: "ui-agent-preset", key: "creating") : official(namespace: "ui-agent-preset", key: "create")) {
+                Button(copyInFlight ? Self.official(namespace: "ui-agent-preset", key: "creating") : Self.official(namespace: "ui-agent-preset", key: "create")) {
                     let request = AgentPresetCopyRequest(
                         from: source.id,
                         agentPreset: copyID,
@@ -313,26 +313,26 @@ struct NativeSettingsRoot: View {
     private var modelsDetail: some View {
         switch modelDirectoryStore.phase {
         case .idle, .loading:
-            ProgressView(official(namespace: "locale", key: "loading"))
+            ProgressView(Self.official(namespace: "locale", key: "loading"))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .failed:
             VStack(spacing: OfficialUISpec.Spacing.p12) {
                 Text(NativeModelDirectoryFailurePresentation.title)
-                Button(official(namespace: "ui-settings-models", key: "retry")) {
+                Button(Self.official(namespace: "ui-settings-models", key: "retry")) {
                     Task { await refreshModelDirectory() }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .ready:
             List {
-                Section(official(namespace: "ui-settings-models", key: "provider")) {
+                Section(Self.official(namespace: "ui-settings-models", key: "provider")) {
                     ForEach(modelDirectoryStore.providers) { provider in
                         VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p4) {
                             Text(provider.displayName)
                             Text(provider.settingsNs)
                                 .font(OfficialUISpec.Typography.xs13)
                                 .foregroundStyle(OfficialUISpec.Token.caption)
-                            Button(official(namespace: "ui-settings-models", key: "fetchModels")) {
+                            Button(Self.official(namespace: "ui-settings-models", key: "fetchModels")) {
                                 beginModelDiscovery(for: provider)
                             }
                             .disabled(!store.writable)
@@ -350,7 +350,7 @@ struct NativeSettingsRoot: View {
                         }
                     }
                 }
-                Section(official(namespace: "ui-settings-models", key: "models")) {
+                Section(Self.official(namespace: "ui-settings-models", key: "models")) {
                     ForEach(modelDirectoryStore.groups) { group in
                         VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p4) {
                             Text(group.name)
@@ -398,17 +398,17 @@ struct NativeSettingsRoot: View {
     @ViewBuilder
     private func modelDiscoveryPicker(for provider: LLMProviderDTO) -> some View {
         VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p12) {
-            Text(official(namespace: "ui-settings-models", key: "fetchTitle"))
+            Text(Self.official(namespace: "ui-settings-models", key: "fetchTitle"))
                 .font(OfficialUISpec.Typography.baseStrong16)
             switch modelDiscoveryStore.phase {
             case .idle, .loading:
-                ProgressView(official(namespace: "locale", key: "loading"))
+                ProgressView(Self.official(namespace: "locale", key: "loading"))
             case .empty:
-                Text(official(namespace: "ui-settings-models", key: "fetchEmpty"))
+                Text(Self.official(namespace: "ui-settings-models", key: "fetchEmpty"))
                     .font(OfficialUISpec.Typography.xs13)
                     .foregroundStyle(OfficialUISpec.Token.caption)
             case .failed:
-                Text(official(namespace: "ui-settings-models", key: "loadFailed"))
+                Text(Self.official(namespace: "ui-settings-models", key: "loadFailed"))
                     .font(OfficialUISpec.Typography.xs13)
                     .foregroundStyle(OfficialUISpec.Token.caption)
             case .ready:
@@ -419,15 +419,15 @@ struct NativeSettingsRoot: View {
                 }
                 HStack(spacing: OfficialUISpec.Spacing.p8) {
                     Button(allDiscoveredCandidatesSelected
-                        ? official(namespace: "ui-settings-models", key: "fetchDeselectAll")
-                        : official(namespace: "ui-settings-models", key: "fetchSelectAll")) {
+                        ? Self.official(namespace: "ui-settings-models", key: "fetchDeselectAll")
+                        : Self.official(namespace: "ui-settings-models", key: "fetchSelectAll")) {
                         toggleAllDiscoveredCandidates()
                     }
                     Spacer()
-                    Button(official(namespace: "ui-settings-models", key: "cancel")) {
+                    Button(Self.official(namespace: "ui-settings-models", key: "cancel")) {
                         dismissModelDiscovery()
                     }
-                    Button(official(namespace: "ui-settings-models", key: "fetchAdopt")) {
+                    Button(Self.official(namespace: "ui-settings-models", key: "fetchAdopt")) {
                         Task { await adoptCurrentDiscoveredModels(for: provider) }
                     }
                     .disabled(discoveryAdoptionInFlight || selectedDiscoveredModelIDs.isEmpty)

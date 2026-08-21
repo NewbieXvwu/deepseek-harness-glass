@@ -1,3 +1,5 @@
+import SwiftUI
+
 #if DEEPSEEK_HARNESS_PACKAGE
 @testable import GlassCore
 @testable import GlassSpec
@@ -9,6 +11,10 @@
 struct NativeContextMeter: View {
     @ObservedObject var sessionStore: NativeSessionStore
     @State private var isOpen = false
+
+    init(sessionStore: NativeSessionStore) {
+        self.sessionStore = sessionStore
+    }
 
     private var state: CoreContextMeterState? {
         guard let sessionID = sessionStore.selectedSessionID else { return nil }
@@ -72,7 +78,6 @@ struct NativeContextMeter: View {
             }
         }
         .padding(OfficialUISpec.Spacing.p16)
-        .frame(width: OfficialUISpec.Geometry.px240)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(t("context.used"))
     }

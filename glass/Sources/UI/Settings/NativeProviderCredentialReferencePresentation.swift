@@ -1,3 +1,5 @@
+import Foundation
+
 #if DEEPSEEK_HARNESS_PACKAGE
 @testable import GlassCore
 #endif
@@ -12,7 +14,8 @@ enum NativeProviderCredentialReferencePresentation {
         namespaces: [SettingsNamespaceDTO]
     ) -> String? {
         guard let namespace = namespaces.first(where: { $0.ns == provider.settingsNs }),
-              let profile = value(at: provider.settingsPath, in: namespace.value).objectValue,
+              let profileValue = value(at: provider.settingsPath, in: namespace.value),
+              let profile = profileValue.objectValue,
               let reference = profile["apiKeyEnv"]?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines),
               !reference.isEmpty
         else { return nil }

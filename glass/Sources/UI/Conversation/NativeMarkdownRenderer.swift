@@ -126,13 +126,13 @@ enum NativeMarkdownDocument {
                 blocks.append(.list(id: id, ordered: false, items: listItems(list.children)))
             case let list as OrderedList:
                 blocks.append(.list(id: id, ordered: true, items: listItems(list.children)))
-            case let table as Table:
-                // `MarkupFormatter` deliberately rejects direct Table.Cell
+            case let table as Markdown.Table:
+                // `MarkupFormatter` deliberately rejects direct Markdown.Table.Cell
                 // visits; cells are inline containers, so serialize their
                 // children instead of formatting the structural wrapper.
-                let header = table.head.children.compactMap { $0 as? Table.Cell }.map(formattedTableCell)
-                let rows = table.body.children.compactMap { $0 as? Table.Row }.map { row in
-                    row.children.compactMap { $0 as? Table.Cell }.map(formattedTableCell)
+                let header = table.head.children.compactMap { $0 as? Markdown.Table.Cell }.map(formattedTableCell)
+                let rows = table.body.children.compactMap { $0 as? Markdown.Table.Row }.map { row in
+                    row.children.compactMap { $0 as? Markdown.Table.Cell }.map(formattedTableCell)
                 }
                 blocks.append(.table(id: id, header: header, rows: rows))
             default:
@@ -159,7 +159,7 @@ enum NativeMarkdownDocument {
         code.hasSuffix("\n") ? String(code.dropLast()) : code
     }
 
-    private static func formattedTableCell(_ cell: Table.Cell) -> String {
+    private static func formattedTableCell(_ cell: Markdown.Table.Cell) -> String {
         cell.children.map(formattedText).joined().trimmingCharacters(in: .newlines)
     }
 
@@ -257,8 +257,8 @@ enum NativeCodeHighlighter {
         return fragments
     }
 
-    static func text(code: String, language: String?) -> Text {
-        fragments(code: code, language: language).reduce(Text(String())) { result, fragment in
+    static func text(code: String, language: String?) -> SwiftUI.Text {
+        fragments(code: code, language: language).reduce(SwiftUI.Text(String())) { result, fragment in
             let color: Color
             switch fragment.kind {
             case .plain: color = OfficialUISpec.Token.primary
@@ -267,7 +267,7 @@ enum NativeCodeHighlighter {
             case .number: color = OfficialUISpec.Token.caption
             case .comment: color = OfficialUISpec.Token.secondary
             }
-            return result + Text(verbatim: fragment.text).foregroundColor(color)
+            return result + SwiftUI.Text(verbatim: fragment.text).foregroundColor(color)
         }
     }
 }
