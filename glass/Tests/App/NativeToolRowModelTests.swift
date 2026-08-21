@@ -34,6 +34,25 @@ final class NativeToolRowModelTests: XCTestCase {
         )
     }
 
+    func testFilePathAuthorityIsLimitedToOfficialFileToolArguments() {
+        XCTAssertEqual(
+            NativeToolRowModel.filePath(
+                toolName: "write",
+                arguments: #"{"file_path":"src/main.swift"}"#
+            ),
+            "src/main.swift"
+        )
+        XCTAssertEqual(
+            NativeToolRowModel.filePath(
+                toolName: "edit",
+                arguments: #"{"path":"README.md"}"#
+            ),
+            "README.md"
+        )
+        XCTAssertNil(NativeToolRowModel.filePath(toolName: "bash", arguments: #"{"path":"script.sh"}"#))
+        XCTAssertNil(NativeToolRowModel.filePath(toolName: "write", arguments: "partial request"))
+    }
+
     func testToolSummaryFallsBackSafelyForMalformedAndGenericArguments() {
         XCTAssertEqual(
             NativeToolRowModel.summary(

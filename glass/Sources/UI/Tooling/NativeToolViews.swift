@@ -14,35 +14,52 @@ import Foundation
 struct NativeToolRow: View {
     let invocation: NativeSessionStore.ToolInvocation
     let selected: Bool
+    let openKnownProjectPath: (String) -> Void
+    let canOpenProjectPath: Bool
     let inspect: () -> Void
 
     @State private var expanded = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Button {
-                expanded.toggle()
-                inspect()
-            } label: {
-                HStack(spacing: OfficialUISpec.Spacing.p8) {
-                    leading
-                        .frame(width: OfficialUISpec.Geometry.px16, height: OfficialUISpec.Geometry.px16)
-                    Text(title)
-                        .font(OfficialUISpec.Typography.xsStrong13)
-                        .foregroundStyle(OfficialUISpec.Token.primary)
-                    Text(OfficialUISpec.Text.toolSummarySeparator)
-                        .foregroundStyle(OfficialUISpec.Token.caption)
-                    Text(summary)
-                        .font(OfficialUISpec.Typography.xs13)
-                        .foregroundStyle(state == .failed ? OfficialUISpec.Token.errorPrimary : OfficialUISpec.Token.secondary)
-                        .lineLimit(1)
-                    Spacer(minLength: 0)
+            HStack(spacing: OfficialUISpec.Spacing.p8) {
+                Button(action: toggleExpandedAndInspect) {
+                    HStack(spacing: OfficialUISpec.Spacing.p8) {
+                        leading
+                            .frame(width: OfficialUISpec.Geometry.px16, height: OfficialUISpec.Geometry.px16)
+                        Text(title)
+                            .font(OfficialUISpec.Typography.xsStrong13)
+                            .foregroundStyle(OfficialUISpec.Token.primary)
+                        Text(OfficialUISpec.Text.toolSummarySeparator)
+                            .foregroundStyle(OfficialUISpec.Token.caption)
+                    }
                 }
-                .contentShape(Rectangle())
+                .buttonStyle(.plain)
+                .accessibilityLabel(title)
+                .accessibilityValue(stateDescription)
+
+                if let filePath, canOpenProjectPath, state != .failed {
+                    Button(action: { openKnownProjectPath(filePath) }) {
+                        Text(summary)
+                            .font(OfficialUISpec.Typography.xs13)
+                            .foregroundStyle(OfficialUISpec.Token.secondary)
+                            .lineLimit(1)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(OfficialUISpec.Text.producedFilesOpen(name: filePath))
+                } else {
+                    Button(action: toggleExpandedAndInspect) {
+                        Text(summary)
+                            .font(OfficialUISpec.Typography.xs13)
+                            .foregroundStyle(state == .failed ? OfficialUISpec.Token.errorPrimary : OfficialUISpec.Token.secondary)
+                            .lineLimit(1)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(title)
+                    .accessibilityValue(stateDescription)
+                }
+                Spacer(minLength: 0)
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(title)
-            .accessibilityValue(stateDescription)
 
             if expanded {
                 VStack(alignment: .leading, spacing: 8) {
@@ -68,7 +85,11 @@ struct NativeToolRow: View {
         .padding(.vertical, OfficialUISpec.Spacing.p5)
         .background(selected ? OfficialUISpec.Token.interactiveHover : Color.clear, in: RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r6, style: .continuous))
         .contentShape(Rectangle())
-        .onTapGesture { inspect() }
+    }
+
+    private func toggleExpandedAndInspect() {
+        expanded.toggle()
+        inspect()
     }
 
     private var title: String {
@@ -90,6 +111,10 @@ struct NativeToolRow: View {
             isGeneric: variant == .others,
             separator: OfficialUISpec.Text.toolSummarySeparator
         )
+    }
+
+    private var filePath: String? {
+        NativeToolRowModel.filePath(toolName: invocation.name, arguments: invocation.arguments)
     }
 
     private var state: NativeSessionStore.ToolInvocation.State { invocation.state }
@@ -158,7 +183,7 @@ enum NativeToolRowModel {
         return isGeneric && !toolName.isEmpty ? "\(toolName) \(separator) \(base)" : base
     }
 
-    private static func filePath(toolName: String, arguments: String) -> String? {
+    static func filePath(toolName: String, arguments: String) -> String? {
         guard ["read", "write", "edit"].contains(toolName),
               let data = arguments.data(using: .utf8),
               let object = try? JSONSerialization.jsonObject(with: data),

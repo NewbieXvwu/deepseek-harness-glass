@@ -369,6 +369,8 @@ private struct NativeTranscriptScrollView: View {
                             NativeToolRow(
                                 invocation: invocation,
                                 selected: selectedToolCallID == invocation.id,
+                                openKnownProjectPath: openKnownProjectPath,
+                                canOpenProjectPath: canOpenProjectPath,
                                 inspect: { selectToolCall(invocation.id) }
                             )
                             .id(entry.id)
