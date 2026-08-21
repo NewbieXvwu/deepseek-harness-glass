@@ -397,6 +397,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 - [ ] **T9.1：实现 generic tool renderer。** 显示 tool call、参数摘要、执行状态、结果、错误、折叠和原始 fallback。
   - 依赖：T6.5、T8.2。
   - 验收：所有未知 tool type 以安全、可复制、不过度解释的通用视图呈现；不丢弃 raw result。
+  - 进度：`NativeToolRow` 已保留展开态的完整 raw arguments 与 output；`NativeToolDetailsBody` 的通用 fallback 不再在 output 存在时以 `output ?? arguments` 静默丢弃输入，而以可复制的两个原始区域呈现 arguments 和 output（failed output 使用已有错误 token）。当前仍须补未知类型完整运行态 fixture、折叠/超长输出性能、官方加载/取消结构配对和 macOS 视觉无障碍证据，故保持未勾选。
 
 - [ ] **T9.2：实现官方常用 tool renderer。** 分别完成 bash/terminal、read、search、file mutation/diff、todo、web、ask-question、workflow 和图像/附件类 renderer。
   - 依赖：T9.1、T2.5。

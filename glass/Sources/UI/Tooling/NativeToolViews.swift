@@ -232,13 +232,23 @@ struct NativeToolDetailsBody: View {
                                 .font(OfficialUISpec.Typography.xs13)
                                 .foregroundStyle(OfficialUISpec.Token.secondary)
                         }
-                        Text(invocation.output ?? invocation.arguments)
-                            .font(OfficialUISpec.Typography.codeSmall12)
-                            .foregroundStyle(invocation.state == .failed ? OfficialUISpec.Token.errorPrimary : OfficialUISpec.Token.secondary)
-                            .textSelection(.enabled)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(OfficialUISpec.Spacing.p10)
-                            .background(OfficialUISpec.Token.elevated, in: RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r12, style: .continuous))
+                        VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p8) {
+                            Text(invocation.arguments)
+                                .font(OfficialUISpec.Typography.codeSmall12)
+                                .foregroundStyle(OfficialUISpec.Token.secondary)
+                                .textSelection(.enabled)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            if let output = invocation.output {
+                                Divider()
+                                Text(output)
+                                    .font(OfficialUISpec.Typography.codeSmall12)
+                                    .foregroundStyle(invocation.state == .failed ? OfficialUISpec.Token.errorPrimary : OfficialUISpec.Token.secondary)
+                                    .textSelection(.enabled)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                        }
+                        .padding(OfficialUISpec.Spacing.p10)
+                        .background(OfficialUISpec.Token.elevated, in: RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r12, style: .continuous))
                     }
                     .padding(OfficialUISpec.Spacing.p16)
                 }
