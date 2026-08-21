@@ -42,6 +42,41 @@ final class SSEClientTests: XCTestCase {
         XCTAssertTrue(traces.contains { $0.outcome == .opened })
     }
 
+    func testRawReconnectFixtureDropsDuplicateSequenceAcrossStreamReopen() async throws {
+        let fixture = try OfficialRawEventReplayFixtureCatalog.load()
+        let replay = tryUnwrap(fixture.cases.first(where: { $0.id == "reconnect-duplicate-sequence" }))
+        let opener = RecordedSSEOpener(scripts: [
+            [
+                .frame(replaySessionEvent(rpcId: "fixture-40", event: replay.events[0])),
+                .frame(replaySessionEvent(rpcId: "fixture-41", event: replay.events[1])),
+                .frame(replaySessionEvent(rpcId: "fixture-42", event: replay.events[2])),
+                .failure(.network("fixture-reconnect")),
+            ],
+            [
+                .frame(replaySessionEvent(rpcId: "fixture-42-replay", event: replay.events[3])),
+                .frame(replaySessionEvent(rpcId: "fixture-43", event: replay.events[4])),
+            ],
+        ])
+        let client = SSEClient(
+            baseURL: URL(string: "http://127.0.0.1:9235/")!,
+            testStreamOpener: { endpoint in opener.open(endpoint) }
+        )
+        let collector = Task { () throws -> [RPCServerRequest] in
+            var frames: [RPCServerRequest] = []
+            let stream = await client.reconnectingStream(.mux, policy: .init(initialDelay: 0.01, maximumDelay: 0.02, multiplier: 2))
+            for try await frame in stream {
+                frames.append(frame)
+                if frames.count == 4 { return frames }
+            }
+            return frames
+        }
+        let frames = try await collector.value
+
+        XCTAssertEqual(frames.map { $0.payload.objectValue?["event"]?.objectValue?["seq"]?.numberValue }, [40, 41, 42, 43])
+        XCTAssertEqual(frames.map(\.rpcId), ["fixture-40", "fixture-41", "fixture-42", "fixture-43"])
+        XCTAssertEqual(opener.openedEndpoints(), [.mux, .mux])
+    }
+
     func testFinalCancellationStopsRetryLoopWithoutFurtherOpen() async throws {
         let opener = RecordedSSEOpener(scripts: [[.failure(.network("fixture-disconnect"))]])
         let client = SSEClient(
@@ -100,6 +135,19 @@ final class SSEClientTests: XCTestCase {
                     "time": .number(1),
                     "data": .object([:]),
                 ]),
+            ])
+        )
+    }
+
+    private func replaySessionEvent(rpcId: String, event: JSONValue) -> RPCServerRequest {
+        RPCServerRequest(
+            type: "server-request",
+            rpcId: rpcId,
+            method: "session/event",
+            payload: .object([
+                "type": .string("session/event"),
+                "sessionId": .string("fixture-session"),
+                "event": event,
             ])
         )
     }
