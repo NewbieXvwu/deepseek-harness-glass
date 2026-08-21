@@ -23,6 +23,9 @@ final class NativeAgentPresetStore: ObservableObject {
     @Published private(set) var authorable = false
     @Published private(set) var hasDocument = false
     @Published private(set) var selectedPreset: String?
+    /// Preset-directory paths supplied by `agentPreset.openDocument` when the
+    /// Host cannot open them itself. These remain Host text, not local URLs.
+    @Published private(set) var revealedPaths: [String: String] = [:]
     /// The exact Host-returned read-only composition. It is cleared before a
     /// different roster replaces its row and is never manufactured from list data.
     @Published private(set) var detail: AgentPresetReadResponse?
@@ -44,15 +47,17 @@ final class NativeAgentPresetStore: ObservableObject {
             if let detail, !presets.contains(where: { $0.id == detail.agentPreset }) {
                 self.detail = nil
             }
+            revealedPaths = revealedPaths.filter { presetID, _ in presets.contains(where: { $0.id == presetID }) }
             phase = presets.isEmpty ? .unavailable : .ready
         } catch {
             // A failed roster fetch cannot retain stale rows as Host facts.
             presets = []
             authorable = false
             hasDocument = false
-            selectedPreset = nil
-            detail = nil
-            phase = .failed
+        selectedPreset = nil
+        revealedPaths = [:]
+        detail = nil
+        phase = .failed
         }
     }
 
@@ -73,6 +78,22 @@ final class NativeAgentPresetStore: ObservableObject {
 
     func dismissDetail() {
         detail = nil
+    }
+
+    /// Delegates all document-opening behavior to the Host. Native state is
+    /// updated only for the explicit non-opened path response the Host returns.
+    @discardableResult
+    func openDocument(agentPreset: String, using api: (any NativeAgentPresetAPI)?) async -> Bool {
+        guard let api, presets.contains(where: { $0.id == agentPreset }) else { return false }
+        do {
+            let response = try await api.openDocument(agentPreset: agentPreset)
+            if response.opened { return true }
+            guard let path = response.path, !path.isEmpty else { return false }
+            revealedPaths[agentPreset] = path
+            return true
+        } catch {
+            return false
+        }
     }
 
     /// Creates a preset solely through a Host-side copy then reloads the whole
@@ -126,6 +147,7 @@ final class NativeAgentPresetStore: ObservableObject {
         authorable = false
         hasDocument = false
         selectedPreset = nil
+        revealedPaths = [:]
         detail = nil
     }
 }

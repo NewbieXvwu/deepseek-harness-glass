@@ -38,6 +38,7 @@ struct NativeSettingsRoot: View {
     let refreshModelDirectory: () async -> Void
     let refreshAgentPresets: () async -> Void
     let readAgentPreset: (String) async -> Bool
+    let openAgentPresetDocument: (String) async -> Bool
     let refreshCredential: (String) async -> Void
     let setCredential: (String, String) async -> Bool
     let savePluginCard: (NativePluginCardDraft) async -> Bool
@@ -174,8 +175,21 @@ struct NativeSettingsRoot: View {
                             Text(preset.id)
                                 .font(OfficialUISpec.Typography.xs13.monospaced())
                                 .foregroundStyle(OfficialUISpec.Token.caption)
-                            Button(official(namespace: "ui-agent-preset", key: "view")) {
-                                Task { _ = await readAgentPreset(preset.id) }
+                            HStack(spacing: OfficialUISpec.Spacing.p8) {
+                                Button(official(namespace: "ui-agent-preset", key: "view")) {
+                                    Task { _ = await readAgentPreset(preset.id) }
+                                }
+                                if agentPresetStore.hasDocument {
+                                    Button(official(namespace: "ui-agent-preset", key: "openLocation")) {
+                                        Task { _ = await openAgentPresetDocument(preset.id) }
+                                    }
+                                }
+                            }
+                            if let path = agentPresetStore.revealedPaths[preset.id] {
+                                Text(official(namespace: "ui-agent-preset", key: "revealedPathLabel") + " " + path)
+                                    .font(OfficialUISpec.Typography.xs13)
+                                    .textSelection(.enabled)
+                                    .foregroundStyle(OfficialUISpec.Token.caption)
                             }
                         }
                     }

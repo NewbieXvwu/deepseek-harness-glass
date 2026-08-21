@@ -73,6 +73,23 @@ final class NativeAgentPresetStoreTests: XCTestCase {
         XCTAssertNil(store.detail)
     }
 
+    func testOpenDocumentShowsOnlyHostReturnedFallbackPathAndDropsItAfterRosterRefresh() async {
+        let api = PresetAPI(roster: [preset(id: "custom", trust: "user", isDefault: false, name: nil, description: nil, broken: nil)])
+        let store = NativeAgentPresetStore()
+        await store.refresh(using: api)
+
+        XCTAssertTrue(await store.openDocument(agentPreset: "custom", using: api))
+        XCTAssertEqual(store.revealedPaths, ["custom": "/host/preset"])
+
+        api.openedDocument = true
+        XCTAssertTrue(await store.openDocument(agentPreset: "custom", using: api))
+        XCTAssertEqual(store.revealedPaths, ["custom": "/host/preset"])
+
+        api.removePresetFromRoster(id: "custom")
+        await store.refresh(using: api)
+        XCTAssertTrue(store.revealedPaths.isEmpty)
+    }
+
     func testSelectionRequiresHostConfirmedSelectableRosterRow() async {
         let api = PresetAPI(
             roster: [preset(id: "standard", trust: "system", isDefault: true, name: nil, description: nil, broken: nil)],
@@ -109,6 +126,7 @@ final class NativeAgentPresetStoreTests: XCTestCase {
         private(set) var copyRequests: [AgentPresetCopyRequest] = []
         private(set) var removeRequests: [String] = []
         private(set) var selectRequests: [(String, String)] = []
+        var openedDocument = false
 
         init(roster: [AgentPresetEntryDTO], copyFails: Bool = false, selectResponse: String? = nil) {
             self.roster = roster
@@ -138,7 +156,11 @@ final class NativeAgentPresetStoreTests: XCTestCase {
         }
 
         func openDocument(agentPreset _: String) async throws -> AgentPresetOpenDocumentResponse {
-            .init(opened: false, path: "/host/preset")
+            .init(opened: openedDocument, path: openedDocument ? nil : "/host/preset")
+        }
+
+        func removePresetFromRoster(id: String) {
+            roster.removeAll { $0.id == id }
         }
 
         func remove(agentPreset: String) async throws -> EmptyRPCResponse {
