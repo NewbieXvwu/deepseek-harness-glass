@@ -95,6 +95,43 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(api.promptSessionIDs, [sessionID])
     }
 
+    func testAdmittedImagePromptUsesTypedHostFacadeWithExactContent() async throws {
+        let promptReachedFacade = expectation(description: "typed prompt facade receives admitted image content")
+        let imageData = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL9UQAAAABJRU5ErkJggg==")!
+        let api = AcceptingSessionAPI(
+            promptReachedFacade: promptReachedFacade,
+            imageLimits: .init(
+                maxImageBytes: 4_096,
+                maxImagesPerMessage: 2,
+                maxMessageImageBytes: 8_192,
+                maxImagePixels: 16,
+                maxImageDimension: 4,
+                mediaTypes: ["image/png"]
+            )
+        )
+        let store = NativeSessionStore()
+        let sessionID = "admitted-image-prompt-session"
+        let imageURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("native-session-image-\(UUID().uuidString).not-an-image")
+        try imageData.write(to: imageURL)
+        defer { try? FileManager.default.removeItem(at: imageURL) }
+
+        store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+        await eventually(timeout: 1) { store.imageAttachmentLimits != nil }
+        store.draft = "caption retained in the typed content array"
+        store.addPendingImage(imageURL)
+        XCTAssertEqual(store.pendingImages.count, 1)
+
+        store.submitDraft()
+        await fulfillment(of: [promptReachedFacade], timeout: 1)
+        XCTAssertEqual(api.promptSessionIDs, [sessionID])
+        XCTAssertEqual(api.promptContents, [[
+            .text(text: "caption retained in the typed content array"),
+            .image(mediaType: "image/png", data: imageData.base64EncodedString(), name: imageURL.lastPathComponent),
+        ]])
+        await eventually(timeout: 1) { store.draft.isEmpty && store.pendingImages.isEmpty }
+    }
+
     func testMessageFeedbackPublishesCompleteHostSnapshotAndFailsClosed() async {
         let reached = expectation(description: "feedback list reaches typed Host facade")
         let initial = MessageFeedbackListResponse(
@@ -2498,15 +2535,33 @@ final class NativeSessionStoreTests: XCTestCase {
     @MainActor
     private final class AcceptingSessionAPI: NativeSessionAPI {
         let promptReachedFacade: XCTestExpectation
+        let imageLimits: ImageAttachmentLimits?
         private(set) var promptSessionIDs: [String] = []
         private(set) var promptContents: [[SessionPromptContent]] = []
 
-        init(promptReachedFacade: XCTestExpectation) {
+        init(promptReachedFacade: XCTestExpectation, imageLimits: ImageAttachmentLimits? = nil) {
             self.promptReachedFacade = promptReachedFacade
+            self.imageLimits = imageLimits
         }
 
-        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse { throw DSHTransportError.invalidEndpoint }
-        func models(sessionID _: String) async throws -> SessionModelsResponse { throw DSHTransportError.invalidEndpoint }
+        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
+            let projections = imageLimits.map {
+                SessionProjectionsDTO(asOfSeq: 0, values: [
+                    "imageLimits": .object([
+                        "maxImageBytes": .number(Double($0.maxImageBytes)),
+                        "maxImagesPerMessage": .number(Double($0.maxImagesPerMessage)),
+                        "maxMessageImageBytes": .number(Double($0.maxMessageImageBytes)),
+                        "maxImagePixels": .number(Double($0.maxImagePixels)),
+                        "maxImageDimension": .number(Double($0.maxImageDimension)),
+                        "mediaTypes": .array($0.mediaTypes.map(JSONValue.string)),
+                    ]),
+                ])
+            }
+            return .init(events: [], hasMore: false, projections: projections)
+        }
+        func models(sessionID _: String) async throws -> SessionModelsResponse {
+            .init(current: .init(provider: "provider", model: "model", reasoningEffort: nil), routable: true, groups: [], failures: [])
+        }
         func prompt(sessionID: String, content: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse {
             promptSessionIDs.append(sessionID)
             promptContents.append(content)
