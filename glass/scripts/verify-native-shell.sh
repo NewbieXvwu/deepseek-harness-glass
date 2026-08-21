@@ -23,11 +23,14 @@ DSH_GLASS_SNAPSHOT_MODE="conversation" \
 DSH_GLASS_SNAPSHOT_COLOR_SCHEME="dark" \
 "$BINARY"
 
-# RC8 `ProducedFiles` output with a diff-card-derived seven-file turn tail.
-# The native scene validates the six-chip cap and localized overflow posture.
+# RC8 `ProducedFiles` output with an official-equivalent ten-path diff-card
+# turn tail. At the 780px lane it validates measured two-chip/+8 overflow and
+# the capability-gated folder action posture.
 DSH_GLASS_SNAPSHOT_PATH="$OUTPUT_DIR/deliverables-light.png" \
 DSH_GLASS_SNAPSHOT_MODE="deliverables" \
 DSH_GLASS_SNAPSHOT_COLOR_SCHEME="light" \
+DSH_GLASS_SNAPSHOT_WIDTH="780" \
+DSH_GLASS_SNAPSHOT_HEIGHT="900" \
 "$BINARY"
 
 # The locked official capture is a workspace-backed composer with the default

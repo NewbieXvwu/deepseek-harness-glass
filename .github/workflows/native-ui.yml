@@ -165,6 +165,8 @@ jobs:
           test -s "artifacts/official-webui/welcome-no-workspace-dark.json"
           test -s "artifacts/official-webui/jobs-expanded-light.png"
           test -s "artifacts/official-webui/jobs-expanded-light.json"
+          test -s "artifacts/official-webui/deliverables-light.png"
+          test -s "artifacts/official-webui/deliverables-light.json"
           test -s "artifacts/official-webui/model-selector-light.png"
           test -s "artifacts/official-webui/model-selector-light.json"
           test -s "artifacts/official-webui/jobs-expanded-dark.png"
@@ -397,6 +399,15 @@ jobs:
             --column-fixtures glass/Sources/Spec/Fixtures/official-column-layout-fixtures.json
           test -s artifacts/visual-diff/welcome-no-workspace-dark-comparison.png
           test -s artifacts/visual-diff/welcome-no-workspace-dark-report.json
+          python glass/ci/compare_visual_pair.py \
+            --official artifacts/official-webui/deliverables-light.png \
+            --native artifacts/native-shell/deliverables-light.png \
+            --out-dir artifacts/visual-diff \
+            --scene deliverables-light \
+            --policy glass/Sources/Spec/Fixtures/visual-validation-policy.json \
+            --column-fixtures glass/Sources/Spec/Fixtures/official-column-layout-fixtures.json
+          test -s artifacts/visual-diff/deliverables-light-comparison.png
+          test -s artifacts/visual-diff/deliverables-light-report.json
           python glass/ci/compare_visual_pair.py \
             --official artifacts/official-webui/model-selector-light.png \
             --native artifacts/native-shell/model-selector-light.png \

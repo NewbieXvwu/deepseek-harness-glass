@@ -255,6 +255,16 @@
         "derivedColumns": ["sidebar"]
       }
     },
+    "deliverables-light": {
+      "mode": "report-only",
+      "mustEnforceBeforeTodoCompletion": true,
+      "viewport": { "width": 780, "height": 900, "devicePixelRatio": 1 },
+      "strict": { "maxMateriallyChangedRatio": 0.008, "maxMeanAbsoluteChannelDifference": 1.15, "maxExactChangedRatio": 0.2 },
+      "systemRenderingExceptions": ["Liquid Glass and font rasterization may differ only under the recorded material and glyph-review rules."],
+      "humanReviewRequired": true,
+      "humanReviewCriteria": ["Verify the post-wide-navigation narrow rail, the exact two measured basename chips, + 8 files overflow label, second-row Show in folder action, full-path AX labels and recorded canOpenPath capability against official ARIA/geometry.", "Classify every remaining difference as a native defect or documented system-material exception and attach paired PNG, diff and report before T6.6 completion."],
+      "materialRegionExclusion": { "source": "glass/Sources/Spec/Fixtures/official-column-layout-fixtures.json", "derivedColumns": ["sidebar", "details"] }
+    },
     "model-selector-light": {
       "mode": "report-only",
       "mustEnforceBeforeTodoCompletion": true,

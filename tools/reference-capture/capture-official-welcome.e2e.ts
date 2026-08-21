@@ -1,5 +1,8 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
+import { CallId, createAssistantMessage, createToolResultMessage, createUserMessage } from '@deepseek-ai/dsh-llm'
+import { SESSION_FORMAT_VERSION, Session, SessionId } from '@deepseek-ai/dsh-session'
+import type {} from '@deepseek-ai/dsh-session-title'
 import { chromium, type Locator, type Page } from 'playwright'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { launchWebScaffold, seedSession, watchConsole, type WebScaffold } from './scaffold.ts'
@@ -8,13 +11,27 @@ import { connectFreshWorkspace, REPO_ROOT } from './support.ts'
 const outputDirectory = resolve(process.env.DSH_REFERENCE_SCREENSHOT_DIR ?? '.artifacts/reference-webui')
 const viewport = { width: 1280, height: 840 }
 const railViewport = { width: 1023, height: 840 }
+const deliverablesViewport = { width: 780, height: 900 }
 const lifecycleFixture = join(REPO_ROOT, 'apps/web/tests/snapshots/lifecycle-chrome/session.jsonl')
 const workspaceSearchFixture = join(REPO_ROOT, 'apps/web/tests/snapshots/navigation-panes/seed.jsonl')
 const approvalFixture = join(REPO_ROOT, 'apps/web/tests/snapshots/approval-composer/session.jsonl')
 const questionFixture = join(REPO_ROOT, 'apps/web/tests/snapshots/question-composer/session.jsonl')
 const recordedPrompt = 'Reply with the single word LIGHTHOUSE and stop.'
 const approvalPrompt = `Write a file named notes.txt in the workspace containing exactly this text on one line: ${Array.from({ length: 220 }, (_, index) => `tok${((index + 1) * 7919 % 99991).toString(36)}`).join(' ')}. Use one bash command with the literal text inline. Then reply with the single word DONE and stop.`
-const questionPrompt = 'Use the ask_user_question tool to ask me exactly one multi-select question with id "color", question "Which color do you prefer?", header "Pick one", and two options: label "Blue" with description "A cool recessive hue that reads as calm and trustworthy in long reading sessions and dense dashboards.", and label "Green" with description "A restful mid-spectrum hue with the highest perceived brightness, easiest on the eye over long sessions." Set multi_select to true. After I answer, reply with the single word DONE and stop.'
+const questionPrompt = 'Use the ask_user_question tool to ask me exactly one multi-select question with id "color", question "Which color do you prefer?", header "Pick one", and two options: label "Blue" with description "A cool recessive hue that reads as calm and trustworthy in long reading sessions and dense dashboards.", and label "Green" with description "A restful mid-spectrum hue with the highest perceived brightness, easiest on the eye over long reading sessions." Set multi_select to true. After I answer, reply with the single word DONE and stop.'
+const deliverablesDone = 'PRODUCED_FILES_DONE'
+const deliverablesPaths = [
+  '关于我.md',
+  'index.html',
+  'long-generated-experience-specification-for-produced-files-overflow.md',
+  'styles.css',
+  'app.ts',
+  'schema.json',
+  'README.md',
+  'preview.svg',
+  'notes.txt',
+  'manifest.yaml',
+] as const
 const captureColorSchemes = ['light', 'dark'] as const
 type CaptureColorScheme = typeof captureColorSchemes[number]
 
@@ -122,6 +139,76 @@ async function openWorkspaceManagementDialog(page: CapturePage, kind: 'workspace
   }
   await page.getByRole('menuitem', { name: 'Delete workspace', exact: true }).click()
   return 'Delete workspace'
+}
+
+/** RC8 `produced-files.e2e.ts` finished turn: ten successful write calls
+ * become one turn-tail location list without model output. */
+function deliverablesFixture(): string {
+  const session = Session.create(SessionId('produced-files-source'))
+  const eventTimeOrigin = new Date().setHours(12, 0, 0, 0)
+  session.append('turn/start', { turn: 1 })
+  const user = session.append('user/message', createUserMessage({
+    content: [{ type: 'text', text: 'Create the site files.' }],
+    source: { kind: 'user' },
+  }), { surfaceOp: 'append' })
+  session.append('session/title', {
+    title: 'Produced files overflow', messageSeqs: [user.seq], source: { kind: 'fallback' },
+  })
+  session.append('step/start', { turn: 1, step: 1 })
+  const calls = deliverablesPaths.map((path, index) => ({
+    path,
+    callId: CallId(`produced-files-${String(index)}`),
+    args: JSON.stringify({ file_path: path, content: `content of ${path}\n` }),
+  }))
+  session.append('assistant/message', {
+    turn: 1,
+    step: 1,
+    message: createAssistantMessage({
+      content: calls.map(call => ({
+        type: 'tool-call' as const,
+        id: call.callId,
+        name: 'write',
+        arguments: call.args,
+      })),
+      source: { provider: 'deepseek-official', model: 'deepseek-v4-flash' },
+    }),
+  }, { surfaceOp: 'append' })
+  for (const call of calls) {
+    const source = session.append('tool/call', {
+      turn: 1, step: 1, callId: call.callId, name: 'write', arguments: call.args,
+    })
+    session.append('tool/result', {
+      turn: 1,
+      step: 1,
+      message: createToolResultMessage({
+        callId: call.callId,
+        content: [{ type: 'text', text: `Created ${call.path}` }],
+        isError: false,
+      }),
+    }, { surfaceOp: 'append', sourceEventSeqs: [source.seq] })
+  }
+  session.append('step/start', { turn: 1, step: 2 })
+  session.append('assistant/message', {
+    turn: 1,
+    step: 2,
+    message: createAssistantMessage({
+      content: [{ type: 'text', text: `Created the site.\n\n${deliverablesDone}` }],
+      source: { provider: 'deepseek-official', model: 'deepseek-v4-flash' },
+    }),
+  }, { surfaceOp: 'append' })
+  session.append('step/end', { turn: 1, step: 2 })
+  session.append('turn/end', { turn: 1, reason: { kind: 'completed' } })
+
+  return [
+    JSON.stringify({
+      type: 'session', version: SESSION_FORMAT_VERSION, id: '{{sessionId}}',
+      createdAt: 0, cwd: '{{cwd}}',
+    }),
+    ...session.events.map(event => JSON.stringify({
+      ...event, time: eventTimeOrigin + event.seq * 1_000,
+    })),
+    '',
+  ].join('\n')
 }
 
 function registryJob(label: string) {
@@ -381,6 +468,47 @@ describe('reference capture: official welcome and session Jobs action', () => {
     } finally {
       await context.close()
       await questionScaffold.close()
+    }
+  }, 120_000)
+
+  it('captures official narrow Deliverables from the RC8 produced-files turn', async () => {
+    const name = 'deliverables-light'
+    const deliverablesScaffold = await launchWebScaffold({
+      extraOverlayPath: join(REPO_ROOT, 'apps/web/tests/produced-files.overlay.yml'),
+    })
+    // RC8 selects the cold session while the sidebar is wide; at the narrow
+    // lane viewport its tree descendants deliberately are not mounted.
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'en-US', colorScheme: 'light', deviceScaleFactor: 1 })
+    const page = await context.newPage()
+    const consoleTripwire = watchConsole(page)
+    try {
+      await seedSession(deliverablesScaffold, deliverablesFixture(), 'produced-files-web-e2e')
+      await page.goto(deliverablesScaffold.baseUrl, { waitUntil: 'load' })
+      await page.locator('[class*="frame"]').waitFor({ timeout: 30_000 })
+      await applyOfficialColorScheme(page, 'light')
+      const groupRow = page.locator('[role="treeitem"]').first()
+      await groupRow.waitFor({ timeout: 30_000 })
+      if (await groupRow.getAttribute('aria-expanded') !== 'true') await groupRow.click()
+      const sessionRow = page.locator('[role="treeitem"]').nth(1)
+      await sessionRow.waitFor({ timeout: 30_000 })
+      await sessionRow.click()
+      await page.getByText(deliverablesDone, { exact: true }).waitFor({ timeout: 30_000 })
+      await page.setViewportSize(deliverablesViewport)
+      const row = page.locator('[data-produced-files-row]')
+      await row.waitFor({ timeout: 30_000 })
+      const chips = row.getByRole('button')
+      await expect.poll(() => chips.count()).toBe(2)
+      expect(await chips.nth(0).innerText()).toBe('关于我.md')
+      expect(await chips.nth(1).innerText()).toBe('index.html')
+      expect(await row.getByText('+ 8 files', { exact: true }).count()).toBe(1)
+      expect(await page.getByRole('button', { name: 'Show in folder', exact: true }).count()).toBe(1)
+      await page.screenshot({ path: join(outputDirectory, `${name}.png`) })
+      await writeCaptureMetadata(page, name, 'light', deliverablesViewport, consoleTripwire.warnings, consoleTripwire.pageErrors)
+      expect(consoleTripwire.warnings).toEqual([])
+      expect(consoleTripwire.pageErrors).toEqual([])
+    } finally {
+      await context.close()
+      await deliverablesScaffold.close()
     }
   }, 120_000)
 

@@ -2060,14 +2060,17 @@ final class NativeSessionStoreTests: XCTestCase {
         let assistant = tryUnwrap(store.chatNodes.compactMap { $0.data as? CoreAssistantNode }
             .first(where: { $0.messageID == "deliverables-assistant" }))
         XCTAssertEqual(assistant.status, .settled)
-        XCTAssertEqual(store.deliverables(for: assistant), [
-            "src/main.swift",
+        XCTAssertEqual(store.deliverables(forClosingAssistant: assistant), [
+            "关于我.md",
+            "index.html",
+            "long-generated-experience-specification-for-produced-files-overflow.md",
+            "styles.css",
+            "app.ts",
+            "schema.json",
             "README.md",
-            "notes/implementation.md",
-            "tests/DeliverablesTests.swift",
-            "scripts/verify.sh",
-            "assets/preview.png",
-            "out/report.json",
+            "preview.svg",
+            "notes.txt",
+            "manifest.yaml",
         ])
         XCTAssertFalse(store.isRunning)
         XCTAssertFalse(store.hasMoreHistory)

@@ -2873,13 +2873,16 @@ final class NativeSessionStore: ObservableObject {
                 view: ToolEventViewDTO(for: "call", view: .object([
                     "card": .string("diff"),
                     "locations": .array([
-                        .object(["path": .string("src/main.swift")]),
+                        .object(["path": .string("关于我.md")]),
+                        .object(["path": .string("index.html")]),
+                        .object(["path": .string("long-generated-experience-specification-for-produced-files-overflow.md")]),
+                        .object(["path": .string("styles.css")]),
+                        .object(["path": .string("app.ts")]),
+                        .object(["path": .string("schema.json")]),
                         .object(["path": .string("README.md")]),
-                        .object(["path": .string("notes/implementation.md")]),
-                        .object(["path": .string("tests/DeliverablesTests.swift")]),
-                        .object(["path": .string("scripts/verify.sh")]),
-                        .object(["path": .string("assets/preview.png")]),
-                        .object(["path": .string("out/report.json")]),
+                        .object(["path": .string("preview.svg")]),
+                        .object(["path": .string("notes.txt")]),
+                        .object(["path": .string("manifest.yaml")]),
                     ]),
                 ]))
             ),

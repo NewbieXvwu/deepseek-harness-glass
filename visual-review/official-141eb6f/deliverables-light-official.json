@@ -1,0 +1,33 @@
+{
+  "officialSourceCommit": "141eb6fef83422698aef7a981029e843e8161534",
+  "viewport": {
+    "width": 780,
+    "height": 900
+  },
+  "locale": "en-US",
+  "colorScheme": "light",
+  "geometry": {
+    "root": {
+      "x": 0,
+      "y": 0,
+      "width": 780,
+      "height": 900
+    },
+    "text": "DSH Local Build141eb6fNew SessionWorkspacesUngroupedProduced files overflow1minSettingsProduced files overflowSession logChatTrajectoryCreate the site files.12:00Write关于我.mdWriteindex.htmlWritelong-generated-experience-specification-for-produced-files-overflow.mdWritestyles.cssWriteapp.tsWriteschema.jsonWriteREADME.mdWritepreview.svgWritenotes.txtWritemanifest.yamlCreated the site. PRODUCED_FILES_DONEProduced关于我.mdindex.html+ 8 filesShow in folder关于我.mdindex.htmllong-generated-experience-specification-for-produced-files-overflow.mdstyles.cssapp.tsschema.json+ 4 files12:00 · Ran for 28s Workspace WriteDeepSeek-V4-Flash1 turns · 1 steps| LLM 2s · Tool call 10sDetailsClick a tool row in the message flow to view its details",
+    "viewport": {
+      "width": 780,
+      "height": 900,
+      "devicePixelRatio": 1
+    },
+    "title": "Produced files overflow — DSH Local Build",
+    "activeElement": {
+      "tagName": "TEXTAREA",
+      "role": null,
+      "ariaLabel": null,
+      "text": ""
+    }
+  },
+  "ariaSnapshot": "- button \"Open sidebar\"\n- button \"New session\":\n  - img\n- button \"Add workspace\":\n  - img\n- button \"Search sessions\":\n  - img\n- button:\n  - img\n- banner:\n  - navigation \"Session hierarchy\":\n    - button \"Produced files overflow\" [disabled]\n  - button \"Session log\":\n    - text: Session log\n    - img\n  - tablist:\n    - tab \"Chat\" [selected]\n    - tab \"Trajectory\"\n- text: Create the site files. 12:00\n- button \"Copy\":\n  - img\n- button \"Write 关于我.md\":\n  - img\n  - img\n  - text: Write\n  - button \"关于我.md\"\n- button \"Write index.html\":\n  - img\n  - img\n  - text: Write\n  - button \"index.html\"\n- button \"Write long-generated-experience-specification-for-produced-files-overflow.md\":\n  - img\n  - img\n  - text: Write\n  - button \"long-generated-experience-specification-for-produced-files-overflow.md\"\n- button \"Write styles.css\":\n  - img\n  - img\n  - text: Write\n  - button \"styles.css\"\n- button \"Write app.ts\":\n  - img\n  - img\n  - text: Write\n  - button \"app.ts\"\n- button \"Write schema.json\":\n  - img\n  - img\n  - text: Write\n  - button \"schema.json\"\n- button \"Write README.md\":\n  - img\n  - img\n  - text: Write\n  - button \"README.md\"\n- button \"Write preview.svg\":\n  - img\n  - img\n  - text: Write\n  - button \"preview.svg\"\n- button \"Write notes.txt\":\n  - img\n  - img\n  - text: Write\n  - button \"notes.txt\"\n- button \"Write manifest.yaml\":\n  - img\n  - img\n  - text: Write\n  - button \"manifest.yaml\"\n- paragraph: Created the site.\n- paragraph: PRODUCED_FILES_DONE\n- text: Produced\n- button \"Open 关于我.md\": 关于我.md\n- button \"Open index.html\": index.html\n- text: + 8 files\n- button \"Show in folder\"\n- button \"Copy\":\n  - img\n- button \"Good response\":\n  - img\n- button \"Bad response\":\n  - img\n- button \"Branch into a new conversation\":\n  - img\n- text: 12:00 Ran for 28s\n- textbox \"Message the agent\"\n- button \"Commands\":\n  - img\n- 'button \"Access mode, current: Workspace Write\"': Workspace Write\n- button \"Select model, current DeepSeek-V4-Flash\":\n  - text: DeepSeek-V4-Flash\n  - img\n- button \"Send message\" [disabled]\n- text: 1 turns · 1 steps LLM 2s · Tool call 10s Details\n- button \"Close details\"\n- text: Click a tool row in the message flow to view its details",
+  "consoleWarnings": [],
+  "pageErrors": []
+}

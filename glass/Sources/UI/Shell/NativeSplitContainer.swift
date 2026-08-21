@@ -67,6 +67,14 @@ final class NativeShellPresentation: ObservableObject {
     /// Host-owned RC8 display context. It is fetched only after the endpoint has
     /// passed the build-trust gate and cleared on disconnect/restart.
     @Published private(set) var hostDescription: HostDescribeResponse?
+    /// Snapshot exports normally have no Host. This opt-in exists only for a
+    /// recorded official state that includes an already verified loopback
+    /// `host.describe.canOpenPath=true`; production never sets it.
+    private let snapshotCanOpenProjectPath: Bool
+
+    var canOpenProjectPath: Bool {
+        hostDescription?.canOpenPath == true || snapshotCanOpenProjectPath
+    }
 
     enum WorkspaceManagementDialog: Equatable {
         case workspaceRename(workspaceID: String, title: String)
@@ -103,7 +111,8 @@ final class NativeShellPresentation: ObservableObject {
         sessionStore: NativeSessionStore? = nil,
         workspaceSnapshotDialog: WorkspaceBrowserView.SnapshotDialog = .none,
         jobsPopoverInitiallyOpen: Bool = false,
-        jobsSnapshotLanguageCode: String? = nil
+        jobsSnapshotLanguageCode: String? = nil,
+        snapshotCanOpenProjectPath: Bool = false
     ) {
         self.mode = mode
         self.workspaceStore = workspaceStore ?? NativeWorkspaceStore()
@@ -111,6 +120,7 @@ final class NativeShellPresentation: ObservableObject {
         self.workspaceSnapshotDialog = workspaceSnapshotDialog
         self.jobsPopoverInitiallyOpen = jobsPopoverInitiallyOpen
         self.jobsSnapshotLanguageCode = jobsSnapshotLanguageCode
+        self.snapshotCanOpenProjectPath = snapshotCanOpenProjectPath
         self.detailsVisible = self.sessionStore.selectedToolCallID != nil
         do {
             // Source: RC8 `ui-trajectory/src/client/index.ts`: the trajectory
@@ -497,7 +507,7 @@ final class NativeShellController: NativeSplitViewController {
                 openSession: { sessionID in
                     presentation.selectSession(sessionID, workspaceID: Self.workspaceID(for: sessionID, in: presentation))
                 },
-                canOpenProjectPath: presentation.hostDescription?.canOpenPath == true,
+                canOpenProjectPath: presentation.canOpenProjectPath,
                 viewRegistry: presentation.conversationViewRegistry,
                 headerContributions: presentation.conversationHeaderContributions
             ),
@@ -570,7 +580,7 @@ final class NativeShellController: NativeSplitViewController {
                     let current = self.presentation
                     current.selectSession(sessionID, workspaceID: Self.workspaceID(for: sessionID, in: current))
                 },
-                canOpenProjectPath: presentation.hostDescription?.canOpenPath == true,
+                canOpenProjectPath: presentation.canOpenProjectPath,
                 viewRegistry: presentation.conversationViewRegistry,
                 headerContributions: presentation.conversationHeaderContributions
             ),
