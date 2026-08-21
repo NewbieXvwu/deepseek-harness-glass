@@ -126,6 +126,7 @@ private struct NativeActiveConversationSurface: View {
             todos: sessionStore.extensionState?.todos,
             goal: sessionStore.extensionState?.goal,
             queuedMessages: sessionStore.extensionState?.queuedMessages ?? [],
+            chatNodes: sessionStore.chatNodes,
             locallyClearedGoalID: sessionStore.locallyClearedGoalID,
             hasPendingTakeover: sessionStore.pendingApproval != nil || sessionStore.pendingQuestion != nil
         )
@@ -155,6 +156,9 @@ private struct NativeActiveConversationSurface: View {
                         completion: sessionStore.queueActionCompletion,
                         update: sessionStore.updateQueuedMessage
                     )
+                }
+                if components.contains(.stats), let stats = NativeStatsDockPresentation.project(chatNodes: sessionStore.chatNodes) {
+                    NativeStatsDock(stats: stats)
                 }
                 composerTakeover
             }

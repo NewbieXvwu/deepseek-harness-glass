@@ -10,12 +10,14 @@ enum NativeComposerDockPresentation {
         case todo
         case goal
         case queue
+        case stats
     }
 
     static func components(
         todos: [CoreTodoItem]?,
         goal: CoreGoalProjection?,
         queuedMessages: [NativeSessionStore.QueuedMessage],
+        chatNodes: [ConversationViewNode],
         locallyClearedGoalID: String?,
         hasPendingTakeover: Bool
     ) -> [Component] {
@@ -24,6 +26,7 @@ enum NativeComposerDockPresentation {
         if NativeTodoDockPresentation.isVisible(todos) { result.append(.todo) }
         if NativeGoalDockPresentation.isVisible(goal, locallyClearedGoalID: locallyClearedGoalID) { result.append(.goal) }
         if !NativeQueueDockPresentation.queuedRows(queuedMessages).isEmpty { result.append(.queue) }
+        if NativeStatsDockPresentation.project(chatNodes: chatNodes) != nil { result.append(.stats) }
         return result
     }
 }
