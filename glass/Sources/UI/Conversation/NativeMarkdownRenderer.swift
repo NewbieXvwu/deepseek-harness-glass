@@ -116,7 +116,7 @@ enum NativeMarkdownDocument {
             let id = blocks.count
             switch markup {
             case let code as CodeBlock:
-                blocks.append(.code(id: id, language: code.language, code: code.code))
+                blocks.append(.code(id: id, language: code.language, code: normalizedFenceCode(code.code)))
             case let quote as BlockQuote:
                 blocks.append(.quote(id: id, text: quote.children.map(formattedText).joined(separator: "\n")))
             case let list as UnorderedList:
@@ -124,9 +124,12 @@ enum NativeMarkdownDocument {
             case let list as OrderedList:
                 blocks.append(.list(id: id, ordered: true, items: listItems(list.children)))
             case let table as Table:
-                let header = table.head.children.compactMap { $0 as? Table.Cell }.map(formattedText)
+                // `MarkupFormatter` deliberately rejects direct Table.Cell
+                // visits; cells are inline containers, so serialize their
+                // children instead of formatting the structural wrapper.
+                let header = table.head.children.compactMap { $0 as? Table.Cell }.map(formattedTableCell)
                 let rows = table.body.children.compactMap { $0 as? Table.Row }.map { row in
-                    row.children.compactMap { $0 as? Table.Cell }.map(formattedText)
+                    row.children.compactMap { $0 as? Table.Cell }.map(formattedTableCell)
                 }
                 blocks.append(.table(id: id, header: header, rows: rows))
             default:
@@ -144,6 +147,17 @@ enum NativeMarkdownDocument {
 
     private static func formattedText(_ markup: Markup) -> String {
         markup.format().trimmingCharacters(in: .newlines)
+    }
+
+    /// cmark-gfm returns a closing-fence terminator newline as part of `code`.
+    /// The prior native model stores source lines joined without that synthetic
+    /// terminator, so drop exactly one while preserving intentional blank lines.
+    private static func normalizedFenceCode(_ code: String) -> String {
+        code.hasSuffix("\n") ? String(code.dropLast()) : code
+    }
+
+    private static func formattedTableCell(_ cell: Table.Cell) -> String {
+        cell.children.map(formattedText).joined().trimmingCharacters(in: .newlines)
     }
 
     private static func partitionUnclosedFence(in source: String) -> (complete: String, literalTail: String?) {
