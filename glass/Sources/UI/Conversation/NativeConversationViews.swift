@@ -713,6 +713,22 @@ private struct NativeInteractiveComposerCard: View {
             && !sessionStore.isSubmittingPrompt
     }
 
+    private var imageAdmissionNotice: String? {
+        guard let rejection = sessionStore.imageAdmissionRejection else { return nil }
+        let key: String
+        switch rejection {
+        case .unsupportedContentType, .unsupportedMediaType:
+            key = "unsupportedType"
+        case .invalidImage, .fileUnreadable:
+            key = "loadFailed"
+        case .dimensionsExceeded, .pixelsExceeded:
+            key = "tooManyPixels"
+        case .limitsUnavailable, .tooManyImages, .fileTooLarge, .messageTooLarge:
+            key = "dropBlocked"
+        }
+        return OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "image.\(key)", language: "en")
+    }
+
     var body: some View {
         VStack(spacing: OfficialUISpec.Spacing.p12) {
             if !sessionStore.pendingImages.isEmpty {
@@ -720,6 +736,13 @@ private struct NativeInteractiveComposerCard: View {
                     images: sessionStore.pendingImages,
                     remove: sessionStore.removePendingImage
                 )
+            }
+            if let imageAdmissionNotice {
+                Text(imageAdmissionNotice)
+                    .font(OfficialUISpec.Typography.xs13)
+                    .foregroundStyle(OfficialUISpec.Token.errorPrimary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityLabel(imageAdmissionNotice)
             }
             ZStack(alignment: .topLeading) {
                 if sessionStore.draft.isEmpty {
