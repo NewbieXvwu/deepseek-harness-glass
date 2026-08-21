@@ -158,7 +158,8 @@ jobs:
             glass/Sources/PluginPlane/GhostPlaneNotificationAdapter.swift \
             glass/Sources/PluginPlane/GhostPlaneClipboardAdapter.swift \
             glass/Sources/PluginPlane/GhostPlaneExternalNavigationAdapter.swift \
-            glass/Sources/PluginPlane/GhostPlaneFilePickerAdapter.swift
+            glass/Sources/PluginPlane/GhostPlaneFilePickerAdapter.swift \
+            glass/Sources/PluginPlane/GhostPlaneDownloadAdapter.swift
           # Compile only the portable production source plus a CLI regression
           # harness. This avoids resolving the macOS-only XCTest target graph.
           swiftc glass/Sources/PortableCore/HostPathDisplay.swift \
