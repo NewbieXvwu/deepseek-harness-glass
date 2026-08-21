@@ -120,7 +120,7 @@
 | 5.3 | T11.1–T11.3 | `NativeUIManifest` schema/完整性验证、`NativeSchemaForm` 与 `SwiftAdapterRegistry`；未知字段只报 unsupported，绝不执行代码或猜测 UI。 |
 | 5.4 | T10.5–T10.6 | bash/agent-loop/web-search 原生卡片、Agent Presets 与 Plugin Inventory；所有危险动作保持官方语义与确认策略。 |
 | 5.5 | T11.4 | 对每个检测插件记录支持层级、Host 范围、原生方案、fallback 许可和原因。 |
-| 5.6 | T11.5–T11.7 | 仅在兼容矩阵批准后完成登记制 `GlassPluginPlane` host、single-card 可嵌入性实验和零核心 WebView 不变量。资源与 boot graph admission 已实施；官方任意 `tapIndex` callback 已收缩为 graph `(pluginID, revision)` 绑定、仅允许 token/data/class 的 Core replay plan，并已仅在 native skeleton did-finish 后通过参数化 WebKit 调用应用且由 document 二次验证。已建立 scroll scalar 的 epoch/sequence fence、skeleton 内部 transform layer 与参数化 host 调用；下一步补齐官方 ModuleLoader/SlotRegistry、typed injection gate、response MIME/redirect、绿色区路由和真实 NSScrollView/ProMotion 接入验证。所有外站、file URL、未知 scheme、popup 与全局 session UI 必须被拒绝。 |
+| 5.6 | T11.5–T11.7 | 仅在兼容矩阵批准后完成登记制 `GlassPluginPlane` host、single-card 可嵌入性实验和零核心 WebView 不变量。资源与 boot graph admission 已实施；官方任意 `tapIndex` callback 已收缩为 graph `(pluginID, revision)` 绑定、仅允许 token/data/class 的 Core replay plan，并已仅在 native skeleton did-finish 后通过参数化 WebKit 调用应用且由 document 二次验证。已建立 scroll scalar 的 epoch/sequence fence、skeleton 内部 transform layer 与参数化 host 调用；GP-4 也已建立 keyboard/image paste/selection/drag typed event 合同及有界 echo fence。下一步补齐官方 ModuleLoader/SlotRegistry、typed injection gate、response MIME/redirect、绿色区路由、真实 NSScrollView/ProMotion 验证以及 AppKit/WKWebView event adapters。所有外站、file URL、未知 scheme、popup 与全局 session UI 必须被拒绝。 |
 
 ## 十、阶段 6：全量回归、性能、安全与发布治理
 
