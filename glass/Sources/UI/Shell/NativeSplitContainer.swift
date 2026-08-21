@@ -323,6 +323,17 @@ final class NativeShellPresentation: ObservableObject {
         }
     }
 
+    /// Presents no local success state: card drafts are cleared by their view
+    /// only after this method returns the Host-accepted namespace update.
+    func savePluginCardDraft(_ draft: NativePluginCardDraft) async -> Bool {
+        guard let api = apis?.settings else { return false }
+        do {
+            return try await settingsStore.savePluginCardDraft(draft, using: api)
+        } catch {
+            return false
+        }
+    }
+
     func selectSession(_ sessionID: String, workspaceID: String?) {
         let didSwitchSession = sessionStore.selectedSessionID != sessionID
         workspaceStore.select(sessionID: sessionID, workspaceID: workspaceID)
@@ -665,6 +676,10 @@ final class NativeShellController: NativeSplitViewController {
             close: { [weak presentation] in presentation?.closeSettings() },
             selectTheme: { [weak presentation] preference in
                 presentation?.selectThemePreference(preference)
+            },
+            savePluginCard: { [weak presentation] draft in
+                guard let presentation else { return false }
+                return await presentation.savePluginCardDraft(draft)
             }
         )
         let window = NSWindow(contentViewController: NSHostingController(rootView: root))

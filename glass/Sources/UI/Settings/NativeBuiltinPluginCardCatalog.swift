@@ -57,6 +57,28 @@ enum NativeBuiltinPluginCard: CaseIterable, Identifiable, Equatable {
         }
     }
 
+    func label(for field: NativePluginCardField) -> String {
+        switch (self, field.path) {
+        case (.bash, ["timeoutMs"]): NativeBuiltinPluginCard.official("bashTimeoutMs")
+        case (.bash, ["maxOutputBytes"]): NativeBuiltinPluginCard.official("bashMaxOutputBytes")
+        case (.agentLoop, ["maxParallelToolCalls"]): NativeBuiltinPluginCard.official("agentLoopMaxParallel")
+        case (.webSearch, ["baseURL"]): NativeBuiltinPluginCard.official("webSearchBaseUrl")
+        case (.webSearch, ["maxUses"]): NativeBuiltinPluginCard.official("webSearchMaxUses")
+        default: ""
+        }
+    }
+
+    func hint(for field: NativePluginCardField) -> String {
+        switch (self, field.path) {
+        case (.bash, ["timeoutMs"]): NativeBuiltinPluginCard.official("bashTimeoutMsHint")
+        case (.bash, ["maxOutputBytes"]): NativeBuiltinPluginCard.official("bashMaxOutputBytesHint")
+        case (.agentLoop, ["maxParallelToolCalls"]): NativeBuiltinPluginCard.official("agentLoopMaxParallelHint")
+        case (.webSearch, ["baseURL"]): NativeBuiltinPluginCard.official("webSearchBaseUrlHint")
+        case (.webSearch, ["maxUses"]): NativeBuiltinPluginCard.official("webSearchMaxUsesHint")
+        default: ""
+        }
+    }
+
     static func dispatched(from namespaces: [SettingsNamespaceDTO]) -> [Self] {
         let served = Set(namespaces.map(\.ns))
         return allCases.filter { served.contains($0.namespace) }
