@@ -207,6 +207,10 @@ jobs:
             glass/ci/ghost-plane-profile-policy-portable-check.swift \
             -o /tmp/ghost-plane-profile-policy-portable-check
           /tmp/ghost-plane-profile-policy-portable-check
+          swiftc glass/Sources/Core/Plugin/GhostPlaneSlotRegistry.swift \
+            glass/ci/ghost-plane-slot-registry-portable-check.swift \
+            -o /tmp/ghost-plane-slot-registry-portable-check
+          /tmp/ghost-plane-slot-registry-portable-check
           swiftc glass/Sources/Core/Host/HostRuntimeLadder.swift \
             glass/ci/host-runtime-ladder-portable-check.swift \
             -o /tmp/host-runtime-ladder-portable-check
