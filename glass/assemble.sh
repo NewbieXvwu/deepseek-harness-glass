@@ -61,7 +61,17 @@ python3 ../tools/emit-build-manifest.py \
   --output "$STAGE/Contents/Resources/BuildManifest.json"
 cp ../build/icon.icns "$STAGE/Contents/Resources/icon.icns"
 cp assets/*.svg "$STAGE/Contents/Resources/"
-codesign --force --deep -s - "$STAGE"
+
+# Local/open-source builds are valid with the default Ad-hoc identity. A release
+# runner may set CODESIGN_IDENTITY to a Developer ID Application certificate;
+# that path enables Hardened Runtime and a trusted timestamp without requiring a
+# paid certificate for ordinary contributors.
+CODESIGN_IDENTITY="${CODESIGN_IDENTITY:--}"
+if [[ "$CODESIGN_IDENTITY" == "-" ]]; then
+  codesign --force --deep --sign - "$STAGE"
+else
+  codesign --force --deep --options runtime --timestamp --sign "$CODESIGN_IDENTITY" "$STAGE"
+fi
 
 rm -rf "$APP"
 mv "$STAGE" "$APP"

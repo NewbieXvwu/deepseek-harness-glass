@@ -5,6 +5,12 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      signing_identity:
+        description: "Installed Developer ID Application identity; leave blank for Ad-hoc signing"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: write
@@ -68,6 +74,7 @@ jobs:
       - name: Assemble app
         run: |
           export APP_PATH="$PWD/glass/dist/DeepSeek Harness.app"
+          export CODESIGN_IDENTITY="${{ inputs.signing_identity || '-' }}"
           cd glass && ./assemble.sh
 
       - name: Verify signature
@@ -76,18 +83,22 @@ jobs:
           test -z "$(find 'glass/dist/DeepSeek Harness.app' -type l)" \
             && echo "no symlinks (dmg-safe)" || { echo "symlinks present"; exit 1; }
 
-      - name: Make DMG
+      - name: Make DMG and ZIP
         run: |
           mkdir -p dmg-stage
           cp -R "glass/dist/DeepSeek Harness.app" dmg-stage/
           ln -s /Applications dmg-stage/Applications
           hdiutil create -volname "DeepSeek Harness Glass" -srcfolder dmg-stage \
             -ov -format UDZO "DeepSeek Harness Glass-${GITHUB_REF_NAME}.dmg"
+          ditto -c -k --sequesterRsrc --keepParent "glass/dist/DeepSeek Harness.app" \
+            "DeepSeek Harness Glass-${GITHUB_REF_NAME}.zip"
           rm -rf dmg-stage
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          files: "DeepSeek Harness Glass-*.dmg"
+          files: |
+            DeepSeek Harness Glass-*.dmg
+            DeepSeek Harness Glass-*.zip
           draft: false
           generate_release_notes: true

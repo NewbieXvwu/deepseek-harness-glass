@@ -63,6 +63,12 @@ cd glass
 
 `assemble.sh` writes to `/Applications/DeepSeek Harness.app` by default; set `APP_PATH` to build elsewhere. The authoritative recipe is the CI workflow [`.github/workflows/native-ui.yml`](.github/workflows/native-ui.yml), which also runs the full gate suite: spec/locale/token/layout/contract checks, `swift build`, the XCTest suites, app assembly, snapshot capture, and the official/native visual comparison.
 
+## Signing and distribution
+
+Local and open-source builds use a valid **Ad-hoc signature** by default and do not require an Apple Developer certificate. To build with an installed Developer ID Application identity, set `CODESIGN_IDENTITY` before running `assemble.sh`; that path enables Hardened Runtime and a trusted timestamp. The release workflow can use the same identity on a provisioned macOS runner and publishes both DMG and ZIP artifacts.
+
+An Ad-hoc community build may be quarantined by Gatekeeper. After verifying the download and repository provenance, open it from Finder with **Control-click → Open**, then confirm the system prompt. Do not disable Gatekeeper globally, and do not use this instruction to bypass warnings for an unverified download.
+
 Useful local checks before changing official-facing behavior:
 
 ```bash

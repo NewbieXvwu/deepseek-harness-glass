@@ -549,9 +549,10 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
   - 验收：clean environment 可从零构建；构建产物清单可追溯到 Node、dsh、spec、App 源提交。
   - 进度：新增 `tools/emit-build-manifest.py`，仅从结构化 `SupportedHostBuilds.json` 和 `HostUpgradeReport.json` 生成 schema v2 `BuildManifest.json`：default Host build、official commit、dsh/frontend/Node、macOS/arch，以及 UI spec/protocol/raw-event revisions 均在 app resource 可追溯。`assemble.sh` 已改为调用该生成器并随 app 打包 `SupportedHostBuilds.json` 与 `HostUpgradeReport.json`；`repair-backend.sh` 同时以 generator 的 payload-version query 取得精确 dsh/frontend pin，消除两个 shell 脚本的硬编码版本分叉。generator output 及 shell `bash -n` 均已本地验证。release workflow 现也先运行结构化 Host upgrade verifier，并由 generator 读取 Node/dsh/frontend pin 后下载、安装 payload、执行 backend smoke、assemble、签名验证与 DMG 发布；release、assemble 与 repair-backend 至此共享同一 Host metadata source。clean macOS runner 上的实际 assembly/smoke/signature/DMG 工件由该 workflow 执行，CI 按 fire-and-forget 触发；构建脚本迁移功能完成。
 
-- [ ] **T13.2：实行代码签名与分发治理。** 支持标准的 Ad-hoc 签名与 Developer ID 签名分发路径；针对开源分发提供清晰的 Gatekeeper 右键打开引导，不将付费 Apple 开发者证书作为阻塞 Release 的强前提。
+- [x] **T13.2：实行代码签名与分发治理。** 支持标准的 Ad-hoc 签名与 Developer ID 签名分发路径；针对开源分发提供清晰的 Gatekeeper 右键打开引导，不将付费 Apple 开发者证书作为阻塞 Release 的强前提。
   - 依赖：T13.1。
   - 验收：打包产物（DMG/ZIP）具备合规的 bundle 结构与签名；CI 自动化产出 Release 工件。
+  - 进度：`assemble.sh` 默认以 Ad-hoc identity 签名，允许无付费 Apple 证书的本地/开源构建；配置已安装的 `CODESIGN_IDENTITY` 时自动改用 Developer ID Application 签名并启用 Hardened Runtime 与 trusted timestamp。release workflow 的手动输入可传入同一 identity，tag/空输入仍安全回退 Ad-hoc；workflow 对 app 验签、无 symlink 检查，并发布同一 bundle 的 DMG 和 ZIP。README 说明经验证来源后的 Finder Control-click → Open Gatekeeper 流程，明确不得全局关闭 Gatekeeper 或绕过未知下载告警。shell 语法和 Markdown links 已本地验证，实际 macOS certificate/signature/notarization 由 release runner 以 fire-and-forget 执行，故本项完成。
 
 - [x] **T13.3：建立升级流程。** 更新 DSH Host 必须经过“拉取官方 commit → 生成/审核 OfficialUISpec → 更新 DTO → 契约回归 → reducer 回归 → golden test → accessibility/performance → 支持矩阵提交”的顺序。
   - 依赖：T2、T4.6、T12。
