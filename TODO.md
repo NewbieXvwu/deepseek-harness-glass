@@ -444,6 +444,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 - [ ] **T10.3：实现官方 General 页面。** 覆盖官方公开的通用偏好、主题、行为项和 agent preset 行；字段可见性遵循 Host 能力。
   - 依赖：T10.1、T10.2、T2.2。
   - 验收：切换 `light`/`dark`/`system` 立即影响 app，同时持久化逻辑符合 Host 返回结果。
+  - 进度：依据锁定 RC8 `ui-theme/src/theme-settings.ts` 与 `client/AppearanceRow.tsx`，新增 `ThemePreferenceProjection` 与 typed store 接线：仅 `ui-theme.preference` 的 light/dark/system persisted preference 可投影，缺失/未知值不生成 mutation，Host 只读时拒绝写入，mutation 固定为 `set(["preference"], enum)`；纯 Core 回归锁定 persisted（不自行解析 system active theme）、revision 与上述负面边界。Appearance 三个原生 cube、即时 app appearance 写入、settings namespace form 和 macOS 视觉/运行态证据仍待完成，故保持未勾选。
 
 - [ ] **T10.4：实现 Models 与 Credentials 页面。** 支持 provider、endpoint、protocol、model discovery、reasoning effort、secret configured 状态、credential 写入/清除和模型目录刷新。
   - 依赖：T10.2、T4.5。

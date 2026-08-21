@@ -49,6 +49,14 @@ final class NativeSettingsStore: ObservableObject {
         options: [],
         revision: nil
     )
+    /// Host-derived official `ui-theme.preference` state. The current value is
+    /// the persisted preference rather than a locally resolved appearance.
+    @Published private(set) var themePreference = CoreThemePreferenceState(
+        status: .unavailable,
+        writable: false,
+        current: nil,
+        revision: nil
+    )
 
     private var loadTask: Task<Void, Never>?
     private var authorityGeneration = 0
@@ -74,6 +82,10 @@ final class NativeSettingsStore: ObservableObject {
                 self?.hasDocument = response.hasDocument
                 self?.namespaces = response.namespaces
                 self?.permissionPreset = PermissionPresetProjection.state(
+                    namespaces: response.namespaces,
+                    writable: response.writable
+                )
+                self?.themePreference = ThemePreferenceProjection.state(
                     namespaces: response.namespaces,
                     writable: response.writable
                 )
@@ -124,6 +136,10 @@ final class NativeSettingsStore: ObservableObject {
             namespaces: namespaces,
             writable: writable
         )
+        themePreference = ThemePreferenceProjection.state(
+            namespaces: namespaces,
+            writable: writable
+        )
     }
 
     func mutate(
@@ -133,6 +149,15 @@ final class NativeSettingsStore: ObservableObject {
     ) async throws {
         guard stage(namespace: namespace, operation: operation) else { return }
         try await saveDraft(namespace: namespace.ns, using: api)
+    }
+
+    /// Writes only the official `ui-theme.preference` enum advertised by the
+    /// latest Host snapshot. Unknown/raw strings cannot reach transport.
+    func selectThemePreference(_ preference: CoreThemePreference, using api: (any NativeSettingsAPI)?) async throws {
+        guard let namespace = namespaces.first(where: { $0.ns == ThemePreferenceProjection.namespace }),
+              let operation = themePreference.mutation(selecting: preference)
+        else { return }
+        try await mutate(namespace: namespace, operation: operation, using: api)
     }
 
     /// Writes only an option advertised by the latest Host permission schema,
@@ -155,6 +180,12 @@ final class NativeSettingsStore: ObservableObject {
             writable: false,
             currentValue: "",
             options: [],
+            revision: nil
+        )
+        themePreference = .init(
+            status: .unavailable,
+            writable: false,
+            current: nil,
             revision: nil
         )
         self.phase = phase
