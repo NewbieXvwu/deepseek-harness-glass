@@ -110,7 +110,7 @@ final class NativeShellPresentation: ObservableObject {
     private var observedEndpoint: URL?
     /// Source: RC8 `WorkspaceRuntime.connecting`. Concurrent New Session
     /// requests for one workspace share the same blank lookup/create work.
-    private var blankConnectionTasks: [String: Task<String, Error>] = [:]
+    private let blankConnectionCoordinator = NativeWorkspaceConnectionCoordinator()
     /// Cancels navigation from stale blank-connect completions after a newer
     /// selection, endpoint switch, or no-workspace clear.
     private var newSessionGeneration = 0
@@ -213,8 +213,7 @@ final class NativeShellPresentation: ObservableObject {
         // read-only cold-resume path before observing the new mux endpoint.
         let selectedSessionID = sessionStore.selectedSessionID
         newSessionGeneration &+= 1
-        blankConnectionTasks.values.forEach { $0.cancel() }
-        blankConnectionTasks.removeAll()
+        blankConnectionCoordinator.cancelAll()
         workspaceStore.stopObservingHostEvents()
         let apis = HarnessAPIs(
             baseURL: connection.endpoint,
@@ -294,8 +293,7 @@ final class NativeShellPresentation: ObservableObject {
 
     func disconnectHost() {
         newSessionGeneration &+= 1
-        blankConnectionTasks.values.forEach { $0.cancel() }
-        blankConnectionTasks.removeAll()
+        blankConnectionCoordinator.cancelAll()
         apis = nil
         observedEndpoint = nil
         hostDescription = nil
@@ -486,12 +484,9 @@ final class NativeShellPresentation: ObservableObject {
     /// cwd is reusable; archived blanks are intentionally invisible and cannot
     /// be opened. A create is coalesced per workspace until it settles.
     private func connectWorkspace(_ workspaceID: String, using apis: HarnessAPIs) async throws -> String {
-        if let task = blankConnectionTasks[workspaceID] {
-            return try await task.value
-        }
-        let task = Task<String, Error> { @MainActor [weak self] in
+        try await blankConnectionCoordinator.connect(workspaceID: workspaceID) { [weak self] in
             guard let self else { throw CancellationError() }
-            guard let workspace = self.workspaceStore.snapshot.workspaces.first(where: { $0.workspaceId == workspaceID }) else {
+            guard self.workspaceStore.snapshot.workspaces.contains(where: { $0.workspaceId == workspaceID }) else {
                 throw URLError(.fileDoesNotExist)
             }
             if let reusable = NativeWorkspaceBlankSessionReuse.reusableSessionID(
@@ -502,9 +497,6 @@ final class NativeShellPresentation: ObservableObject {
             }
             return try await apis.sessions.create(workspaceID: workspaceID).sessionId
         }
-        blankConnectionTasks[workspaceID] = task
-        defer { blankConnectionTasks[workspaceID] = nil }
-        return try await task.value
     }
 
     /// Source: `workspace.schema.ts:workspaceRenameRequestSchema`.
