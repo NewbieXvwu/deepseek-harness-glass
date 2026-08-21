@@ -42,7 +42,9 @@ final class ConversationCoreNodesTests: XCTestCase {
         let settled = tryUnwrap(chat.last?.data as? CoreAssistantNode)
         XCTAssertEqual(settled.status, .settled)
         XCTAssertEqual(settled.messageID, "a1")
+        XCTAssertEqual(settled.blocks.map(\.kind), [.text], "a final Host assistant message must replace transient reasoning rather than leak it into the settled row")
         XCTAssertEqual(settled.blocks.first?.text, "answer")
+        XCTAssertFalse(settled.blocks.contains { $0.text.contains("plan") }, "transient reasoning text must not remain visible after the final message settles")
     }
 
     func testToolRetryErrorAndCompactionNodesUseOfficialCorrelations() {

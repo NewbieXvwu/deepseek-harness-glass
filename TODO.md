@@ -415,6 +415,8 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
   - 依赖：T6.5、T8.2。
   - 验收：没有 chain-of-thought 泄露；compaction 不错误移除历史；retry 完成/取消状态准确。
 
+  - 进度：`ConversationCoreNodesTests` 已锁定同一 keyed assistant step 从 transient reasoning chunk 结算为最终 Host assistant message 时只保留 text block，且没有 reasoning 文本遗留；该替换仍维持单一 row，而非重复追加流式尾部。retry 倒计时/完成取消的 renderer、compaction disclosure 的原生视觉及 macOS 运行态证据仍待完成，故保持未勾选。
+
 - [ ] **T9.5：实现 trajectory、subagent、workflow 与 deliverables。** 先识别官方 chat node/独立 view 的最小数据契约，再建立 renderer；不要为了填界面而自创 summary 文案。
   - 依赖：T6.6、T8.1、T9.1。
   - 验收：每种复杂节点在相关官方插件未加载时安全隐藏或显示官方原始 fallback，而非崩溃。
