@@ -1,6 +1,7 @@
 import Foundation
 import XCTest
 
+@testable import GlassCore
 @testable import GlassUI
 
 final class NativeMessageChromeTests: XCTestCase {
@@ -41,6 +42,60 @@ final class NativeMessageChromeTests: XCTestCase {
             ),
             "2025-12-31 23:59"
         )
+    }
+
+    func testCopyPresentationUsesOnlyDurableHostMessageIDs() {
+        let user = CoreUserMessageNode(
+            kind: .user,
+            seq: 1,
+            time: 1,
+            messageID: "host-user-1",
+            content: [],
+            sourceKind: "user",
+            sourcePlugin: nil
+        )
+        let context = CoreUserMessageNode(
+            kind: .context,
+            seq: 2,
+            time: 2,
+            messageID: "host-context-2",
+            content: [],
+            sourceKind: "context",
+            sourcePlugin: nil
+        )
+        let settled = CoreAssistantNode(
+            status: .settled,
+            turn: 1,
+            step: 1,
+            seq: 3,
+            time: 3,
+            messageID: "host-assistant-3",
+            blocks: [],
+            firstTokenTime: nil,
+            completedTime: 3,
+            usage: nil
+        )
+        let streaming = CoreAssistantNode(
+            status: .running,
+            turn: 1,
+            step: 1,
+            seq: 4,
+            time: 4,
+            messageID: nil,
+            blocks: [],
+            firstTokenTime: nil,
+            completedTime: nil,
+            usage: nil
+        )
+
+        XCTAssertEqual(NativeMessageCopyPresentation.hostMessageID(for: conversationNode(data: user)), "host-user-1")
+        XCTAssertNil(NativeMessageCopyPresentation.hostMessageID(for: conversationNode(data: context)))
+        XCTAssertEqual(NativeMessageCopyPresentation.hostMessageID(for: settled), "host-assistant-3")
+        XCTAssertNil(NativeMessageCopyPresentation.hostMessageID(for: streaming))
+    }
+
+    private func conversationNode(data: Any) -> ConversationViewNode {
+        .init(key: "fixture", kind: "fixture", id: "fixture", target: "chat", data: data)
     }
 
     private func date(year: Int, month: Int, day: Int, hour: Int, minute: Int, calendar: Calendar) -> Date {

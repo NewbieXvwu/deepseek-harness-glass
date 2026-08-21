@@ -44,6 +44,8 @@ struct NativeMessageActionRow: View {
         case end
     }
 
+    /// Durable Host message identity that scopes presentation-local copy feedback.
+    let messageID: String
     let text: String
     let time: Double?
     let clockPosition: ClockPosition
@@ -67,6 +69,11 @@ struct NativeMessageActionRow: View {
             if clockPosition == .end { clock }
         }
         .frame(minHeight: OfficialUISpec.Layout.chatMessageActionSize)
+        .onChange(of: messageID) { _, _ in
+            resetTask?.cancel()
+            resetTask = nil
+            copied = false
+        }
         .onDisappear {
             resetTask?.cancel()
             resetTask = nil
@@ -85,7 +92,7 @@ struct NativeMessageActionRow: View {
     }
 
     private func copy() {
-        guard !copied else { return }
+        guard !messageID.isEmpty, !copied else { return }
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         guard pasteboard.setString(text, forType: .string) else { return }

@@ -494,7 +494,9 @@ private struct NativeConversationNodeRow: View {
                             in: RoundedRectangle(cornerRadius: OfficialUISpec.Layout.chatMessageCornerRadius, style: .continuous)
                         )
                 }
-                NativeMessageActionRow(text: text, time: user.time, clockPosition: .start)
+                if let messageID = NativeMessageCopyPresentation.hostMessageID(for: node) {
+                    NativeMessageActionRow(messageID: messageID, text: text, time: user.time, clockPosition: .start)
+                }
             }
         }
     }
@@ -503,7 +505,9 @@ private struct NativeConversationNodeRow: View {
         VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p2) {
             if !text.isEmpty {
                 NativeMarkdownText(markdown: text, streaming: assistant.status == .running)
-                NativeMessageActionRow(text: text, time: assistant.time, clockPosition: .end)
+                if let messageID = NativeMessageCopyPresentation.hostMessageID(for: assistant) {
+                    NativeMessageActionRow(messageID: messageID, text: text, time: assistant.time, clockPosition: .end)
+                }
                 if isMessageFeedbackAvailable, assistant.status == .settled, let messageID = assistant.messageID {
                     NativeMessageFeedbackActions(
                         item: messageFeedbackItems[messageID],
