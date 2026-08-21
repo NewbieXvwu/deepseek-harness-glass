@@ -43,7 +43,11 @@ public final class GhostPlaneWebViewHost: NSObject {
     public func loadSkeleton(_ html: String) -> WKNavigation? {
         skeletonReady = false
         pendingMainFrameRequestURL = policy.origin
-        return webView.loadHTMLString(html, baseURL: policy.origin)
+        guard let securedHTML = GhostPlaneContentSecurityPolicy.inject(into: html) else {
+            pendingMainFrameRequestURL = nil
+            return nil
+        }
+        return webView.loadHTMLString(securedHTML, baseURL: policy.origin)
     }
 
     /// Applies a Core-admitted `tapIndex` compatibility plan to the native

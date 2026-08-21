@@ -176,6 +176,10 @@ jobs:
             glass/ci/ghost-plane-skeleton-portable-check.swift \
             -o /tmp/ghost-plane-skeleton-portable-check
           /tmp/ghost-plane-skeleton-portable-check
+          swiftc glass/Sources/Core/Plugin/GhostPlaneContentSecurityPolicy.swift \
+            glass/ci/ghost-plane-csp-portable-check.swift \
+            -o /tmp/ghost-plane-csp-portable-check
+          /tmp/ghost-plane-csp-portable-check
           swiftc glass/Sources/Core/Plugin/GhostPlaneLoopbackPolicy.swift \
             glass/ci/ghost-plane-loopback-policy-portable-check.swift \
             -o /tmp/ghost-plane-loopback-policy-portable-check
