@@ -19,6 +19,7 @@ struct HarnessAPIs: Sendable {
     let skills: SkillsAPI
     let agentPresets: AgentPresetsAPI
     let downloads: DownloadsAPI
+    let feedback: MessageFeedbackAPI
     let host: HostAPI
 
     init(
@@ -43,6 +44,7 @@ struct HarnessAPIs: Sendable {
         skills = SkillsAPI(client: client)
         agentPresets = AgentPresetsAPI(client: client)
         downloads = DownloadsAPI(client: client)
+        feedback = MessageFeedbackAPI(client: client)
         host = HostAPI(client: client)
     }
 }
@@ -103,6 +105,110 @@ struct SubagentsAPI: Sendable {
     func interrupt(_ request: SubagentInterruptRequest) async throws -> SubagentInterruptResponse {
         try await client.subagentInterrupt(request)
     }
+}
+
+/// Typed RC8 `messageFeedback` Remote namespace. Business failures remain
+/// result payloads rather than being collapsed into transport failures.
+struct MessageFeedbackAPI: Sendable {
+    private let client: DSHAPIClient
+    init(client: DSHAPIClient) { self.client = client }
+
+    func list(sessionID: String) async throws -> MessageFeedbackListResponse {
+        try await client.call("messageFeedback.list", payload: MessageFeedbackListRequest(sessionId: sessionID))
+    }
+
+    func put(_ request: MessageFeedbackPutRequest) async throws -> MessageFeedbackPutResponse {
+        try await client.call("messageFeedback.put", payload: request)
+    }
+
+    func delete(_ request: MessageFeedbackDeleteRequest) async throws -> MessageFeedbackDeleteResponse {
+        try await client.call("messageFeedback.delete", payload: request)
+    }
+}
+
+/// Source: `packages/feedback/message-feedback/src/types.ts` at RC8.
+enum MessageFeedbackRatingDTO: String, Codable, Sendable, Equatable {
+    case positive
+    case negative
+}
+
+struct MessageFeedbackItemDTO: Codable, Sendable, Equatable, Identifiable {
+    let messageId: String
+    let rating: MessageFeedbackRatingDTO
+    let note: String?
+    /// Equality-only Host mutation token; never interpreted or locally incremented.
+    let version: String
+    let createdAt: Int
+    let updatedAt: Int
+
+    var id: String { messageId }
+}
+
+struct MessageFeedbackListRequest: Codable, Sendable, Equatable {
+    let sessionId: String
+}
+
+struct MessageFeedbackPutRequest: Codable, Sendable, Equatable {
+    let sessionId: String
+    let messageId: String
+    let rating: MessageFeedbackRatingDTO
+    let note: String?
+    /// RC8 distinguishes an explicit null (require absent) from an omitted wire field.
+    let ifVersion: String?
+
+    private enum CodingKeys: String, CodingKey { case sessionId, messageId, rating, note, ifVersion }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(sessionId, forKey: .sessionId)
+        try container.encode(messageId, forKey: .messageId)
+        try container.encode(rating, forKey: .rating)
+        try container.encodeIfPresent(note, forKey: .note)
+        try container.encode(ifVersion, forKey: .ifVersion)
+    }
+}
+
+struct MessageFeedbackDeleteRequest: Codable, Sendable, Equatable {
+    let sessionId: String
+    let messageId: String
+    let ifVersion: String
+}
+
+/// Stable RC8 business error carrier. Optional fields cover the precise
+/// version-conflict `current` projection without inventing client recovery.
+struct MessageFeedbackBusinessErrorDTO: Codable, Sendable, Equatable {
+    let code: String
+    let sessionId: String?
+    let messageId: String?
+    let current: MessageFeedbackItemDTO?
+    let maxBytes: Int?
+    let actualBytes: Int?
+}
+
+struct MessageFeedbackListValueDTO: Codable, Sendable, Equatable {
+    let items: [MessageFeedbackItemDTO]
+}
+
+struct MessageFeedbackDeleteValueDTO: Codable, Sendable, Equatable {
+    let absent: Bool
+}
+
+struct MessageFeedbackListResponse: Codable, Sendable, Equatable {
+    let ok: Bool
+    let value: MessageFeedbackListValueDTO?
+    let error: MessageFeedbackBusinessErrorDTO?
+}
+
+struct MessageFeedbackPutResponse: Codable, Sendable, Equatable {
+    let ok: Bool
+    let value: MessageFeedbackItemDTO?
+    let error: MessageFeedbackBusinessErrorDTO?
+}
+
+struct MessageFeedbackDeleteResponse: Codable, Sendable, Equatable {
+    let ok: Bool
+    let value: MessageFeedbackDeleteValueDTO?
+    let error: MessageFeedbackBusinessErrorDTO?
 }
 
 struct WorkspacesAPI: Sendable {
