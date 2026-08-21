@@ -67,6 +67,8 @@ GP-2 后续的独立 Plugin target 才可创建 `WKWebView`。它必须将每一
 
 该表故意不含 HTML、CSS selector、URL、事件 handler、style declaration、script source 或任意 bridge 名称。`GhostPlaneTapIndexReplayTests` 与 `glass/ci/ghost-plane-tap-index-replay-portable-check.swift` 覆盖图身份、revision、重复冲突、可执行 CSS URL、未限定 attribute 与 plugin class 负例；后者在 Linux Swift 6.2.4 通过并接入 `portable-checks`。
 
-> 此阶段只完成受控 replay plan 的纯 Core admission；尚未在 `GhostPlaneWebViewHost` 中应用它，且没有宣称 WebKit 已提供官方 ModuleLoader、SlotRegistry 或 typed injection services。
+`GhostPlaneWebViewHost` 现以 `WKUserScript` 在 main-frame document start 安装固定、不可重写的 `window.__DSH_GHOST_PLANE__.applyTapIndex` renderer。host 只在 native skeleton 的最终 URL 经 policy 确认为 exact root 后允许写入；未完成、失败或重定向文档均为 `skeletonNotReady`。host 通过 `callAsyncJavaScript(arguments:)` 传递 `rendererPayload()`，不插值 record 内容；document 端再次验证 target ID、mutation kind、prefix、字符集与禁止 CSS 关键字。这给 runtime application 加上第二个独立的拒绝层，同时不增加任何 loader/bridge/module execution 能力。`GhostPlaneWebViewHostTests` 在 macOS target 验证未就绪拒绝、实际 DOM token/data/class 写入和无 executable attribute。
+
+> 此阶段只完成受控 replay 的 Core admission 与 skeleton-only 参数化 WebKit application；没有宣称 WebKit 已提供官方 ModuleLoader、SlotRegistry 或 typed injection services。
 
 [3]: https://github.com/deepseek-ai/deepseek-harness/blob/528c682e061696f5a160f363f236ecbf53cbd006/packages/host/webserver/src/index.ts "Official WebServer index injection and tap order"

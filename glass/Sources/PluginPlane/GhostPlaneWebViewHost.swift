@@ -7,8 +7,15 @@ import WebKit
 /// to the shared fail-closed loopback policy before WebKit can follow it.
 @MainActor
 public final class GhostPlaneWebViewHost: NSObject {
+    public enum TapIndexApplicationError: Swift.Error, Equatable {
+        /// The host never writes into an arbitrary page. A replay becomes
+        /// possible only after the native-owned skeleton has completed loading.
+        case skeletonNotReady
+    }
+
     public let webView: WKWebView
     private let policy: GhostPlaneLoopbackPolicy
+    private var skeletonReady = false
 
     public init(policy: GhostPlaneLoopbackPolicy) {
         self.policy = policy
@@ -16,6 +23,7 @@ public final class GhostPlaneWebViewHost: NSObject {
         configuration.websiteDataStore = .nonPersistent()
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = false
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
+        configuration.userContentController.addUserScript(Self.tapIndexBootstrap)
         webView = WKWebView(frame: .zero, configuration: configuration)
         super.init()
         webView.navigationDelegate = self
@@ -27,7 +35,32 @@ public final class GhostPlaneWebViewHost: NSObject {
     /// and the separate module-manifest admission before activation.
     @discardableResult
     public func loadSkeleton(_ html: String) -> WKNavigation? {
-        webView.loadHTMLString(html, baseURL: policy.origin)
+        skeletonReady = false
+        return webView.loadHTMLString(html, baseURL: policy.origin)
+    }
+
+    /// Applies a Core-admitted `tapIndex` compatibility plan to the native
+    /// skeleton. The plan reaches JavaScript only as primitive call arguments,
+    /// never as source interpolation, raw callback text, selector or HTML.
+    ///
+    /// The bootstrap repeats target/kind/prefix validation inside the document
+    /// as defense in depth. It intentionally knows nothing about module loading
+    /// or bridge capabilities; those remain hard gates for a later activation
+    /// stage.
+    public func applyTapIndex(_ replay: GhostPlaneTapIndexReplay) async throws {
+        guard skeletonReady else { throw TapIndexApplicationError.skeletonNotReady }
+        _ = try await webView.callAsyncJavaScript(
+            """
+            const ghostPlane = window.__DSH_GHOST_PLANE__;
+            if (ghostPlane === undefined || typeof ghostPlane.applyTapIndex !== 'function') {
+              throw new Error('Ghost Plane tapIndex bootstrap is unavailable');
+            }
+            return ghostPlane.applyTapIndex(arguments.records);
+            """,
+            arguments: ["records": replay.rendererPayload()],
+            in: nil,
+            in: .page
+        )
     }
 
     private func allow(_ url: URL?) -> Bool {
@@ -39,6 +72,76 @@ public final class GhostPlaneWebViewHost: NSObject {
             false
         }
     }
+
+    private static let tapIndexBootstrap = WKUserScript(
+        source: """
+        (() => {
+          'use strict';
+          const targetIDs = new Set([
+            'ghost-plane-root', 'ghost-session-header', 'ghost-conversation-scroll',
+            'ghost-chat-flow', 'ghost-composer-seat', 'ghost-turn-tail',
+            'ghost-toolview', 'ghost-details-tool',
+          ]);
+          const lowerToken = (value, maximum) => typeof value === 'string'
+            && value.length > 0 && value.length <= maximum && /^[a-z0-9-]+$/.test(value);
+          const customProperty = (name) => typeof name === 'string'
+            && (name.startsWith('--dsh-') || name.startsWith('--ghost-'))
+            && lowerToken(name.slice(2), 96);
+          const safeCSSValue = (value) => typeof value === 'string'
+            && value.length > 0 && value.length <= 256
+            && !/(url|expression|@import)/i.test(value)
+            && /^[ #%,()+./0-9A-Za-z-]+$/.test(value);
+          const dataName = (name) => typeof name === 'string'
+            && name.startsWith('data-ghost-') && lowerToken(name.slice('data-'.length), 96);
+          const dataValue = (value) => typeof value === 'string'
+            && value.length > 0 && value.length <= 128 && /^[A-Za-z0-9._:-]+$/.test(value);
+          const compatibilityClass = (name) => typeof name === 'string'
+            && name.startsWith('ghost-compat-') && lowerToken(name, 96);
+          const applyTapIndex = (records) => {
+            if (!Array.isArray(records)) throw new Error('Ghost Plane tapIndex records must be an array');
+            for (const record of records) {
+              if (record === null || typeof record !== 'object' || !targetIDs.has(record.targetID)) {
+                throw new Error('Ghost Plane tapIndex target was rejected');
+              }
+              const target = document.getElementById(record.targetID);
+              if (target === null) throw new Error('Ghost Plane skeleton target is absent');
+              switch (record.kind) {
+                case 'customProperty':
+                  if (!customProperty(record.name) || !safeCSSValue(record.value)) {
+                    throw new Error('Ghost Plane custom property was rejected');
+                  }
+                  target.style.setProperty(record.name, record.value);
+                  break;
+                case 'dataAttribute':
+                  if (!dataName(record.name) || !dataValue(record.value)) {
+                    throw new Error('Ghost Plane data attribute was rejected');
+                  }
+                  target.setAttribute(record.name, record.value);
+                  break;
+                case 'compatibilityClass':
+                  if (!compatibilityClass(record.name)) {
+                    throw new Error('Ghost Plane compatibility class was rejected');
+                  }
+                  target.classList.add(record.name);
+                  break;
+                default:
+                  throw new Error('Ghost Plane tapIndex mutation kind was rejected');
+              }
+            }
+            return true;
+          };
+          Object.defineProperty(window, '__DSH_GHOST_PLANE__', {
+            configurable: false,
+            enumerable: false,
+            writable: false,
+            value: Object.freeze({ applyTapIndex }),
+          });
+        })();
+        """,
+        injectionTime: .atDocumentStart,
+        forMainFrameOnly: true,
+        in: .page
+    )
 }
 
 extension GhostPlaneWebViewHost: WKNavigationDelegate {
@@ -56,5 +159,24 @@ extension GhostPlaneWebViewHost: WKNavigationDelegate {
         decisionHandler: @escaping @MainActor (WKNavigationResponsePolicy) -> Void
     ) {
         decisionHandler(allow(navigationResponse.response.url) ? .allow : .cancel)
+    }
+
+    public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        // A document can become ready only after its final navigation endpoint
+        // remains inside the precise skeleton origin. Redirected/external pages
+        // never become writable by the native compatibility renderer.
+        skeletonReady = policy.decision(for: webView.url ?? policy.origin) == .allowSkeletonDocument
+    }
+
+    public func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: any Error) {
+        skeletonReady = false
+    }
+
+    public func webView(
+        _ webView: WKWebView,
+        didFailProvisionalNavigation navigation: WKNavigation!,
+        withError error: any Error
+    ) {
+        skeletonReady = false
     }
 }
