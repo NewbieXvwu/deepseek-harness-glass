@@ -35,7 +35,7 @@ struct NativeToolRow: View {
                     }
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(title)
+                .accessibilityLabel(rowAccessibilityLabel)
                 .accessibilityValue(stateDescription)
 
                 if let filePath, canOpenProjectPath, state != .failed {
@@ -46,7 +46,7 @@ struct NativeToolRow: View {
                             .lineLimit(1)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel(OfficialUISpec.Text.producedFilesOpen(name: filePath))
+                    .accessibilityLabel(filePath)
                 } else {
                     Button(action: toggleExpandedAndInspect) {
                         Text(summary)
@@ -115,6 +115,10 @@ struct NativeToolRow: View {
 
     private var filePath: String? {
         NativeToolRowModel.filePath(toolName: invocation.name, arguments: invocation.arguments)
+    }
+
+    private var rowAccessibilityLabel: String {
+        summary.isEmpty ? title : "\(title) \(summary)"
     }
 
     private var state: NativeSessionStore.ToolInvocation.State { invocation.state }

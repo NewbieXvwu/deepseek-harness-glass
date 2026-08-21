@@ -117,7 +117,7 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
                 canOpenProjectPath: true,
                 inspect: {}
             ),
-            expected: [OfficialUISpec.Text.toolWrite, OfficialUISpec.Text.producedFilesOpen(name: "src/main.swift")]
+            expected: ["Write src/main.swift", "src/main.swift"]
         )
         try assertAccessibleLabels(
             in: NativeToolRow(
@@ -127,8 +127,9 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
                 canOpenProjectPath: false,
                 inspect: {}
             ),
-            expected: [OfficialUISpec.Text.toolWrite],
-            forbidden: [OfficialUISpec.Text.producedFilesOpen(name: "src/main.swift")]
+            expected: ["Write src/main.swift"],
+            expectedCounts: ["Write src/main.swift": 1],
+            forbidden: ["src/main.swift"]
         )
     }
 
