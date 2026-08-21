@@ -1848,6 +1848,33 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertTrue(store.queuedMessages.isEmpty)
     }
 
+    func testLateSteerReceiptDoesNotCompleteRowAlreadyRetiredByHostSnapshot() async {
+        let store = NativeSessionStore()
+        store.loadSnapshotToolingFixture()
+        let sessionID = tryUnwrap(store.selectedSessionID)
+        store.applyMuxFrame(queueFrame(sessionID: sessionID, items: [
+            queuedItem(id: "q-steer-race", messageID: "m-steer-race", placement: "queued", content: [.object(["type": .string("text"), "text": .string("Host owns steering retirement")])]),
+        ]), sessionID: sessionID)
+        let reached = expectation(description: "steer reaches Host before late receipt")
+        let api = DelayedQueueSessionAPI(reached: reached)
+        store.setSessionAPIForTesting(api)
+
+        store.updateQueuedMessage(itemID: "q-steer-race", action: .steer)
+        await fulfillment(of: [reached], timeout: 1)
+        XCTAssertEqual(store.updatingQueueItemID, "q-steer-race")
+
+        // The following whole snapshot is authority. A later accepted receipt
+        // cannot recreate a row that Host has already moved or retired.
+        store.applyMuxFrame(queueFrame(sessionID: sessionID, items: []), sessionID: sessionID)
+        XCTAssertTrue(store.queuedMessages.isEmpty)
+        await api.release()
+        await eventually(timeout: 1) { store.updatingQueueItemID == nil }
+
+        XCTAssertNil(store.queueActionCompletion)
+        XCTAssertNil(store.queueActionFailure)
+        XCTAssertTrue(store.queuedMessages.isEmpty)
+    }
+
     func testQueueActionFailureIsScopedToTheActionAndDoesNotRetireRow() async {
         let store = NativeSessionStore()
         store.loadSnapshotToolingFixture()
