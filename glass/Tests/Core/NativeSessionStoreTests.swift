@@ -1676,6 +1676,40 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(api.modelsCalls, 2)
     }
 
+    func testResidentResyncRetainsQueueAndJobsUntilFreshSubscriptionBoundary() async {
+        let resyncHistoryReached = expectation(description: "resident resync is held before fresh subscription")
+        let api = GatedResidentResyncSessionAPI(resyncHistoryReached: resyncHistoryReached)
+        let store = NativeSessionStore()
+        let sessionID = "resident-status-session"
+        store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+        await eventually(timeout: 1) { store.phase == .ready(sessionID: sessionID) }
+
+        store.applyMuxFrame(queueFrame(sessionID: sessionID, items: [
+            queuedItem(id: "prior-queue", messageID: "prior-message", placement: "queued", content: [.object(["type": .string("text"), "text": .string("retain until subscribed")])]),
+        ]), sessionID: sessionID)
+        store.applyMuxFrame(jobsFrame(sessionID: sessionID, jobs: [
+            job(id: "prior-job", status: "running", startedAt: 1),
+        ]), sessionID: sessionID)
+        XCTAssertEqual(store.queuedMessages.map(\.id), ["prior-queue"])
+        XCTAssertEqual(store.backgroundJobs.map(\.id), ["prior-job"])
+
+        store.resyncActiveSession()
+        await fulfillment(of: [resyncHistoryReached], timeout: 1)
+        XCTAssertEqual(store.queuedMessages.map(\.id), ["prior-queue"], "RC8 preserves the mirror until the ordered subscription baseline")
+        XCTAssertEqual(store.backgroundJobs.map(\.id), ["prior-job"])
+
+        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "fresh-subscription", method: "session/subscribed", payload: .object([
+            "type": .string("session/subscribed"),
+            "sessionId": .string(sessionID),
+            "lastSeq": .number(0),
+        ])), sessionID: sessionID)
+        XCTAssertTrue(store.queuedMessages.isEmpty)
+        XCTAssertTrue(store.backgroundJobs.isEmpty)
+
+        await api.releaseResyncHistory()
+        await eventually(timeout: 1) { store.phase == .ready(sessionID: sessionID) }
+    }
+
     func testLoadOlderHistoryGuardsKeepWindowAndAdoptEmptyPageHasMore() async {
         let cold = NativeSessionStore()
         cold.loadOlderHistory()
