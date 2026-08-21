@@ -14,7 +14,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY_ROOT = ROOT.parent
 METADATA = ROOT / "Sources/Spec/OfficialUISpec/official-ui-spec-build.json"
-SWIFT_BUILD = ROOT / "Sources/Spec/OfficialUISpecBuild.swift"
 HOST_CATALOG = ROOT / "Sources/Spec/SupportedHostBuilds.json"
 GENERATOR = REPOSITORY_ROOT / "tools/spec-generation/generate_official_ui_spec_build.ts"
 GENERATOR_DIR = GENERATOR.parent
@@ -28,7 +27,6 @@ def arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--official-root", type=Path, required=True)
     parser.add_argument("--metadata", type=Path, default=METADATA)
-    parser.add_argument("--swift-build", type=Path, default=SWIFT_BUILD)
     parser.add_argument("--host-catalog", type=Path, default=HOST_CATALOG)
     parser.add_argument("--node", default="node", help="path to the Node.js binary")
     return parser.parse_args()
@@ -42,7 +40,6 @@ def main() -> None:
     # path is accidentally re-based under `tools/spec-generation`.
     official_root = args.official_root.resolve()
     metadata_path = args.metadata
-    swift_build_path = args.swift_build
     host_catalog_path = args.host_catalog
     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
     missing = REQUIRED - metadata.keys()
@@ -86,9 +83,10 @@ def main() -> None:
         ], check=True, cwd=GENERATOR_DIR)
         if regenerated_json.read_bytes() != metadata_path.read_bytes():
             raise SystemExit("OfficialUISpec metadata is stale; regenerate from the locked official source")
-        if regenerated_swift.read_bytes() != swift_build_path.read_bytes():
-            raise SystemExit("OfficialUISpec Swift build ID is stale; regenerate from the locked official source")
-    print(f"OfficialUISpec build gate passed: {metadata['hostBuildId']} {metadata['sourceCommit'][:8]}.")
+    print(
+        f"OfficialUISpec structured build gate passed: {metadata['hostBuildId']} "
+        f"{metadata['sourceCommit'][:8]}; compiled runtime API parity is covered by OfficialUISpecBuildTests."
+    )
 
 
 if __name__ == "__main__":
