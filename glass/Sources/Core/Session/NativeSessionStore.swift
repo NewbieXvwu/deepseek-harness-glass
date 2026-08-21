@@ -158,6 +158,17 @@ final class NativeSessionStore: ObservableObject {
         case failed(sessionID: String)
     }
 
+    /// RC8 `ui-model-selection` lifecycle. The directory itself remains an
+    /// immutable Host response; this state records only the local request phase
+    /// and its transient transport/business diagnostic.
+    enum ModelDirectoryStatus: Equatable {
+        case idle
+        case loading
+        case ready
+        case selecting
+        case error(String)
+    }
+
     /// The only error shape the RC8 GoalBar displays inline: Host-provided
     /// business message plus code. Transport failures stay on the existing
     /// session recovery path and never gain invented goal-specific wording.
@@ -423,6 +434,7 @@ final class NativeSessionStore: ObservableObject {
     /// not been loaded or the current session cannot be restored yet; it is not
     /// an invitation to invent a default provider/model pair.
     @Published private(set) var modelDirectory: CoreSessionModelDirectory?
+    @Published private(set) var modelDirectoryStatus: ModelDirectoryStatus = .idle
     @Published private(set) var isSelectingModel = false
     @Published private(set) var isSubmittingPermission = false
     @Published private(set) var selectedToolCallID: String?
@@ -497,6 +509,9 @@ final class NativeSessionStore: ObservableObject {
     private var goalTask: Task<Void, Never>?
     private var queueUpdateTask: Task<Void, Never>?
     private var modelSelectionTask: Task<Void, Never>?
+    /// One RC8 directory generation spans models reloads and selections. A late
+    /// open/recovery response may never overwrite a newer reload or selection.
+    private var modelDirectoryGeneration: UInt = 0
     private var modelSelectionGeneration: UInt = 0
     private var permissionSelectionTask: Task<Void, Never>?
     private var permissionSelectionGeneration: UInt = 0
@@ -540,8 +555,10 @@ final class NativeSessionStore: ObservableObject {
         queueUpdateTask = nil
         modelSelectionTask?.cancel()
         modelSelectionTask = nil
+        modelDirectoryGeneration &+= 1
         modelSelectionGeneration &+= 1
         isSelectingModel = false
+        modelDirectoryStatus = modelDirectory == nil ? .idle : .ready
         permissionSelectionTask?.cancel()
         permissionSelectionTask = nil
         permissionSelectionGeneration &+= 1
@@ -871,8 +888,10 @@ final class NativeSessionStore: ObservableObject {
         queueUpdateTask = nil
         modelSelectionTask?.cancel()
         modelSelectionTask = nil
+        modelDirectoryGeneration &+= 1
         modelSelectionGeneration &+= 1
         isSelectingModel = false
+        modelDirectoryStatus = modelDirectory == nil ? .idle : .ready
         permissionSelectionTask?.cancel()
         permissionSelectionTask = nil
         permissionSelectionGeneration &+= 1
@@ -1015,8 +1034,10 @@ final class NativeSessionStore: ObservableObject {
         queueUpdateTask = nil
         modelSelectionTask?.cancel()
         modelSelectionTask = nil
+        modelDirectoryGeneration &+= 1
         modelSelectionGeneration &+= 1
         isSelectingModel = false
+        modelDirectoryStatus = modelDirectory == nil ? .idle : .ready
         permissionSelectionTask?.cancel()
         permissionSelectionTask = nil
         permissionSelectionGeneration &+= 1
@@ -1026,6 +1047,7 @@ final class NativeSessionStore: ObservableObject {
         queueActionCompletion = nil
         recoveryGeneration &+= 1
         let authorityGeneration = recoveryGeneration
+        let directoryGeneration = modelDirectoryGeneration
         self.api = api
         self.goalAPI = goalAPI
         self.subagentCatalogAPI = subagentCatalogAPI
@@ -1046,6 +1068,7 @@ final class NativeSessionStore: ObservableObject {
             queuedMessages = []
             backgroundJobs = []
             modelDirectory = nil
+            modelDirectoryStatus = .idle
             selectedToolCallID = nil
             pendingApproval = nil
             pendingQuestion = nil
@@ -1067,6 +1090,7 @@ final class NativeSessionStore: ObservableObject {
             phase = .ready(sessionID: sessionID)
         }
 
+        modelDirectoryStatus = .loading
         historyTask = Task { [weak self] in
             do {
                 // The locked Host's `agentFor` resolver is the official
@@ -1076,10 +1100,12 @@ final class NativeSessionStore: ObservableObject {
                 let models = try await api.models(sessionID: sessionID)
                 guard !Task.isCancelled,
                       self?.recoveryGeneration == authorityGeneration,
+                      self?.modelDirectoryGeneration == directoryGeneration,
                       self?.activeSessionID == sessionID,
                       self?.endpoint == endpoint
                 else { return }
                 self?.modelDirectory = .init(response: models)
+                self?.modelDirectoryStatus = .ready
                 let response = try await api.history(sessionID: sessionID, beforeSeq: nil, maxMessages: nil)
                 guard !Task.isCancelled,
                       self?.recoveryGeneration == authorityGeneration,
@@ -1099,6 +1125,9 @@ final class NativeSessionStore: ObservableObject {
                       self?.endpoint == endpoint
                 else { return }
                 self?.lastError = error
+                if case .loading = self?.modelDirectoryStatus {
+                    self?.modelDirectoryStatus = .error(error.localizedDescription)
+                }
                 if !restoredResident { self?.phase = .failed(sessionID: sessionID) }
             } catch {
                 guard !Task.isCancelled,
@@ -1106,6 +1135,9 @@ final class NativeSessionStore: ObservableObject {
                       self?.activeSessionID == sessionID,
                       self?.endpoint == endpoint
                 else { return }
+                if case .loading = self?.modelDirectoryStatus {
+                    self?.modelDirectoryStatus = .error(error.localizedDescription)
+                }
                 if !restoredResident { self?.phase = .failed(sessionID: sessionID) }
             }
         }
@@ -1154,8 +1186,10 @@ final class NativeSessionStore: ObservableObject {
         queueUpdateTask = nil
         modelSelectionTask?.cancel()
         modelSelectionTask = nil
+        modelDirectoryGeneration &+= 1
         modelSelectionGeneration &+= 1
         isSelectingModel = false
+        modelDirectoryStatus = modelDirectory == nil ? .idle : .ready
         permissionSelectionTask?.cancel()
         permissionSelectionTask = nil
         permissionSelectionGeneration &+= 1
@@ -1173,6 +1207,7 @@ final class NativeSessionStore: ObservableObject {
         queuedMessages = []
         backgroundJobs = []
         modelDirectory = nil
+        modelDirectoryStatus = .idle
         selectedToolCallID = nil
         pendingApproval = nil
         pendingQuestion = nil
@@ -1224,8 +1259,10 @@ final class NativeSessionStore: ObservableObject {
         queueUpdateTask = nil
         modelSelectionTask?.cancel()
         modelSelectionTask = nil
+        modelDirectoryGeneration &+= 1
         modelSelectionGeneration &+= 1
         isSelectingModel = false
+        modelDirectoryStatus = modelDirectory == nil ? .idle : .ready
         permissionSelectionTask?.cancel()
         permissionSelectionTask = nil
         permissionSelectionGeneration &+= 1
@@ -1243,6 +1280,7 @@ final class NativeSessionStore: ObservableObject {
         queuedMessages = []
         backgroundJobs = []
         modelDirectory = nil
+        modelDirectoryStatus = .idle
         selectedToolCallID = nil
         pendingApproval = nil
         pendingQuestion = nil
@@ -1431,10 +1469,13 @@ final class NativeSessionStore: ObservableObject {
         else { return }
 
         modelSelectionTask?.cancel()
+        modelDirectoryGeneration &+= 1
         modelSelectionGeneration &+= 1
+        let directoryGeneration = modelDirectoryGeneration
         let mutationGeneration = modelSelectionGeneration
         let currentRecoveryGeneration = recoveryGeneration
         isSelectingModel = true
+        modelDirectoryStatus = .selecting
         modelSelectionTask = Task { [weak self] in
             defer {
                 if !Task.isCancelled,
@@ -1454,12 +1495,54 @@ final class NativeSessionStore: ObservableObject {
                 guard !Task.isCancelled,
                       self?.activeSessionID == sessionID,
                       self?.recoveryGeneration == currentRecoveryGeneration,
+                      self?.modelDirectoryGeneration == directoryGeneration,
                       self?.modelSelectionGeneration == mutationGeneration
                 else { return }
                 self?.modelDirectory = self?.modelDirectory?.applying(response.selected)
+                self?.modelDirectoryStatus = .ready
             } catch {
+                guard !Task.isCancelled,
+                      self?.activeSessionID == sessionID,
+                      self?.recoveryGeneration == currentRecoveryGeneration,
+                      self?.modelDirectoryGeneration == directoryGeneration,
+                      self?.modelSelectionGeneration == mutationGeneration
+                else { return }
                 // RC8 keeps the last Host directory selection visible on a
-                // rejected mutation; no local fallback or synthetic error row.
+                // rejected mutation; this diagnostic is presentation-only.
+                self?.modelDirectoryStatus = .error(error.localizedDescription)
+            }
+        }
+    }
+
+    /// Source: RC8 `SessionDirectory.load`. Retry reloads only the complete
+    /// Host `session.models` directory; it never replays or edits conversation
+    /// history and is fenced against selection/recovery responses.
+    func reloadModelDirectory() {
+        guard let api, let sessionID = activeSessionID else { return }
+        modelSelectionTask?.cancel()
+        modelSelectionGeneration &+= 1
+        isSelectingModel = false
+        modelDirectoryGeneration &+= 1
+        let directoryGeneration = modelDirectoryGeneration
+        let currentRecoveryGeneration = recoveryGeneration
+        modelDirectoryStatus = .loading
+        modelSelectionTask = Task { [weak self] in
+            do {
+                let response = try await api.models(sessionID: sessionID)
+                guard !Task.isCancelled,
+                      self?.activeSessionID == sessionID,
+                      self?.recoveryGeneration == currentRecoveryGeneration,
+                      self?.modelDirectoryGeneration == directoryGeneration
+                else { return }
+                self?.modelDirectory = .init(response: response)
+                self?.modelDirectoryStatus = .ready
+            } catch {
+                guard !Task.isCancelled,
+                      self?.activeSessionID == sessionID,
+                      self?.recoveryGeneration == currentRecoveryGeneration,
+                      self?.modelDirectoryGeneration == directoryGeneration
+                else { return }
+                self?.modelDirectoryStatus = .error(error.localizedDescription)
             }
         }
     }
@@ -1762,22 +1845,28 @@ final class NativeSessionStore: ObservableObject {
         else { return }
         recoveryTask?.cancel()
         recoveryGeneration &+= 1
+        modelDirectoryGeneration &+= 1
         let generation = recoveryGeneration
+        let directoryGeneration = modelDirectoryGeneration
+        modelDirectoryStatus = .loading
         recoveryTask = Task { [weak self] in
             do {
                 let models = try await api.models(sessionID: sessionID)
                 guard !Task.isCancelled,
                       self?.recoveryGeneration == generation,
+                      self?.modelDirectoryGeneration == directoryGeneration,
                       self?.activeSessionID == sessionID,
                       self?.endpoint == endpoint
                 else { return }
                 let history = try await api.history(sessionID: sessionID, beforeSeq: nil, maxMessages: nil)
                 guard !Task.isCancelled,
                       self?.recoveryGeneration == generation,
+                      self?.modelDirectoryGeneration == directoryGeneration,
                       self?.activeSessionID == sessionID,
                       self?.endpoint == endpoint
                 else { return }
                 self?.modelDirectory = .init(response: models)
+                self?.modelDirectoryStatus = .ready
                 self?.replaceConversationWindow(history.events.map(ConversationEventInput.init(entry:)), hasMore: history.hasMore)
                 self?.items = []
                 self?.appliedSequences = []
@@ -1788,6 +1877,14 @@ final class NativeSessionStore: ObservableObject {
                 self?.hasMoreHistory = history.hasMore
                 self?.phase = .ready(sessionID: sessionID)
             } catch {
+                guard !Task.isCancelled,
+                      self?.recoveryGeneration == generation,
+                      self?.activeSessionID == sessionID,
+                      self?.endpoint == endpoint
+                else { return }
+                if case .loading = self?.modelDirectoryStatus {
+                    self?.modelDirectoryStatus = .error(error.localizedDescription)
+                }
                 // Keep the last complete authority window visible. A newer
                 // mux/recovery generation or a finite stream failure owns any
                 // user-facing transport error policy; stale recovery errors do
@@ -2219,6 +2316,7 @@ final class NativeSessionStore: ObservableObject {
         pendingApproval = nil
         pendingQuestion = nil
         modelDirectory = nil
+        modelDirectoryStatus = .idle
         selectedToolCallID = nil
         isSubmittingApproval = false
         isSubmittingQuestion = false
@@ -2267,6 +2365,7 @@ final class NativeSessionStore: ObservableObject {
             ],
             failures: [.init(id: "fixture-unavailable", name: "Optional provider", message: "Catalog unavailable")]
         ))
+        modelDirectoryStatus = .ready
         isSelectingModel = false
         selectedToolCallID = nil
         pendingApproval = nil
@@ -2296,6 +2395,7 @@ final class NativeSessionStore: ObservableObject {
         queuedMessages = []
         backgroundJobs = []
         modelDirectory = nil
+        modelDirectoryStatus = .idle
         projections.remove(sessionID: sessionID)
         projections.apply(
             sessionID: sessionID,
@@ -2346,6 +2446,7 @@ final class NativeSessionStore: ObservableObject {
         queuedMessages = []
         backgroundJobs = []
         modelDirectory = nil
+        modelDirectoryStatus = .idle
         pendingApproval = PendingApproval(
             rpcID: "fx-rpc-approval",
             sessionID: sessionID,
@@ -2380,6 +2481,7 @@ final class NativeSessionStore: ObservableObject {
         queuedMessages = []
         backgroundJobs = []
         modelDirectory = nil
+        modelDirectoryStatus = .idle
         pendingApproval = nil
         pendingQuestion = PendingQuestion(
             rpcID: "fx-rpc-question",
@@ -2512,6 +2614,7 @@ final class NativeSessionStore: ObservableObject {
         queuedMessages = []
         backgroundJobs = []
         modelDirectory = nil
+        modelDirectoryStatus = .idle
         pendingApproval = nil
         pendingQuestion = nil
         selectedToolCallID = "snapshot-read"

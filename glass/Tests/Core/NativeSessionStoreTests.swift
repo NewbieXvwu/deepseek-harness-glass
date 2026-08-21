@@ -217,6 +217,7 @@ final class NativeSessionStoreTests: XCTestCase {
         store.open(sessionID: "model-session", using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
         await fulfillment(of: [modelsLoaded], timeout: 1)
         await eventually(timeout: 1) { store.modelDirectory?.current.model == "model-a" }
+        XCTAssertEqual(store.modelDirectoryStatus, .ready)
 
         store.selectModel(provider: "provider-a", model: "unknown", reasoningEffort: nil)
         XCTAssertTrue(api.requests.isEmpty, "unknown catalog members must fail closed before a Host mutation")
@@ -224,11 +225,15 @@ final class NativeSessionStoreTests: XCTestCase {
         store.selectModel(provider: "provider-a", model: "model-b", reasoningEffort: "deep")
         await fulfillment(of: [selectionReached], timeout: 1)
         await eventually(timeout: 1) { store.modelDirectory?.current.model == "model-b" && !store.isSelectingModel }
+        XCTAssertEqual(store.modelDirectoryStatus, .ready)
         XCTAssertEqual(api.requests, [.init(sessionId: "model-session", provider: "provider-a", model: "model-b", reasoningEffort: "deep")])
 
         api.shouldReject = true
         store.selectModel(provider: "provider-a", model: "model-a", reasoningEffort: "balanced")
         await eventually(timeout: 1) { api.requests.count == 2 && !store.isSelectingModel }
+        guard case .error = store.modelDirectoryStatus else {
+            return XCTFail("rejected model selection must publish the typed error lifecycle")
+        }
         XCTAssertEqual(store.modelDirectory?.current.model, "model-b", "a rejected Host mutation must not optimistically replace the current selection")
     }
 

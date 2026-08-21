@@ -53,6 +53,7 @@ struct NativeComposerModelSelector: View {
     var body: some View {
         if let directory, directory.routable {
             Menu {
+                modelStatusRows
                 Menu {
                     modelChoices(directory)
                 } label: {
@@ -67,31 +68,59 @@ struct NativeComposerModelSelector: View {
                     }
                 }
             } label: {
-                HStack(spacing: OfficialUISpec.Spacing.p2) {
-                    Text(currentModelName)
-                        .lineLimit(1)
-                    if let currentEffortName {
-                        Text(currentEffortName)
-                            .foregroundStyle(OfficialUISpec.Token.secondary)
-                            .lineLimit(1)
-                    }
-                    OfficialAssetImage(name: "icon-chevron-down", template: true)
-                        .frame(width: OfficialUISpec.Geometry.px12, height: OfficialUISpec.Geometry.px12)
-                        .foregroundStyle(OfficialUISpec.Token.caption)
-                    if sessionStore.isSelectingModel {
-                        ProgressView()
-                            .controlSize(.mini)
-                    }
-                }
-                .font(OfficialUISpec.Typography.xsStrong13)
-                .foregroundStyle(OfficialUISpec.Token.primary)
-                .frame(minHeight: OfficialUISpec.Layout.composerControlHeight, alignment: .leading)
-                .padding(.trailing, OfficialUISpec.Spacing.p12)
+                triggerLabel
             }
             .menuStyle(.borderlessButton)
-            .disabled(!directory.routable)
             .accessibilityLabel(triggerAccessibilityLabel)
             .accessibilityHint(t("menu.aria"))
+        } else if sessionStore.modelDirectoryStatus != .idle {
+            Menu {
+                modelStatusRows
+            } label: {
+                triggerLabel
+            }
+            .menuStyle(.borderlessButton)
+            .accessibilityLabel(triggerAccessibilityLabel)
+            .accessibilityHint(t("menu.aria"))
+        }
+    }
+
+    private var triggerLabel: some View {
+        HStack(spacing: OfficialUISpec.Spacing.p2) {
+            Text(currentModelName)
+                .lineLimit(1)
+            if let currentEffortName {
+                Text(currentEffortName)
+                    .foregroundStyle(OfficialUISpec.Token.secondary)
+                    .lineLimit(1)
+            }
+            OfficialAssetImage(name: "icon-chevron-down", template: true)
+                .frame(width: OfficialUISpec.Geometry.px12, height: OfficialUISpec.Geometry.px12)
+                .foregroundStyle(OfficialUISpec.Token.caption)
+            if sessionStore.modelDirectoryStatus == .loading || sessionStore.isSelectingModel {
+                ProgressView()
+                    .controlSize(.mini)
+            }
+        }
+        .font(OfficialUISpec.Typography.xsStrong13)
+        .foregroundStyle(OfficialUISpec.Token.primary)
+        .frame(minHeight: OfficialUISpec.Layout.composerControlHeight, alignment: .leading)
+        .padding(.trailing, OfficialUISpec.Spacing.p12)
+    }
+
+    @ViewBuilder
+    private var modelStatusRows: some View {
+        switch sessionStore.modelDirectoryStatus {
+        case .loading:
+            Text(t("status.loading"))
+        case let .error(message):
+            Text(t("error.action", replacements: ["message": message]))
+                .foregroundStyle(OfficialUISpec.Token.errorPrimary)
+            Button(t("action.reload")) {
+                sessionStore.reloadModelDirectory()
+            }
+        case .idle, .ready, .selecting:
+            EmptyView()
         }
     }
 
