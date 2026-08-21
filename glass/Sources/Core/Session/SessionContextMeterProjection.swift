@@ -13,6 +13,7 @@ struct CoreContextMeterState: Equatable {
 
     /// Mirrors RC8 `contextOccupancy`: projectedTokens reflects an immediately
     /// compacted surface, while pressureTokens supports older Host projections.
+    @MainActor
     static func value(from store: SessionProjectionStore, sessionID: String) -> Self? {
         value(projection: store.value(sessionID: sessionID, key: "contextPressure"))
     }
@@ -52,6 +53,7 @@ struct CoreContextMeterBreakdown: Equatable {
     let toolsTokens: Int
     let messageTokens: Int
 
+    @MainActor
     static func value(from store: SessionProjectionStore, sessionID: String) -> Self? {
         value(projection: store.value(sessionID: sessionID, key: "contextBreakdown"))
     }

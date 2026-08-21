@@ -23,12 +23,36 @@ mkdir -p \
   "$FIXTURE_GLASS/build/backend/node_modules" \
   "$FIXTURE_GLASS/assets" \
   "$FAKE_BIN" \
-  "$FIXTURE_ROOT/build"
+  "$FIXTURE_ROOT/build" \
+  "$FIXTURE_ROOT/tools"
 
 cp "$GLASS_ROOT/assemble.sh" "$FIXTURE_GLASS/assemble.sh"
+cp "$GLASS_ROOT/../tools/emit-build-manifest.py" "$FIXTURE_ROOT/tools/emit-build-manifest.py"
 chmod +x "$FIXTURE_GLASS/assemble.sh"
 printf 'fixture plist\n' > "$FIXTURE_GLASS/Info.plist"
-printf '{}\n' > "$FIXTURE_GLASS/Sources/Spec/SupportedHostBuilds.json"
+cat > "$FIXTURE_GLASS/Sources/Spec/SupportedHostBuilds.json" <<'EOF'
+{
+  "defaultBuildId": "fixture-build",
+  "builds": [{
+    "id": "fixture-build",
+    "officialSourceCommit": "fixture-commit",
+    "dshPackageVersion": "fixture-dsh",
+    "webFrontendPackageVersion": "fixture-web",
+    "nodeRuntimeVersion": "fixture-node",
+    "minimumMacOS": "26.0",
+    "supportedArchitectures": ["arm64"]
+  }]
+}
+EOF
+cat > "$FIXTURE_GLASS/Sources/Spec/HostUpgradeReport.json" <<'EOF'
+{
+  "hostBuildId": "fixture-build",
+  "officialSourceCommit": "fixture-commit",
+  "uiSpecRevision": "fixture-ui-spec",
+  "protocolFixtureRevision": "fixture-protocol",
+  "rawEventFixtureRevision": "fixture-raw-events"
+}
+EOF
 printf '{}\n' > "$FIXTURE_GLASS/Sources/Spec/Fixtures/official-column-layout-fixtures.json"
 printf '{}\n' > "$FIXTURE_GLASS/Sources/Core/Resources/official-host-rpc-fixtures.json"
 printf 'fixture svg\n' > "$FIXTURE_GLASS/assets/fixture.svg"
@@ -67,7 +91,11 @@ test -x "$APP_PATH/Contents/MacOS/DeepSeek Harness"
 test "$("$APP_PATH/Contents/MacOS/DeepSeek Harness")" = "target-triple executable"
 test -s "$APP_PATH/Contents/Resources/GlassSpec_GlassSpec.bundle/Fixtures/official-accessibility-baseline.json"
 test -s "$APP_PATH/Contents/Resources/SupportedHostBuilds.json"
+test -s "$APP_PATH/Contents/Resources/HostUpgradeReport.json"
 test -s "$APP_PATH/Contents/Resources/official-column-layout-fixtures.json"
 test -s "$APP_PATH/Contents/Resources/official-host-rpc-fixtures.json"
+test -s "$APP_PATH/Contents/Resources/BuildManifest.json"
+grep -F '"hostBuildId": "fixture-build"' "$APP_PATH/Contents/Resources/BuildManifest.json"
+grep -F '"appSourceRevision": "unknown"' "$APP_PATH/Contents/Resources/BuildManifest.json"
 
 echo 'assemble resource-bundle fixture passed'

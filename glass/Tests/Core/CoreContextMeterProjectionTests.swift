@@ -49,6 +49,40 @@ final class CoreContextMeterProjectionTests: XCTestCase {
         ])))
     }
 
+    @MainActor
+    func testContextMetersReadOnlyCurrentHostProjectionStoreValues() {
+        let store = SessionProjectionStore()
+        store.apply(
+            sessionID: "session-a",
+            key: "contextPressure",
+            value: .object([
+                "projectedTokens": .number(6_400),
+                "contextWindow": .number(128_000),
+            ]),
+            seq: 42
+        )
+        store.apply(
+            sessionID: "session-a",
+            key: "contextBreakdown",
+            value: .object([
+                "systemTokens": .number(400),
+                "toolsTokens": .number(1_000),
+                "messageTokens": .number(5_000),
+            ]),
+            seq: 42
+        )
+
+        XCTAssertEqual(
+            CoreContextMeterState.value(from: store, sessionID: "session-a"),
+            .init(usedTokens: 6_400, contextWindow: 128_000, percent: 5)
+        )
+        XCTAssertEqual(
+            CoreContextMeterBreakdown.value(from: store, sessionID: "session-a"),
+            .init(systemTokens: 400, toolsTokens: 1_000, messageTokens: 5_000)
+        )
+        XCTAssertNil(CoreContextMeterState.value(from: store, sessionID: "other-session"))
+    }
+
     func testMalformedOrCapacitylessContextPressureDoesNotInventMeter() {
         XCTAssertNil(CoreContextMeterState.value(projection: .object([
             "pressureTokens": .number(0),

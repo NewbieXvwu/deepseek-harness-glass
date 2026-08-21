@@ -78,7 +78,7 @@
 - [ ] **T1.4：CI 反馈链路与触发解耦。** 将文档登记（`TODO.md`、`notes`）与源码变更解耦，防止仅文档更新触发长达 5–8 分钟的 macOS 回归。将已审计、仅依赖 Foundation 的 Host 显示路径 helper 迁入 `GlassPortableCore`，在 Linux 提供快速回归；分离官方 WebUI 基线预热以利用精确缓存；提供 `local-visual-test.sh` 缩短 UI 调整的本地闭环。其余 DTO/Reducer 的可移植化必须按独立 TODO 和边界审计推进，不能由本项推定完成。
   - 依赖：T1.2、T2.5、T4.1。
   - 验收：仅修改 `TODO.md` 时不触发 `native-ui` 而触发文档完整性检查；`portable-checks` 提供可移植 helper 和规格/架构的并行反馈；官方基线缓存未命中时重建并验证工件；`assemble.sh` 复制全部 SwiftPM resource bundle，且在签名前确认 `official-accessibility-baseline.json` 已位于打包产物。当前集成提交已完成本地可移植门禁，保持未勾选直至其自身 macOS 权威工作流成功。
-  - 进度：已根据 `72665e2` 的远端失败日志修复两个确定性门禁缺口：`portable-checks` 在调用项目内 locale AST 生成器前执行锁定 `tools/spec-generation` TypeScript 安装；`NativeSessionStoreTests` 删除重复 `tryUnwrap` 定义，恢复 macOS XCTest module 编译。PR #9 的 macOS 原生工作流随后在 app 组装阶段确认：前置独立 SwiftPM build 使用 target-triple 输出目录，而 `assemble.sh` 仍从遗留 `.build/release` 读取资源包，导致错误报告无 resource bundles。现已改为以 `swift build --show-bin-path` 返回的同一目标目录复制可执行文件与全部 bundle，保留 `official-accessibility-baseline.json` 签名前检查。`glass/ci/test-assemble-resource-bundle.sh` 现以真实生产组装脚本、空的遗留 `.build/release` 和完整 target-triple fixture 验证可执行文件、resource bundle 与 accessibility baseline 都进入 app，并已接入 `portable-checks`；本地夹具通过。该修复推送后会触发新的非阻塞 macOS 验证。任务仍保持未勾选，且不以任何历史成功替代本次权威工作流结果。
+  - 进度：已根据 `72665e2` 的远端失败日志修复两个确定性门禁缺口：`portable-checks` 在调用项目内 locale AST 生成器前执行锁定 `tools/spec-generation` TypeScript 安装；`NativeSessionStoreTests` 删除重复 `tryUnwrap` 定义，恢复 macOS XCTest module 编译。PR #9 的 macOS 原生工作流随后在 app 组装阶段确认：前置独立 SwiftPM build 使用 target-triple 输出目录，而 `assemble.sh` 仍从遗留 `.build/release` 读取资源包，导致错误报告无 resource bundles。现已改为以 `swift build --show-bin-path` 返回的同一目标目录复制可执行文件与全部 bundle，保留 `official-accessibility-baseline.json` 签名前检查。`glass/ci/test-assemble-resource-bundle.sh` 现以真实生产组装脚本、空的遗留 `.build/release` 和完整 target-triple fixture 验证可执行文件、resource bundle 与 accessibility baseline 都进入 app，并已接入 `portable-checks`。2026-08-21 的 `32479644212` 进一步暴露夹具遗漏 `HostUpgradeReport.json` 与 `emit-build-manifest.py`；夹具现提供结构化且相互匹配的 SupportedHost/UpgradeReport 最小元数据，复制真实生成器，并断言打包的 Host report 与 schema v2 `BuildManifest.json` 都存在且含预期 build/revision。此本地回归已通过。该修复推送后会触发新的非阻塞 portable/macOS 验证。任务仍保持未勾选，且不以任何历史成功替代本次权威工作流结果。
 
 - [x] **T1.1：保留现有项目的可复用运行时资产。** 列出并迁移内嵌 Node、dsh payload、构建脚本、Info.plist、图标、签名与 release workflow；保留 `DSH_HOME`、日志目录、端口复用、自动恢复、菜单栏常驻和优雅退出的意图。
   - 依赖：T0.2。
@@ -646,14 +646,14 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 |---|---|
 | 远端仓库 | `NewbieXvwu/deepseek-harness-glass` |
 | 分支 | `main` |
-| 当前 RC8 迁移 head | `fb5aab8` — 将当前 `main` 合入 PR #2 的 RC8 迁移分支；需取得该 head 自身 macOS-26 CI 后才可合并。 |
-| 最近功能链 | `d62ef24` RC8 基线、受控 payload、规格与 Host contract 迁移；`f6c6447` T6.6 Jobs 第二轮几何收敛；`fb5aab8` 保留二者的无冲突三方合并。 |
+| 当前 main head | `95aa816` — 已将 PR #11 的 Ghost Plane 插件兼容提案合入 `main`，保留当前可审计安全进度并把插件任务重述为登记制红/绿区边界。 |
+| 最近功能链 | `66852ac` 完成 T13.2 签名与分发路径；`95aa816` 合入 PR #11 的插件兼容架构、迁移清单与审阅协议。当前工作树随后修复 `32479644212` 的资源组装夹具遗漏及 `32479644218` 的 Swift 严格并发/`Result` 编译错误，尚待其自身 CI 验证。 |
 | 锁定官方来源 | `deepseek-ai/deepseek-harness@528c682e061696f5a160f363f236ecbf53cbd006` |
 | 目标平台 | macOS 26+、Xcode 26+、Apple Silicon、Swift 6 |
 | D1规格门禁 | RC8 本地复验通过：91 text、77 layout、29 assets、11 visual scenes；完整 macOS-26 复验待当前 head。 |
 | D0原生门禁 | RC8 本地复验通过：核心UI无WebView、DOM脚本和CSS注入；完整 macOS-26 复验待当前 head。 |
 | 最近 RC8 macOS CI | [run 32328246659](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32328246659)，原始 PR head `d62ef24`，success；通过 RC8 payload、规格与架构门禁、SwiftPM、XCTest、装配、快照和比较，但不能代替 `fb5aab8` 的合并后证据。 |
-| 当前合并门禁 | `fb5aab8` 已通过本地 RC8 规格、架构、DTO、transport、interaction-scene、accessibility、inventory 与 visual-policy 门禁；其独立 macOS-26 CI 尚未触发。 |
+| 当前合并门禁 | `95aa816` 已在 `main`；其触发的远端工作流不得以父提交替代。当前本地 CI 恢复修复将独立提交并触发新的 portable/macOS 验证，执行期间不阻塞后续独立工作。 |
 | 当前主阶段 | 先完成 RC8 基线迁移与截图矩阵扩展，再以 RC8 同状态证据重新认证 T5.1–T5.6、T7.3；T6.6 和 T6.7 在此之后继续。 |
 | 已勾选TODO条目 | 共29项：T0.1–T0.3、T1.1–T1.3、T2.1–T2.2、T2.6、T3.1–T3.6、T4.1–T4.6、T6.1–T6.5；T5.1–T5.6、T7.3及其余条目均保持未勾选，直至 RC8 证据闭环。 |
 
@@ -678,7 +678,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 
 ### C. TODO勾选的完整证据边界
 
-当前只允许以下29项保持勾选。T6.2、T6.4、T6.5已分别在 `bcf0257`、`8e68158`、`c0ea840` 的成功CI和Core-only审阅后闭环；T5.1–T5.6与T7.3已因 RC8 基线迁移回退，等待新的来源、同状态视觉和当前 head CI 证据。其余未完成任务不得以已有代码或父提交CI提前勾选：
+当前仅允许已具自身完成定义和证据的已勾选项保持完成状态；未勾选项不得以已有代码或父提交 CI 提前勾选。T6.2、T6.4、T6.5已分别在 `bcf0257`、`8e68158`、`c0ea840` 的成功CI和Core-only审阅后闭环；T5.1–T5.6与T7.3已因 RC8 基线迁移回退，等待新的来源、同状态视觉和当前 head CI 证据。其余未完成任务不得以已有代码或父提交CI提前勾选：
 
 | 条目 | 状态 | 证据与边界 |
 |---|---|---|

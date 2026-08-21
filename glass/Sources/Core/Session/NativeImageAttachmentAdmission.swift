@@ -14,7 +14,7 @@ enum NativeImageAttachmentAdmission {
         let pixelHeight: Int
     }
 
-    enum Rejection: Equatable {
+    enum Rejection: Error, Equatable {
         case limitsUnavailable
         case tooManyImages
         case fileUnreadable
