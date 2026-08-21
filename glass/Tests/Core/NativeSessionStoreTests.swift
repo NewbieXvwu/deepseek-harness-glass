@@ -171,6 +171,44 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(feedbackAPI.putRequests.first?.ifVersion, "v1")
     }
 
+    func testPermissionProjectionAndCommandSelectionStayHostAuthoritative() async {
+        let submitted = expectation(description: "permission command reaches session facade")
+        let api = PermissionCommandSessionAPI(submitted: submitted)
+        let store = NativeSessionStore()
+        store.loadSnapshotToolingFixture()
+        let sessionID = tryUnwrap(store.selectedSessionID)
+        store.projections.apply(
+            sessionID: sessionID,
+            key: "permissions",
+            value: .object([
+                "options": .array([
+                    .object(["value": .string("workspace-write"), "name": .string("workspace-write"), "description": .string("Workspace access")]),
+                    .object(["value": .string("danger-full-access"), "name": .string("danger-full-access"), "description": .string("Full access")]),
+                    .object(["value": .string("custom"), "name": .string("Custom")]),
+                ]),
+                "currentValue": .string("workspace-write"),
+            ]),
+            seq: 12
+        )
+        store.setSessionAPIForTesting(api)
+
+        XCTAssertEqual(store.extensionState?.permissions?.currentValue, "workspace-write")
+        XCTAssertEqual(store.extensionState?.permissions?.options.map(\.value), ["workspace-write", "danger-full-access", "custom"])
+        store.selectPermissionPreset("custom")
+        XCTAssertTrue(api.prompts.isEmpty, "derived custom is current-only and must not route to the command")
+        store.selectPermissionPreset("unknown")
+        XCTAssertTrue(api.prompts.isEmpty, "unknown options must fail closed before command dispatch")
+
+        store.selectPermissionPreset("danger-full-access")
+        await fulfillment(of: [submitted], timeout: 1)
+        await eventually(timeout: 1) { !store.isSubmittingPermission }
+        XCTAssertEqual(api.prompts, [.init(sessionID: sessionID, content: [.text(text: "/permission danger-full-access")], mode: .queue)])
+        XCTAssertEqual(store.extensionState?.permissions?.currentValue, "workspace-write", "only the next Host projection may confirm selection")
+
+        store.projections.apply(sessionID: sessionID, key: "permissions", value: .object(["options": .array([]), "currentValue": .string("workspace-write")]), seq: 13)
+        XCTAssertNil(store.extensionState?.permissions, "malformed Host projection must hide the optional capability")
+    }
+
     func testModelSelectionUsesAdvertisedRouteAndHostConfirmedSelectionOnly() async {
         let modelsLoaded = expectation(description: "model directory reaches typed Host facade")
         let selectionReached = expectation(description: "model selection reaches typed Host facade")
@@ -1421,6 +1459,34 @@ final class NativeSessionStoreTests: XCTestCase {
         }
 
         func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
+        func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
+        func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+        func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+        func cancelQuestion(rpcID _: String) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+    }
+
+    @MainActor
+    private final class PermissionCommandSessionAPI: NativeSessionAPI {
+        struct Prompt: Equatable {
+            let sessionID: String
+            let content: [SessionPromptContent]
+            let mode: SessionPromptMode
+        }
+
+        let submitted: XCTestExpectation
+        private(set) var prompts: [Prompt] = []
+
+        init(submitted: XCTestExpectation) {
+            self.submitted = submitted
+        }
+
+        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse { throw DSHTransportError.invalidEndpoint }
+        func models(sessionID _: String) async throws -> SessionModelsResponse { throw DSHTransportError.invalidEndpoint }
+        func prompt(sessionID: String, content: [SessionPromptContent], mode: SessionPromptMode) async throws -> SessionPromptResponse {
+            prompts.append(.init(sessionID: sessionID, content: content, mode: mode))
+            submitted.fulfill()
+            return .init(accepted: true)
+        }
         func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
         func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
         func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }

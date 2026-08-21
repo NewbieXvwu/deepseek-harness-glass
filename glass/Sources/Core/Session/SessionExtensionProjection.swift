@@ -23,6 +23,9 @@ struct CoreSessionExtensionState: Equatable {
     /// Per-session Host model catalog; nil is an unloaded/unsupported directory,
     /// never a locally invented fallback route.
     let modelDirectory: CoreSessionModelDirectory?
+    /// Optional RC8 session permission capability. Nil means its complete
+    /// `permissions` projection is absent, tombstoned, or malformed.
+    let permissions: CoreSessionPermissionSelect?
     /// Complete transient Host snapshot. Empty means the Host explicitly has no
     /// queued/steering/context rows for the current subscription generation.
     let queuedMessages: [NativeSessionStore.QueuedMessage]
@@ -49,6 +52,7 @@ struct CoreSessionExtensionState: Equatable {
         subagentIdentity = SessionSubagentProjectionReader.identity(from: projections, sessionID: sessionID)
         subagentTiming = SessionSubagentProjectionReader.timing(from: projections, sessionID: sessionID)
         self.modelDirectory = modelDirectory
+        permissions = SessionPermissionProjectionReader.value(from: projections, sessionID: sessionID)
         self.queuedMessages = queuedMessages
         self.backgroundJobs = backgroundJobs
         self.pendingApproval = pendingApproval

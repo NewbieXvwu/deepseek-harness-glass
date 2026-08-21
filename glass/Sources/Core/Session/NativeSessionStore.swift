@@ -424,6 +424,7 @@ final class NativeSessionStore: ObservableObject {
     /// an invitation to invent a default provider/model pair.
     @Published private(set) var modelDirectory: CoreSessionModelDirectory?
     @Published private(set) var isSelectingModel = false
+    @Published private(set) var isSubmittingPermission = false
     @Published private(set) var selectedToolCallID: String?
     @Published private(set) var pendingApproval: PendingApproval?
     @Published private(set) var pendingQuestion: PendingQuestion?
@@ -497,6 +498,8 @@ final class NativeSessionStore: ObservableObject {
     private var queueUpdateTask: Task<Void, Never>?
     private var modelSelectionTask: Task<Void, Never>?
     private var modelSelectionGeneration: UInt = 0
+    private var permissionSelectionTask: Task<Void, Never>?
+    private var permissionSelectionGeneration: UInt = 0
     @Published private(set) var isSubmittingGoal = false
     @Published private(set) var goalActionFailure: GoalActionFailure?
     /// RC8 GoalBar hides a successfully cleared goal before the next whole
@@ -539,6 +542,10 @@ final class NativeSessionStore: ObservableObject {
         modelSelectionTask = nil
         modelSelectionGeneration &+= 1
         isSelectingModel = false
+        permissionSelectionTask?.cancel()
+        permissionSelectionTask = nil
+        permissionSelectionGeneration &+= 1
+        isSubmittingPermission = false
         updatingQueueItemID = nil
         queueActionFailure = nil
         queueActionCompletion = nil
@@ -866,6 +873,10 @@ final class NativeSessionStore: ObservableObject {
         modelSelectionTask = nil
         modelSelectionGeneration &+= 1
         isSelectingModel = false
+        permissionSelectionTask?.cancel()
+        permissionSelectionTask = nil
+        permissionSelectionGeneration &+= 1
+        isSubmittingPermission = false
         updatingQueueItemID = nil
         queueActionFailure = nil
         queueActionCompletion = nil
@@ -1006,6 +1017,10 @@ final class NativeSessionStore: ObservableObject {
         modelSelectionTask = nil
         modelSelectionGeneration &+= 1
         isSelectingModel = false
+        permissionSelectionTask?.cancel()
+        permissionSelectionTask = nil
+        permissionSelectionGeneration &+= 1
+        isSubmittingPermission = false
         updatingQueueItemID = nil
         queueActionFailure = nil
         queueActionCompletion = nil
@@ -1141,6 +1156,10 @@ final class NativeSessionStore: ObservableObject {
         modelSelectionTask = nil
         modelSelectionGeneration &+= 1
         isSelectingModel = false
+        permissionSelectionTask?.cancel()
+        permissionSelectionTask = nil
+        permissionSelectionGeneration &+= 1
+        isSubmittingPermission = false
         updatingQueueItemID = nil
         queueActionFailure = nil
         queueActionCompletion = nil
@@ -1207,6 +1226,10 @@ final class NativeSessionStore: ObservableObject {
         modelSelectionTask = nil
         modelSelectionGeneration &+= 1
         isSelectingModel = false
+        permissionSelectionTask?.cancel()
+        permissionSelectionTask = nil
+        permissionSelectionGeneration &+= 1
+        isSubmittingPermission = false
         updatingQueueItemID = nil
         queueActionFailure = nil
         queueActionCompletion = nil
@@ -1342,6 +1365,55 @@ final class NativeSessionStore: ObservableObject {
             }
         }
 
+    }
+
+    // MARK: - Permission selection face
+
+    /// Source: RC8 `permission-presets` command surface. The session-level
+    /// `permissions` whole projection advertises choices; `/permission` is the
+    /// sole write path. The next projection frame remains the only confirmation.
+    func selectPermissionPreset(_ preset: String) {
+        guard !isSubmittingPermission,
+              preset != "custom",
+              let api,
+              let sessionID = activeSessionID,
+              let permissions = extensionState?.permissions,
+              permissions.currentValue != preset,
+              permissions.contains(preset)
+        else { return }
+
+        permissionSelectionTask?.cancel()
+        permissionSelectionGeneration &+= 1
+        let mutationGeneration = permissionSelectionGeneration
+        let currentRecoveryGeneration = recoveryGeneration
+        isSubmittingPermission = true
+        permissionSelectionTask = Task { [weak self] in
+            defer {
+                if !Task.isCancelled,
+                   self?.activeSessionID == sessionID,
+                   self?.recoveryGeneration == currentRecoveryGeneration,
+                   self?.permissionSelectionGeneration == mutationGeneration {
+                    self?.isSubmittingPermission = false
+                }
+            }
+            do {
+                let response = try await api.prompt(
+                    sessionID: sessionID,
+                    content: [.text(text: "/permission \(preset)")],
+                    mode: .queue
+                )
+                guard response.accepted,
+                      !Task.isCancelled,
+                      self?.activeSessionID == sessionID,
+                      self?.recoveryGeneration == currentRecoveryGeneration,
+                      self?.permissionSelectionGeneration == mutationGeneration
+                else { return }
+                // Deliberately wait for the Host's durable projection push.
+            } catch {
+                // RC8 leaves the last complete permission projection visible
+                // when a command is rejected; no locally synthesized failure.
+            }
+        }
     }
 
     // MARK: - Model selection face

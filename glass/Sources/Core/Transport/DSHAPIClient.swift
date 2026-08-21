@@ -432,7 +432,7 @@ struct SessionModelCatalogFailureDTO: Codable, Sendable, Identifiable {
 }
 
 /// Source: `sessions.schema.ts:sessionPromptRequestSchema`.
-enum SessionPromptMode: String, Codable, Sendable {
+enum SessionPromptMode: String, Codable, Sendable, Equatable {
     case queue
     case steer
 }
