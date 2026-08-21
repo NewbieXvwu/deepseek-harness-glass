@@ -63,6 +63,20 @@ extension SubagentsAPI: NativeSubagentCatalogAPI, NativeSubagentContinuationAPI 
 @MainActor
 protocol NativeMessageFeedbackAPI: Sendable {
     func list(sessionID: String) async throws -> MessageFeedbackListResponse
+    func put(_ request: MessageFeedbackPutRequest) async throws -> MessageFeedbackPutResponse
+    func delete(_ request: MessageFeedbackDeleteRequest) async throws -> MessageFeedbackDeleteResponse
+}
+
+extension NativeMessageFeedbackAPI {
+    /// Read-only/absent feedback plugins must fail closed for a mutation rather
+    /// than letting a local row pretend the rating was accepted.
+    func put(_: MessageFeedbackPutRequest) async throws -> MessageFeedbackPutResponse {
+        throw DSHTransportError.invalidEndpoint
+    }
+
+    func delete(_: MessageFeedbackDeleteRequest) async throws -> MessageFeedbackDeleteResponse {
+        throw DSHTransportError.invalidEndpoint
+    }
 }
 
 extension MessageFeedbackAPI: NativeMessageFeedbackAPI {}
@@ -415,6 +429,8 @@ final class NativeSessionStore: ObservableObject {
     @Published private(set) var messageFeedbackItems: [String: MessageFeedbackItemDTO] = [:]
     @Published private(set) var isLoadingMessageFeedback = false
     @Published private(set) var failedMessageFeedbackLoad = false
+    @Published private(set) var isSubmittingMessageFeedback = false
+    @Published private(set) var messageFeedbackActionFailureCode: String?
     @Published private(set) var isLoadingSubagentCatalog = false
     @Published private(set) var loadingSubagentCatalogIDs: Set<String> = []
     /// Parent IDs whose last complete Host catalog request failed. This exposes
@@ -462,6 +478,9 @@ final class NativeSessionStore: ObservableObject {
     private var subagentContinuationAPI: (any NativeSubagentContinuationAPI)?
     private var messageFeedbackAPI: (any NativeMessageFeedbackAPI)?
     private var messageFeedbackTask: Task<Void, Never>?
+    private var messageFeedbackMutationTask: Task<Void, Never>?
+    private var messageFeedbackMutationGeneration: UInt = 0
+    private var hasLoadedMessageFeedback = false
     private var subagentCatalogTask: Task<Void, Never>?
     private var subagentCatalogTasks: [String: Task<Void, Never>] = [:]
     private var goalTask: Task<Void, Never>?
@@ -535,6 +554,9 @@ final class NativeSessionStore: ObservableObject {
         messageFeedbackItems = [:]
         isLoadingMessageFeedback = false
         failedMessageFeedbackLoad = false
+        isSubmittingMessageFeedback = false
+        messageFeedbackActionFailureCode = nil
+        hasLoadedMessageFeedback = false
         messageFeedbackAPI = api
     }
 
@@ -564,19 +586,158 @@ final class NativeSessionStore: ObservableObject {
                 else { return }
                 guard response.ok, let items = response.value?.items else {
                     self?.messageFeedbackItems = [:]
+                    self?.hasLoadedMessageFeedback = false
                     self?.failedMessageFeedbackLoad = true
                     return
                 }
                 self?.messageFeedbackItems = Dictionary(uniqueKeysWithValues: items.map { ($0.messageId, $0) })
+                self?.hasLoadedMessageFeedback = true
             } catch {
                 guard !Task.isCancelled,
                       self?.recoveryGeneration == generation,
                       self?.activeSessionID == sessionID
                 else { return }
                 self?.messageFeedbackItems = [:]
+                self?.hasLoadedMessageFeedback = false
                 self?.failedMessageFeedbackLoad = true
             }
         }
+    }
+
+    private enum MessageFeedbackAction {
+        case toggle(messageID: String, rating: MessageFeedbackRatingDTO)
+        case clear(messageID: String)
+    }
+
+    /// RC8 toggle behavior: matching committed rating retracts it; another rating
+    /// replaces it while preserving the Host-owned note. No state is optimistic.
+    func toggleMessageFeedback(messageID: String, rating: MessageFeedbackRatingDTO) {
+        enqueueMessageFeedbackMutation(.toggle(messageID: messageID, rating: rating))
+    }
+
+    func clearMessageFeedback(messageID: String) {
+        enqueueMessageFeedbackMutation(.clear(messageID: messageID))
+    }
+
+    private func enqueueMessageFeedbackMutation(_ action: MessageFeedbackAction) {
+        guard let api = messageFeedbackAPI, let sessionID = activeSessionID else { return }
+        let generation = recoveryGeneration
+        messageFeedbackMutationGeneration &+= 1
+        let mutationGeneration = messageFeedbackMutationGeneration
+        let previous = messageFeedbackMutationTask
+        isSubmittingMessageFeedback = true
+        messageFeedbackActionFailureCode = nil
+        messageFeedbackMutationTask = Task { [weak self] in
+            if let previous { await previous.value }
+            guard !Task.isCancelled,
+                  self?.recoveryGeneration == generation,
+                  self?.activeSessionID == sessionID
+            else { return }
+
+            if self?.hasLoadedMessageFeedback != true {
+                if self?.isLoadingMessageFeedback == true {
+                    if let loading = self?.messageFeedbackTask { await loading.value }
+                } else {
+                    self?.refreshMessageFeedback()
+                    if let loading = self?.messageFeedbackTask { await loading.value }
+                }
+            }
+            guard !Task.isCancelled,
+                  self?.recoveryGeneration == generation,
+                  self?.activeSessionID == sessionID,
+                  self?.hasLoadedMessageFeedback == true
+            else {
+                self?.settleMessageFeedbackMutation(generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration, failureCode: "transport")
+                return
+            }
+
+            let messageID: String
+            let observed: MessageFeedbackItemDTO?
+            switch action {
+            case let .toggle(id, _), let .clear(id):
+                messageID = id
+                observed = self?.messageFeedbackItems[id]
+            }
+            do {
+                switch action {
+                case let .toggle(_, rating):
+                    if observed?.rating == rating, let observed {
+                        let response = try await api.delete(.init(sessionId: sessionID, messageId: messageID, ifVersion: observed.version))
+                        self?.applyMessageFeedbackDelete(response, messageID: messageID, generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration)
+                    } else {
+                        let response = try await api.put(.init(
+                            sessionId: sessionID,
+                            messageId: messageID,
+                            rating: rating,
+                            note: observed?.note,
+                            ifVersion: observed?.version
+                        ))
+                        self?.applyMessageFeedbackPut(response, messageID: messageID, generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration)
+                    }
+                case .clear:
+                    guard let observed else {
+                        self?.settleMessageFeedbackMutation(generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration, failureCode: nil)
+                        return
+                    }
+                    let response = try await api.delete(.init(sessionId: sessionID, messageId: messageID, ifVersion: observed.version))
+                    self?.applyMessageFeedbackDelete(response, messageID: messageID, generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration)
+                }
+            } catch {
+                self?.settleMessageFeedbackMutation(generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration, failureCode: "transport")
+            }
+        }
+    }
+
+    private func applyMessageFeedbackPut(
+        _ response: MessageFeedbackPutResponse,
+        messageID: String,
+        generation: UInt,
+        sessionID: String,
+        mutationGeneration: UInt
+    ) {
+        guard recoveryGeneration == generation, activeSessionID == sessionID else { return }
+        if response.ok, let item = response.value {
+            messageFeedbackItems[messageID] = item
+            settleMessageFeedbackMutation(generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration, failureCode: nil)
+            return
+        }
+        if response.error?.code == "version-conflict" {
+            commitMessageFeedbackCurrent(response.error?.current, messageID: messageID)
+        }
+        settleMessageFeedbackMutation(generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration, failureCode: response.error?.code ?? "transport")
+    }
+
+    private func applyMessageFeedbackDelete(
+        _ response: MessageFeedbackDeleteResponse,
+        messageID: String,
+        generation: UInt,
+        sessionID: String,
+        mutationGeneration: UInt
+    ) {
+        guard recoveryGeneration == generation, activeSessionID == sessionID else { return }
+        if response.ok, response.value?.absent == true {
+            messageFeedbackItems[messageID] = nil
+            settleMessageFeedbackMutation(generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration, failureCode: nil)
+            return
+        }
+        if response.error?.code == "version-conflict" {
+            commitMessageFeedbackCurrent(response.error?.current, messageID: messageID)
+        }
+        settleMessageFeedbackMutation(generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration, failureCode: response.error?.code ?? "transport")
+    }
+
+    private func commitMessageFeedbackCurrent(_ current: MessageFeedbackItemDTO?, messageID: String) {
+        messageFeedbackItems[messageID] = current
+    }
+
+    private func settleMessageFeedbackMutation(generation: UInt, sessionID: String, mutationGeneration: UInt, failureCode: String?) {
+        guard recoveryGeneration == generation,
+              activeSessionID == sessionID,
+              messageFeedbackMutationGeneration == mutationGeneration
+        else { return }
+        isSubmittingMessageFeedback = false
+        messageFeedbackActionFailureCode = failureCode
+        messageFeedbackMutationTask = nil
     }
 
     func setSubagentCatalogAPIForTesting(_ api: (any NativeSubagentCatalogAPI)?) {
@@ -767,9 +928,14 @@ final class NativeSessionStore: ObservableObject {
         subagentCatalogTasks = [:]
         messageFeedbackTask?.cancel()
         messageFeedbackTask = nil
+        messageFeedbackMutationTask?.cancel()
+        messageFeedbackMutationTask = nil
         messageFeedbackItems = [:]
         isLoadingMessageFeedback = false
         failedMessageFeedbackLoad = false
+        isSubmittingMessageFeedback = false
+        messageFeedbackActionFailureCode = nil
+        hasLoadedMessageFeedback = false
         subagentCatalog = nil
         subagentCatalogs = [:]
         subagentRoute = selectedSubagentRoute
@@ -890,10 +1056,15 @@ final class NativeSessionStore: ObservableObject {
         recoveryGeneration &+= 1
         messageFeedbackTask?.cancel()
         messageFeedbackTask = nil
+        messageFeedbackMutationTask?.cancel()
+        messageFeedbackMutationTask = nil
         messageFeedbackAPI = nil
         messageFeedbackItems = [:]
         isLoadingMessageFeedback = false
         failedMessageFeedbackLoad = false
+        isSubmittingMessageFeedback = false
+        messageFeedbackActionFailureCode = nil
+        hasLoadedMessageFeedback = false
         endpoint = nil
         api = nil
         goalTask?.cancel()
@@ -945,10 +1116,15 @@ final class NativeSessionStore: ObservableObject {
         recoveryGeneration &+= 1
         messageFeedbackTask?.cancel()
         messageFeedbackTask = nil
+        messageFeedbackMutationTask?.cancel()
+        messageFeedbackMutationTask = nil
         messageFeedbackAPI = nil
         messageFeedbackItems = [:]
         isLoadingMessageFeedback = false
         failedMessageFeedbackLoad = false
+        isSubmittingMessageFeedback = false
+        messageFeedbackActionFailureCode = nil
+        hasLoadedMessageFeedback = false
         endpoint = nil
         api = nil
         goalTask?.cancel()

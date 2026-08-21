@@ -94,6 +94,52 @@ final class NativeSessionStoreTests: XCTestCase {
         await eventually(timeout: 1) { store.failedMessageFeedbackLoad && store.messageFeedbackItems.isEmpty && !store.isLoadingMessageFeedback }
     }
 
+    func testMessageFeedbackMutationUsesCommittedVersionAndReconcilesConflict() async {
+        let reached = expectation(description: "feedback seed reaches typed Host facade")
+        let initial = MessageFeedbackListResponse(
+            ok: true,
+            value: .init(items: [
+                .init(messageId: "assistant-1", rating: .positive, note: "keep", version: "v1", createdAt: 1, updatedAt: 1),
+            ]),
+            error: nil
+        )
+        let feedbackAPI = RecordingMessageFeedbackAPI(response: initial, reached: reached)
+        feedbackAPI.putResponse = .init(
+            ok: true,
+            value: .init(messageId: "assistant-1", rating: .negative, note: "keep", version: "v2", createdAt: 1, updatedAt: 2),
+            error: nil
+        )
+        let store = NativeSessionStore()
+        store.open(sessionID: "feedback-mutation", using: RejectingSessionAPI(promptReachedFacade: nil), endpoint: URL(string: "http://127.0.0.1:1")!)
+        store.setMessageFeedbackAPIForTesting(feedbackAPI)
+        store.refreshMessageFeedback()
+        await fulfillment(of: [reached], timeout: 1)
+        await eventually(timeout: 1) { store.messageFeedbackItems["assistant-1"]?.version == "v1" }
+
+        store.toggleMessageFeedback(messageID: "assistant-1", rating: .negative)
+        await eventually(timeout: 1) { feedbackAPI.putRequests.count == 1 && store.messageFeedbackItems["assistant-1"]?.version == "v2" }
+        XCTAssertEqual(feedbackAPI.putRequests.first?.ifVersion, "v1")
+        XCTAssertEqual(feedbackAPI.putRequests.first?.note, "keep")
+        XCTAssertNil(store.messageFeedbackActionFailureCode)
+
+        feedbackAPI.putResponse = .init(
+            ok: false,
+            value: nil,
+            error: .init(
+                code: "version-conflict",
+                sessionId: "feedback-mutation",
+                messageId: "assistant-1",
+                current: .init(messageId: "assistant-1", rating: .positive, note: "remote", version: "v3", createdAt: 1, updatedAt: 3),
+                maxBytes: nil,
+                actualBytes: nil
+            )
+        )
+        store.toggleMessageFeedback(messageID: "assistant-1", rating: .positive)
+        await eventually(timeout: 1) { feedbackAPI.putRequests.count == 2 && store.messageFeedbackItems["assistant-1"]?.version == "v3" }
+        XCTAssertEqual(store.messageFeedbackActionFailureCode, "version-conflict")
+        XCTAssertEqual(store.messageFeedbackItems["assistant-1"]?.note, "remote")
+    }
+
     func testSubagentCatalogPublishesOnlyHostCompleteSnapshotAndFailsClosed() async {
         let catalog = SubagentListResponse(entries: [
             .init(kind: "child", id: "child-a", activity: "running", hasChildren: true, mode: "continuable", label: "Investigate", reason: nil),
@@ -996,6 +1042,10 @@ final class NativeSessionStoreTests: XCTestCase {
         var response: MessageFeedbackListResponse
         var reached: XCTestExpectation
         private(set) var sessionIDs: [String] = []
+        private(set) var putRequests: [MessageFeedbackPutRequest] = []
+        private(set) var deleteRequests: [MessageFeedbackDeleteRequest] = []
+        var putResponse = MessageFeedbackPutResponse(ok: false, value: nil, error: .init(code: "target-not-found", sessionId: nil, messageId: nil, current: nil, maxBytes: nil, actualBytes: nil))
+        var deleteResponse = MessageFeedbackDeleteResponse(ok: true, value: .init(absent: true), error: nil)
 
         init(response: MessageFeedbackListResponse, reached: XCTestExpectation) {
             self.response = response
@@ -1006,6 +1056,16 @@ final class NativeSessionStoreTests: XCTestCase {
             sessionIDs.append(sessionID)
             reached.fulfill()
             return response
+        }
+
+        func put(_ request: MessageFeedbackPutRequest) async throws -> MessageFeedbackPutResponse {
+            putRequests.append(request)
+            return putResponse
+        }
+
+        func delete(_ request: MessageFeedbackDeleteRequest) async throws -> MessageFeedbackDeleteResponse {
+            deleteRequests.append(request)
+            return deleteResponse
         }
     }
 
