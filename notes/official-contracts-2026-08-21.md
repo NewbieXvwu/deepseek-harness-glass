@@ -24,3 +24,29 @@
 - 诊断红线应清除 bearer、普通 key/value、URL userinfo 与 JSON 字符串中的 api_key/cookie/token/secret/password。
 
 这些条目是后续实现的参考记录，不替代锁定官方源的再次核对。
+
+## Models discovery candidate adoption
+
+来源：`/home/ubuntu/deepseek-harness-official/packages/client/ui-settings-models/src/client/ModelListEditor.tsx` 与 `ProviderEditor.tsx`。
+
+- Model discovery 返回后，已存在于 provider models 草稿的 candidate ID 初始不选中；仅未配置 ID 初始选中，避免 Host discovery 的默认元数据覆盖用户调优字段。
+- 采纳只遍历最新 Host candidate 集合中被选择的 ID；伪造或已过期的 selected ID 绝不能进入 settings mutation。
+- 新行只可采用 Host 实际披露的 `id`、`name`、`contextWindow`、`maxTokens`；同 ID 的既有草稿行及未知未来字段原样保留。
+- Provider editor 把完整 models 数组写入 provider profile 的相对 `models` path，并使用当前 namespace revision；只有 Host accepted settings 回包成为新 authority。
+- picker 文案来自 `ui-settings-models.fetchModels/fetchTitle/fetchEmpty/fetchSelectAll/fetchDeselectAll/fetchAdopt/cancel`；credential 文案来自 `keyInput/keyPlaceholder/keyStored/keyEnvLocked/apply/applying/remove`。
+
+## Workspace event 与 reorder authority
+
+来源：`/home/ubuntu/deepseek-harness-official/packages/client/connection/src/client/fixture.ts` 与 `packages/client/connection/tests/fixture.client.spec.ts`。
+
+- `host/workspace-changed`、`host/workspace-removed`、`host/workspace-order-changed`、`host/archived-sessions-changed` 是 browser authority invalidation；native 不得把通知 payload 增量拼入树，必须重新获取完整 `workspace.list` 与 `session.list`。
+- `workspace.insertBefore` 的 Host value 是 `workspaceIds`，`workspace.insertSessionBefore` 的 Host value 是 `workspace`；接受 receipt 不等于本地顺序 authority，浏览器只在后续完整 Host list refresh 后改变顺序。
+
+## Permission high-risk confirmation
+
+来源：当前锁定 RC8 `conversation.input.access` / `ui-conversation.access.confirm.*` 契约。
+
+- 完整 session `permissions` projection 提供选项，`/permission <preset>` 是唯一写路径；`danger-full-access` 必须先经过 acknowledgement confirmation。
+- confirmation 的 title、description、acknowledge、cancel、enable 必须来自 `ui-conversation.access.confirm.*`；确认后仍需等待 Host 下一份 permissions projection 才更新可见状态。
+
+这些条目补充上文，不替代下一次实现前对锁定官方源的核对。
