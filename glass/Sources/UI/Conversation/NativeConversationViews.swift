@@ -122,14 +122,19 @@ private struct NativeActiveConversationSurface: View {
 
     @ViewBuilder
     private var composerDock: some View {
+        let components = NativeComposerDockPresentation.components(
+            todos: sessionStore.extensionState?.todos,
+            goal: sessionStore.extensionState?.goal,
+            queuedMessages: sessionStore.extensionState?.queuedMessages ?? [],
+            locallyClearedGoalID: sessionStore.locallyClearedGoalID,
+            hasPendingTakeover: sessionStore.pendingApproval != nil || sessionStore.pendingQuestion != nil
+        )
         if sessionStore.pendingApproval == nil, sessionStore.pendingQuestion == nil {
             VStack(spacing: OfficialUISpec.Layout.todoDockContentGap) {
-                if let todos = sessionStore.extensionState?.todos,
-                   NativeTodoDockPresentation.isVisible(todos) {
+                if components.contains(.todo), let todos = sessionStore.extensionState?.todos {
                     NativeTodoDock(todos: todos)
                 }
-                if let goal = sessionStore.extensionState?.goal,
-                   NativeGoalDockPresentation.isVisible(goal, locallyClearedGoalID: sessionStore.locallyClearedGoalID) {
+                if components.contains(.goal), let goal = sessionStore.extensionState?.goal {
                     NativeGoalDock(
                         goal: goal,
                         isSubmitting: sessionStore.isSubmittingGoal,
@@ -140,8 +145,7 @@ private struct NativeActiveConversationSurface: View {
                         clear: sessionStore.clearGoal
                     )
                 }
-                if let extensionState = sessionStore.extensionState,
-                   !NativeQueueDockPresentation.queuedRows(extensionState.queuedMessages).isEmpty {
+                if components.contains(.queue), let extensionState = sessionStore.extensionState {
                     NativeQueueDock(
                         rows: extensionState.queuedMessages,
                         isRunning: sessionStore.isRunning,

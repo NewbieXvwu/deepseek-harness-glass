@@ -388,6 +388,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 - [ ] **T8.7：实现队列、todo、goal、stats dock。** 使用 projection 或官方 API 真源展示，支持折叠、计数、状态和溢出行为。
   - 依赖：T6.3、T6.6、T8.4。
   - 验收：多个 dock 的顺序、隐藏规则、滚动与无障碍标签符合规格。
+  - 进度：新增 `NativeComposerDockPresentation`，将 Host todo/goal/queue 的固定顺序集中为 `[todo, goal, queue]`，并在 pending approval/question takeover 时隐藏整个 dock；空 todo、Host goal 的本地 clear marker、空 queue 均不生成占位。`NativeConversationViews` 已使用该纯模型决定 runtime 组合，回归锁定全量投影顺序、空/局部清除和 takeover 边界。stats dock、滚动/折叠运行态与 macOS 无障碍视觉证据仍待完成，故保持未勾选。
 
 - [x] **T8.8：为 `NativeMarkdownRenderer` 建立正则一次性编译与增量清洗。** `NativeMarkdownSecurityPolicy.sanitizedInlineMarkdown`/`attributedInlineMarkdown` 在每次 SwiftUI body 重算（含每个流式 chunk 追加）时都对整段文本重新执行 `replacingOccurrences(options:.regularExpression)` 并新建 `NSRegularExpression`——HTML 剥离与链接改写模式每次都重新编译且整文重扫。将上述模式提升为 `static let` 一次性编译的 `NSRegularExpression`；对流式文本复用已清洗前缀（仅在新增尾部执行清洗），或直接基于 `AttributedString(markdown:)` 解析结果过滤 `link` run，消除每 chunk 的整文重扫。`NativeMarkdownSecurityPolicy` 安全边界保持不变：可执行 HTML 剥离、`https`/`http` 协议白名单与 `openExternal` 校验行为与现实现逐字节等价，`file:`/`data:`/`javascript:` 与相对路径依旧不得外放。
   - 依赖：T8.2（若实现顺序落后）。
