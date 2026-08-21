@@ -2903,10 +2903,20 @@ final class NativeSessionStore: ObservableObject {
                 data: .object(["turn": .number(1)])
             )),
         ] + writeEvents + [
+            // The reducer materializes an assistant-step node only from a
+            // `step/start` anchor (same as every other fixture and the locked
+            // official event shape, where tool executions run between steps),
+            // so the closing assistant message below must open its own step.
             ConversationEventInput(event: SessionEventDTO(
-                type: "assistant/message",
+                type: "step/start",
                 seq: 323,
                 time: 323,
+                data: .object(["turn": .number(1), "step": .number(1)])
+            )),
+            ConversationEventInput(event: SessionEventDTO(
+                type: "assistant/message",
+                seq: 324,
+                time: 324,
                 data: .object([
                     "turn": .number(1),
                     "step": .number(1),
@@ -2919,8 +2929,8 @@ final class NativeSessionStore: ObservableObject {
             )),
             ConversationEventInput(event: SessionEventDTO(
                 type: "turn/end",
-                seq: 324,
-                time: 324,
+                seq: 325,
+                time: 325,
                 data: .object(["turn": .number(1)])
             )),
         ]
@@ -2929,7 +2939,19 @@ final class NativeSessionStore: ObservableObject {
         for input in conversationEvents {
             apply(event: input.event)
         }
-        toolInvocations = []
+        // Mirror the ten successful `write` tool rows the transcript above
+        // replays, so the inspector and the produced-files turn tail agree.
+        toolInvocations = producedPaths.enumerated().map { index, path in
+            ToolInvocation(
+                id: "write-\(index + 1)",
+                name: "write",
+                arguments: "{\"file_path\":\"\(path)\",\"content\":\"content of \(path)\"}",
+                output: nil,
+                state: .completed,
+                sequence: 303 + index * 2,
+                view: nil
+            )
+        }
         queuedMessages = []
         backgroundJobs = []
         modelDirectory = nil
