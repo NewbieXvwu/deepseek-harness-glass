@@ -363,7 +363,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
   - 依赖：T6.5、T8.1。
   - 验收：streaming chunk 不造成整页重排；历史与实时尾部在同一 node tree 中衔接。
 
-  - 进度：`NativeMessageChromeTests` 已覆盖同日、同年不同日期、跨年与跨日午夜边界的 Host epoch 毫秒格式化；消息 chrome 因而不会把前一日的 23:59 误标为当前日的仅时钟标签。复制状态、流式 keyed row 与 turn status 仍需随完整原生运行态/macOS 证据闭环，故保持未勾选。
+  - 进度：`NativeMessageChromeTests` 已覆盖同日、同年不同日期、跨年与跨日午夜边界的 Host epoch 毫秒格式化；消息 chrome 因而不会把前一日的 23:59 误标为当前日的仅时钟标签。10,000 个 streaming text-delta 的 reducer 基准已另锁定单一 keyed assistant row，避免高频 chunk 重复追加；复制状态、turn status 与完整原生运行态/macOS 证据仍需闭环，故保持未勾选。
 
 - [ ] **T8.3：实现现代 Markdown AST、代码高亮与安全链接策略。** 引入 Apple 官方 **`swiftlang/swift-markdown`** 作为底层 AST 解析器，完整支持 GFM 表格、任务列表、嵌套引用与代码块；引入 **`tree-sitter/swift-tree-sitter` + `Neon`** 实现全语言（Rust, Go, C++, Python, Swift, TS/JS, SQL, YAML 等）工业级增量语法高亮，废弃脆弱的手写关键词数组扫描器。保留严密的 `NativeMarkdownSecurityPolicy`，剥离可执行 HTML 标签，严格只允许安全的 `https`/`http` 外部链接，阻断 `javascript:`、`file:` 及非信任相对路径。
   - 依赖：T8.2。
