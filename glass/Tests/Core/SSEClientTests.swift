@@ -42,6 +42,23 @@ final class SSEClientTests: XCTestCase {
         XCTAssertTrue(traces.contains { $0.outcome == .opened })
     }
 
+    func testSequenceFenceDoesNotCrossDeduplicateDifferentSessions() async throws {
+        let opener = RecordedSSEOpener(scripts: [[
+            .frame(sessionEvent(rpcId: "session-a-seq-1", sequence: 1, sessionID: "fixture-session-a")),
+            .frame(sessionEvent(rpcId: "session-b-seq-1", sequence: 1, sessionID: "fixture-session-b")),
+        ]])
+        let client = SSEClient(
+            baseURL: URL(string: "http://127.0.0.1:9237/")!,
+            testStreamOpener: { endpoint in opener.open(endpoint) }
+        )
+        var frames: [RPCServerRequest] = []
+        let stream = await client.reconnectingStream(.mux, policy: .init(initialDelay: 0.01, maximumDelay: 0.02, multiplier: 2))
+        for try await frame in stream { frames.append(frame) }
+
+        XCTAssertEqual(frames.map(\.rpcId), ["session-a-seq-1", "session-b-seq-1"])
+        XCTAssertEqual(frames.map { $0.payload.objectValue?["sessionId"]?.stringValue }, ["fixture-session-a", "fixture-session-b"])
+    }
+
     func testRawReconnectFixtureDropsOutOfOrderSequenceWithoutBlockingNewerFrame() async throws {
         let fixture = try OfficialRawEventReplayFixtureCatalog.load()
         let replay = tryUnwrap(fixture.cases.first(where: { $0.id == "reconnect-duplicate-sequence" }))
@@ -143,14 +160,14 @@ final class SSEClientTests: XCTestCase {
         XCTAssertEqual(valid?.method, "session/event")
     }
 
-    private func sessionEvent(rpcId: String, sequence: Int) -> RPCServerRequest {
+    private func sessionEvent(rpcId: String, sequence: Int, sessionID: String = "fixture-session") -> RPCServerRequest {
         RPCServerRequest(
             type: "server-request",
             rpcId: rpcId,
             method: "session/event",
             payload: .object([
                 "type": .string("session/event"),
-                "sessionId": .string("fixture-session"),
+                "sessionId": .string(sessionID),
                 "event": .object([
                     "type": .string("turn/start"),
                     "seq": .number(Double(sequence)),
