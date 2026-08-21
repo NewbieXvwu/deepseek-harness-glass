@@ -199,6 +199,30 @@ final class NativeSettingsStore: ObservableObject {
         return true
     }
 
+    /// Adopts only IDs advertised by the latest Host discovery response. Existing
+    /// model rows remain byte-for-byte intact, so a user-tuned capacity always
+    /// wins over a provider candidate. The resulting whole models value travels
+    /// through the normal revision-fenced draft path and is never published until
+    /// Host returns an updated namespace.
+    @discardableResult
+    func adoptDiscoveredModels(
+        _ candidates: [LLMDiscoveredModelDTO],
+        selectedIDs: Set<String>,
+        for provider: LLMProviderDTO,
+        using api: (any NativeSettingsAPI)?
+    ) async throws -> Bool {
+        guard let namespace = namespaces.first(where: { $0.ns == provider.settingsNs }),
+              let operation = NativeDiscoveredModelSelection.operation(
+                  candidates: candidates,
+                  selectedIDs: selectedIDs,
+                  namespace: namespace,
+                  providerPath: provider.settingsPath
+              )
+        else { return false }
+        try await mutate(namespace: namespace, operation: operation, using: api)
+        return true
+    }
+
     /// Writes only the official `ui-theme.preference` enum advertised by the
     /// latest Host snapshot. Unknown/raw strings cannot reach transport.
     func selectThemePreference(_ preference: CoreThemePreference, using api: (any NativeSettingsAPI)?) async throws {

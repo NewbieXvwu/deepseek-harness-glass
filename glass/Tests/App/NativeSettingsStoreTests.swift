@@ -99,6 +99,47 @@ final class NativeSettingsStoreTests: XCTestCase {
         XCTAssertEqual(api.expectedRevisions, [Optional(12)])
     }
 
+    func testDiscoveredModelAdoptionWritesOnlyHostCandidatesWithCurrentRevision() async throws {
+        let existing = JSONValue.object([
+            "id": .string("configured"), "contextWindow": .number(777), "futureProfile": .string("preserve"),
+        ])
+        let initial = modelProviderNamespace(models: [existing], revision: 31)
+        let adopted = JSONValue.object([
+            "id": .string("fresh"), "name": .string("Fresh"),
+            "contextWindow": .number(128_000), "maxTokens": .number(8_192),
+        ])
+        let accepted = modelProviderNamespace(models: [existing, adopted], revision: 32)
+        let api = ModelDiscoveryMutationAPI(initial: initial, accepted: accepted)
+        let store = NativeSettingsStore()
+        let provider = LLMProviderDTO(
+            provider: "provider", displayName: "Provider", settingsNs: "provider-settings",
+            settingsPath: [], active: true, declared: true
+        )
+        let candidates = [
+            LLMDiscoveredModelDTO(id: "configured", name: "Provider default", contextWindow: 4_096, maxTokens: 1_024),
+            LLMDiscoveredModelDTO(id: "fresh", name: "Fresh", contextWindow: 128_000, maxTokens: 8_192),
+        ]
+
+        store.load(using: api)
+        await eventually { store.namespaces.first?.revision == 31 }
+        let initiallySelected = NativeDiscoveredModelSelection.initiallySelectedIDs(
+            candidates: candidates,
+            existingModels: NativeDiscoveredModelSelection.models(in: initial, providerPath: [])
+        )
+        XCTAssertEqual(initiallySelected, ["fresh"])
+        XCTAssertTrue(try await store.adoptDiscoveredModels(
+            candidates,
+            selectedIDs: initiallySelected.union(["untrusted-id"]),
+            for: provider,
+            using: api
+        ))
+
+        XCTAssertEqual(api.expectedRevisions, [Optional(31)])
+        XCTAssertEqual(api.mutations, [[.set(path: ["models"], value: .array([existing, adopted]))]])
+        XCTAssertEqual(store.namespaces.first, accepted)
+        XCTAssertFalse(store.isDirty(namespace: "provider-settings"))
+    }
+
     func testSecretSettingOperationCannotEnterDraftState() {
         let namespace = SettingsNamespaceDTO(
             ns: "provider",
@@ -271,6 +312,19 @@ final class NativeSettingsStoreTests: XCTestCase {
         )
     }
 
+    private func modelProviderNamespace(models: [JSONValue], revision: Int) -> SettingsNamespaceDTO {
+        .init(
+            ns: "provider-settings",
+            schema: .object([:]),
+            value: .object(["models": .array(models)]),
+            base: nil,
+            user: nil,
+            applies: "live",
+            secrets: [],
+            revision: revision
+        )
+    }
+
     private func themeNamespace(value: String, revision: Int) -> SettingsNamespaceDTO {
         .init(
             ns: "ui-theme",
@@ -434,6 +488,34 @@ final class NativeSettingsStoreTests: XCTestCase {
             expectedRevision: Int?
         ) async throws -> SettingsNamespaceDTO {
             XCTAssertEqual(namespace, "agent-presets")
+            mutations.append(operations)
+            expectedRevisions.append(expectedRevision)
+            return accepted
+        }
+    }
+
+    @MainActor
+    private final class ModelDiscoveryMutationAPI: NativeSettingsAPI {
+        private let initial: SettingsNamespaceDTO
+        private let accepted: SettingsNamespaceDTO
+        private(set) var mutations: [[SettingsPathOperationDTO]] = []
+        private(set) var expectedRevisions: [Int?] = []
+
+        init(initial: SettingsNamespaceDTO, accepted: SettingsNamespaceDTO) {
+            self.initial = initial
+            self.accepted = accepted
+        }
+
+        func describe() async throws -> SettingsDescribeResponse {
+            .init(writable: true, hasDocument: true, namespaces: [initial])
+        }
+
+        func mutate(
+            namespace: String,
+            operations: [SettingsPathOperationDTO],
+            expectedRevision: Int?
+        ) async throws -> SettingsNamespaceDTO {
+            XCTAssertEqual(namespace, "provider-settings")
             mutations.append(operations)
             expectedRevisions.append(expectedRevision)
             return accepted
