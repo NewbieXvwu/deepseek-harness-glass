@@ -27,6 +27,14 @@ final class NativeMessageChromeTests: XCTestCase {
         )
         XCTAssertEqual(
             NativeMessageClockFormatter.label(
+                timeMilliseconds: milliseconds(year: 2026, month: 8, day: 19, hour: 23, minute: 59, calendar: calendar),
+                now: now,
+                calendar: calendar
+            ),
+            "8/19 23:59"
+        )
+        XCTAssertEqual(
+            NativeMessageClockFormatter.label(
                 timeMilliseconds: milliseconds(year: 2025, month: 12, day: 31, hour: 23, minute: 59, calendar: calendar),
                 now: now,
                 calendar: calendar
