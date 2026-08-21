@@ -24,6 +24,9 @@ enum NativeMarkdownSecurityPolicy {
               let scheme = components.scheme?.lowercased(),
               (scheme == "https" || scheme == "http"),
               components.host?.isEmpty == false,
+              components.user == nil,
+              components.password == nil,
+              components.port != 0,
               let url = components.url
         else { return nil }
         return url

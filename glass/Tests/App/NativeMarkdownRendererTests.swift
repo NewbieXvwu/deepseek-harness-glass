@@ -14,7 +14,7 @@ final class NativeMarkdownRendererTests: XCTestCase {
         XCTAssertEqual(NativeMarkdownSecurityPolicy.externalURL(from: "https://example.com/docs")?.absoluteString, "https://example.com/docs")
         XCTAssertEqual(NativeMarkdownSecurityPolicy.externalURL(from: "HTTP://example.com/path")?.scheme?.lowercased(), "http")
 
-        for unsafe in ["file:///Users/private/secret.txt", "javascript:alert(1)", "data:text/html,boom", "../relative", "/absolute-but-not-url", "mailto:test@example.com"] {
+        for unsafe in ["file:///Users/private/secret.txt", "javascript:alert(1)", "data:text/html,boom", "../relative", "/absolute-but-not-url", "mailto:test@example.com", "https://user:pass@example.com/private", "http://example.com:0/invalid"] {
             XCTAssertNil(NativeMarkdownSecurityPolicy.externalURL(from: unsafe), "unsafe destination unexpectedly allowed: \(unsafe)")
         }
     }
@@ -24,20 +24,22 @@ final class NativeMarkdownRendererTests: XCTestCase {
         XCTAssertTrue(NativeMarkdownSecurityPolicy.openExternal(URL(string: "https://example.com/safe")!) { opened.append($0) })
         XCTAssertEqual(opened.map(\.absoluteString), ["https://example.com/safe"])
 
-        for unsafe in ["file:///tmp/private", "data:text/html,boom", "javascript:alert(1)"] {
+        for unsafe in ["file:///tmp/private", "data:text/html,boom", "javascript:alert(1)", "https://user:pass@example.com/private", "http://example.com:0/invalid"] {
             XCTAssertFalse(NativeMarkdownSecurityPolicy.openExternal(URL(string: unsafe)!) { opened.append($0) })
         }
         XCTAssertEqual(opened.map(\.absoluteString), ["https://example.com/safe"])
     }
 
     func testSanitizerRemovesExecutableHTMLAndMakesUnsafeLinksInert() {
-        let input = "<script>alert('x')</script><img src=x onerror=alert(1)> [local](file:///tmp/secret) [safe](https://example.com)"
+        let input = "<script>alert('x')</script><img src=x onerror=alert(1)> [local](file:///tmp/secret) [credentialed](https://user:pass@example.com/private) [safe](https://example.com)"
         let sanitized = NativeMarkdownSecurityPolicy.sanitizedInlineMarkdown(input)
 
         XCTAssertFalse(sanitized.localizedCaseInsensitiveContains("<script"))
         XCTAssertFalse(sanitized.localizedCaseInsensitiveContains("onerror"))
         XCTAssertFalse(sanitized.contains("[local](file:"))
+        XCTAssertFalse(sanitized.contains("[credentialed](https:"))
         XCTAssertTrue(sanitized.contains("local (file:///tmp/secret)"))
+        XCTAssertTrue(sanitized.contains("credentialed (https://user:pass@example.com/private)"))
         XCTAssertTrue(sanitized.contains("[safe](https://example.com)"))
 
         let comment = "before <!-- [smuggled](file:///tmp/secret) --> after"
