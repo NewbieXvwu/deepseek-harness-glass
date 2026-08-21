@@ -76,6 +76,8 @@ final class RawEventReplayReducerTests: XCTestCase {
         XCTAssertEqual(chat.filter { $0.kind == "user" }.count, 1_000)
         XCTAssertEqual(chat.filter { $0.kind == "assistant-step" }.count, 1_000)
         XCTAssertEqual(Set(chat.map(\.key)).count, chat.count)
+        XCTAssertEqual(chat.first?.key, conversationContextKey(kind: "input-message", id: "fixture-long-user-1"))
+        XCTAssertEqual(chat.last?.key, conversationContextKey(kind: "assistant-step", id: "1000:1"))
         XCTAssertEqual((chat.first?.data as? CoreUserNode)?.blocks.first?.text, "fixture long request-1")
         XCTAssertEqual((chat.last?.data as? CoreAssistantNode)?.blocks.first?.text, "fixture long answer-1000")
     }
