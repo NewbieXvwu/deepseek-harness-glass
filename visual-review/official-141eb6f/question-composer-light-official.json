@@ -1,0 +1,33 @@
+{
+  "officialSourceCommit": "141eb6fef83422698aef7a981029e843e8161534",
+  "viewport": {
+    "width": 1280,
+    "height": 1100
+  },
+  "locale": "en-US",
+  "colorScheme": "light",
+  "geometry": {
+    "root": {
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 1100
+    },
+    "text": "DSH Local Build141eb6fNew SessionWorkspacesworkspaceWaiting for answerUse the ask_user_question tool tonowSettingsUse the ask_user_question tool toStandard modeSession logChatTrajectoryUse the ask_user_question tool to ask me exactly one multi-select question with id \"color\", question \"Which color do you prefer?\", header \"Pick one\", and two options: label \"Blue\" with description \"A cool recessive hue that reads as calm and trustworthy in long reading sessions and dense dashboards.\", and label \"Green\" with description \"A restful mid-spectrum hue with the highest perceived brightness, easiest on the eye over long sessions.\" Set multi_select to true. After I answer, reply with the single word DONE and stop.05:10Context injection@deepseek-ai/dsh-system-promptThinkThe user wants me to use the ask_user_question tool with specific parameters. Let me do exactly that.RunningAsk questionwaitingDeep diving... Workspace WriteDeepSeek-V4-FlashCache hit 97%| Input 4.2K tok · Output 158 tokPick oneWhich color do you prefer?BlueA cool recessive hue that reads as calm and trustworthy in long reading sessions and dense dashboards.GreenA restful mid-spectrum hue with the highest perceived brightness, easiest on the eye over long sessions.1 / 1Skip this questionSubmitDetailsClick a tool row in the message flow to view its details",
+    "viewport": {
+      "width": 1280,
+      "height": 1100,
+      "devicePixelRatio": 1
+    },
+    "title": "Use the ask_user_question tool to — DSH Local Build",
+    "activeElement": {
+      "tagName": "BODY",
+      "role": null,
+      "ariaLabel": null,
+      "text": "(() => { const preference = \"system\" const systemDark = preference === 'system' && typeof matchMedia !== 'undefined' && matchMedia('(prefers-color-scheme: dark)').matches const dark = preference === 'dark' || systemDark document.documentElement.style.colorScheme = dark ? 'dark' : 'light' document.body.toggleAttribute('data-ds-dark-theme', dark) })() DSH Local Build141eb6fNew SessionWorkspacesworkspaceWaiting for answerUse the ask_user_question tool tonowSettingsUse the ask_user_question tool toStandard modeSession logChatTrajectoryUse the ask_user_question tool to ask me exactly one multi-select question with id \"color\", question \"Which color do you prefer?\", header \"Pick one\", and two options: label \"Blue\" with description \"A cool recessive hue that reads as calm and trustworthy in long reading sessions and dense dashboards.\", and label \"Green\" with description \"A restful mid-spectrum hue with the highest perceived brightness, easiest on the eye over long sessions.\" Set multi_select to true. After I answer, reply with the single word DONE and stop.05:10Context injection@deepseek-ai/dsh-system-promptThinkThe user wants me to use the ask_user_question tool with specific parameters. Let me do exactly that.RunningAsk questionwaitingDeep diving... Workspace WriteDeepSeek-V4-FlashCache hit 97%| Input 4.2K tok · Output 158 tokPick oneWhich color do you prefer?BlueA cool recessive hue that reads as calm and trustworthy in long reading sessions and dense dashboards.GreenA restful mid-spectrum hue with the highest perceived brightness, easiest on the eye over long sessions.1 / 1Skip this questionSubmitDetailsClick a tool row in the message flow to view its details"
+    }
+  },
+  "ariaSnapshot": "- button \"New session\"\n- button \"Collapse sidebar\":\n  - img\n- button \"New session\":\n  - img\n  - text: New Session\n- text: Workspaces\n- button \"Search sessions\":\n  - img\n- textbox \"Search sessions...\"\n- button \"View options\":\n  - img\n- button \"Add workspace\":\n  - img\n- tree \"Sessions\":\n  - treeitem \"workspace\" [expanded]:\n    - img\n    - text: workspace\n  - treeitem \"Waiting for answer Use the ask_user_question tool to now\" [selected]\n- button \"Settings\":\n  - img\n  - text: Settings\n- banner:\n  - navigation \"Session hierarchy\":\n    - button \"Use the ask_user_question tool to\" [disabled]\n  - img\n  - text: Standard mode\n  - button \"Session log\":\n    - text: Session log\n    - img\n  - tablist:\n    - tab \"Chat\" [selected]\n    - tab \"Trajectory\"\n- text: \"Use the ask_user_question tool to ask me exactly one multi-select question with id \\\"color\\\", question \\\"Which color do you prefer?\\\", header \\\"Pick one\\\", and two options: label \\\"Blue\\\" with description \\\"A cool recessive hue that reads as calm and trustworthy in long reading sessions and dense dashboards.\\\", and label \\\"Green\\\" with description \\\"A restful mid-spectrum hue with the highest perceived brightness, easiest on the eye over long sessions.\\\" Set multi_select to true. After I answer, reply with the single word DONE and stop. 05:10\"\n- button \"Copy\":\n  - img\n- button \"Context injection @deepseek-ai/dsh-system-prompt\":\n  - img\n  - img\n  - text: Context injection @deepseek-ai/dsh-system-prompt\n- button \"Think The user wants me to use the ask_user_question tool with specific parameters. Let me do exactly that.\":\n  - img\n  - img\n  - text: Think The user wants me to use the ask_user_question tool with specific parameters. Let me do exactly that.\n- text: Running\n- button \"Ask question waiting\":\n  - img\n  - img\n  - text: Ask question waiting\n- status: Deep diving...\n- region \"Which color do you prefer?\":\n  - text: Pick one\n  - heading \"Which color do you prefer?\" [level=2]\n  - button \"Collapse the question card\" [expanded]:\n    - img\n  - button \"Dismiss all questions\":\n    - img\n  - group:\n    - checkbox \"Blue\": Blue A cool recessive hue that reads as calm and trustworthy in long reading sessions and dense dashboards.\n    - checkbox \"Green\": Green A restful mid-spectrum hue with the highest perceived brightness, easiest on the eye over long sessions.\n    - textbox \"Type your answer\"\n  - button \"Previous question\" [disabled]:\n    - img\n  - text: 1 / 1\n  - button \"Next question\" [disabled]:\n    - img\n  - status\n  - button \"Skip this question\"\n  - button \"Submit\" [disabled]\n- text: Details\n- button \"Close details\"\n- text: Click a tool row in the message flow to view its details",
+  "consoleWarnings": [],
+  "pageErrors": []
+}

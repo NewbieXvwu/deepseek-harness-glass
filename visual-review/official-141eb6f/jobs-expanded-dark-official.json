@@ -1,0 +1,33 @@
+{
+  "officialSourceCommit": "141eb6fef83422698aef7a981029e843e8161534",
+  "viewport": {
+    "width": 1280,
+    "height": 840
+  },
+  "locale": "en-US",
+  "colorScheme": "dark",
+  "geometry": {
+    "root": {
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 840
+    },
+    "text": "DSH Local Build141eb6fNew SessionWorkspacesworkspaceReply with the single wordnowSettingsReply with the single wordStandard mode1 background job runningbashsleep 60running0sbashpnpm run buildcompleted0sSession logChatTrajectoryReply with the single word LIGHTHOUSE and stop.05:10Context injection@deepseek-ai/dsh-system-promptThinkThe user wants me to reply with a single word. Let me comply.LIGHTHOUSE05:10 · Ran for 2s · TTFT 0.2s · 8.7 tok/sContext injectiontool-jobsbash pnpm run build [status: completed]This turn failedllm-replay: script exhausted — session requested model call #2 but its script has only 1; re-record the scenarioUNKNOWN Workspace WriteDeepSeek-V4-Flash2 turns · 2 steps| LLM 2.6s| TTFT avg 0.2s · 8.7 tok/s| Cache hit 99%| Input 7.8K tok · Output 21 tokDetailsClick a tool row in the message flow to view its details",
+    "viewport": {
+      "width": 1280,
+      "height": 840,
+      "devicePixelRatio": 1
+    },
+    "title": "Reply with the single word — DSH Local Build",
+    "activeElement": {
+      "tagName": "BUTTON",
+      "role": null,
+      "ariaLabel": "1 background job running",
+      "text": "1 background job running"
+    }
+  },
+  "ariaSnapshot": "- button \"New session\"\n- button \"Collapse sidebar\":\n  - img\n- button \"New session\":\n  - img\n  - text: New Session\n- text: Workspaces\n- button \"Search sessions\":\n  - img\n- textbox \"Search sessions...\"\n- button \"View options\":\n  - img\n- button \"Add workspace\":\n  - img\n- tree \"Sessions\":\n  - treeitem \"workspace\" [expanded]:\n    - img\n    - text: workspace\n  - treeitem \"Reply with the single word now\" [selected]\n- button \"Settings\":\n  - img\n  - text: Settings\n- banner:\n  - navigation \"Session hierarchy\":\n    - button \"Reply with the single word\" [disabled]\n  - img\n  - text: Standard mode\n  - button \"1 background job running\" [expanded]:\n    - text: 1 background job running\n    - img\n  - list \"Background jobs\":\n    - listitem: bash sleep 60 running 0s\n    - listitem: bash pnpm run build completed 0s\n  - button \"Session log\":\n    - text: Session log\n    - img\n  - tablist:\n    - tab \"Chat\" [selected]\n    - tab \"Trajectory\"\n- text: Reply with the single word LIGHTHOUSE and stop. 05:10\n- button \"Copy\":\n  - img\n- button \"Context injection @deepseek-ai/dsh-system-prompt\":\n  - img\n  - img\n  - text: Context injection @deepseek-ai/dsh-system-prompt\n- button \"Think The user wants me to reply with a single word. Let me comply.\":\n  - img\n  - img\n  - text: Think The user wants me to reply with a single word. Let me comply.\n- paragraph: LIGHTHOUSE\n- button \"Copy\":\n  - img\n- button \"Good response\":\n  - img\n- button \"Bad response\":\n  - img\n- button \"Branch into a new conversation\":\n  - img\n- text: 05:10 Ran for 2s TTFT 0.2s 8.7 tok/s\n- 'button \"Context injection tool-jobs bash pnpm run build [status: completed]\"':\n  - img\n  - img\n  - text: \"Context injection tool-jobs bash pnpm run build [status: completed]\"\n- status:\n  - text: \"This turn failedllm-replay: script exhausted — session requested model call #2 but its script has only 1; re-record the scenario\"\n  - code: UNKNOWN\n- textbox \"Message the agent\"\n- button \"Commands\":\n  - img\n- 'button \"Access mode, current: Workspace Write\"': Workspace Write\n- button \"Select model, current DeepSeek-V4-Flash\":\n  - text: DeepSeek-V4-Flash\n  - img\n- button \"6% of context used\"\n- button \"Send message\" [disabled]\n- text: 2 turns · 2 steps LLM 2.6s TTFT avg 0.2s · 8.7 tok/s Cache hit 99% Input 7.8K tok · Output 21 tok Details\n- button \"Close details\"\n- text: Click a tool row in the message flow to view its details",
+  "consoleWarnings": [],
+  "pageErrors": []
+}
