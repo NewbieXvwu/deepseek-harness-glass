@@ -51,6 +51,34 @@ final class NativeSettingsStoreTests: XCTestCase {
         XCTAssertFalse(store.isDirty(namespace: "ui-theme"))
     }
 
+    func testPluginCardSaveUsesOneCurrentRevisionFencedHostMutation() async throws {
+        let initial = shellNamespace(timeout: 60_000, outputCap: 64_000, revision: 12)
+        let accepted = shellNamespace(timeout: 9_000, outputCap: 1_024, revision: 13)
+        let api = PluginMutationAPI(initial: initial, accepted: accepted)
+        let store = NativeSettingsStore()
+        let timeout = NativePluginCardField("timeoutMs", kind: .number)
+        let outputCap = NativePluginCardField("maxOutputBytes", kind: .number)
+        var draft = NativePluginCardDraft(namespace: initial, fields: [timeout, outputCap])
+        draft.stage("9000", for: timeout)
+        draft.stage("1024", for: outputCap)
+
+        store.load(using: api)
+        await eventually { store.namespaces.first?.revision == 12 }
+        XCTAssertTrue(try await store.savePluginCardDraft(draft, using: api))
+
+        XCTAssertEqual(api.expectedRevisions, [Optional(12)])
+        XCTAssertEqual(api.mutations, [[
+            .set(path: ["maxOutputBytes"], value: .number(1024)),
+            .set(path: ["timeoutMs"], value: .number(9000)),
+        ]])
+        XCTAssertEqual(store.namespaces.first, accepted)
+
+        var invalid = NativePluginCardDraft(namespace: accepted, fields: [timeout])
+        invalid.stage("soon", for: timeout)
+        XCTAssertFalse(try await store.savePluginCardDraft(invalid, using: api))
+        XCTAssertEqual(api.expectedRevisions, [Optional(12)])
+    }
+
     func testSecretSettingOperationCannotEnterDraftState() {
         let namespace = SettingsNamespaceDTO(
             ns: "provider",
@@ -209,6 +237,19 @@ final class NativeSettingsStoreTests: XCTestCase {
         XCTFail("condition was not met before timeout")
     }
 
+    private func shellNamespace(timeout: Double, outputCap: Double, revision: Int) -> SettingsNamespaceDTO {
+        .init(
+            ns: "shell",
+            schema: .object([:]),
+            value: .object(["timeoutMs": .number(timeout), "maxOutputBytes": .number(outputCap)]),
+            base: .object(["timeoutMs": .number(60_000), "maxOutputBytes": .number(64_000)]),
+            user: nil,
+            applies: "live",
+            secrets: [],
+            revision: revision
+        )
+    }
+
     private func themeNamespace(value: String, revision: Int) -> SettingsNamespaceDTO {
         .init(
             ns: "ui-theme",
@@ -305,6 +346,34 @@ final class NativeSettingsStoreTests: XCTestCase {
             expectedRevisions.append(expectedRevision)
             mutationCount += 1
             if mutationCount == 1 { throw URLError(.cannotWriteToFile) }
+            return accepted
+        }
+    }
+
+    @MainActor
+    private final class PluginMutationAPI: NativeSettingsAPI {
+        private let initial: SettingsNamespaceDTO
+        private let accepted: SettingsNamespaceDTO
+        private(set) var mutations: [[SettingsPathOperationDTO]] = []
+        private(set) var expectedRevisions: [Int?] = []
+
+        init(initial: SettingsNamespaceDTO, accepted: SettingsNamespaceDTO) {
+            self.initial = initial
+            self.accepted = accepted
+        }
+
+        func describe() async throws -> SettingsDescribeResponse {
+            .init(writable: true, hasDocument: true, namespaces: [initial])
+        }
+
+        func mutate(
+            namespace: String,
+            operations: [SettingsPathOperationDTO],
+            expectedRevision: Int?
+        ) async throws -> SettingsNamespaceDTO {
+            XCTAssertEqual(namespace, "shell")
+            mutations.append(operations)
+            expectedRevisions.append(expectedRevision)
             return accepted
         }
     }

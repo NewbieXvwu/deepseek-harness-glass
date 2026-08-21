@@ -151,6 +151,34 @@ final class NativeSettingsStore: ObservableObject {
         try await saveDraft(namespace: namespace.ns, using: api)
     }
 
+    /// Commits a reviewed card's complete non-secret plan as one revision-fenced
+    /// Host mutation. An invalid draft returns false; a rejected mutation leaves
+    /// the card itself untouched for correction and does not invent authority.
+    @discardableResult
+    func savePluginCardDraft(_ draft: NativePluginCardDraft, using api: (any NativeSettingsAPI)?) async throws -> Bool {
+        guard let api,
+              let operations = draft.mutationPlan,
+              !operations.isEmpty,
+              let current = namespaces.first(where: { $0.ns == draft.namespace.ns })
+        else { return false }
+        let updated = try await api.mutate(
+            namespace: current.ns,
+            operations: operations,
+            expectedRevision: current.revision
+        )
+        guard let index = namespaces.firstIndex(where: { $0.ns == updated.ns }) else { return false }
+        namespaces[index] = updated
+        permissionPreset = PermissionPresetProjection.state(
+            namespaces: namespaces,
+            writable: writable
+        )
+        themePreference = ThemePreferenceProjection.state(
+            namespaces: namespaces,
+            writable: writable
+        )
+        return true
+    }
+
     /// Writes only the official `ui-theme.preference` enum advertised by the
     /// latest Host snapshot. Unknown/raw strings cannot reach transport.
     func selectThemePreference(_ preference: CoreThemePreference, using api: (any NativeSettingsAPI)?) async throws {
