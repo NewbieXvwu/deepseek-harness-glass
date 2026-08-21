@@ -97,6 +97,24 @@ final class ConversationCoreNodesTests: XCTestCase {
         XCTAssertEqual(compaction.seq, 19, "checkpoint stays at its landed replacement event, not at summary")
     }
 
+    func testScheduledRetryBecomesCancelledWhenHostClosesItsStep() {
+        let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
+        let entries = [
+            event(seq: 30, type: "turn/start", data: ["turn": .number(4)]),
+            event(seq: 31, type: "step/start", data: ["turn": .number(4), "step": .number(2)]),
+            event(seq: 32, type: "llm/retry", data: [
+                "retryId": .string("retry-cancelled"), "retry": .number(1), "turn": .number(4), "step": .number(2),
+                "maxRetries": .number(3), "delayMs": .number(1_000), "failure": .object(["message": .string("busy")]),
+            ]),
+            event(seq: 33, type: "step/end", data: ["turn": .number(4), "step": .number(2)]),
+        ]
+
+        XCTAssertEqual(reducer.replaceWindow(entries.map { .init(event: $0) }, hasMore: false), .immediate)
+        let retry = tryUnwrap(reducer.snapshot(target: "chat").first(where: { $0.kind == "model-retry" })?.data as? CoreRetryNode)
+        XCTAssertEqual(retry.attempts.map(\.state), [.cancelled])
+        XCTAssertEqual(retry.attempts.first?.delayMilliseconds, 1_000)
+    }
+
     func testTurnMaxTokensNoticeUsesClosingTurnCoordinatesAndRejectsOtherEndReasons() {
         let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
         let entries = [
