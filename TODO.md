@@ -534,6 +534,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 
 - [ ] **GP-7：runtime Attach/Adopt/Install 阶梯。** Attach（loopback 发现活跃 host）> Adopt（系统静态安装且版本=锁定 build）> Install（引导下载到 app 容器）；仅锁定 build 给 verified，否则 read-only 降级。
   - 验收：Attach 模式零 Node 依赖可用；非锁定 build 不出现绿色 verified 状态。
+  - 进度：已在 `GlassCore/Host/HostRuntimeLadder.swift` 建立无副作用的 fixed-order plan selector：Attach 永远优先于 Adopt，Adopt 优先于 Install；每个 candidate 只有 exact locked build ID 才可返回 `.verified`，unknown/unlocked build 一律带 typed `.readOnly(reason:)`，无法出现绿色 verified 状态。`HostRuntimeLadderTests` 与 `host-runtime-ladder-portable-check.swift` 覆盖 attach priority、locked adopt、install fallback 和 unverified attach；后者已在 Linux Swift 6.2.4 通过并接入 `portable-checks`。现有 `HarnessHostController.probeExternal` 仍是 diagnostics-only external attach；真实 loopback discovery、static installation scan、下载/安装、Host controller 计划执行及 Attach 零 Node 权威验证均未完成，故保持未勾选。
 
 ## 12. 测试、视觉回归、性能与安全（第一性原理质量体系）
 
