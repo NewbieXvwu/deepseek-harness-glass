@@ -532,6 +532,10 @@ final class NativeSessionStore: ObservableObject {
     private var modelSelectionGeneration: UInt = 0
     private var permissionSelectionTask: Task<Void, Never>?
     private var permissionSelectionGeneration: UInt = 0
+    /// Every takeover write is owned by the current pending interaction and is
+    /// cancelled when its request, session, or mux generation is replaced.
+    private var approvalSubmissionTask: Task<Void, Never>?
+    private var questionSubmissionTask: Task<Void, Never>?
     /// Approval/question requests are scoped to a mux generation. A replayed
     /// request may reuse the same RPC id after Host restart, while an already
     /// admitted old response must still reach the Host without clearing the new
@@ -985,6 +989,8 @@ final class NativeSessionStore: ObservableObject {
         cancelTask?.cancel()
         streamTask?.cancel()
         recoveryTask?.cancel()
+        approvalSubmissionTask?.cancel()
+        questionSubmissionTask?.cancel()
         subagentCatalogTask?.cancel()
     }
 
@@ -1117,7 +1123,7 @@ final class NativeSessionStore: ObservableObject {
         queueActionFailure = nil
         queueActionCompletion = nil
         recoveryGeneration &+= 1
-        interactionGeneration &+= 1
+        invalidateInteractions()
         subscribedLastSequence = nil
         let authorityGeneration = recoveryGeneration
         // RC8 buffers live frames during the first authority read as well as
@@ -1250,7 +1256,7 @@ final class NativeSessionStore: ObservableObject {
         recoveryTask?.cancel()
         recoveryTask = nil
         recoveryGeneration &+= 1
-        interactionGeneration &+= 1
+        invalidateInteractions()
         recoveryLiveBuffer = []
         recoveryBufferGeneration = nil
         subscribedLastSequence = nil
@@ -1330,7 +1336,7 @@ final class NativeSessionStore: ObservableObject {
         recoveryTask?.cancel()
         recoveryTask = nil
         recoveryGeneration &+= 1
-        interactionGeneration &+= 1
+        invalidateInteractions()
         recoveryLiveBuffer = []
         recoveryBufferGeneration = nil
         subscribedLastSequence = nil
@@ -1831,7 +1837,7 @@ final class NativeSessionStore: ObservableObject {
         recoveryLiveBuffer = []
         recoveryBufferGeneration = nil
         subscribedLastSequence = nil
-        interactionGeneration &+= 1
+        invalidateInteractions()
         pendingApproval = nil
         pendingQuestion = nil
         isSubmittingApproval = false
@@ -1972,7 +1978,7 @@ final class NativeSessionStore: ObservableObject {
         // approval/question ServerRequests are generation-bound, exactly like
         // queue/jobs. A restarted Host can no longer resolve an old rpcId; keep
         // no stale takeover visible until the fresh mux baseline re-emits it.
-        interactionGeneration &+= 1
+        invalidateInteractions()
         pendingApproval = nil
         pendingQuestion = nil
         isSubmittingApproval = false
@@ -2169,6 +2175,7 @@ final class NativeSessionStore: ObservableObject {
               let toolName = object["toolName"]?.stringValue
         else { return }
         guard pendingApproval?.rpcID != rpcID else { return }
+        invalidateInteractions()
         pendingApproval = PendingApproval(
             rpcID: rpcID,
             sessionID: sessionID,
@@ -2185,7 +2192,7 @@ final class NativeSessionStore: ObservableObject {
               pendingApproval?.approvalID == approvalID
         else { return }
         pendingApproval = nil
-        isSubmittingApproval = false
+        invalidateApprovalSubmission()
     }
 
     private func applyQuestionRequest(_ object: [String: JSONValue], rpcID: String, sessionID: String) {
@@ -2193,6 +2200,7 @@ final class NativeSessionStore: ObservableObject {
         let items = values.compactMap(questionItem)
         guard !items.isEmpty, items.count == values.count else { return }
         guard pendingQuestion?.rpcID != rpcID else { return }
+        invalidateInteractions()
         pendingQuestion = PendingQuestion(rpcID: rpcID, sessionID: sessionID, items: items)
         isSubmittingQuestion = false
     }
@@ -2202,7 +2210,7 @@ final class NativeSessionStore: ObservableObject {
               pendingQuestion?.rpcID == rpcID
         else { return }
         pendingQuestion = nil
-        isSubmittingQuestion = false
+        invalidateQuestionSubmission()
     }
 
     private func questionItem(_ value: JSONValue) -> PendingQuestion.Item? {
@@ -2246,6 +2254,27 @@ final class NativeSessionStore: ObservableObject {
         )
     }
 
+    private func invalidateApprovalSubmission() {
+        approvalSubmissionTask?.cancel()
+        approvalSubmissionTask = nil
+        isSubmittingApproval = false
+    }
+
+    private func invalidateQuestionSubmission() {
+        questionSubmissionTask?.cancel()
+        questionSubmissionTask = nil
+        isSubmittingQuestion = false
+    }
+
+    /// Invalidates both takeover write paths when their shared session/mux
+    /// authority changes. A new request gets a distinct generation even if the
+    /// Host has reused an RPC id after reconnect.
+    private func invalidateInteractions() {
+        interactionGeneration &+= 1
+        invalidateApprovalSubmission()
+        invalidateQuestionSubmission()
+    }
+
     /// Source: `PendingApproval.answer`; a panel remains mounted until the Host
     /// broadcasts `approval/resolved`, even after an accepted carrier receipt.
     func answerApproval(allowOnce: Bool) {
@@ -2256,7 +2285,7 @@ final class NativeSessionStore: ObservableObject {
         isSubmittingApproval = true
         let outcome: ApprovalOutcome = allowOnce ? .allowedOnce : .rejected
         let generation = interactionGeneration
-        Task { [weak self] in
+        approvalSubmissionTask = Task { [weak self] in
             do {
                 let receipt = try await api.answerApproval(
                     rpcID: approval.rpcID,
@@ -2265,13 +2294,26 @@ final class NativeSessionStore: ObservableObject {
                     outcome: outcome
                 )
                 guard !Task.isCancelled,
-                      self?.interactionGeneration == generation,
-                      !receipt.accepted
+                      let self,
+                      self.interactionGeneration == generation,
+                      let current = self.pendingApproval,
+                      current.rpcID == approval.rpcID,
+                      current.sessionID == approval.sessionID,
+                      current.approvalID == approval.approvalID
                 else { return }
-                self?.isSubmittingApproval = false
+                self.approvalSubmissionTask = nil
+                if !receipt.accepted { self.isSubmittingApproval = false }
             } catch {
-                guard !Task.isCancelled, self?.interactionGeneration == generation else { return }
-                self?.isSubmittingApproval = false
+                guard !Task.isCancelled,
+                      let self,
+                      self.interactionGeneration == generation,
+                      let current = self.pendingApproval,
+                      current.rpcID == approval.rpcID,
+                      current.sessionID == approval.sessionID,
+                      current.approvalID == approval.approvalID
+                else { return }
+                self.approvalSubmissionTask = nil
+                self.isSubmittingApproval = false
             }
         }
     }
@@ -2287,17 +2329,28 @@ final class NativeSessionStore: ObservableObject {
         isSubmittingQuestion = true
         let responseAnswers = answers.map { QuestionAnswerResponse(id: $0.id, selected: $0.selected, custom: $0.custom) }
         let generation = interactionGeneration
-        Task { [weak self] in
+        questionSubmissionTask = Task { [weak self] in
             do {
                 let receipt = try await api.answerQuestion(rpcID: question.rpcID, sessionID: question.sessionID, answers: responseAnswers)
                 guard !Task.isCancelled,
-                      self?.interactionGeneration == generation,
-                      !receipt.accepted
+                      let self,
+                      self.interactionGeneration == generation,
+                      let current = self.pendingQuestion,
+                      current.rpcID == question.rpcID,
+                      current.sessionID == question.sessionID
                 else { return }
-                self?.isSubmittingQuestion = false
+                self.questionSubmissionTask = nil
+                if !receipt.accepted { self.isSubmittingQuestion = false }
             } catch {
-                guard !Task.isCancelled, self?.interactionGeneration == generation else { return }
-                self?.isSubmittingQuestion = false
+                guard !Task.isCancelled,
+                      let self,
+                      self.interactionGeneration == generation,
+                      let current = self.pendingQuestion,
+                      current.rpcID == question.rpcID,
+                      current.sessionID == question.sessionID
+                else { return }
+                self.questionSubmissionTask = nil
+                self.isSubmittingQuestion = false
             }
         }
     }
@@ -2311,17 +2364,28 @@ final class NativeSessionStore: ObservableObject {
         else { return }
         isSubmittingQuestion = true
         let generation = interactionGeneration
-        Task { [weak self] in
+        questionSubmissionTask = Task { [weak self] in
             do {
                 let receipt = try await api.cancelQuestion(rpcID: question.rpcID)
                 guard !Task.isCancelled,
-                      self?.interactionGeneration == generation,
-                      !receipt.accepted
+                      let self,
+                      self.interactionGeneration == generation,
+                      let current = self.pendingQuestion,
+                      current.rpcID == question.rpcID,
+                      current.sessionID == question.sessionID
                 else { return }
-                self?.isSubmittingQuestion = false
+                self.questionSubmissionTask = nil
+                if !receipt.accepted { self.isSubmittingQuestion = false }
             } catch {
-                guard !Task.isCancelled, self?.interactionGeneration == generation else { return }
-                self?.isSubmittingQuestion = false
+                guard !Task.isCancelled,
+                      let self,
+                      self.interactionGeneration == generation,
+                      let current = self.pendingQuestion,
+                      current.rpcID == question.rpcID,
+                      current.sessionID == question.sessionID
+                else { return }
+                self.questionSubmissionTask = nil
+                self.isSubmittingQuestion = false
             }
         }
     }

@@ -1944,7 +1944,11 @@ final class NativeSessionStoreTests: XCTestCase {
 
     func testReplayedQuestionKeepsNewBusyStateWhenOldSubmissionFailsLate() async {
         let oldAnswerReached = expectation(description: "old answer reaches Host before restart")
-        let api = DelayedReplayedQuestionSessionAPI(oldAnswerReached: oldAnswerReached)
+        let oldAnswerCancelled = expectation(description: "old answer Task cancels when Host restart replaces pending request")
+        let api = DelayedReplayedQuestionSessionAPI(
+            oldAnswerReached: oldAnswerReached,
+            oldAnswerCancelled: oldAnswerCancelled
+        )
         let store = NativeSessionStore()
         let sessionID = "replayed-question-session"
         store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
@@ -1966,6 +1970,7 @@ final class NativeSessionStoreTests: XCTestCase {
             "lastSeq": .number(0),
         ])), sessionID: sessionID)
         await eventually(timeout: 1) { store.pendingQuestion == nil && !store.isSubmittingQuestion }
+        await fulfillment(of: [oldAnswerCancelled], timeout: 1)
         store.applyMuxFrame(questionFrame, sessionID: sessionID)
         store.answerQuestion([.init(id: "q-1", selected: ["yes"], custom: nil)])
         await eventually(timeout: 1) { store.isSubmittingQuestion }
@@ -2752,11 +2757,13 @@ final class NativeSessionStoreTests: XCTestCase {
     @MainActor
     private final class DelayedReplayedQuestionSessionAPI: NativeSessionAPI {
         let oldAnswerReached: XCTestExpectation
+        let oldAnswerCancelled: XCTestExpectation
         private let oldAnswerGate = RecoveryGate()
         private(set) var answerCalls = 0
 
-        init(oldAnswerReached: XCTestExpectation) {
+        init(oldAnswerReached: XCTestExpectation, oldAnswerCancelled: XCTestExpectation) {
             self.oldAnswerReached = oldAnswerReached
+            self.oldAnswerCancelled = oldAnswerCancelled
         }
 
         func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
@@ -2776,6 +2783,7 @@ final class NativeSessionStoreTests: XCTestCase {
             if answerCalls == 1 {
                 oldAnswerReached.fulfill()
                 await oldAnswerGate.wait()
+                if Task.isCancelled { oldAnswerCancelled.fulfill() }
                 throw DSHTransportError.invalidEndpoint
             }
             return .init(accepted: true, reason: nil)

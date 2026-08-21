@@ -405,6 +405,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 - [ ] **T9.3：实现审批与用户问题 Takeover 闭环。** 用官方 composer takeover 语义替代普通弹窗，支持 allow-once、reject、选择项、多选与自定义文本。**修复未托管 Task 异步竞态**：所有 Approval/Question 异步提交必须保存 Task 引用并绑定 Request ID 与 Generation 校验，在会话切换、断线重连或 pending item 替换时安全取消并防止“幽灵回调”覆盖新状态。
   - 依赖：T6.6、T8.4。
   - 验收：回答只能对 pending request 提交一次；会话切换与断线重连不发生竞态与重复授权。
+  - 进度：`NativeSessionStore` 已将 approval answer、question answer 与 question cancel 从未托管 `Task` 改为保存引用的 `approvalSubmissionTask`/`questionSubmissionTask`；Host restart、会话/断线生命周期、pending request 替换和 matching resolved frame 均会取消相应任务并更新 interaction generation。每个完成/失败回调同时验证 generation、当前 pending 的 RPC ID、session ID（approval 还验证 approval ID）后才可改变 busy state。`testReplayedQuestionKeepsNewBusyStateWhenOldSubmissionFailsLate` 现明确断言旧 Task 在 restart 替换 pending 前收到 cancellation，随后迟到错误不能清除新请求 busy state；本地 Swift 语法检查通过。仍须补 approval 与 cancel-question 的同构延迟 fake、实际 macOS XCTest 及 takeover 视觉/无障碍证据，故保持未勾选。
 
 - [ ] **T9.4：实现 thinking、retry、compaction。** 复刻默认收缩、流式摘要、retry 倒计时、错误可见性、checkpoint disclosure 和 summary 边界。
   - 依赖：T6.5、T8.2。
