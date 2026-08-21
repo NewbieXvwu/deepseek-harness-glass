@@ -104,6 +104,13 @@ struct WorkspaceBrowserView: View {
         let half: NativeWorkspaceBrowserOrdering.DropHalf
     }
 
+    /// RC1 `WorkspaceBrowser` promotes the currently selected blank session
+    /// independently of timestamp ordering, once per account transition.
+    private struct BlankSessionPromotion: Equatable {
+        let sessionID: String
+        let accountKey: String
+    }
+
     @State private var searchExpanded = false
     /// Source: RC8 `WorkspaceBrowser.searchOnExpand`. A rail search arms the
     /// wide input before the shell flips, then focuses only after the 300ms
@@ -130,6 +137,9 @@ struct WorkspaceBrowserView: View {
     /// RC8 compares this account-local timestamp baseline to promote only new
     /// activity while retaining the user-edited order of unaffected sessions.
     @State private var sessionUpdatedAtByAccount: [String: [String: Double]] = [:]
+    /// Tracks the exact RC1 blank-session/account pair already promoted so
+    /// subsequent Host snapshots do not repeatedly rewrite browser-local order.
+    @State private var promotedBlankSession: BlankSessionPromotion?
     @State private var workspaceDrag: WorkspaceDrag?
     @State private var sessionDrag: SessionDrag?
     @State private var workspaceDropCommitted = false
@@ -206,6 +216,9 @@ struct WorkspaceBrowserView: View {
             .onChange(of: store.snapshot.workspaces.flatMap(\.sessionIds)) { _, _ in
                 reconcileBrowserLocalOrders()
             }
+            .onChange(of: currentBlankSessionPromotion) { _, promotion in
+                promoteCurrentBlankSession(promotion)
+            }
             .onChange(of: sessionOrderMode) { _, _ in
                 reconcileBrowserLocalOrders(sortUpdatedAccounts: true)
             }
@@ -216,6 +229,7 @@ struct WorkspaceBrowserView: View {
             }
             .onAppear {
                 reconcileBrowserLocalOrders(sortUpdatedAccounts: true)
+                promoteCurrentBlankSession(currentBlankSessionPromotion)
             }
             .sheet(item: $workspaceRenameTarget) { target in
                 NativeRenameSheet(
@@ -746,6 +760,40 @@ struct WorkspaceBrowserView: View {
                 deleting = false
                 deleteError = error.localizedDescription
             }
+        }
+    }
+
+    /// The selected blank session is the RC1 temporary new-session surface. It
+    /// may belong to a workspace or the synthetic ungrouped account; both cases
+    /// also participate in the flat sessions list.
+    private var currentBlankSessionPromotion: BlankSessionPromotion? {
+        let snapshot = store.snapshot
+        guard let sessionID = snapshot.selectedSessionID,
+              let selected = snapshot.sessions.first(where: { $0.sessionId == sessionID }),
+              selected.blank
+        else { return nil }
+        let accountKey = snapshot.workspaces.first(where: { $0.sessionIds.contains(sessionID) })?.workspaceId
+            ?? NativeWorkspaceBrowserOrdering.ungroupedAccountKey
+        return BlankSessionPromotion(sessionID: sessionID, accountKey: accountKey)
+    }
+
+    /// Source: RC1 `WorkspaceBrowser`: a newly selected blank session is
+    /// promoted to the start of both its owning account and the flat list. This
+    /// remains a browser-local visual ordering only; Host membership/order is
+    /// never written for the promotion.
+    private func promoteCurrentBlankSession(_ promotion: BlankSessionPromotion?) {
+        guard let promotion else {
+            promotedBlankSession = nil
+            return
+        }
+        guard promotedBlankSession != promotion else { return }
+        promotedBlankSession = promotion
+        for accountKey in Set([promotion.accountKey, NativeWorkspaceBrowserOrdering.flatSessionOrderKey]) {
+            let previous = sessionOrderByAccount[accountKey] ?? []
+            sessionOrderByAccount[accountKey] = NativeWorkspaceBrowserOrdering.orderPromotingBlankSession(
+                promotion.sessionID,
+                in: previous
+            )
         }
     }
 

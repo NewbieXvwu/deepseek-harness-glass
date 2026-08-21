@@ -5,8 +5,8 @@
 | 项目 | 固定值 |
 | --- | --- |
 | 官方规格仓库 | `deepseek-ai/deepseek-harness` |
-| 锁定提交 | `141eb6fef83422698aef7a981029e843e8161534` |
-| 固定 Host | `dsh 0.1.0-rc.8`，由 `SupportedHostBuilds.json` 验证 |
+| 锁定提交 | `528c682e061696f5a160f363f236ecbf53cbd006` |
+| 固定 Host | `dsh 0.1.1-rc.1`，由 `SupportedHostBuilds.json` 验证 |
 | 目标客户端 | macOS 26+、Apple Silicon、Swift 6、SwiftUI + AppKit |
 | 当前原生基线 | `main@f3b07d1`：Host/RPC/SSE、三栏容器、工作区浏览器、欢迎 composer、详情列、Host 生命周期与截图管线 |
 

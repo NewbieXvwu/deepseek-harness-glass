@@ -12,7 +12,7 @@ final class OfficialUISpecBuildTests: XCTestCase {
         XCTAssertTrue(OfficialUISpec.Build.layoutRevision.hasPrefix("sha256:"))
         XCTAssertTrue(OfficialUISpec.Build.fixtureRevision.hasPrefix("sha256:"))
         XCTAssertEqual(OfficialUISpec.Build.sourceCommit.count, 40)
-        XCTAssertEqual(OfficialUISpec.sidebarBuildRevision, "141eb6f")
+        XCTAssertEqual(OfficialUISpec.sidebarBuildRevision, "528c682e")
         XCTAssertEqual(OfficialUISpec.Text.sidebarFallbackBrand, "DSH Local Build")
         XCTAssertEqual(OfficialUISpec.Layout.sidebarLogoRowHeight, 60)
         XCTAssertEqual(OfficialUISpec.Layout.sidebarBrandMarkSize, 24)

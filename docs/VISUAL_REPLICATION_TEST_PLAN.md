@@ -1,6 +1,6 @@
 # 官方 WebUI 严格复刻视觉测试计划
 
-本计划定义 DeepSeek Harness Glass 对锁定官方 WebUI `deepseek-ai/deepseek-harness@141eb6fef83422698aef7a981029e843e8161534` 的**可判定复刻标准**。它将产品行为拆为必须严格相同的文本、布局、状态和交互，以及必须使用系统原生 API 但不伪造 CSS 光学细节的材质渲染两类。官方 WebUI 的布局参数、Host 协议和原生 Liquid Glass 边界来自锁定源码与 Apple 文档。[1] [2] [3] [4]
+本计划定义 DeepSeek Harness Glass 对锁定官方 WebUI `deepseek-ai/deepseek-harness@528c682e061696f5a160f363f236ecbf53cbd006` 的**可判定复刻标准**。它将产品行为拆为必须严格相同的文本、布局、状态和交互，以及必须使用系统原生 API 但不伪造 CSS 光学细节的材质渲染两类。官方 WebUI 的布局参数、Host 协议和原生 Liquid Glass 边界来自锁定源码与 Apple 文档。[1] [2] [3] [4]
 
 > **核心规则：** 生成截图、拥有低差异值或通过 report-only CI 绝不等于视觉验收。只有场景在 `visual-validation-policy.json` 变为 `enforce`、所有阈值通过，并附上本计划要求的人工分类记录后，相关 UI TODO 才能勾选。
 
@@ -85,7 +85,7 @@ CI 自检 `glass/ci/test_visual_policy.py` 会在合成的同尺寸图片上证�
 
 ## References
 
-[1] [DeepSeek Harness locked RC8 official source](https://github.com/deepseek-ai/deepseek-harness/tree/141eb6fef83422698aef7a981029e843e8161534)
-[2] [Official RC8 layout column policy](https://github.com/deepseek-ai/deepseek-harness/blob/141eb6fef83422698aef7a981029e843e8161534/packages/client/ui-layout/src/client/columns.ts)
+[1] [DeepSeek Harness locked RC8 official source](https://github.com/deepseek-ai/deepseek-harness/tree/528c682e061696f5a160f363f236ecbf53cbd006)
+[2] [Official RC8 layout column policy](https://github.com/deepseek-ai/deepseek-harness/blob/528c682e061696f5a160f363f236ecbf53cbd006/packages/client/ui-layout/src/client/columns.ts)
 [3] [Apple: Adopting Liquid Glass](https://developer.apple.com/documentation/technologyoverviews/adopting-liquid-glass)
 [4] [Apple: Applying Liquid Glass to custom views](https://developer.apple.com/documentation/swiftui/applying-liquid-glass-to-custom-views)

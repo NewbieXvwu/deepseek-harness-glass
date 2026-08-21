@@ -20,6 +20,8 @@ struct NativeSessionHeaderPresentation: Equatable {
     struct Breadcrumb: Identifiable, Equatable {
         let id: String
         let title: String
+        /// RC1 exposes subagent ancestry as a distinct compact lineage control.
+        let isSubagent: Bool
     }
 
     let sessionID: String?
@@ -68,7 +70,11 @@ struct NativeSessionHeaderPresentation: Equatable {
 
         while seen.insert(cursor).inserted, let summary = sessionByID[cursor] {
             chain.insert(
-                Breadcrumb(id: summary.sessionId, title: summary.displayTitle ?? summary.sessionId),
+                Breadcrumb(
+                    id: summary.sessionId,
+                    title: summary.displayTitle ?? summary.sessionId,
+                    isSubagent: summary.origin == "subagent"
+                ),
                 at: 0
             )
             guard summary.origin == "subagent", let parent = summary.parentSessionId else { break }
@@ -136,7 +142,7 @@ struct NativeConversationHeader: View {
                     }
                     Button(action: { openSession(crumb.id) }) {
                         Text(crumb.title)
-                            .font(OfficialUISpec.Typography.s14)
+                            .font(crumb.isSubagent ? OfficialUISpec.Typography.xxs12 : OfficialUISpec.Typography.s14)
                             .lineLimit(1)
                             .truncationMode(.tail)
                             .padding(.horizontal, OfficialUISpec.Spacing.p8)

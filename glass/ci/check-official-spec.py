@@ -23,7 +23,7 @@ SCENES_PATH = ROOT / "Sources/Spec/Fixtures/visual-scenes.json"
 ASSET_DIR = ROOT / "assets"
 ICON_EXTRACTOR = PROJECT_ROOT / "tools/extract_official_icon.py"
 ICON_AST_EXTRACTOR = PROJECT_ROOT / "tools/spec-generation/extract_official_icon_ast.mjs"
-LOCKED_COMMIT = "141eb6fef83422698aef7a981029e843e8161534"
+LOCKED_COMMIT = "528c682e061696f5a160f363f236ecbf53cbd006"
 
 
 def fail(message: str) -> None:

@@ -2,7 +2,7 @@
 
 **作者：** Manus AI  
 **制定日期：** 2026-08-19（GMT+8）  
-**计划基线：** `deepseek-harness-glass/main@cf3e002`；官方参考为 `deepseek-ai/deepseek-harness@141eb6fef83422698aef7a981029e843e8161534`。
+**计划基线：** `deepseek-harness-glass/main@cf3e002`；官方参考为 `deepseek-ai/deepseek-harness@528c682e061696f5a160f363f236ecbf53cbd006`。
 
 ## 一、结论与当前基线
 
@@ -172,8 +172,8 @@
 ## References
 
 [1]: https://github.com/NewbieXvwu/deepseek-harness-glass "DeepSeek Harness Glass 目标仓库"
-[2]: https://github.com/deepseek-ai/deepseek-harness/tree/141eb6fef83422698aef7a981029e843e8161534 "DeepSeek Harness 官方锁定源码"
+[2]: https://github.com/deepseek-ai/deepseek-harness/tree/528c682e061696f5a160f363f236ecbf53cbd006 "DeepSeek Harness 官方锁定源码"
 [3]: https://github.com/NewbieXvwu/deepseek-harness-glass/blob/main/TODO.md "项目 TODO、依赖与验收定义"
 [4]: https://github.com/NewbieXvwu/deepseek-harness-glass/blob/main/docs/VISUAL_REPLICATION_TEST_PLAN.md "官方 WebUI 严格复刻视觉测试计划"
-[5]: https://github.com/deepseek-ai/deepseek-harness/tree/141eb6fef83422698aef7a981029e843e8161534/packages/client/ui-conversation "官方 conversation UI 源码入口"
-[6]: https://github.com/deepseek-ai/deepseek-harness/tree/141eb6fef83422698aef7a981029e843e8161534/packages/client/ui-settings-plugins "官方插件设置机制"
+[5]: https://github.com/deepseek-ai/deepseek-harness/tree/528c682e061696f5a160f363f236ecbf53cbd006/packages/client/ui-conversation "官方 conversation UI 源码入口"
+[6]: https://github.com/deepseek-ai/deepseek-harness/tree/528c682e061696f5a160f363f236ecbf53cbd006/packages/client/ui-settings-plugins "官方插件设置机制"

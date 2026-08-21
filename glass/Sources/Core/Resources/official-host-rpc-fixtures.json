@@ -1,26 +1,26 @@
 {
   "schemaVersion": 1,
-  "officialSourceCommit": "141eb6fef83422698aef7a981029e843e8161534",
-  "fixtureRevision": "official-141eb6f-web-ui-r1",
+  "officialSourceCommit": "528c682e061696f5a160f363f236ecbf53cbd006",
+  "fixtureRevision": "official-528c682e-web-ui-r1",
   "endpointClass": "isolated local pinned dsh web",
   "records": [
     {
       "method": "host.describe",
       "request": {
         "type": "client-request",
-        "rpcId": "ade82126-156b-45f7-98c7-88008ffd29ce",
+        "rpcId": "8bfcd6f5-ecd7-42c3-a290-f117349d750d",
         "method": "host.describe",
         "payload": {}
       },
       "curlExit": 0,
       "response": {
         "type": "server-response",
-        "rpcId": "ade82126-156b-45f7-98c7-88008ffd29ce",
+        "rpcId": "8bfcd6f5-ecd7-42c3-a290-f117349d750d",
         "result": {
           "ok": true,
           "value": {
             "version": "0.0.1",
-            "cwd": "/home/ubuntu/deepseek-harness-glass",
+            "cwd": "/home/ubuntu/deepseek-harness-glass/glass/ci/dsh-backend-payload",
             "provider": "deepseek-official",
             "model": "deepseek-v4-flash",
             "attachedSessions": 0,
@@ -34,14 +34,14 @@
       "method": "workspace.list",
       "request": {
         "type": "client-request",
-        "rpcId": "df7de704-b3ff-41eb-b1a5-4b68e3e639c0",
+        "rpcId": "09e062f4-b4e3-437d-9d02-d9974dedeb68",
         "method": "workspace.list",
         "payload": {}
       },
       "curlExit": 0,
       "response": {
         "type": "server-response",
-        "rpcId": "df7de704-b3ff-41eb-b1a5-4b68e3e639c0",
+        "rpcId": "09e062f4-b4e3-437d-9d02-d9974dedeb68",
         "result": {
           "ok": true,
           "value": {
@@ -55,14 +55,14 @@
       "method": "session.list",
       "request": {
         "type": "client-request",
-        "rpcId": "d64a92f0-a5fa-4888-b9de-c4b79b0d5e1a",
+        "rpcId": "675a2607-015b-4edf-8a03-967e4cb426c3",
         "method": "session.list",
         "payload": {}
       },
       "curlExit": 0,
       "response": {
         "type": "server-response",
-        "rpcId": "d64a92f0-a5fa-4888-b9de-c4b79b0d5e1a",
+        "rpcId": "675a2607-015b-4edf-8a03-967e4cb426c3",
         "result": {
           "ok": true,
           "value": {
@@ -75,14 +75,14 @@
       "method": "settings.describe",
       "request": {
         "type": "client-request",
-        "rpcId": "0f0155f2-c230-419e-9142-f760ce96e0dc",
+        "rpcId": "5f0bd411-cdb3-4fd0-a55e-71e85cf80cc1",
         "method": "settings.describe",
         "payload": {}
       },
       "curlExit": 0,
       "response": {
         "type": "server-response",
-        "rpcId": "0f0155f2-c230-419e-9142-f760ce96e0dc",
+        "rpcId": "5f0bd411-cdb3-4fd0-a55e-71e85cf80cc1",
         "result": {
           "ok": true,
           "value": {
@@ -138,19 +138,19 @@
               {
                 "ns": "ui-onboarding",
                 "schema": {
-                  "uid": 202,
+                  "uid": 218,
                   "refs": {
-                    "201": {
+                    "217": {
                       "type": "string",
                       "meta": {}
                     },
-                    "202": {
+                    "218": {
                       "type": "object",
                       "meta": {
                         "default": {}
                       },
                       "dict": {
-                        "welcomeNoticeVersion": 201
+                        "welcomeNoticeVersion": 217
                       }
                     }
                   }
@@ -163,38 +163,38 @@
               {
                 "ns": "web-search-deepseek",
                 "schema": {
-                  "uid": 278,
+                  "uid": 294,
                   "refs": {
-                    "261": {
+                    "277": {
                       "type": "string",
                       "meta": {
                         "role": "secret"
                       }
                     },
-                    "264": {
+                    "280": {
                       "type": "string",
                       "meta": {
                         "role": "credential-ref",
                         "default": "DEEPSEEK_API_KEY"
                       }
                     },
-                    "265": {
+                    "281": {
                       "type": "string",
                       "meta": {}
                     },
-                    "267": {
+                    "283": {
                       "type": "string",
                       "meta": {
                         "default": "deepseek-v4-flash"
                       }
                     },
-                    "269": {
+                    "285": {
                       "type": "string",
                       "meta": {
                         "default": "2023-06-01"
                       }
                     },
-                    "273": {
+                    "289": {
                       "type": "number",
                       "meta": {
                         "step": 1,
@@ -202,7 +202,7 @@
                         "default": 4096
                       }
                     },
-                    "277": {
+                    "293": {
                       "type": "number",
                       "meta": {
                         "step": 1,
@@ -210,19 +210,19 @@
                         "default": 5
                       }
                     },
-                    "278": {
+                    "294": {
                       "type": "object",
                       "meta": {
                         "default": {}
                       },
                       "dict": {
-                        "apiKey": 261,
-                        "apiKeyEnv": 264,
-                        "baseURL": 265,
-                        "model": 267,
-                        "apiVersion": 269,
-                        "maxTokens": 273,
-                        "maxUses": 277
+                        "apiKey": 277,
+                        "apiKeyEnv": 280,
+                        "baseURL": 281,
+                        "model": 283,
+                        "apiVersion": 285,
+                        "maxTokens": 289,
+                        "maxUses": 293
                       }
                     }
                   }
@@ -255,7 +255,7 @@
               {
                 "ns": "llm-deepseek",
                 "schema": {
-                  "uid": 323,
+                  "uid": 351,
                   "refs": {
                     "2": {
                       "type": "number",
@@ -303,7 +303,7 @@
                         "step": 1,
                         "min": 0,
                         "max": 9007199254740991,
-                        "default": 2
+                        "default": 5
                       }
                     },
                     "18": {
@@ -360,119 +360,152 @@
                         24
                       ]
                     },
-                    "280": {
-                      "type": "string",
-                      "meta": {
-                        "required": true
-                      }
-                    },
-                    "281": {
-                      "type": "string",
-                      "meta": {}
-                    },
-                    "282": {
-                      "type": "string",
-                      "meta": {}
-                    },
-                    "285": {
-                      "type": "number",
-                      "meta": {
-                        "step": 1,
-                        "min": 1
-                      }
-                    },
-                    "288": {
-                      "type": "number",
-                      "meta": {
-                        "step": 1,
-                        "min": 1
-                      }
-                    },
-                    "289": {
-                      "type": "object",
-                      "meta": {
-                        "default": {}
-                      },
-                      "dict": {
-                        "id": 280,
-                        "name": 281,
-                        "description": 282,
-                        "contextWindow": 285,
-                        "maxTokens": 288
-                      }
-                    },
-                    "292": {
-                      "type": "string",
-                      "meta": {
-                        "role": "credential-ref",
-                        "default": "DEEPSEEK_API_KEY"
-                      }
-                    },
-                    "293": {
-                      "type": "string",
-                      "meta": {}
-                    },
-                    "294": {
-                      "type": "union",
-                      "meta": {},
-                      "list": [
-                        296,
-                        298
-                      ]
-                    },
                     "296": {
-                      "type": "const",
+                      "type": "string",
                       "meta": {
                         "required": true
-                      },
-                      "value": "enabled"
+                      }
+                    },
+                    "297": {
+                      "type": "string",
+                      "meta": {}
                     },
                     "298": {
-                      "type": "const",
-                      "meta": {
-                        "required": true
-                      },
-                      "value": "disabled"
+                      "type": "string",
+                      "meta": {}
                     },
-                    "299": {
+                    "301": {
+                      "type": "number",
+                      "meta": {
+                        "step": 1,
+                        "min": 1
+                      }
+                    },
+                    "304": {
+                      "type": "number",
+                      "meta": {
+                        "step": 1,
+                        "min": 1
+                      }
+                    },
+                    "305": {
                       "type": "union",
                       "meta": {},
                       "list": [
-                        301,
-                        303,
-                        305,
-                        307
+                        307,
+                        309
                       ]
-                    },
-                    "301": {
-                      "type": "const",
-                      "meta": {
-                        "required": true
-                      },
-                      "value": "off"
-                    },
-                    "303": {
-                      "type": "const",
-                      "meta": {
-                        "required": true
-                      },
-                      "value": "low"
-                    },
-                    "305": {
-                      "type": "const",
-                      "meta": {
-                        "required": true
-                      },
-                      "value": "high"
                     },
                     "307": {
                       "type": "const",
                       "meta": {
                         "required": true
                       },
-                      "value": "max"
+                      "value": "text"
+                    },
+                    "309": {
+                      "type": "const",
+                      "meta": {
+                        "required": true
+                      },
+                      "value": "image"
                     },
                     "312": {
+                      "type": "array",
+                      "meta": {
+                        "default": [
+                          "text"
+                        ],
+                        "min": 1
+                      },
+                      "inner": 305
+                    },
+                    "313": {
+                      "type": "object",
+                      "meta": {
+                        "default": {}
+                      },
+                      "dict": {
+                        "id": 296,
+                        "name": 297,
+                        "description": 298,
+                        "contextWindow": 301,
+                        "maxTokens": 304,
+                        "inputModalities": 312
+                      }
+                    },
+                    "316": {
+                      "type": "string",
+                      "meta": {
+                        "role": "credential-ref",
+                        "default": "DEEPSEEK_API_KEY"
+                      }
+                    },
+                    "317": {
+                      "type": "string",
+                      "meta": {}
+                    },
+                    "318": {
+                      "type": "union",
+                      "meta": {},
+                      "list": [
+                        320,
+                        322
+                      ]
+                    },
+                    "320": {
+                      "type": "const",
+                      "meta": {
+                        "required": true
+                      },
+                      "value": "enabled"
+                    },
+                    "322": {
+                      "type": "const",
+                      "meta": {
+                        "required": true
+                      },
+                      "value": "disabled"
+                    },
+                    "323": {
+                      "type": "union",
+                      "meta": {},
+                      "list": [
+                        325,
+                        327,
+                        329,
+                        331
+                      ]
+                    },
+                    "325": {
+                      "type": "const",
+                      "meta": {
+                        "required": true
+                      },
+                      "value": "off"
+                    },
+                    "327": {
+                      "type": "const",
+                      "meta": {
+                        "required": true
+                      },
+                      "value": "low"
+                    },
+                    "329": {
+                      "type": "const",
+                      "meta": {
+                        "required": true
+                      },
+                      "value": "high"
+                    },
+                    "331": {
+                      "type": "const",
+                      "meta": {
+                        "required": true
+                      },
+                      "value": "max"
+                    },
+                    "336": {
                       "type": "number",
                       "meta": {
                         "step": 1,
@@ -481,7 +514,7 @@
                         "default": 256000
                       }
                     },
-                    "316": {
+                    "340": {
                       "type": "number",
                       "meta": {
                         "step": 1,
@@ -489,7 +522,7 @@
                         "default": 1000000
                       }
                     },
-                    "318": {
+                    "342": {
                       "type": "array",
                       "meta": {
                         "default": [
@@ -502,12 +535,21 @@
                             "id": "deepseek-v4-pro",
                             "name": "DeepSeek-V4-Pro",
                             "contextWindow": 1000000
+                          },
+                          {
+                            "id": "deepseek-v4-flash-vision-exp",
+                            "name": "DeepSeek-V4-Flash-Vision-Exp",
+                            "contextWindow": 1000000,
+                            "inputModalities": [
+                              "text",
+                              "image"
+                            ]
                           }
                         ]
                       },
-                      "inner": 289
+                      "inner": 313
                     },
-                    "322": {
+                    "346": {
                       "type": "number",
                       "meta": {
                         "min": 5e-324,
@@ -515,20 +557,29 @@
                         "default": 300000
                       }
                     },
-                    "323": {
+                    "350": {
+                      "type": "number",
+                      "meta": {
+                        "step": 1,
+                        "min": 1,
+                        "default": 20971520
+                      }
+                    },
+                    "351": {
                       "type": "object",
                       "meta": {
                         "default": {}
                       },
                       "dict": {
-                        "apiKeyEnv": 292,
-                        "baseURL": 293,
-                        "thinking": 294,
-                        "reasoningEffort": 299,
-                        "maxTokens": 312,
-                        "defaultContextWindow": 316,
-                        "models": 318,
-                        "streamIdleTimeoutMs": 322,
+                        "apiKeyEnv": 316,
+                        "baseURL": 317,
+                        "thinking": 318,
+                        "reasoningEffort": 323,
+                        "maxTokens": 336,
+                        "defaultContextWindow": 340,
+                        "models": 342,
+                        "streamIdleTimeoutMs": 346,
+                        "maxRequestImageBytes": 350,
                         "retryPolicy": 25
                       }
                     }
@@ -542,15 +593,31 @@
                     {
                       "id": "deepseek-v4-flash",
                       "name": "DeepSeek-V4-Flash",
-                      "contextWindow": 1000000
+                      "contextWindow": 1000000,
+                      "inputModalities": [
+                        "text"
+                      ]
                     },
                     {
                       "id": "deepseek-v4-pro",
                       "name": "DeepSeek-V4-Pro",
-                      "contextWindow": 1000000
+                      "contextWindow": 1000000,
+                      "inputModalities": [
+                        "text"
+                      ]
+                    },
+                    {
+                      "id": "deepseek-v4-flash-vision-exp",
+                      "name": "DeepSeek-V4-Flash-Vision-Exp",
+                      "contextWindow": 1000000,
+                      "inputModalities": [
+                        "text",
+                        "image"
+                      ]
                     }
                   ],
-                  "streamIdleTimeoutMs": 300000
+                  "streamIdleTimeoutMs": 300000,
+                  "maxRequestImageBytes": 20971520
                 },
                 "base": {
                   "apiKeyEnv": "DEEPSEEK_API_KEY",
@@ -560,15 +627,31 @@
                     {
                       "id": "deepseek-v4-flash",
                       "name": "DeepSeek-V4-Flash",
-                      "contextWindow": 1000000
+                      "contextWindow": 1000000,
+                      "inputModalities": [
+                        "text"
+                      ]
                     },
                     {
                       "id": "deepseek-v4-pro",
                       "name": "DeepSeek-V4-Pro",
-                      "contextWindow": 1000000
+                      "contextWindow": 1000000,
+                      "inputModalities": [
+                        "text"
+                      ]
+                    },
+                    {
+                      "id": "deepseek-v4-flash-vision-exp",
+                      "name": "DeepSeek-V4-Flash-Vision-Exp",
+                      "contextWindow": 1000000,
+                      "inputModalities": [
+                        "text",
+                        "image"
+                      ]
                     }
                   ],
-                  "streamIdleTimeoutMs": 300000
+                  "streamIdleTimeoutMs": 300000,
+                  "maxRequestImageBytes": 20971520
                 },
                 "applies": "live",
                 "secrets": [],
@@ -577,47 +660,47 @@
               {
                 "ns": "ui-theme",
                 "schema": {
-                  "uid": 336,
+                  "uid": 376,
                   "refs": {
-                    "330": {
+                    "370": {
                       "type": "const",
                       "meta": {
                         "required": true
                       },
                       "value": "light"
                     },
-                    "332": {
+                    "372": {
                       "type": "const",
                       "meta": {
                         "required": true
                       },
                       "value": "dark"
                     },
-                    "334": {
+                    "374": {
                       "type": "const",
                       "meta": {
                         "required": true
                       },
                       "value": "system"
                     },
-                    "335": {
+                    "375": {
                       "type": "union",
                       "meta": {
                         "default": "system"
                       },
                       "list": [
-                        330,
-                        332,
-                        334
+                        370,
+                        372,
+                        374
                       ]
                     },
-                    "336": {
+                    "376": {
                       "type": "object",
                       "meta": {
                         "default": {}
                       },
                       "dict": {
-                        "preference": 335
+                        "preference": 375
                       }
                     }
                   }
@@ -632,39 +715,39 @@
               {
                 "ns": "locale",
                 "schema": {
-                  "uid": 343,
+                  "uid": 383,
                   "refs": {
-                    "339": {
+                    "379": {
                       "type": "const",
                       "meta": {
                         "required": true
                       },
                       "value": "zh"
                     },
-                    "341": {
+                    "381": {
                       "type": "const",
                       "meta": {
                         "required": true
                       },
                       "value": "en"
                     },
-                    "342": {
+                    "382": {
                       "type": "union",
                       "meta": {
                         "required": false
                       },
                       "list": [
-                        339,
-                        341
+                        379,
+                        381
                       ]
                     },
-                    "343": {
+                    "383": {
                       "type": "object",
                       "meta": {
                         "default": {}
                       },
                       "dict": {
-                        "preference": 342
+                        "preference": 382
                       }
                     }
                   }
@@ -677,39 +760,39 @@
               {
                 "ns": "ui-conversation",
                 "schema": {
-                  "uid": 350,
+                  "uid": 390,
                   "refs": {
-                    "346": {
+                    "386": {
                       "type": "const",
                       "meta": {
                         "required": true
                       },
                       "value": "queue"
                     },
-                    "348": {
+                    "388": {
                       "type": "const",
                       "meta": {
                         "required": true
                       },
                       "value": "steer"
                     },
-                    "349": {
+                    "389": {
                       "type": "union",
                       "meta": {
                         "default": "queue"
                       },
                       "list": [
-                        346,
-                        348
+                        386,
+                        388
                       ]
                     },
-                    "350": {
+                    "390": {
                       "type": "object",
                       "meta": {
                         "default": {}
                       },
                       "dict": {
-                        "busyEnter": 349
+                        "busyEnter": 389
                       }
                     }
                   }
@@ -724,19 +807,19 @@
               {
                 "ns": "agent-presets",
                 "schema": {
-                  "uid": 352,
+                  "uid": 392,
                   "refs": {
-                    "351": {
+                    "391": {
                       "type": "string",
                       "meta": {}
                     },
-                    "352": {
+                    "392": {
                       "type": "object",
                       "meta": {
                         "default": {}
                       },
                       "dict": {
-                        "default": 351
+                        "default": 391
                       }
                     }
                   }
@@ -788,54 +871,54 @@
               {
                 "ns": "shell",
                 "schema": {
-                  "uid": 252,
+                  "uid": 268,
                   "refs": {
-                    "241": {
+                    "257": {
                       "type": "string",
                       "meta": {}
                     },
-                    "243": {
+                    "259": {
                       "type": "number",
                       "meta": {
                         "default": 120000
                       }
                     },
-                    "245": {
+                    "261": {
                       "type": "number",
                       "meta": {
                         "default": 600000
                       }
                     },
-                    "247": {
+                    "263": {
                       "type": "number",
                       "meta": {
                         "default": 64000
                       }
                     },
-                    "249": {
+                    "265": {
                       "type": "number",
                       "meta": {
                         "default": 67108864
                       }
                     },
-                    "251": {
+                    "267": {
                       "type": "number",
                       "meta": {
                         "default": 3000
                       }
                     },
-                    "252": {
+                    "268": {
                       "type": "object",
                       "meta": {
                         "default": {}
                       },
                       "dict": {
-                        "cwd": 241,
-                        "timeoutMs": 243,
-                        "maxTimeoutMs": 245,
-                        "maxOutputBytes": 247,
-                        "maxSpillBytes": 249,
-                        "graceMs": 251
+                        "cwd": 257,
+                        "timeoutMs": 259,
+                        "maxTimeoutMs": 261,
+                        "maxOutputBytes": 263,
+                        "maxSpillBytes": 265,
+                        "graceMs": 267
                       }
                     }
                   }
@@ -861,41 +944,41 @@
               {
                 "ns": "permission",
                 "schema": {
-                  "uid": 577,
+                  "uid": 621,
                   "refs": {
-                    "572": {
+                    "616": {
                       "type": "const",
                       "meta": {},
                       "value": "read-only"
                     },
-                    "573": {
+                    "617": {
                       "type": "const",
                       "meta": {},
                       "value": "workspace-write"
                     },
-                    "574": {
+                    "618": {
                       "type": "const",
                       "meta": {},
                       "value": "danger-full-access"
                     },
-                    "576": {
+                    "620": {
                       "type": "union",
                       "meta": {
                         "required": true
                       },
                       "list": [
-                        572,
-                        573,
-                        574
+                        616,
+                        617,
+                        618
                       ]
                     },
-                    "577": {
+                    "621": {
                       "type": "object",
                       "meta": {
                         "default": {}
                       },
                       "dict": {
-                        "defaultPreset": 576
+                        "defaultPreset": 620
                       }
                     }
                   }
@@ -913,7 +996,7 @@
               {
                 "ns": "llm-pi-ai",
                 "schema": {
-                  "uid": 717,
+                  "uid": 807,
                   "refs": {
                     "2": {
                       "type": "number",
@@ -961,7 +1044,7 @@
                         "step": 1,
                         "min": 0,
                         "max": 9007199254740991,
-                        "default": 2
+                        "default": 5
                       }
                     },
                     "18": {
@@ -1018,270 +1101,78 @@
                         24
                       ]
                     },
-                    "578": {
+                    "622": {
                       "type": "number",
                       "meta": {}
                     },
-                    "579": {
+                    "623": {
                       "type": "number",
-                      "meta": {}
-                    },
-                    "580": {
-                      "type": "number",
-                      "meta": {}
-                    },
-                    "581": {
-                      "type": "number",
-                      "meta": {}
-                    },
-                    "582": {
-                      "type": "object",
-                      "meta": {
-                        "default": {}
-                      },
-                      "dict": {
-                        "minimal": 578,
-                        "low": 579,
-                        "medium": 580,
-                        "high": 581
-                      }
-                    },
-                    "583": {
-                      "type": "union",
-                      "meta": {},
-                      "list": [
-                        585,
-                        587,
-                        589,
-                        591,
-                        593,
-                        595,
-                        597,
-                        599
-                      ]
-                    },
-                    "585": {
-                      "type": "const",
-                      "meta": {
-                        "required": true
-                      },
-                      "value": "openai"
-                    },
-                    "587": {
-                      "type": "const",
-                      "meta": {
-                        "required": true
-                      },
-                      "value": "deepseek"
-                    },
-                    "589": {
-                      "type": "const",
-                      "meta": {
-                        "required": true
-                      },
-                      "value": "openrouter"
-                    },
-                    "591": {
-                      "type": "const",
-                      "meta": {
-                        "required": true
-                      },
-                      "value": "together"
-                    },
-                    "593": {
-                      "type": "const",
-                      "meta": {
-                        "required": true
-                      },
-                      "value": "zai"
-                    },
-                    "595": {
-                      "type": "const",
-                      "meta": {
-                        "required": true
-                      },
-                      "value": "qwen"
-                    },
-                    "597": {
-                      "type": "const",
-                      "meta": {
-                        "required": true
-                      },
-                      "value": "string-thinking"
-                    },
-                    "599": {
-                      "type": "const",
-                      "meta": {
-                        "required": true
-                      },
-                      "value": "ant-ling"
-                    },
-                    "600": {
-                      "type": "boolean",
-                      "meta": {}
-                    },
-                    "601": {
-                      "type": "object",
-                      "meta": {
-                        "default": {}
-                      },
-                      "dict": {
-                        "thinkingFormat": 583,
-                        "supportsReasoningEffort": 600
-                      }
-                    },
-                    "602": {
-                      "type": "string",
-                      "meta": {}
-                    },
-                    "603": {
-                      "type": "const",
-                      "meta": {},
-                      "value": null
-                    },
-                    "604": {
-                      "type": "union",
-                      "meta": {},
-                      "list": [
-                        602,
-                        603
-                      ]
-                    },
-                    "605": {
-                      "type": "union",
-                      "meta": {},
-                      "list": [
-                        607,
-                        609,
-                        611,
-                        613,
-                        615,
-                        617,
-                        619
-                      ]
-                    },
-                    "607": {
-                      "type": "const",
-                      "meta": {
-                        "required": true
-                      },
-                      "value": "off"
-                    },
-                    "609": {
-                      "type": "const",
-                      "meta": {
-                        "required": true
-                      },
-                      "value": "minimal"
-                    },
-                    "611": {
-                      "type": "const",
-                      "meta": {
-                        "required": true
-                      },
-                      "value": "low"
-                    },
-                    "613": {
-                      "type": "const",
-                      "meta": {
-                        "required": true
-                      },
-                      "value": "medium"
-                    },
-                    "615": {
-                      "type": "const",
-                      "meta": {
-                        "required": true
-                      },
-                      "value": "high"
-                    },
-                    "617": {
-                      "type": "const",
-                      "meta": {
-                        "required": true
-                      },
-                      "value": "xhigh"
-                    },
-                    "619": {
-                      "type": "const",
-                      "meta": {
-                        "required": true
-                      },
-                      "value": "max"
-                    },
-                    "620": {
-                      "type": "dict",
-                      "meta": {
-                        "default": {}
-                      },
-                      "inner": 604,
-                      "sKey": 605
-                    },
-                    "621": {
-                      "type": "string",
                       "meta": {}
                     },
                     "624": {
                       "type": "number",
+                      "meta": {}
+                    },
+                    "625": {
+                      "type": "number",
+                      "meta": {}
+                    },
+                    "626": {
+                      "type": "object",
                       "meta": {
-                        "step": 1,
-                        "min": 1
+                        "default": {}
+                      },
+                      "dict": {
+                        "minimal": 622,
+                        "low": 623,
+                        "medium": 624,
+                        "high": 625
                       }
                     },
                     "627": {
-                      "type": "number",
-                      "meta": {
-                        "step": 1,
-                        "min": 1
-                      }
+                      "type": "string",
+                      "meta": {}
                     },
                     "628": {
-                      "type": "union",
-                      "meta": {},
-                      "list": [
-                        630,
-                        632
-                      ]
+                      "type": "number",
+                      "meta": {}
+                    },
+                    "629": {
+                      "type": "boolean",
+                      "meta": {}
                     },
                     "630": {
                       "type": "const",
-                      "meta": {
-                        "required": true
-                      },
-                      "value": "text"
-                    },
-                    "632": {
-                      "type": "const",
-                      "meta": {
-                        "required": true
-                      },
-                      "value": "image"
+                      "meta": {},
+                      "value": null
                     },
                     "633": {
-                      "type": "array",
-                      "meta": {
-                        "default": []
-                      },
-                      "inner": 628
-                    },
-                    "634": {
                       "type": "const",
-                      "meta": {},
-                      "value": false
+                      "meta": {
+                        "required": true
+                      },
+                      "value": "thinking.enabled"
                     },
                     "635": {
+                      "type": "const",
+                      "meta": {
+                        "required": true
+                      },
+                      "value": "thinking.effort"
+                    },
+                    "636": {
                       "type": "union",
-                      "meta": {},
+                      "meta": {
+                        "required": true
+                      },
                       "list": [
-                        634,
-                        620
+                        633,
+                        635
                       ]
                     },
                     "637": {
-                      "type": "string",
-                      "meta": {
-                        "required": true
-                      }
+                      "type": "boolean",
+                      "meta": {}
                     },
                     "638": {
                       "type": "object",
@@ -1289,93 +1180,493 @@
                         "default": {}
                       },
                       "dict": {
-                        "id": 637,
-                        "name": 621,
-                        "contextWindow": 624,
-                        "maxTokens": 627,
-                        "input": 633,
-                        "reasoningEfforts": 635,
-                        "compat": 601
+                        "$var": 636,
+                        "omitWhenOff": 637
                       }
                     },
                     "639": {
+                      "type": "union",
+                      "meta": {},
+                      "list": [
+                        627,
+                        628,
+                        629,
+                        630,
+                        638
+                      ]
+                    },
+                    "640": {
+                      "type": "boolean",
+                      "meta": {}
+                    },
+                    "641": {
+                      "type": "boolean",
+                      "meta": {}
+                    },
+                    "642": {
+                      "type": "boolean",
+                      "meta": {}
+                    },
+                    "643": {
+                      "type": "boolean",
+                      "meta": {}
+                    },
+                    "644": {
+                      "type": "union",
+                      "meta": {},
+                      "list": [
+                        646,
+                        648
+                      ]
+                    },
+                    "646": {
+                      "type": "const",
+                      "meta": {
+                        "required": true
+                      },
+                      "value": "max_completion_tokens"
+                    },
+                    "648": {
+                      "type": "const",
+                      "meta": {
+                        "required": true
+                      },
+                      "value": "max_tokens"
+                    },
+                    "649": {
+                      "type": "boolean",
+                      "meta": {}
+                    },
+                    "650": {
+                      "type": "boolean",
+                      "meta": {}
+                    },
+                    "651": {
+                      "type": "boolean",
+                      "meta": {}
+                    },
+                    "652": {
+                      "type": "boolean",
+                      "meta": {}
+                    },
+                    "653": {
+                      "type": "union",
+                      "meta": {},
+                      "list": [
+                        655,
+                        657,
+                        659,
+                        661,
+                        663,
+                        665,
+                        667,
+                        669,
+                        671,
+                        673
+                      ]
+                    },
+                    "655": {
+                      "type": "const",
+                      "meta": {
+                        "required": true
+                      },
+                      "value": "openai"
+                    },
+                    "657": {
+                      "type": "const",
+                      "meta": {
+                        "required": true
+                      },
+                      "value": "deepseek"
+                    },
+                    "659": {
+                      "type": "const",
+                      "meta": {
+                        "required": true
+                      },
+                      "value": "openrouter"
+                    },
+                    "661": {
+                      "type": "const",
+                      "meta": {
+                        "required": true
+                      },
+                      "value": "together"
+                    },
+                    "663": {
+                      "type": "const",
+                      "meta": {
+                        "required": true
+                      },
+                      "value": "zai"
+                    },
+                    "665": {
+                      "type": "const",
+                      "meta": {
+                        "required": true
+                      },
+                      "value": "qwen"
+                    },
+                    "667": {
+                      "type": "const",
+                      "meta": {
+                        "required": true
+                      },
+                      "value": "chat-template"
+                    },
+                    "669": {
+                      "type": "const",
+                      "meta": {
+                        "required": true
+                      },
+                      "value": "qwen-chat-template"
+                    },
+                    "671": {
+                      "type": "const",
+                      "meta": {
+                        "required": true
+                      },
+                      "value": "string-thinking"
+                    },
+                    "673": {
+                      "type": "const",
+                      "meta": {
+                        "required": true
+                      },
+                      "value": "ant-ling"
+                    },
+                    "674": {
+                      "type": "dict",
+                      "meta": {
+                        "default": {}
+                      },
+                      "inner": 639,
+                      "sKey": 675
+                    },
+                    "675": {
+                      "type": "string",
+                      "meta": {}
+                    },
+                    "676": {
+                      "type": "boolean",
+                      "meta": {}
+                    },
+                    "677": {
+                      "type": "union",
+                      "meta": {},
+                      "list": [
+                        679
+                      ]
+                    },
+                    "679": {
+                      "type": "const",
+                      "meta": {
+                        "required": true
+                      },
+                      "value": "anthropic"
+                    },
+                    "680": {
+                      "type": "boolean",
+                      "meta": {}
+                    },
+                    "681": {
+                      "type": "boolean",
+                      "meta": {}
+                    },
+                    "682": {
+                      "type": "boolean",
+                      "meta": {}
+                    },
+                    "683": {
+                      "type": "boolean",
+                      "meta": {}
+                    },
+                    "684": {
+                      "type": "boolean",
+                      "meta": {}
+                    },
+                    "685": {
+                      "type": "boolean",
+                      "meta": {}
+                    },
+                    "686": {
+                      "type": "boolean",
+                      "meta": {}
+                    },
+                    "687": {
                       "type": "object",
                       "meta": {
                         "default": {}
                       },
                       "dict": {
-                        "name": 621,
-                        "contextWindow": 624,
-                        "maxTokens": 627,
-                        "input": 633,
-                        "reasoningEfforts": 635,
-                        "compat": 601
+                        "supportsStore": 640,
+                        "supportsDeveloperRole": 641,
+                        "supportsReasoningEffort": 642,
+                        "supportsUsageInStreaming": 643,
+                        "maxTokensField": 644,
+                        "requiresToolResultName": 649,
+                        "requiresAssistantAfterToolResult": 650,
+                        "requiresThinkingAsText": 651,
+                        "requiresReasoningContentOnAssistantMessages": 652,
+                        "thinkingFormat": 653,
+                        "chatTemplateKwargs": 674,
+                        "supportsStrictMode": 676,
+                        "cacheControlFormat": 677,
+                        "supportsLongCacheRetention": 680,
+                        "supportsEagerToolInputStreaming": 681,
+                        "supportsCacheControlOnTools": 682,
+                        "supportsTemperature": 683,
+                        "forceAdaptiveThinking": 684,
+                        "allowEmptySignature": 685,
+                        "supportsStrictTools": 686
                       }
                     },
-                    "641": {
+                    "688": {
+                      "type": "string",
+                      "meta": {}
+                    },
+                    "689": {
+                      "type": "const",
+                      "meta": {},
+                      "value": null
+                    },
+                    "690": {
+                      "type": "union",
+                      "meta": {},
+                      "list": [
+                        688,
+                        689
+                      ]
+                    },
+                    "691": {
+                      "type": "union",
+                      "meta": {},
+                      "list": [
+                        693,
+                        695,
+                        697,
+                        699,
+                        701,
+                        703,
+                        705
+                      ]
+                    },
+                    "693": {
+                      "type": "const",
+                      "meta": {
+                        "required": true
+                      },
+                      "value": "off"
+                    },
+                    "695": {
+                      "type": "const",
+                      "meta": {
+                        "required": true
+                      },
+                      "value": "minimal"
+                    },
+                    "697": {
+                      "type": "const",
+                      "meta": {
+                        "required": true
+                      },
+                      "value": "low"
+                    },
+                    "699": {
+                      "type": "const",
+                      "meta": {
+                        "required": true
+                      },
+                      "value": "medium"
+                    },
+                    "701": {
+                      "type": "const",
+                      "meta": {
+                        "required": true
+                      },
+                      "value": "high"
+                    },
+                    "703": {
+                      "type": "const",
+                      "meta": {
+                        "required": true
+                      },
+                      "value": "xhigh"
+                    },
+                    "705": {
+                      "type": "const",
+                      "meta": {
+                        "required": true
+                      },
+                      "value": "max"
+                    },
+                    "706": {
+                      "type": "dict",
+                      "meta": {
+                        "default": {}
+                      },
+                      "inner": 690,
+                      "sKey": 691
+                    },
+                    "707": {
+                      "type": "string",
+                      "meta": {}
+                    },
+                    "710": {
+                      "type": "number",
+                      "meta": {
+                        "step": 1,
+                        "min": 1
+                      }
+                    },
+                    "713": {
+                      "type": "number",
+                      "meta": {
+                        "step": 1,
+                        "min": 1
+                      }
+                    },
+                    "714": {
+                      "type": "union",
+                      "meta": {},
+                      "list": [
+                        716,
+                        718
+                      ]
+                    },
+                    "716": {
+                      "type": "const",
+                      "meta": {
+                        "required": true
+                      },
+                      "value": "text"
+                    },
+                    "718": {
+                      "type": "const",
+                      "meta": {
+                        "required": true
+                      },
+                      "value": "image"
+                    },
+                    "719": {
+                      "type": "array",
+                      "meta": {
+                        "default": []
+                      },
+                      "inner": 714
+                    },
+                    "720": {
+                      "type": "const",
+                      "meta": {},
+                      "value": false
+                    },
+                    "721": {
+                      "type": "union",
+                      "meta": {},
+                      "list": [
+                        720,
+                        706
+                      ]
+                    },
+                    "723": {
+                      "type": "string",
+                      "meta": {
+                        "required": true
+                      }
+                    },
+                    "724": {
+                      "type": "object",
+                      "meta": {
+                        "default": {}
+                      },
+                      "dict": {
+                        "id": 723,
+                        "name": 707,
+                        "contextWindow": 710,
+                        "maxTokens": 713,
+                        "input": 719,
+                        "reasoningEfforts": 721,
+                        "compat": 687
+                      }
+                    },
+                    "725": {
+                      "type": "object",
+                      "meta": {
+                        "default": {}
+                      },
+                      "dict": {
+                        "name": 707,
+                        "contextWindow": 710,
+                        "maxTokens": 713,
+                        "input": 719,
+                        "reasoningEfforts": 721,
+                        "compat": 687
+                      }
+                    },
+                    "727": {
                       "type": "string",
                       "meta": {
                         "role": "credential-ref"
                       }
                     },
-                    "642": {
+                    "728": {
                       "type": "string",
                       "meta": {}
                     },
-                    "643": {
+                    "729": {
                       "type": "union",
                       "meta": {},
                       "list": [
-                        645,
-                        647,
-                        649
+                        731,
+                        733,
+                        735
                       ]
                     },
-                    "645": {
+                    "731": {
                       "type": "const",
                       "meta": {
                         "required": true
                       },
                       "value": "openai-completions"
                     },
-                    "647": {
+                    "733": {
                       "type": "const",
                       "meta": {
                         "required": true
                       },
                       "value": "openai-responses"
                     },
-                    "649": {
+                    "735": {
                       "type": "const",
                       "meta": {
                         "required": true
                       },
                       "value": "anthropic-messages"
                     },
-                    "650": {
+                    "736": {
                       "type": "string",
                       "meta": {}
                     },
-                    "651": {
+                    "737": {
                       "type": "array",
                       "meta": {
                         "default": []
                       },
-                      "inner": 638
+                      "inner": 724
                     },
-                    "652": {
+                    "738": {
                       "type": "dict",
                       "meta": {
                         "default": {}
                       },
-                      "inner": 639,
-                      "sKey": 653
+                      "inner": 725,
+                      "sKey": 739
                     },
-                    "653": {
+                    "739": {
                       "type": "string",
                       "meta": {}
                     },
-                    "657": {
+                    "743": {
                       "type": "number",
                       "meta": {
                         "step": 1,
@@ -1383,7 +1674,7 @@
                         "default": 262144
                       }
                     },
-                    "661": {
+                    "747": {
                       "type": "number",
                       "meta": {
                         "step": 1,
@@ -1391,198 +1682,198 @@
                         "default": 32768
                       }
                     },
-                    "662": {
+                    "748": {
                       "type": "union",
                       "meta": {},
                       "list": [
-                        664,
-                        666
+                        750,
+                        752
                       ]
                     },
-                    "664": {
+                    "750": {
                       "type": "const",
                       "meta": {
                         "required": true
                       },
                       "value": "text"
                     },
-                    "666": {
+                    "752": {
                       "type": "const",
                       "meta": {
                         "required": true
                       },
                       "value": "image"
                     },
-                    "668": {
+                    "754": {
                       "type": "array",
                       "meta": {
                         "default": [
                           "text"
                         ]
                       },
-                      "inner": 662
+                      "inner": 748
                     },
-                    "669": {
+                    "755": {
                       "type": "string",
                       "meta": {}
                     },
-                    "670": {
+                    "756": {
                       "type": "dict",
                       "meta": {
                         "default": {}
                       },
-                      "inner": 669,
-                      "sKey": 671
+                      "inner": 755,
+                      "sKey": 757
                     },
-                    "671": {
+                    "757": {
                       "type": "string",
                       "meta": {}
                     },
-                    "672": {
+                    "758": {
                       "type": "union",
                       "meta": {},
                       "list": [
-                        674,
-                        676,
-                        678,
-                        680,
-                        682,
-                        684,
-                        686
+                        760,
+                        762,
+                        764,
+                        766,
+                        768,
+                        770,
+                        772
                       ]
                     },
-                    "674": {
+                    "760": {
                       "type": "const",
                       "meta": {
                         "required": true
                       },
                       "value": "off"
                     },
-                    "676": {
+                    "762": {
                       "type": "const",
                       "meta": {
                         "required": true
                       },
                       "value": "minimal"
                     },
-                    "678": {
+                    "764": {
                       "type": "const",
                       "meta": {
                         "required": true
                       },
                       "value": "low"
                     },
-                    "680": {
+                    "766": {
                       "type": "const",
                       "meta": {
                         "required": true
                       },
                       "value": "medium"
                     },
-                    "682": {
+                    "768": {
                       "type": "const",
                       "meta": {
                         "required": true
                       },
                       "value": "high"
                     },
-                    "684": {
+                    "770": {
                       "type": "const",
                       "meta": {
                         "required": true
                       },
                       "value": "xhigh"
                     },
-                    "686": {
+                    "772": {
                       "type": "const",
                       "meta": {
                         "required": true
                       },
                       "value": "max"
                     },
-                    "687": {
+                    "773": {
                       "type": "union",
                       "meta": {},
                       "list": [
-                        689,
-                        691,
-                        693
+                        775,
+                        777,
+                        779
                       ]
                     },
-                    "689": {
+                    "775": {
                       "type": "const",
                       "meta": {
                         "required": true
                       },
                       "value": "none"
                     },
-                    "691": {
+                    "777": {
                       "type": "const",
                       "meta": {
                         "required": true
                       },
                       "value": "short"
                     },
-                    "693": {
+                    "779": {
                       "type": "const",
                       "meta": {
                         "required": true
                       },
                       "value": "long"
                     },
-                    "694": {
+                    "780": {
                       "type": "union",
                       "meta": {},
                       "list": [
-                        696,
-                        698,
-                        700,
-                        702
+                        782,
+                        784,
+                        786,
+                        788
                       ]
                     },
-                    "696": {
+                    "782": {
                       "type": "const",
                       "meta": {
                         "required": true
                       },
                       "value": "sse"
                     },
-                    "698": {
+                    "784": {
                       "type": "const",
                       "meta": {
                         "required": true
                       },
                       "value": "websocket"
                     },
-                    "700": {
+                    "786": {
                       "type": "const",
                       "meta": {
                         "required": true
                       },
                       "value": "websocket-cached"
                     },
-                    "702": {
+                    "788": {
                       "type": "const",
                       "meta": {
                         "required": true
                       },
                       "value": "auto"
                     },
-                    "705": {
+                    "791": {
                       "type": "number",
                       "meta": {
                         "step": 1,
                         "min": 0
                       }
                     },
-                    "708": {
+                    "794": {
                       "type": "number",
                       "meta": {
                         "step": 1,
                         "min": 0
                       }
                     },
-                    "712": {
+                    "798": {
                       "type": "number",
                       "meta": {
                         "min": 5e-324,
@@ -1590,52 +1881,61 @@
                         "default": 300000
                       }
                     },
-                    "713": {
+                    "802": {
+                      "type": "number",
+                      "meta": {
+                        "step": 1,
+                        "min": 1,
+                        "default": 20971520
+                      }
+                    },
+                    "803": {
                       "type": "object",
                       "meta": {
                         "default": {}
                       },
                       "dict": {
-                        "apiKeyEnv": 641,
-                        "displayName": 642,
-                        "api": 643,
-                        "baseURL": 650,
-                        "models": 651,
-                        "modelOverrides": 652,
-                        "compat": 601,
-                        "defaultContextWindow": 657,
-                        "defaultMaxTokens": 661,
-                        "defaultInput": 668,
-                        "headers": 670,
-                        "reasoning": 672,
-                        "thinkingBudgets": 582,
-                        "cacheRetention": 687,
-                        "transport": 694,
-                        "timeoutMs": 705,
-                        "websocketConnectTimeoutMs": 708,
-                        "streamIdleTimeoutMs": 712,
+                        "apiKeyEnv": 727,
+                        "displayName": 728,
+                        "api": 729,
+                        "baseURL": 736,
+                        "models": 737,
+                        "modelOverrides": 738,
+                        "compat": 687,
+                        "defaultContextWindow": 743,
+                        "defaultMaxTokens": 747,
+                        "defaultInput": 754,
+                        "headers": 756,
+                        "reasoning": 758,
+                        "thinkingBudgets": 626,
+                        "cacheRetention": 773,
+                        "transport": 780,
+                        "timeoutMs": 791,
+                        "websocketConnectTimeoutMs": 794,
+                        "streamIdleTimeoutMs": 798,
+                        "maxRequestImageBytes": 802,
                         "retryPolicy": 25
                       }
                     },
-                    "715": {
+                    "805": {
                       "type": "string",
                       "meta": {}
                     },
-                    "716": {
+                    "806": {
                       "type": "dict",
                       "meta": {
                         "default": {}
                       },
-                      "inner": 713,
-                      "sKey": 715
+                      "inner": 803,
+                      "sKey": 805
                     },
-                    "717": {
+                    "807": {
                       "type": "object",
                       "meta": {
                         "default": {}
                       },
                       "dict": {
-                        "providers": 716
+                        "providers": 806
                       }
                     }
                   }
@@ -1659,26 +1959,26 @@
       "method": "workspace.create",
       "request": {
         "type": "client-request",
-        "rpcId": "60c386df-d0f8-46e0-bbad-4019b8a8169d",
+        "rpcId": "682f5a59-8199-4526-ba12-09b89d0fa204",
         "method": "workspace.create",
         "payload": {
-          "path": "/tmp/dsh-glass-rpc-fixture-11qmrcau/workspace"
+          "path": "/tmp/dsh-glass-rpc-fixture-mx3ghduh/workspace"
         }
       },
       "curlExit": 0,
       "response": {
         "type": "server-response",
-        "rpcId": "60c386df-d0f8-46e0-bbad-4019b8a8169d",
+        "rpcId": "682f5a59-8199-4526-ba12-09b89d0fa204",
         "result": {
           "ok": true,
           "value": {
             "workspace": {
-              "workspaceId": "cdd4bdea-cebf-4f4c-8a2d-de8741d5f08f",
-              "path": "/tmp/dsh-glass-rpc-fixture-11qmrcau/workspace",
+              "workspaceId": "268fc54b-9789-461a-a80a-b882e1edbc5e",
+              "path": "/tmp/dsh-glass-rpc-fixture-mx3ghduh/workspace",
               "title": "workspace",
               "sessionIds": [],
-              "createdAt": "2026-08-18T21:02:32.537Z",
-              "updatedAt": "2026-08-18T21:02:32.537Z"
+              "createdAt": "2026-08-21T08:01:03.679Z",
+              "updatedAt": "2026-08-21T08:01:03.679Z"
             },
             "created": true
           }
@@ -1689,20 +1989,20 @@
       "method": "session.create",
       "request": {
         "type": "client-request",
-        "rpcId": "e2226f09-f07d-4d62-a75f-95151796342f",
+        "rpcId": "7697c792-f1fd-45f2-931e-4573c4a0abc9",
         "method": "session.create",
         "payload": {
-          "workspaceId": "cdd4bdea-cebf-4f4c-8a2d-de8741d5f08f"
+          "workspaceId": "268fc54b-9789-461a-a80a-b882e1edbc5e"
         }
       },
       "curlExit": 0,
       "response": {
         "type": "server-response",
-        "rpcId": "e2226f09-f07d-4d62-a75f-95151796342f",
+        "rpcId": "7697c792-f1fd-45f2-931e-4573c4a0abc9",
         "result": {
           "ok": true,
           "value": {
-            "sessionId": "session-1c83f0ac-ec90-4eaa-a27b-448fcbff5247",
+            "sessionId": "session-b4b981ae-1b2e-4c14-9778-6c470ad266eb",
             "agentPreset": "standard"
           }
         }
@@ -1712,7 +2012,7 @@
       "method": "session.history",
       "request": {
         "type": "client-request",
-        "rpcId": "3a93adf9-4d31-4dbe-a4b6-e4520aa37784",
+        "rpcId": "826c0d6c-ae37-4e58-8a7e-15985f561075",
         "method": "session.history",
         "payload": {
           "sessionId": "fixture-missing"
@@ -1721,7 +2021,7 @@
       "curlExit": 0,
       "response": {
         "type": "server-response",
-        "rpcId": "3a93adf9-4d31-4dbe-a4b6-e4520aa37784",
+        "rpcId": "826c0d6c-ae37-4e58-8a7e-15985f561075",
         "result": {
           "ok": false,
           "error": {
@@ -1738,7 +2038,7 @@
       "method": "session.prompt",
       "request": {
         "type": "client-request",
-        "rpcId": "07e40176-ec6f-4a8f-81b4-3c1d393a1c44",
+        "rpcId": "28a2c4cf-746e-4834-ad52-51d012dad744",
         "method": "session.prompt",
         "payload": {
           "sessionId": "fixture-missing",
@@ -1755,7 +2055,7 @@
       "curlExit": 0,
       "response": {
         "type": "server-response",
-        "rpcId": "07e40176-ec6f-4a8f-81b4-3c1d393a1c44",
+        "rpcId": "28a2c4cf-746e-4834-ad52-51d012dad744",
         "result": {
           "ok": false,
           "error": {
@@ -1772,7 +2072,7 @@
       "method": "session.cancel",
       "request": {
         "type": "client-request",
-        "rpcId": "5e9b5f45-c7bb-43b3-b6f9-5abbf3d58e71",
+        "rpcId": "1164a32d-957c-4246-85d3-d39e62e40b3b",
         "method": "session.cancel",
         "payload": {
           "sessionId": "fixture-missing"
@@ -1781,7 +2081,7 @@
       "curlExit": 0,
       "response": {
         "type": "server-response",
-        "rpcId": "5e9b5f45-c7bb-43b3-b6f9-5abbf3d58e71",
+        "rpcId": "1164a32d-957c-4246-85d3-d39e62e40b3b",
         "result": {
           "ok": false,
           "error": {
@@ -1798,7 +2098,7 @@
       "method": "session.search",
       "request": {
         "type": "client-request",
-        "rpcId": "a39482d5-6f9a-41ad-84fa-be850f65782c",
+        "rpcId": "71d66a76-6306-4568-9961-b5ab31829a70",
         "method": "session.search",
         "payload": {
           "query": "fixture"
@@ -1807,7 +2107,7 @@
       "curlExit": 0,
       "response": {
         "type": "server-response",
-        "rpcId": "a39482d5-6f9a-41ad-84fa-be850f65782c",
+        "rpcId": "71d66a76-6306-4568-9961-b5ab31829a70",
         "result": {
           "ok": false,
           "error": {
@@ -1822,7 +2122,7 @@
       "method": "session.rename",
       "request": {
         "type": "client-request",
-        "rpcId": "e7b68dc7-206c-4553-9033-16ec73b4f8ce",
+        "rpcId": "fbedc504-7269-462b-9991-4b7f5c64a889",
         "method": "session.rename",
         "payload": {
           "sessionId": "fixture-missing",
@@ -1832,7 +2132,7 @@
       "curlExit": 0,
       "response": {
         "type": "server-response",
-        "rpcId": "e7b68dc7-206c-4553-9033-16ec73b4f8ce",
+        "rpcId": "fbedc504-7269-462b-9991-4b7f5c64a889",
         "result": {
           "ok": false,
           "error": {
@@ -1849,7 +2149,7 @@
       "method": "session.fork",
       "request": {
         "type": "client-request",
-        "rpcId": "767cd50a-e03d-4473-9d78-3852010b550a",
+        "rpcId": "629421e4-ae4a-4763-b4b7-bfe56418d3df",
         "method": "session.fork",
         "payload": {
           "sessionId": "fixture-missing"
@@ -1858,7 +2158,7 @@
       "curlExit": 0,
       "response": {
         "type": "server-response",
-        "rpcId": "767cd50a-e03d-4473-9d78-3852010b550a",
+        "rpcId": "629421e4-ae4a-4763-b4b7-bfe56418d3df",
         "result": {
           "ok": false,
           "error": {
@@ -1875,7 +2175,7 @@
       "method": "workspace.rename",
       "request": {
         "type": "client-request",
-        "rpcId": "fa815345-c396-45d2-89c4-121513bd4957",
+        "rpcId": "cacfde20-0dea-42d0-a286-c4fad6c8fe1c",
         "method": "workspace.rename",
         "payload": {
           "workspaceId": "fixture-missing",
@@ -1885,7 +2185,7 @@
       "curlExit": 0,
       "response": {
         "type": "server-response",
-        "rpcId": "fa815345-c396-45d2-89c4-121513bd4957",
+        "rpcId": "cacfde20-0dea-42d0-a286-c4fad6c8fe1c",
         "result": {
           "ok": false,
           "error": {
@@ -1902,7 +2202,7 @@
       "method": "workspace.delete",
       "request": {
         "type": "client-request",
-        "rpcId": "a95aab54-1479-4272-88a6-c81ea9dc22a5",
+        "rpcId": "e03e3743-2f67-4a7b-b2c1-fe389168d389",
         "method": "workspace.delete",
         "payload": {
           "workspaceId": "fixture-missing"
@@ -1911,7 +2211,7 @@
       "curlExit": 0,
       "response": {
         "type": "server-response",
-        "rpcId": "a95aab54-1479-4272-88a6-c81ea9dc22a5",
+        "rpcId": "e03e3743-2f67-4a7b-b2c1-fe389168d389",
         "result": {
           "ok": false,
           "error": {
@@ -1928,7 +2228,7 @@
       "method": "workspace.archiveSession",
       "request": {
         "type": "client-request",
-        "rpcId": "b6bd0a64-1211-4729-82a3-be22f435f0e8",
+        "rpcId": "013af920-6db9-454c-97cc-d06b0dee8d71",
         "method": "workspace.archiveSession",
         "payload": {
           "sessionId": "fixture-missing"
@@ -1937,7 +2237,7 @@
       "curlExit": 0,
       "response": {
         "type": "server-response",
-        "rpcId": "b6bd0a64-1211-4729-82a3-be22f435f0e8",
+        "rpcId": "013af920-6db9-454c-97cc-d06b0dee8d71",
         "result": {
           "ok": false,
           "error": {
@@ -1954,7 +2254,7 @@
       "method": "settings.mutate",
       "request": {
         "type": "client-request",
-        "rpcId": "d6f28c04-1e5e-4a63-b910-cee33da22b8b",
+        "rpcId": "665d9b05-197c-4ae0-aa88-dce19516fc13",
         "method": "settings.mutate",
         "payload": {
           "ns": "fixture",
@@ -1964,7 +2264,7 @@
       "curlExit": 0,
       "response": {
         "type": "server-response",
-        "rpcId": "d6f28c04-1e5e-4a63-b910-cee33da22b8b",
+        "rpcId": "665d9b05-197c-4ae0-aa88-dce19516fc13",
         "result": {
           "ok": false,
           "error": {

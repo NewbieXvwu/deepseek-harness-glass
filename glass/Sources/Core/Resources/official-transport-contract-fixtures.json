@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "officialSourceCommit": "141eb6fef83422698aef7a981029e843e8161534",
-  "contractRevision": "official-141eb6f-transport-contract-r1",
-  "fixtureRevision": "official-141eb6f-transport-fixtures-r1",
+  "officialSourceCommit": "528c682e061696f5a160f363f236ecbf53cbd006",
+  "contractRevision": "official-528c682e-transport-contract-r1",
+  "fixtureRevision": "official-528c682e-transport-fixtures-r1",
   "fixtureClass": "schema-valid deterministic transport replay",
   "secretPolicy": "All credential-like values are literal non-secret fixture strings; no user configuration or Host credentials are captured.",
   "records": [
@@ -84,34 +84,6 @@
           "ok": true,
           "value": {
             "accepted": true
-          }
-        }
-      }
-    },
-    {
-      "contract": "session.selectModel",
-      "request": {
-        "type": "client-request",
-        "rpcId": "contract-select-model",
-        "method": "session.selectModel",
-        "payload": {
-          "sessionId": "contract-session",
-          "provider": "deepseek-official",
-          "model": "deepseek-v4-flash",
-          "reasoningEffort": "balanced"
-        }
-      },
-      "response": {
-        "type": "server-response",
-        "rpcId": "contract-select-model",
-        "result": {
-          "ok": true,
-          "value": {
-            "selected": {
-              "provider": "deepseek-official",
-              "model": "deepseek-v4-flash",
-              "reasoningEffort": "balanced"
-            }
           }
         }
       }

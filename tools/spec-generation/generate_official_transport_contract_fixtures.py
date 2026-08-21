@@ -12,8 +12,8 @@ import argparse
 import json
 import pathlib
 
-COMMIT = "141eb6fef83422698aef7a981029e843e8161534"
-REVISION = "official-141eb6f-transport-contract-r1"
+COMMIT = "528c682e061696f5a160f363f236ecbf53cbd006"
+REVISION = "official-528c682e-transport-contract-r1"
 
 
 def request(rpc_id: str, method: str, payload: dict) -> dict:
@@ -56,7 +56,7 @@ def main() -> None:
         "schemaVersion": 1,
         "officialSourceCommit": COMMIT,
         "contractRevision": REVISION,
-        "fixtureRevision": "official-141eb6f-transport-fixtures-r1",
+        "fixtureRevision": "official-528c682e-transport-fixtures-r1",
         "fixtureClass": "schema-valid deterministic transport replay",
         "secretPolicy": "All credential-like values are literal non-secret fixture strings; no user configuration or Host credentials are captured.",
         "records": records,

@@ -9,8 +9,8 @@ import sys
 import tempfile
 from pathlib import Path
 
-COMMIT = "141eb6fef83422698aef7a981029e843e8161534"
-REVISION = "official-141eb6f-web-ui-r1"
+COMMIT = "528c682e061696f5a160f363f236ecbf53cbd006"
+REVISION = "official-528c682e-web-ui-r1"
 EXPECTED_METHODS = {
     "host.describe", "session.list", "session.history", "session.prompt", "session.cancel", "session.create", "session.search", "session.rename", "session.fork",
     "workspace.list", "workspace.create", "workspace.rename", "workspace.delete", "workspace.archiveSession",

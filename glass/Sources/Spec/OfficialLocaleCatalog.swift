@@ -3,9 +3,9 @@ import Foundation
 
 extension OfficialUISpec {
     enum LocaleCatalog {
-        static let sourceCommit = "141eb6fef83422698aef7a981029e843e8161534"
-        static let revision = "sha256:08f8257b0d58cf0836c8eac48be33865bdea9c0cfe5bc312788ec31034e81a4c"
-        static let sourceInputRevision = "sha256:deb97ab6844c03ce2e95c460c3a6637058a66650160ee2e87120ea3af7ef50ab"
+        static let sourceCommit = "528c682e061696f5a160f363f236ecbf53cbd006"
+        static let revision = "sha256:9eb8be68cf93c0db30da5841a051cebbf282b30efc4a0eda8568d42e09aa4450"
+        static let sourceInputRevision = "sha256:b86f1138e77fdc6fb70277156da411cc2abe89149781fdd78bdf90583723170f"
         static let supportedLanguages: Set<String> = ["en", "zh"]
         static let values: [String: String] = [
         "en|locale.back": "Back",
@@ -99,6 +99,9 @@ extension OfficialUISpec {
         "en|ui-conversation.access.confirm.description": "Full access reduces confirmation steps and lets the agent perform more actions directly, including sensitive operations, file changes, or external commands. Only use it when you trust the current task.",
         "en|ui-conversation.access.confirm.enable": "Enable Full access",
         "en|ui-conversation.access.confirm.title": "Enable Full access?",
+        "en|ui-conversation.access.preset.fullAccess": "Full access",
+        "en|ui-conversation.access.preset.readOnly": "Read Only",
+        "en|ui-conversation.access.preset.workspaceWrite": "Workspace Write",
         "en|ui-conversation.approval.allowOnce": "Allow once",
         "en|ui-conversation.approval.detail.aria": "Approval details",
         "en|ui-conversation.approval.escalation": "Tool {toolName} requests privileged execution",
@@ -337,6 +340,9 @@ extension OfficialUISpec {
         "en|ui-permission-presets.confirm.title": "Enable Full access?",
         "en|ui-permission-presets.description": "Choose the default permission mode for new sessions",
         "en|ui-permission-presets.loading": "Loading",
+        "en|ui-permission-presets.preset.fullAccess": "Full access",
+        "en|ui-permission-presets.preset.readOnly": "Read Only",
+        "en|ui-permission-presets.preset.workspaceWrite": "Workspace Write",
         "en|ui-permission-presets.title": "Permission",
         "en|ui-permission-presets.unavailable": "Unavailable",
         "en|ui-plan.chip.off.aria": "Plan mode off, press to turn on",
@@ -546,6 +552,7 @@ extension OfficialUISpec {
         "en|ui-subagent.readonly.oneShot.title": "One-shot subagent record",
         "en|ui-subagent.readonly.title": "This subagent is read-only for now",
         "en|ui-subagent.retry": "Retry",
+        "en|ui-subagent.switcher.aria": "Switch subagent: {title}",
         "en|ui-subagent.tree.aria": "Subagent sessions",
         "en|ui-theme.appearance.dark": "Dark",
         "en|ui-theme.appearance.light": "Light",
@@ -748,9 +755,12 @@ extension OfficialUISpec {
         "zh|ui-commands.status.loading": "正在加载选项…",
         "zh|ui-conversation.access.confirm.acknowledge": "我已了解风险，并愿意继续",
         "zh|ui-conversation.access.confirm.cancel": "取消",
-        "zh|ui-conversation.access.confirm.description": "启用 Full access 后，agent 将减少确认步骤，并且可以直接执行更多操作，包括敏感操作、文件修改或外部命令。仅建议在你信任当前任务时使用。",
-        "zh|ui-conversation.access.confirm.enable": "启用 Full access",
-        "zh|ui-conversation.access.confirm.title": "确认启用 Full access？",
+        "zh|ui-conversation.access.confirm.description": "启用完全权限后，智能体将减少确认步骤，并且可以直接执行更多操作，包括敏感操作、文件修改或外部命令。仅建议在你信任当前任务时使用。",
+        "zh|ui-conversation.access.confirm.enable": "启用完全权限",
+        "zh|ui-conversation.access.confirm.title": "确认启用完全权限？",
+        "zh|ui-conversation.access.preset.fullAccess": "完全权限",
+        "zh|ui-conversation.access.preset.readOnly": "仅可查看",
+        "zh|ui-conversation.access.preset.workspaceWrite": "可写入工作区",
         "zh|ui-conversation.approval.allowOnce": "允许一次",
         "zh|ui-conversation.approval.detail.aria": "审批详情",
         "zh|ui-conversation.approval.escalation": "工具 {toolName} 请求越权执行",
@@ -984,11 +994,14 @@ extension OfficialUISpec {
         "zh|ui-model-selection.warning.groupLoad": "{name} 加载失败：{message}",
         "zh|ui-permission-presets.confirm.acknowledge": "我已了解风险，并愿意继续",
         "zh|ui-permission-presets.confirm.cancel": "取消",
-        "zh|ui-permission-presets.confirm.description": "启用 Full access 后，新会话将减少确认步骤，并且可以直接执行更多操作，包括敏感操作、文件修改或外部命令。仅建议在你信任后续任务时使用。",
-        "zh|ui-permission-presets.confirm.enable": "启用 Full access",
-        "zh|ui-permission-presets.confirm.title": "确认启用 Full access？",
+        "zh|ui-permission-presets.confirm.description": "启用完全权限后，新会话将减少确认步骤，并且可以直接执行更多操作，包括敏感操作、文件修改或外部命令。仅建议在你信任后续任务时使用。",
+        "zh|ui-permission-presets.confirm.enable": "启用完全权限",
+        "zh|ui-permission-presets.confirm.title": "确认启用完全权限？",
         "zh|ui-permission-presets.description": "选择新会话的默认权限模式",
         "zh|ui-permission-presets.loading": "加载中",
+        "zh|ui-permission-presets.preset.fullAccess": "完全权限",
+        "zh|ui-permission-presets.preset.readOnly": "仅可查看",
+        "zh|ui-permission-presets.preset.workspaceWrite": "可写入工作区",
         "zh|ui-permission-presets.title": "权限",
         "zh|ui-permission-presets.unavailable": "不可用",
         "zh|ui-plan.chip.off.aria": "plan mode 已关闭，按下开启",
@@ -1198,6 +1211,7 @@ extension OfficialUISpec {
         "zh|ui-subagent.readonly.oneShot.title": "一次性子代理记录",
         "zh|ui-subagent.readonly.title": "此子代理暂时只读",
         "zh|ui-subagent.retry": "重试",
+        "zh|ui-subagent.switcher.aria": "切换子代理：{title}",
         "zh|ui-subagent.tree.aria": "子代理会话",
         "zh|ui-theme.appearance.dark": "深色",
         "zh|ui-theme.appearance.light": "浅色",

@@ -53,6 +53,13 @@ enum NativeWorkspaceBrowserOrdering {
         return result
     }
 
+    /// RC1 `WorkspaceBrowser` inserts the newly selected blank session at the
+    /// front of a browser-local account. Duplicate identity is removed so the
+    /// operation is idempotent across Host refreshes.
+    static func orderPromotingBlankSession(_ sessionID: String, in existingOrder: [String]) -> [String] {
+        [sessionID] + existingOrder.filter { $0 != sessionID }
+    }
+
     /// Maps the target row half to RC8's `insertWorkspaceBefore` anchor and
     /// rejects self, original-position, and adjacent no-op drops.
     static func workspaceDecision(

@@ -37,7 +37,7 @@ struct HostBuildVerifier: Sendable {
         let version: String
     }
 
-    private static let lockedOfficialSourceCommit = "141eb6fef83422698aef7a981029e843e8161534"
+    private static let lockedOfficialSourceCommit = "528c682e061696f5a160f363f236ecbf53cbd006"
     private let catalog: SupportedHostBuildCatalog
 
     init(catalog: SupportedHostBuildCatalog) {
