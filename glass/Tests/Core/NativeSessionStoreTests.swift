@@ -549,6 +549,55 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.modelDirectoryStatus, .ready)
     }
 
+    func testFailedGapRecoveryKeepsBufferedFramesForLaterSuccessfulRepair() async {
+        let failedHistory = expectation(description: "first gap history repair fails")
+        let successfulHistory = expectation(description: "second gap history repair succeeds")
+        let api = FailThenStitchGapRecoverySessionAPI(
+            failedHistory: failedHistory,
+            successfulHistory: successfulHistory
+        )
+        let store = NativeSessionStore()
+        store.open(sessionID: "recovery-session", using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+        await eventually(timeout: 1) { store.items.map(\.text) == ["baseline"] }
+
+        store.applyMuxFrame(sessionEventFrame(
+            sessionID: "recovery-session",
+            seq: 3,
+            type: "user/message",
+            data: .object([
+                "id": .string("failed-gap"),
+                "content": .array([.object(["type": .string("text"), "text": .string("retained after failure")])]),
+                "source": .object(["kind": .string("user")]),
+            ]),
+            surfaceOp: "append"
+        ), sessionID: "recovery-session")
+        await fulfillment(of: [failedHistory], timeout: 1)
+        await eventually(timeout: 1) {
+            if case .error = store.modelDirectoryStatus { return true }
+            return false
+        }
+        XCTAssertEqual(store.items.map(\.text), ["baseline"])
+
+        store.applyMuxFrame(sessionEventFrame(
+            sessionID: "recovery-session",
+            seq: 4,
+            type: "user/message",
+            data: .object([
+                "id": .string("later-gap"),
+                "content": .array([.object(["type": .string("text"), "text": .string("later recovered tail")])]),
+                "source": .object(["kind": .string("user")]),
+            ]),
+            surfaceOp: "append"
+        ), sessionID: "recovery-session")
+        await fulfillment(of: [successfulHistory], timeout: 1)
+        await eventually(timeout: 1) {
+            store.items.map(\.text) == ["baseline", "recovered authority", "retained after failure", "later recovered tail"]
+        }
+
+        XCTAssertEqual(store.items.map(\.sequence), [1, 2, 3, 4])
+        XCTAssertEqual(store.modelDirectoryStatus, .ready)
+    }
+
     func testGapRecoveryStitchesBufferedLiveEventsAfterLatestHostWindow() async {
         let recoveryReachedHistory = expectation(description: "gap recovery starts delayed authority history")
         let api = StitchingGapRecoverySessionAPI(recoveryReachedHistory: recoveryReachedHistory)
@@ -1562,6 +1611,63 @@ final class NativeSessionStoreTests: XCTestCase {
                     "source": .object(["kind": .string("user")]),
                 ]),
                 surfaceOp: .string("append"), sourceEventSeqs: nil, ignorable: nil
+            ), view: nil)
+        }
+    }
+
+    @MainActor
+    private final class FailThenStitchGapRecoverySessionAPI: NativeSessionAPI {
+        let failedHistory: XCTestExpectation
+        let successfulHistory: XCTestExpectation
+        private var historyCount = 0
+
+        init(failedHistory: XCTestExpectation, successfulHistory: XCTestExpectation) {
+            self.failedHistory = failedHistory
+            self.successfulHistory = successfulHistory
+        }
+
+        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
+            historyCount += 1
+            let first = historyEntry(seq: 1, id: "baseline", text: "baseline")
+            switch historyCount {
+            case 1:
+                return .init(events: [first], hasMore: false, projections: nil)
+            case 2:
+                failedHistory.fulfill()
+                throw DSHTransportError.invalidEndpoint
+            default:
+                successfulHistory.fulfill()
+                return .init(
+                    events: [first, historyEntry(seq: 2, id: "recovered", text: "recovered authority")],
+                    hasMore: false,
+                    projections: nil
+                )
+            }
+        }
+
+        func models(sessionID _: String) async throws -> SessionModelsResponse {
+            .init(current: .init(provider: "provider", model: "model", reasoningEffort: nil), routable: true, groups: [], failures: [])
+        }
+
+        func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
+        func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
+        func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+        func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+        func cancelQuestion(rpcID _: String) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+
+        private func historyEntry(seq: Int, id: String, text: String) -> SessionHistoryEntryDTO {
+            .init(event: .init(
+                type: "user/message",
+                seq: seq,
+                time: Double(seq),
+                data: .object([
+                    "id": .string(id),
+                    "content": .array([.object(["type": .string("text"), "text": .string(text)])]),
+                    "source": .object(["kind": .string("user")]),
+                ]),
+                surfaceOp: .string("append"),
+                sourceEventSeqs: nil,
+                ignorable: nil
             ), view: nil)
         }
     }
