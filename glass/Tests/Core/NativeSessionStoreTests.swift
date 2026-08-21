@@ -24,6 +24,44 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.draft, "do not bypass the typed facade", "a rejected typed facade call must retain the draft for retry")
     }
 
+    func testRejectedAdmittedImagePromptRetainsDraftAndAttachmentForRetry() async throws {
+        let promptReachedFacade = expectation(description: "rejected typed facade receives admitted image content")
+        let imageData = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL9UQAAAABJRU5ErkJggg==")!
+        let api = RejectingSessionAPI(
+            promptReachedFacade: promptReachedFacade,
+            opensAuthority: true,
+            imageLimits: .init(
+                maxImageBytes: 4_096,
+                maxImagesPerMessage: 2,
+                maxMessageImageBytes: 8_192,
+                maxImagePixels: 16,
+                maxImageDimension: 4,
+                mediaTypes: ["image/png"]
+            )
+        )
+        let store = NativeSessionStore()
+        let imageURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("rejected-native-session-image-\(UUID().uuidString).png")
+        try imageData.write(to: imageURL)
+        defer { try? FileManager.default.removeItem(at: imageURL) }
+
+        store.open(sessionID: "rejected-image-prompt-session", using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+        await eventually(timeout: 1) { store.imageAttachmentLimits != nil }
+        store.draft = "keep this retryable"
+        store.addPendingImage(imageURL)
+        store.submitDraft()
+        await fulfillment(of: [promptReachedFacade], timeout: 1)
+        await eventually(timeout: 1) { !store.isSubmittingPrompt }
+
+        XCTAssertEqual(api.prompts.first?.content, [
+            .text(text: "keep this retryable"),
+            .image(mediaType: "image/png", data: imageData.base64EncodedString(), name: imageURL.lastPathComponent),
+        ])
+        XCTAssertEqual(store.draft, "keep this retryable")
+        XCTAssertEqual(store.pendingImages.count, 1)
+        XCTAssertEqual(store.pendingImages.first?.name, imageURL.lastPathComponent)
+    }
+
     func testCancelIntentUsesTypedFacadeOnlyForHostRunningTurn() async {
         let cancelReachedFacade = expectation(description: "typed cancel facade receives running turn intent")
         let api = RejectingSessionAPI(promptReachedFacade: nil, cancelReachedFacade: cancelReachedFacade, opensAuthority: true)
@@ -3502,18 +3540,37 @@ final class NativeSessionStoreTests: XCTestCase {
         let promptReachedFacade: XCTestExpectation?
         let cancelReachedFacade: XCTestExpectation?
         let opensAuthority: Bool
+        let imageLimits: ImageAttachmentLimits?
         private(set) var prompts: [Prompt] = []
         private(set) var cancelledSessionIDs: [String] = []
 
-        init(promptReachedFacade: XCTestExpectation?, cancelReachedFacade: XCTestExpectation? = nil, opensAuthority: Bool = false) {
+        init(
+            promptReachedFacade: XCTestExpectation?,
+            cancelReachedFacade: XCTestExpectation? = nil,
+            opensAuthority: Bool = false,
+            imageLimits: ImageAttachmentLimits? = nil
+        ) {
             self.promptReachedFacade = promptReachedFacade
             self.cancelReachedFacade = cancelReachedFacade
             self.opensAuthority = opensAuthority
+            self.imageLimits = imageLimits
         }
 
-        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
+        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws {
             guard opensAuthority else { throw DSHTransportError.invalidEndpoint }
-            return .init(events: [], hasMore: false, projections: nil)
+            let projections = imageLimits.map {
+                SessionProjectionsDTO(asOfSeq: 0, values: [
+                    "imageLimits": .object([
+                        "maxImageBytes": .number(Double($0.maxImageBytes)),
+                        "maxImagesPerMessage": .number(Double($0.maxImagesPerMessage)),
+                        "maxMessageImageBytes": .number(Double($0.maxMessageImageBytes)),
+                        "maxImagePixels": .number(Double($0.maxImagePixels)),
+                        "maxImageDimension": .number(Double($0.maxImageDimension)),
+                        "mediaTypes": .array($0.mediaTypes.map(JSONValue.string)),
+                    ]),
+                ])
+            }
+            return .init(events: [], hasMore: false, projections: projections)
         }
 
         func prompt(sessionID: String, content: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse {
