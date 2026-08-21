@@ -138,7 +138,7 @@ struct NativePluginCardDraft: Equatable {
 
     private func format(_ value: JSONValue?, as kind: NativePluginCardFieldKind) -> String {
         switch kind {
-        case .text: value?.stringValue ?? ""
+        case .text: return value?.stringValue ?? ""
         case .number:
             guard let number = value?.numberValue else { return "" }
             return number.rounded(.towardZero) == number ? String(Int(number)) : String(number)
