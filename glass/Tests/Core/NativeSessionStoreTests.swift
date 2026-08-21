@@ -931,6 +931,11 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.items.map { "\($0.sequence):\($0.text)" }, continuous.items.map { "\($0.sequence):\($0.text)" })
         XCTAssertEqual(store.modelDirectory?.current, continuous.modelDirectory?.current)
         XCTAssertEqual(store.modelDirectoryStatus, continuous.modelDirectoryStatus)
+        // RC8 consumes the subscription-tail mismatch with exactly one fenced
+        // follow-up authority pull after the restart baseline installs; the
+        // converged page owns the final transcript, so the visible window is
+        // stable across scheduler ordering instead of transiently stitched.
+        XCTAssertEqual(api.historyCount, 4)
     }
 
     func testResidentResyncSupersedesInFlightGapRepairAndDropsItsLiveBuffer() async {
@@ -2510,7 +2515,7 @@ final class NativeSessionStoreTests: XCTestCase {
         let staleHistoryReached: XCTestExpectation
         let newHistoryReached: XCTestExpectation
         private let staleHistoryGate = RecoveryGate()
-        private var historyCount = 0
+        private(set) var historyCount = 0
         private var modelsCount = 0
 
         init(staleHistoryReached: XCTestExpectation, newHistoryReached: XCTestExpectation) {
@@ -2532,10 +2537,25 @@ final class NativeSessionStoreTests: XCTestCase {
                     hasMore: false,
                     projections: nil
                 )
-            default:
+            case 3:
                 newHistoryReached.fulfill()
                 return .init(
                     events: [first, historyEntry(seq: 2, id: "new", text: "new host authority")],
+                    hasMore: false,
+                    projections: nil
+                )
+            default:
+                // RC8 consumes a subscription-tail mismatch with exactly one
+                // bounded follow-up authority pull. A real restarted Host keeps
+                // appending to its durable log, so that follow-up page converges
+                // and includes the formerly live-only event as durable history;
+                // it must never re-fulfill the restart expectation above.
+                return .init(
+                    events: [
+                        first,
+                        historyEntry(seq: 2, id: "new", text: "new host authority"),
+                        historyEntry(seq: 3, id: "surviving-live-tail", text: "surviving live tail"),
+                    ],
                     hasMore: false,
                     projections: nil
                 )
