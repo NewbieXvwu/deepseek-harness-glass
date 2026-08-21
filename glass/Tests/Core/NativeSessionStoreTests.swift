@@ -2430,7 +2430,7 @@ final class NativeSessionStoreTests: XCTestCase {
                 await oldAnswerGate.wait()
                 throw DSHTransportError.invalidEndpoint
             }
-            return .init(accepted: true)
+            return .init(accepted: true, reason: nil)
         }
 
         func cancelQuestion(rpcID _: String) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }

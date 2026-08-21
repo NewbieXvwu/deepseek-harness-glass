@@ -325,7 +325,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 
 ### T6.6 场景来源更正
 
-`18c991b` 的 portable/macOS工作流在Swift编译前失败：新增 `model-selector-light` 误把本仓库capture helper登记为RC8 `apps/web` 官方文件。现已改为锁定上游实际实现 `packages/client/ui-model-selection/src/client/ModelSelect.tsx:67-103,219-263`，本地场景/视觉/工作流门禁通过；必须以修正提交自身的macOS-26运行重新取得权威证据。
+`18c991b` 的 portable/macOS工作流在Swift编译前失败：新增 `model-selector-light` 误把本仓库capture helper登记为RC8 `apps/web` 官方文件。现已改为锁定上游实际实现 `packages/client/ui-model-selection/src/client/ModelSelect.tsx:67-103,219-263`，本地场景/视觉/工作流门禁通过；该修正后的首个macOS run又暴露新增question replay fake遗漏 `RPCReceipt.reason` 参数，现已显式传入nil并通过本地门禁。必须以最新修正提交自身的macOS-26运行重新取得权威证据。
 
 ## 7. 侧栏、工作区与会话浏览器
 
