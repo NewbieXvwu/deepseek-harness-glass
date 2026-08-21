@@ -170,6 +170,33 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         XCTAssertNotEqual(rendered.last, "warning.groupLoad", "interpolated warning must not fall back to an unregistered product literal")
     }
 
+    func testNativeModelAndPermissionSelectorsExportCurrentOfficialTriggerNames() throws {
+        let modelStore = NativeSessionStore()
+        modelStore.loadSnapshotModelSelectionFixture()
+        let permissionStore = NativeSessionStore()
+        permissionStore.loadSnapshotPermissionFixture()
+        let language = Locale.current.language.languageCode?.identifier ?? "en"
+        let modelLabel = NativeComposerModelSelector.localizedValue(
+            key: "trigger.ariaEffort",
+            language: language,
+            replacements: ["model": "DeepSeek V4", "effort": "Balanced"]
+        )
+        let permissionLabel = NativeComposerPermissionSelector.localizedValue(
+            key: "input.accessMode",
+            language: language,
+            replacements: ["name": OfficialUISpec.Text.fixtureWorkspaceWrite]
+        )
+
+        try assertAccessibleLabels(
+            in: VStack {
+                NativeComposerPermissionSelector(sessionStore: permissionStore)
+                NativeComposerModelSelector(sessionStore: modelStore)
+            },
+            expected: [permissionLabel, modelLabel],
+            expectedCounts: [permissionLabel: 1, modelLabel: 1]
+        )
+    }
+
     func testNativePermissionSelectUsesLockedConversationLocaleCatalog() {
         let officialValues = Set(OfficialUISpec.LocaleCatalog.values.values)
         let rendered = [
