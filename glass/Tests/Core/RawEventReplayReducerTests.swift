@@ -43,6 +43,25 @@ final class RawEventReplayReducerTests: XCTestCase {
         XCTAssertTrue(reducer.snapshot(target: "inspector").isEmpty)
     }
 
+    func testRetryErrorReplaySnapshotsExposeScheduledThenCancelledHostAttempt() throws {
+        let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
+        let events = try events(for: "retry-error-turn")
+        var snapshots: [[ConversationViewNode]] = []
+
+        for event in events {
+            _ = reducer.append(.init(event: event))
+            snapshots.append(reducer.snapshot(target: "chat"))
+        }
+
+        XCTAssertTrue(snapshots[0].isEmpty)
+        let scheduled = tryUnwrap(snapshots[1].first?.data as? CoreRetryNode)
+        XCTAssertEqual(scheduled.attempts.map(\.state), [.scheduled])
+        let cancelled = tryUnwrap(snapshots[2].first?.data as? CoreRetryNode)
+        XCTAssertEqual(cancelled.attempts.map(\.state), [.cancelled])
+        XCTAssertEqual(snapshots[2].map(\.key), ["model-retry:fixture-retry-1"])
+        XCTAssertTrue(reducer.snapshot(target: "inspector").isEmpty)
+    }
+
     func testReconnectReplayDeduplicatesRepeatedSequenceWithoutLosingLiveAssistantTail() throws {
         let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
         let events = try events(for: "reconnect-duplicate-sequence")
@@ -77,6 +96,31 @@ final class RawEventReplayReducerTests: XCTestCase {
         XCTAssertEqual(assistant.status, .running)
         XCTAssertEqual(assistant.blocks.first?.text, "working")
         XCTAssertEqual(Set(chat.map(\.key)).count, chat.count)
+        XCTAssertTrue(reducer.snapshot(target: "inspector").isEmpty)
+    }
+
+    func testConcurrentReplaySnapshotsPreserveToolAndAssistantLifecycleBoundaries() throws {
+        let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
+        let events = try events(for: "interleaved-tool-and-assistant")
+        var snapshots: [[ConversationViewNode]] = []
+
+        for event in events {
+            _ = reducer.append(.init(event: event))
+            snapshots.append(reducer.snapshot(target: "chat"))
+        }
+
+        XCTAssertTrue(snapshots[0].isEmpty)
+        XCTAssertTrue(snapshots[1].isEmpty)
+        let runningTool = tryUnwrap(snapshots[2].first?.data as? CoreToolCallNode)
+        XCTAssertEqual(snapshots[2].map(\.kind), ["tool-call"])
+        XCTAssertEqual(runningTool.status, .running)
+        XCTAssertEqual(snapshots[3].map(\.kind), ["tool-call", "assistant-step"])
+        let runningAssistant = tryUnwrap(snapshots[3].last?.data as? CoreAssistantNode)
+        XCTAssertEqual(runningAssistant.status, .running)
+        XCTAssertEqual(runningAssistant.blocks.first?.text, "working")
+        let settledTool = tryUnwrap(snapshots[4].first?.data as? CoreToolCallNode)
+        XCTAssertEqual(settledTool.status, .settled)
+        XCTAssertEqual(settledTool.resultContent.first?.text, "fixture result")
         XCTAssertTrue(reducer.snapshot(target: "inspector").isEmpty)
     }
 
