@@ -142,6 +142,11 @@ jobs:
           apt-get install -y --no-install-recommends python3
           python3 glass/ci/test-package-target-graph.py
           python3 glass/ci/check-package-target-graph.py
+          # Execute the production app assembler against a target-triple SwiftPM
+          # fixture. This catches resource-bundle path regressions without a
+          # macOS runner or a source-text heuristic.
+          chmod +x glass/ci/test-assemble-resource-bundle.sh
+          ./glass/ci/test-assemble-resource-bundle.sh
           # Compile only the portable production source plus a CLI regression
           # harness. This avoids resolving the macOS-only XCTest target graph.
           swiftc glass/Sources/PortableCore/HostPathDisplay.swift \
