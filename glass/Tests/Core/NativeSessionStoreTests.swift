@@ -2077,6 +2077,37 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertTrue(store.isSubmittingQuestion)
     }
 
+    func testDisconnectCancelsPendingApprovalSubmissionBeforeLateFailure() async {
+        let oldApprovalReached = expectation(description: "approval reaches Host before disconnect")
+        let oldApprovalCancelled = expectation(description: "approval submission cancels on disconnect")
+        let api = DelayedReplacingApprovalSessionAPI(
+            oldApprovalReached: oldApprovalReached,
+            oldApprovalCancelled: oldApprovalCancelled
+        )
+        let store = NativeSessionStore()
+        let sessionID = "disconnected-approval-session"
+        store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+        await eventually(timeout: 1) { store.phase == .ready(sessionID: sessionID) }
+        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "approval-rpc", method: "approval/requested", payload: .object([
+            "type": .string("approval/requested"),
+            "sessionId": .string(sessionID),
+            "approvalId": .string("approval-id"),
+            "toolName": .string("bash"),
+        ])), sessionID: sessionID)
+
+        store.answerApproval(allowOnce: true)
+        await fulfillment(of: [oldApprovalReached], timeout: 1)
+        XCTAssertTrue(store.isSubmittingApproval)
+
+        store.disconnect()
+        await fulfillment(of: [oldApprovalCancelled], timeout: 1)
+        for _ in 0 ..< 20 { await Task.yield() }
+
+        XCTAssertNil(store.selectedSessionID)
+        XCTAssertNil(store.pendingApproval)
+        XCTAssertFalse(store.isSubmittingApproval)
+    }
+
     func testReplacingApprovalCancelsOldSubmissionBeforeItCanMutateNewRequest() async {
         let oldApprovalReached = expectation(description: "old approval reaches Host before pending replacement")
         let oldApprovalCancelled = expectation(description: "old approval Task cancels when a new approval replaces it")
