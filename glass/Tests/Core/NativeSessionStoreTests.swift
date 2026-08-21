@@ -1217,7 +1217,7 @@ final class NativeSessionStoreTests: XCTestCase {
 
     @MainActor
     private final class RejectingSessionAPI: NativeSessionAPI {
-        struct Prompt {
+        struct Prompt: Equatable {
             let sessionID: String
             let content: [SessionPromptContent]
         }
