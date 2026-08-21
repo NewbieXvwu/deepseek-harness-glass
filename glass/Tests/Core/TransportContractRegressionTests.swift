@@ -44,6 +44,18 @@ final class TransportContractRegressionTests: XCTestCase {
         try assertRequest("llm.providers", EmptyPayload.self, fixture)
     }
 
+    func testCredentialViewIsWriteOnlyAndDropsUnexpectedRawValueOnDecode() throws {
+        let raw = Data(#"{"configured":true,"source":"fixture","writable":true,"value":"must-not-survive"}"#.utf8)
+        let view = try decoder.decode(CredentialViewDTO.self, from: raw)
+        let reencoded = String(decoding: try encoder.encode(view), as: UTF8.self)
+
+        XCTAssertTrue(view.configured)
+        XCTAssertEqual(view.source, "fixture")
+        XCTAssertTrue(view.writable)
+        XCTAssertFalse(reencoded.contains("must-not-survive"))
+        XCTAssertFalse(reencoded.contains("\"value\""))
+    }
+
     func testSuccessValuesDecodeWithProductionDTOs() throws {
         let fixture = try OfficialTransportContractFixtureCatalog.load()
         let history: SessionHistoryResponse = try successValue("session.history", fixture)
