@@ -2273,6 +2273,38 @@ final class NativeSessionStore: ObservableObject {
         appliedSequences = Set(conversationEvents.map(\.event.seq))
     }
 
+    /// Snapshot-only message-feedback fixture. It settles the tooling assistant
+    /// through the same reducer event path and supplies a complete Host-shaped
+    /// sidecar solely for paired native visual capture.
+    func loadSnapshotFeedbackFixture() {
+        loadSnapshotToolingFixture()
+        let settled = ConversationEventInput(event: SessionEventDTO(
+            type: "turn/end",
+            seq: 105,
+            time: 105,
+            data: .object(["turn": .number(1)])
+        ))
+        let window = conversationReducer.rawWindow() + [settled]
+        replaceConversationWindow(window, hasMore: false)
+        apply(event: settled.event)
+        messageFeedbackItems = [
+            "event-104": .init(
+                messageId: "event-104",
+                rating: .positive,
+                note: "Useful implementation summary.",
+                version: "snapshot-feedback-v1",
+                createdAt: 104,
+                updatedAt: 105
+            ),
+        ]
+        isMessageFeedbackAvailable = true
+        isLoadingMessageFeedback = false
+        failedMessageFeedbackLoad = false
+        isSubmittingMessageFeedback = false
+        messageFeedbackActionFailureCode = nil
+        messageFeedbackMutationMessageID = nil
+    }
+
     /// Snapshot-only landed compaction fixture. It appends the same typed
     /// checkpoint/summary shape that the Core reducer regression certifies.
     func loadSnapshotCompactionFixture() {

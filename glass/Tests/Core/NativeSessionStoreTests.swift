@@ -961,6 +961,19 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual((finalNodes.first?.data as? CoreAssistantNode)?.blocks.compactMap(\.text).joined(), "settled")
     }
 
+    func testSnapshotFeedbackFixtureSettlesTypedAssistantAndPublishesSidecar() {
+        let store = NativeSessionStore()
+        store.loadSnapshotFeedbackFixture()
+
+        let assistant = tryUnwrap(store.chatNodes.compactMap { $0.data as? CoreAssistantNode }.first)
+        XCTAssertEqual(assistant.messageID, "event-104")
+        XCTAssertEqual(assistant.status, .settled)
+        XCTAssertEqual(store.messageFeedbackItems["event-104"]?.rating, .positive)
+        XCTAssertEqual(store.messageFeedbackItems["event-104"]?.note, "Useful implementation summary.")
+        XCTAssertTrue(store.isMessageFeedbackAvailable)
+        XCTAssertFalse(store.isRunning)
+    }
+
     func testSnapshotCompactionFixtureMaterializesLandedTypedCheckpoint() {
         let store = NativeSessionStore()
         store.loadSnapshotCompactionFixture()
