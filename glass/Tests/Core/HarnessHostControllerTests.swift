@@ -82,19 +82,19 @@ final class HarnessHostControllerTests: XCTestCase {
 
     private static let fixedCatalog = SupportedHostBuildCatalog(
         schemaVersion: 1,
-        defaultBuildId: "dsh-0.1.0-rc.8-official-141eb6f",
+        defaultBuildId: "dsh-0.1.1-rc.1-official-528c682e",
         builds: [SupportedHostBuildCatalog.Build(
-            id: "dsh-0.1.0-rc.8-official-141eb6f",
-            officialSourceCommit: "141eb6fef83422698aef7a981029e843e8161534",
-            dshPackageVersion: "0.1.0-rc.8",
-            webFrontendPackageVersion: "0.1.0-rc.8",
+            id: "dsh-0.1.1-rc.1-official-528c682e",
+            officialSourceCommit: "528c682e061696f5a160f363f236ecbf53cbd006",
+            dshPackageVersion: "0.1.1-rc.1",
+            webFrontendPackageVersion: "0.1.1-rc.1",
             nodeRuntimeVersion: "24.19.0",
             minimumAppVersion: "0.4.0",
             minimumMacOS: "26.0",
             ciRunner: "macos-26",
             minimumXcodeMajor: 26,
-            protocolFixtureRevision: "official-141eb6f-web-ui-r1",
-            uiSpecRevision: "official-141eb6f-ui-spec-r1",
+            protocolFixtureRevision: "official-528c682e-web-ui-r1",
+            uiSpecRevision: "official-528c682e-ui-spec-r1",
             supportedArchitectures: ["arm64"],
             verifiedAt: "2026-08-18",
             verificationState: "verified"
@@ -125,7 +125,7 @@ extension HarnessHostControllerTests {
             defaultBuildId: "unknown-dsh-build",
             builds: [SupportedHostBuildCatalog.Build(
                 id: "unknown-dsh-build",
-                officialSourceCommit: "141eb6fef83422698aef7a981029e843e8161534",
+                officialSourceCommit: "528c682e061696f5a160f363f236ecbf53cbd006",
                 dshPackageVersion: "0.0.0-unreviewed",
                 webFrontendPackageVersion: "0.0.0-unreviewed",
                 nodeRuntimeVersion: "24.19.0",
@@ -245,7 +245,7 @@ extension HarnessHostControllerTests {
         XCTAssertEqual(snapshot.ownedProcessID, 4321)
         XCTAssertEqual(snapshot.ownership, "owned")
         XCTAssertEqual(snapshot.lastSSEAt, sseTime)
-        XCTAssertEqual(snapshot.protocolFixtureRevision, "official-141eb6f-web-ui-r1")
+        XCTAssertEqual(snapshot.protocolFixtureRevision, "official-528c682e-web-ui-r1")
         XCTAssertEqual(snapshot.pluginCompatibility, "pinned-compatible")
         let copy = snapshot.copyableText()
         for required in ["hostBuild=", "port=", "dshHome=", "ownership=", "pid=", "lastSSEAt=", "lastRPCError=", "protocolFixtureRevision=", "pluginCompatibility=", "lifecycle="] {
@@ -282,25 +282,25 @@ extension HarnessHostControllerTests {
         let entry = root.appendingPathComponent("payload/node_modules/@deepseek-ai/dsh/lib/cli.js")
         try FileManager.default.createDirectory(at: entry.deletingLastPathComponent(), withIntermediateDirectories: true)
         FileManager.default.createFile(atPath: entry.path, contents: Data())
-        try Data("{\"version\":\"0.1.0-rc.8\"}".utf8).write(
+        try Data("{\"version\":\"0.1.1-rc.1\"}".utf8).write(
             to: entry.deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("package.json")
         )
         let webManifest = root.appendingPathComponent("payload/node_modules/@deepseek-ai/dsh-web-frontend/package.json")
         try FileManager.default.createDirectory(at: webManifest.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try Data("{\"version\":\"0.1.0-rc.8\"}".utf8).write(to: webManifest)
+        try Data("{\"version\":\"0.1.1-rc.1\"}".utf8).write(to: webManifest)
 
         let build = SupportedHostBuildCatalog.Build(
             id: "planned-rc8",
-            officialSourceCommit: "141eb6fef83422698aef7a981029e843e8161534",
-            dshPackageVersion: "0.1.0-rc.8",
-            webFrontendPackageVersion: "0.1.0-rc.8",
+            officialSourceCommit: "528c682e061696f5a160f363f236ecbf53cbd006",
+            dshPackageVersion: "0.1.1-rc.1",
+            webFrontendPackageVersion: "0.1.1-rc.1",
             nodeRuntimeVersion: "24.19.0",
             minimumAppVersion: "0.4.0",
             minimumMacOS: "26.0",
             ciRunner: "macos-26",
             minimumXcodeMajor: 26,
-            protocolFixtureRevision: "official-141eb6f-web-ui-r1",
-            uiSpecRevision: "official-141eb6f-ui-spec-r1",
+            protocolFixtureRevision: "official-528c682e-web-ui-r1",
+            uiSpecRevision: "official-528c682e-ui-spec-r1",
             supportedArchitectures: ["arm64"],
             verifiedAt: nil,
             verificationState: "planned"

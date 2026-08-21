@@ -8,8 +8,8 @@ cd "$ROOT"
 
 export PATH="$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
-DSH_VERSION="${DSH_VERSION:-0.1.0-rc.8}"
-FRONTEND_VERSION="${FRONTEND_VERSION:-0.1.0-rc.8}"
+DSH_VERSION="${DSH_VERSION:-0.1.1-rc.1}"
+FRONTEND_VERSION="${FRONTEND_VERSION:-0.1.1-rc.1}"
 
 echo "== 1/3 重建后端 payload（npm 精确 pin）=="
 mkdir -p build/backend

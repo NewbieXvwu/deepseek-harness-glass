@@ -79,7 +79,7 @@ async function writeCaptureMetadata(
   })
   const ariaSnapshot = await page.locator('body').ariaSnapshot()
   await writeFile(join(outputDirectory, `${name}.json`), JSON.stringify({
-    officialSourceCommit: '141eb6fef83422698aef7a981029e843e8161534',
+    officialSourceCommit: '528c682e061696f5a160f363f236ecbf53cbd006',
     viewport: captureViewport,
     locale: 'en-US',
     colorScheme,

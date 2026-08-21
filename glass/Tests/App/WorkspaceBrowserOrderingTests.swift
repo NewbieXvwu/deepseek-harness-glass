@@ -127,6 +127,17 @@ final class WorkspaceBrowserOrderingTests: XCTestCase {
         )
     }
 
+    func testBlankSessionPromotionMovesNewBlankToFrontAndIsIdempotent() {
+        let initial = ["alpha", "blank", "bravo", "blank"]
+        let promoted = NativeWorkspaceBrowserOrdering.orderPromotingBlankSession("blank", in: initial)
+
+        XCTAssertEqual(promoted, ["blank", "alpha", "bravo"])
+        XCTAssertEqual(
+            NativeWorkspaceBrowserOrdering.orderPromotingBlankSession("blank", in: promoted),
+            promoted
+        )
+    }
+
     func testReconciledLocalOrderDropsStaleIDsAndAppendsNewHostIDs() {
         XCTAssertEqual(
             NativeWorkspaceBrowserOrdering.reconciledOrder(

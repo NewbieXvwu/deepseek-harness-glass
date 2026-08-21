@@ -15,8 +15,8 @@ import tempfile
 import uuid
 from typing import Any
 
-COMMIT = "141eb6fef83422698aef7a981029e843e8161534"
-REVISION = "official-141eb6f-web-ui-r1"
+COMMIT = "528c682e061696f5a160f363f236ecbf53cbd006"
+REVISION = "official-528c682e-web-ui-r1"
 
 
 def result_value(response: dict[str, Any]) -> dict[str, Any] | None:

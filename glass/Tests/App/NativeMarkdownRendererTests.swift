@@ -3,6 +3,13 @@ import XCTest
 @testable import GlassUI
 
 final class NativeMarkdownRendererTests: XCTestCase {
+    func testRC1WideTablePresentationStartsAtFourColumns() {
+        XCTAssertFalse(NativeMarkdownTablePresentation.isWide(columnCount: 0))
+        XCTAssertFalse(NativeMarkdownTablePresentation.isWide(columnCount: 3))
+        XCTAssertTrue(NativeMarkdownTablePresentation.isWide(columnCount: 4))
+        XCTAssertTrue(NativeMarkdownTablePresentation.isWide(columnCount: 8))
+    }
+
     func testOnlyAbsoluteHTTPURLsPassExternalDestinationPolicy() {
         XCTAssertEqual(NativeMarkdownSecurityPolicy.externalURL(from: "https://example.com/docs")?.absoluteString, "https://example.com/docs")
         XCTAssertEqual(NativeMarkdownSecurityPolicy.externalURL(from: "HTTP://example.com/path")?.scheme?.lowercased(), "http")

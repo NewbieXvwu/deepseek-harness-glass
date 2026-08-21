@@ -339,12 +339,20 @@ struct NativeQuestionComposer: View {
                     .frame(width: OfficialUISpec.Layout.questionOptionIndicator, height: OfficialUISpec.Layout.questionOptionIndicator)
                     .background(OfficialUISpec.Token.interactiveHover, in: RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r6, style: .continuous))
                     .padding(.top, OfficialUISpec.Spacing.p2)
-                TextField(OfficialUISpec.Text.questionCustomPlaceholder, text: customBinding)
+                TextField(
+                    OfficialUISpec.Text.questionCustomPlaceholder,
+                    text: customBinding,
+                    axis: .vertical
+                )
                     .font(OfficialUISpec.Typography.s14)
                     .textFieldStyle(.plain)
-                    .frame(height: OfficialUISpec.Geometry.px24)
+                    .lineLimit(1 ... 6)
                     .disabled(submitting)
-                    .onSubmit { continueFlow() }
+                    .onKeyPress(.return) { press in
+                        guard !press.modifiers.contains(.shift) else { return .ignored }
+                        continueFlow()
+                        return .handled
+                    }
             }
             .padding(.leading, OfficialUISpec.Spacing.p8)
             .padding(.trailing, OfficialUISpec.Layout.questionOptionsHorizontalPadding)
@@ -359,9 +367,9 @@ struct NativeQuestionComposer: View {
             }
         } else {
             TextEditor(text: customBinding)
-                .font(OfficialUISpec.Typography.xs13)
+                .font(OfficialUISpec.Typography.s14)
                 .scrollContentBackground(.hidden)
-                .frame(minHeight: OfficialUISpec.Geometry.px56, maxHeight: 120)
+                .frame(minHeight: OfficialUISpec.Geometry.px64, maxHeight: 144)
                 .padding(OfficialUISpec.Spacing.p8)
                 .background(OfficialUISpec.Token.base, in: RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r8, style: .continuous))
                 .overlay {

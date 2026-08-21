@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "officialSourceCommit": "141eb6fef83422698aef7a981029e843e8161534",
-  "contractRevision": "official-141eb6f-transport-contract-r1",
+  "officialSourceCommit": "528c682e061696f5a160f363f236ecbf53cbd006",
+  "contractRevision": "official-528c682e-transport-contract-r1",
   "generation": "locked official apiproxy schema contract manifest",
   "contracts": [
     {
@@ -23,7 +23,7 @@
         "projections?"
       ],
       "enums": [],
-      "sourceSHA256": "sha256:546043414a63db814f45922d3263314304e05eb0bb69b42b85c1841889384107",
+      "sourceSHA256": "sha256:d3312e775379323d3d420d09b9f3d9dce33c2cd8fc53679f636152b6f2d906e6",
       "contractSignatureSHA256": "sha256:e845f497c673635a947715d1f83a04d22b27a7c9d22c93b3c63c7791bf6a37d4"
     },
     {
@@ -50,7 +50,7 @@
         "content.type:text",
         "content.type:image"
       ],
-      "sourceSHA256": "sha256:546043414a63db814f45922d3263314304e05eb0bb69b42b85c1841889384107",
+      "sourceSHA256": "sha256:d3312e775379323d3d420d09b9f3d9dce33c2cd8fc53679f636152b6f2d906e6",
       "contractSignatureSHA256": "sha256:353629edcf401176ed2dffee75e538012d373772e26e78943dccbd7104c70321"
     },
     {
@@ -68,7 +68,7 @@
         "accepted"
       ],
       "enums": [],
-      "sourceSHA256": "sha256:546043414a63db814f45922d3263314304e05eb0bb69b42b85c1841889384107",
+      "sourceSHA256": "sha256:d3312e775379323d3d420d09b9f3d9dce33c2cd8fc53679f636152b6f2d906e6",
       "contractSignatureSHA256": "sha256:ce1a82ad565723e9d23e4fd016a7c34d3db8182feef643c567ba87fa70555cfa"
     },
     {
@@ -89,7 +89,7 @@
         "failures"
       ],
       "enums": [],
-      "sourceSHA256": "sha256:546043414a63db814f45922d3263314304e05eb0bb69b42b85c1841889384107",
+      "sourceSHA256": "sha256:d3312e775379323d3d420d09b9f3d9dce33c2cd8fc53679f636152b6f2d906e6",
       "contractSignatureSHA256": "sha256:9cfbc2e6a99999d10daaa7a59a25748e43802a62512551d6bc672e23c7fccabc"
     },
     {

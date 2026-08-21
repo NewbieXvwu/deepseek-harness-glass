@@ -349,11 +349,38 @@ private struct NativeMarkdownList: View {
     }
 }
 
+/// RC1 treats four-or-more-column tables as comparison matrices: they retain
+/// their natural columns and scroll horizontally, while narrower tables wrap in
+/// the message column.
+enum NativeMarkdownTablePresentation {
+    static func isWide(columnCount: Int) -> Bool { columnCount >= 4 }
+}
+
 private struct NativeMarkdownTable: View {
     let header: [String]
     let rows: [[String]]
 
+    private var isWide: Bool {
+        NativeMarkdownTablePresentation.isWide(
+            columnCount: max(header.count, rows.map(\.count).max() ?? 0)
+        )
+    }
+
     var body: some View {
+        Group {
+            if isWide {
+                ScrollView(.horizontal, showsIndicators: true) {
+                    tableContent.fixedSize(horizontal: true, vertical: false)
+                }
+                .accessibilityLabel("Scrollable comparison table")
+            } else {
+                tableContent
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var tableContent: some View {
         VStack(spacing: OfficialUISpec.Spacing.p0) {
             if !header.isEmpty {
                 row(header, emphasized: true)
@@ -372,7 +399,7 @@ private struct NativeMarkdownTable: View {
             RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r8, style: .continuous)
                 .stroke(OfficialUISpec.Token.border, lineWidth: 1)
         )
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: isWide ? nil : .infinity, alignment: .leading)
     }
 
     private func row(_ cells: [String], emphasized: Bool) -> some View {

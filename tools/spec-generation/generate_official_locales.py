@@ -15,7 +15,7 @@ from pathlib import Path
 GENERATOR_NAME = "generate_official_locales.py"
 # Kept stable because it is stamped into the reproducible generated artifacts.
 GENERATOR_VERSION = "1.0.0"
-EXPECTED_COMMIT = "141eb6fef83422698aef7a981029e843e8161534"
+EXPECTED_COMMIT = "528c682e061696f5a160f363f236ecbf53cbd006"
 AST_EXTRACTOR = Path(__file__).with_name("extract_official_locales_ast.mjs")
 
 

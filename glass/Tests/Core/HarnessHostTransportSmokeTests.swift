@@ -280,19 +280,19 @@ final class HarnessHostTransportSmokeTests: XCTestCase {
 
     private static let fixedCatalog = SupportedHostBuildCatalog(
         schemaVersion: 1,
-        defaultBuildId: "dsh-0.1.0-rc.8-official-141eb6f",
+        defaultBuildId: "dsh-0.1.1-rc.1-official-528c682e",
         builds: [SupportedHostBuildCatalog.Build(
-            id: "dsh-0.1.0-rc.8-official-141eb6f",
-            officialSourceCommit: "141eb6fef83422698aef7a981029e843e8161534",
-            dshPackageVersion: "0.1.0-rc.8",
-            webFrontendPackageVersion: "0.1.0-rc.8",
+            id: "dsh-0.1.1-rc.1-official-528c682e",
+            officialSourceCommit: "528c682e061696f5a160f363f236ecbf53cbd006",
+            dshPackageVersion: "0.1.1-rc.1",
+            webFrontendPackageVersion: "0.1.1-rc.1",
             nodeRuntimeVersion: "24.19.0",
             minimumAppVersion: "0.4.0",
             minimumMacOS: "26.0",
             ciRunner: "macos-26",
             minimumXcodeMajor: 26,
-            protocolFixtureRevision: "official-141eb6f-web-ui-r1",
-            uiSpecRevision: "official-141eb6f-ui-spec-r1",
+            protocolFixtureRevision: "official-528c682e-web-ui-r1",
+            uiSpecRevision: "official-528c682e-ui-spec-r1",
             supportedArchitectures: ["arm64"],
             verifiedAt: "2026-08-18",
             verificationState: "verified"

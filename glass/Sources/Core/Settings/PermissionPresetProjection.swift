@@ -38,6 +38,8 @@ struct CorePermissionPresetState: Equatable {
 /// by `permissionDefaultOf`: root uid, refs, object/dict, union/list and const.
 enum PermissionPresetProjection {
     static let namespace = "permission"
+    static let readOnlyPreset = "read-only"
+    static let workspaceWritePreset = "workspace-write"
     static let fullAccessPreset = "danger-full-access"
 
     static func state(
@@ -95,9 +97,21 @@ enum PermissionPresetProjection {
         return options
     }
 
+    /// RC1 keeps product-owned labels stable even when the Host's descriptive
+    /// schema text is an older shorthand. Unknown Host options remain verbatim
+    /// (or use the conservative kebab-case fallback) rather than being guessed.
     static func display(value: String, suppliedLabel: String) -> String {
-        if value == fullAccessPreset { return "Full access" }
-guard isASCIILowerKebabCase(suppliedLabel) else { return suppliedLabel }
+        switch value {
+        case readOnlyPreset:
+            return "Read Only"
+        case workspaceWritePreset:
+            return "Workspace Write"
+        case fullAccessPreset:
+            return "Full access"
+        default:
+            break
+        }
+        guard isASCIILowerKebabCase(suppliedLabel) else { return suppliedLabel }
         return suppliedLabel.split(separator: "-").map {
             $0.prefix(1).uppercased() + $0.dropFirst()
         }.joined(separator: " ")

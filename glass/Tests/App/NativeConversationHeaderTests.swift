@@ -195,6 +195,7 @@ final class NativeConversationHeaderTests: XCTestCase {
             viewRegistry: NativeConversationViewRegistry()
         )
         XCTAssertEqual(blank.breadcrumbs.map(\.title), ["Parent session", "Subagent session"])
+        XCTAssertEqual(blank.breadcrumbs.map(\.isSubagent), [false, true])
         XCTAssertEqual(blank.agentPreset, nil)
         XCTAssertTrue(blank.hidesChrome)
         XCTAssertEqual(blank.activeTab?.id, NativeConversationViewRegistry.chatID)
