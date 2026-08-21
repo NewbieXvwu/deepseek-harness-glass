@@ -2096,6 +2096,10 @@ final class NativeSessionStoreTests: XCTestCase {
             "notes.txt",
             "manifest.yaml",
         ])
+        XCTAssertEqual(store.toolInvocations.count, 10)
+        XCTAssertEqual(store.toolInvocations.map(\.name), Array(repeating: "write", count: 10))
+        XCTAssertEqual(store.toolInvocations.map(\.state), Array(repeating: .completed, count: 10))
+        XCTAssertEqual(store.toolInvocations.map(\.sequence), Array(stride(from: 303, through: 321, by: 2)))
         XCTAssertFalse(store.isRunning)
         XCTAssertFalse(store.hasMoreHistory)
     }

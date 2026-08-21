@@ -2840,6 +2840,50 @@ final class NativeSessionStore: ObservableObject {
         let sessionID = "snapshot-deliverables"
         phase = .ready(sessionID: sessionID)
         activeSessionID = sessionID
+        let producedPaths = [
+            "关于我.md", "index.html", "long-generated-experience-specification-for-produced-files-overflow.md",
+            "styles.css", "app.ts", "schema.json", "README.md", "preview.svg", "notes.txt", "manifest.yaml",
+        ]
+        // Match RC8 `produced-files.e2e.ts`: each successful write owns one
+        // location and produces a visible typed tool row before the turn tail.
+        let writeEvents = producedPaths.enumerated().flatMap { index, path -> [ConversationEventInput] in
+            let callID = "write-\(index + 1)"
+            let callSequence = 303 + index * 2
+            let arguments = "{\"file_path\":\"\(path)\",\"content\":\"content of \(path)\"}"
+            return [
+                ConversationEventInput(
+                    event: SessionEventDTO(
+                        type: "tool/call",
+                        seq: callSequence,
+                        time: Double(callSequence),
+                        data: .object([
+                            "turn": .number(1),
+                            "callId": .string(callID),
+                            "name": .string("write"),
+                            "arguments": .string(arguments),
+                        ]),
+                        surfaceOp: .string("append")
+                    ),
+                    view: ToolEventViewDTO(for: "call", view: .object([
+                        "card": .string("diff"),
+                        "locations": .array([.object(["path": .string(path)])]),
+                    ]))
+                ),
+                ConversationEventInput(event: SessionEventDTO(
+                    type: "tool/result",
+                    seq: callSequence + 1,
+                    time: Double(callSequence + 1),
+                    data: .object([
+                        "turn": .number(1),
+                        "message": .object([
+                            "source": .object(["callId": .string(callID)]),
+                            "content": .array([.object([:])]),
+                        ]),
+                    ]),
+                    surfaceOp: .string("append")
+                )),
+            ]
+        }
         let conversationEvents = [
             ConversationEventInput(event: SessionEventDTO(
                 type: "user/message",
@@ -2847,7 +2891,7 @@ final class NativeSessionStore: ObservableObject {
                 time: 301,
                 data: .object([
                     "id": .string("deliverables-user"),
-                    "content": .array([.object(["type": .string("text"), "text": .string("Write the requested project files.")])]),
+                    "content": .array([.object(["type": .string("text"), "text": .string("Create the site files.")])]),
                     "source": .object(["kind": .string("user")]),
                 ]),
                 surfaceOp: .string("append")
@@ -2858,65 +2902,25 @@ final class NativeSessionStore: ObservableObject {
                 time: 302,
                 data: .object(["turn": .number(1)])
             )),
-            ConversationEventInput(
-                event: SessionEventDTO(
-                    type: "tool/call",
-                    seq: 303,
-                    time: 303,
-                    data: .object([
-                        "turn": .number(1),
-                        "callId": .string("write-1"),
-                        "name": .string("write"),
-                    ]),
-                    surfaceOp: .string("append")
-                ),
-                view: ToolEventViewDTO(for: "call", view: .object([
-                    "card": .string("diff"),
-                    "locations": .array([
-                        .object(["path": .string("关于我.md")]),
-                        .object(["path": .string("index.html")]),
-                        .object(["path": .string("long-generated-experience-specification-for-produced-files-overflow.md")]),
-                        .object(["path": .string("styles.css")]),
-                        .object(["path": .string("app.ts")]),
-                        .object(["path": .string("schema.json")]),
-                        .object(["path": .string("README.md")]),
-                        .object(["path": .string("preview.svg")]),
-                        .object(["path": .string("notes.txt")]),
-                        .object(["path": .string("manifest.yaml")]),
-                    ]),
-                ]))
-            ),
-            ConversationEventInput(event: SessionEventDTO(
-                type: "tool/result",
-                seq: 304,
-                time: 304,
-                data: .object([
-                    "turn": .number(1),
-                    "message": .object([
-                        "source": .object(["callId": .string("write-1")]),
-                        "content": .array([.object([:])]),
-                    ]),
-                ]),
-                surfaceOp: .string("append")
-            )),
+        ] + writeEvents + [
             ConversationEventInput(event: SessionEventDTO(
                 type: "assistant/message",
-                seq: 305,
-                time: 305,
+                seq: 323,
+                time: 323,
                 data: .object([
                     "turn": .number(1),
                     "step": .number(1),
                     "message": .object([
                         "id": .string("deliverables-assistant"),
-                        "content": .array([.object(["type": .string("text"), "text": .string("Files written successfully.")])]),
+                        "content": .array([.object(["type": .string("text"), "text": .string("Created the site.\n\nPRODUCED_FILES_DONE")])]),
                     ]),
                 ]),
                 surfaceOp: .string("append")
             )),
             ConversationEventInput(event: SessionEventDTO(
                 type: "turn/end",
-                seq: 306,
-                time: 306,
+                seq: 324,
+                time: 324,
                 data: .object(["turn": .number(1)])
             )),
         ]
