@@ -43,6 +43,38 @@ final class NativeWorkspaceAuthorityTests: XCTestCase {
         XCTAssertEqual(methods.filter { $0 == "session.list" }.count, 2)
     }
 
+    func testArchiveReceiptLeavesWorkspaceSnapshotUntouchedUntilHostListRefresh() async throws {
+        let store = NativeWorkspaceStore()
+        let apis = HarnessAPIs(
+            baseURL: URL(string: "http://127.0.0.1:9788/")!,
+            accessPolicy: HostRPCAccessPolicy(trust: .verified(verifiedBuild)),
+            diagnostics: HostDiagnosticRecorder(dshHome: "/tmp/t72-workspace-archive-authority"),
+            session: mockSession()
+        )
+
+        store.refresh(using: apis)
+        try await eventually {
+            store.phase == .ready
+                && store.snapshot.workspaces.map(\.workspaceId) == ["old-workspace"]
+                && store.snapshot.sessions.map(\.sessionId) == ["old-session"]
+        }
+
+        let receipt = try await apis.workspaces.archiveSession(sessionID: "old-session")
+        XCTAssertEqual(receipt.archivedSessionIds, ["old-session"])
+        // A mutation receipt proves only that Host accepted the operation. The
+        // local browser remains the last complete Host list until a refresh.
+        XCTAssertEqual(store.snapshot.workspaces.map(\.workspaceId), ["old-workspace"])
+        XCTAssertEqual(store.snapshot.sessions.map(\.sessionId), ["old-session"])
+        XCTAssertTrue(store.snapshot.archivedSessionIDs.isEmpty)
+
+        store.refresh(using: apis)
+        try await eventually {
+            store.phase == .ready
+                && store.snapshot.workspaces.map(\.workspaceId) == ["new-workspace"]
+                && store.snapshot.sessions.map(\.sessionId) == ["new-session"]
+        }
+    }
+
     private func mockSession() -> URLSession {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [WorkspaceAuthorityURLProtocol.self]
@@ -197,6 +229,8 @@ private final class WorkspaceAuthorityURLProtocol: URLProtocol, @unchecked Senda
                     "cwd": .string("/\(suffix)"),
                 ])]),
             ])
+        case "workspace.archiveSession":
+            value = .object(["archivedSessionIds": .array([.string("old-session")])])
         default:
             client?.urlProtocol(self, didFailWithError: URLError(.badURL))
             return
