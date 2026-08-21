@@ -12,6 +12,9 @@ let package = Package(
         .library(name: "GlassSnapshot", targets: ["GlassSnapshot"]),
         .executable(name: "DeepSeekHarnessGlassApp", targets: ["DeepSeekHarnessGlassApp"]),
     ],
+    dependencies: [
+        .package(url: "https://github.com/swiftlang/swift-markdown.git", from: "0.8.0"),
+    ],
     targets: [
         .target(
             name: "GlassSpec",
@@ -33,7 +36,12 @@ let package = Package(
         ),
         .target(
             name: "GlassUI",
-            dependencies: ["GlassCore", "GlassSpec", "GlassPortableCore"],
+            dependencies: [
+                "GlassCore",
+                "GlassSpec",
+                "GlassPortableCore",
+                .product(name: "Markdown", package: "swift-markdown"),
+            ],
             path: "Sources/UI",
             swiftSettings: [.define("DEEPSEEK_HARNESS_PACKAGE"), .unsafeFlags(["-enable-testing"])]
         ),

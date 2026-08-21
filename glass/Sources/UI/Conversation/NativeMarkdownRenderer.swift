@@ -1,4 +1,5 @@
 import Foundation
+import Markdown
 import SwiftUI
 
 #if DEEPSEEK_HARNESS_PACKAGE
@@ -87,103 +88,81 @@ enum NativeMarkdownDocument {
         case quote(id: Int, text: String)
         case list(id: Int, ordered: Bool, items: [String])
         case code(id: Int, language: String?, code: String)
+        case table(id: Int, header: [String], rows: [[String]])
 
         var id: Int {
             switch self {
-            case let .prose(id, _), let .quote(id, _), let .list(id, _, _), let .code(id, _, _): id
+            case let .prose(id, _), let .quote(id, _), let .list(id, _, _), let .code(id, _, _), let .table(id, _, _): id
             }
         }
     }
 
     static func parse(_ source: String) -> [Block] {
-        var blocks: [Block] = []
-        var prose: [String] = []
-        var code: [String] = []
-        var language: String?
-        var inFence = false
-        var nextID = 0
-        let lines = source.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
-        var index = 0
-
-        func appendProse() {
-            guard !prose.isEmpty else { return }
-            blocks.append(.prose(id: nextID, text: prose.joined(separator: "\n")))
-            nextID += 1
-            prose.removeAll(keepingCapacity: true)
+        // `Document` is the sole Markdown grammar authority. The small fence
+        // split exists only for streaming: an unfinished tail remains literal
+        // until its terminator arrives instead of momentarily becoming an
+        // actionable/copyable code card.
+        let partition = partitionUnclosedFence(in: source)
+        var blocks = blocks(from: Document(parsing: partition.complete))
+        if let literalTail = partition.literalTail, !literalTail.isEmpty {
+            blocks.append(.prose(id: blocks.count, text: literalTail))
         }
-
-        func appendCode() {
-            blocks.append(.code(id: nextID, language: language, code: code.joined(separator: "\n")))
-            nextID += 1
-            code.removeAll(keepingCapacity: true)
-            language = nil
-        }
-
-        while index < lines.count {
-            let line = lines[index]
-            if line.hasPrefix("```") {
-                if inFence {
-                    appendCode()
-                    inFence = false
-                } else {
-                    appendProse()
-                    let hint = String(line.dropFirst(3)).trimmingCharacters(in: .whitespacesAndNewlines)
-                    language = hint.isEmpty ? nil : hint
-                    inFence = true
-                }
-                index += 1
-                continue
-            }
-            if inFence {
-                code.append(line)
-                index += 1
-                continue
-            }
-            if line == ">" || line.hasPrefix("> ") {
-                appendProse()
-                var quote: [String] = []
-                while index < lines.count, lines[index] == ">" || lines[index].hasPrefix("> ") {
-                    quote.append(lines[index] == ">" ? "" : String(lines[index].dropFirst(2)))
-                    index += 1
-                }
-                blocks.append(.quote(id: nextID, text: quote.joined(separator: "\n")))
-                nextID += 1
-                continue
-            }
-            if let firstMarker = listMarker(in: line) {
-                appendProse()
-                var items: [String] = []
-                let ordered = firstMarker.ordered
-                while index < lines.count, let marker = listMarker(in: lines[index]), marker.ordered == ordered {
-                    items.append(marker.text)
-                    index += 1
-                }
-                blocks.append(.list(id: nextID, ordered: ordered, items: items))
-                nextID += 1
-                continue
-            }
-            prose.append(line)
-            index += 1
-        }
-        if inFence {
-            // An incomplete streaming fence remains literal prose until its
-            // closing delimiter arrives, matching RC8's conservative tail rule.
-            prose.append("```\(language ?? "")")
-            prose.append(contentsOf: code)
-        }
-        appendProse()
         return blocks
     }
 
-    private static func listMarker(in line: String) -> (ordered: Bool, text: String)? {
-        for prefix in ["- ", "* ", "+ "] where line.hasPrefix(prefix) {
-            return (false, String(line.dropFirst(prefix.count)))
+    private static func blocks(from document: Document) -> [Block] {
+        var blocks: [Block] = []
+        for markup in document.children {
+            let id = blocks.count
+            switch markup {
+            case let code as CodeBlock:
+                blocks.append(.code(id: id, language: code.language, code: code.code))
+            case let quote as BlockQuote:
+                blocks.append(.quote(id: id, text: quote.children.map(formattedText).joined(separator: "\n")))
+            case let list as UnorderedList:
+                blocks.append(.list(id: id, ordered: false, items: listItems(list.children)))
+            case let list as OrderedList:
+                blocks.append(.list(id: id, ordered: true, items: listItems(list.children)))
+            case let table as Table:
+                let header = table.head.children.compactMap { $0 as? Table.Cell }.map(formattedText)
+                let rows = table.body.children.compactMap { $0 as? Table.Row }.map { row in
+                    row.children.compactMap { $0 as? Table.Cell }.map(formattedText)
+                }
+                blocks.append(.table(id: id, header: header, rows: rows))
+            default:
+                blocks.append(.prose(id: id, text: formattedText(markup)))
+            }
         }
-        let digits = line.prefix(while: { $0.isNumber })
-        guard !digits.isEmpty else { return nil }
-        let rest = line.dropFirst(digits.count)
-        guard rest.hasPrefix(". ") else { return nil }
-        return (true, String(rest.dropFirst(2)))
+        return blocks
+    }
+
+    private static func listItems(_ children: MarkupChildren) -> [String] {
+        children.compactMap { $0 as? ListItem }.map { item in
+            item.children.map(formattedText).joined(separator: "\n")
+        }
+    }
+
+    private static func formattedText(_ markup: Markup) -> String {
+        markup.format().trimmingCharacters(in: .newlines)
+    }
+
+    private static func partitionUnclosedFence(in source: String) -> (complete: String, literalTail: String?) {
+        var cursor = source.startIndex
+        var openFenceStart: String.Index?
+        while cursor < source.endIndex {
+            let lineEnd = source[cursor...].firstIndex(of: "\n") ?? source.endIndex
+            let line = source[cursor..<lineEnd]
+            if line.hasPrefix("```") {
+                if openFenceStart == nil {
+                    openFenceStart = cursor
+                } else {
+                    openFenceStart = nil
+                }
+            }
+            cursor = lineEnd < source.endIndex ? source.index(after: lineEnd) : source.endIndex
+        }
+        guard let openFenceStart else { return (source, nil) }
+        return (String(source[..<openFenceStart]), String(source[openFenceStart...]))
     }
 }
 
@@ -295,6 +274,8 @@ struct NativeMarkdownText: View {
                     NativeMarkdownList(ordered: ordered, items: items)
                 case let .code(_, language, code):
                     NativeMarkdownCodeBlock(code: code, language: language)
+                case let .table(_, header, rows):
+                    NativeMarkdownTable(header: header, rows: rows)
                 }
             }
         }
@@ -365,6 +346,48 @@ private struct NativeMarkdownList: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct NativeMarkdownTable: View {
+    let header: [String]
+    let rows: [[String]]
+
+    var body: some View {
+        VStack(spacing: OfficialUISpec.Spacing.p0) {
+            if !header.isEmpty {
+                row(header, emphasized: true)
+                Divider()
+            }
+            ForEach(Array(rows.enumerated()), id: \.offset) { index, cells in
+                row(cells, emphasized: false)
+                if index < rows.indices.last { Divider() }
+            }
+        }
+        .background(
+            OfficialUISpec.Token.conversationBubble,
+            in: RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r8, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r8, style: .continuous)
+                .stroke(OfficialUISpec.Token.border, lineWidth: 1)
+        )
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func row(_ cells: [String], emphasized: Bool) -> some View {
+        HStack(alignment: .top, spacing: OfficialUISpec.Spacing.p0) {
+            ForEach(Array(cells.enumerated()), id: \.offset) { _, cell in
+                Text(NativeMarkdownSecurityPolicy.attributedInlineMarkdown(cell))
+                    .font(emphasized ? OfficialUISpec.Typography.sStrong14 : OfficialUISpec.Typography.s14)
+                    .foregroundStyle(OfficialUISpec.Token.primary)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, OfficialUISpec.Spacing.p8)
+                    .padding(.vertical, OfficialUISpec.Spacing.p6)
+            }
+        }
     }
 }
 

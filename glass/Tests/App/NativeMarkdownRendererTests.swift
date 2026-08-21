@@ -100,6 +100,25 @@ final class NativeMarkdownRendererTests: XCTestCase {
         XCTAssertTrue(unsafeListItem.runs.allSatisfy { $0.link == nil })
     }
 
+    func testGFMTableUsesASTCellsAndKeepsUnsafeLinksInert() {
+        let blocks = NativeMarkdownDocument.parse(
+            "| Language | Documentation |\n| --- | --- |\n| Swift | [Safe](https://swift.org) |\n| Local | [Unsafe](file:///tmp/private) |"
+        )
+
+        XCTAssertEqual(blocks, [
+            .table(
+                id: 0,
+                header: ["Language", "Documentation"],
+                rows: [
+                    ["Swift", "[Safe](https://swift.org)"],
+                    ["Local", "[Unsafe](file:///tmp/private)"],
+                ]
+            ),
+        ])
+        let unsafeCell = NativeMarkdownSecurityPolicy.attributedInlineMarkdown("[Unsafe](file:///tmp/private)")
+        XCTAssertTrue(unsafeCell.runs.allSatisfy { $0.link == nil })
+    }
+
     func testFencedCodeHasStableCodeBlockAndIncompleteFenceStaysLiteralProse() {
         let settled = NativeMarkdownDocument.parse("before\n```swift\nlet x = 1\n```\nafter")
         XCTAssertEqual(settled, [
