@@ -339,6 +339,14 @@ final class NativeShellPresentation: ObservableObject {
         await agentPresetStore.openDocument(agentPreset: agentPreset, using: apis?.agentPresets)
     }
 
+    func copyAgentPreset(_ request: AgentPresetCopyRequest) async -> Bool {
+        await agentPresetStore.copy(request, using: apis?.agentPresets)
+    }
+
+    func removeAgentPreset(_ agentPreset: String) async -> Bool {
+        await agentPresetStore.remove(agentPreset: agentPreset, using: apis?.agentPresets)
+    }
+
     func selectThemePreference(_ preference: CoreThemePreference) {
         guard let api = apis?.settings else { return }
         Task { [weak self] in
@@ -734,6 +742,14 @@ final class NativeShellController: NativeSplitViewController {
             openAgentPresetDocument: { [weak presentation] agentPreset in
                 guard let presentation else { return false }
                 return await presentation.openAgentPresetDocument(agentPreset)
+            },
+            copyAgentPreset: { [weak presentation] request in
+                guard let presentation else { return false }
+                return await presentation.copyAgentPreset(request)
+            },
+            removeAgentPreset: { [weak presentation] agentPreset in
+                guard let presentation else { return false }
+                return await presentation.removeAgentPreset(agentPreset)
             },
             refreshCredential: { [weak presentation] reference in
                 await presentation?.refreshCredential(reference)

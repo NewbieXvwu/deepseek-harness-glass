@@ -39,10 +39,18 @@ struct NativeSettingsRoot: View {
     let refreshAgentPresets: () async -> Void
     let readAgentPreset: (String) async -> Bool
     let openAgentPresetDocument: (String) async -> Bool
+    let copyAgentPreset: (AgentPresetCopyRequest) async -> Bool
+    let removeAgentPreset: (String) async -> Bool
     let refreshCredential: (String) async -> Void
     let setCredential: (String, String) async -> Bool
     let savePluginCard: (NativePluginCardDraft) async -> Bool
     @State private var selection: SectionID? = .general
+    @State private var copySource: AgentPresetEntryDTO?
+    @State private var copyID = ""
+    @State private var copyName = ""
+    @State private var copyInFlight = false
+    @State private var pendingDelete: AgentPresetEntryDTO?
+    @State private var deleteInFlight = false
 
     var body: some View {
         NavigationSplitView {
@@ -176,12 +184,25 @@ struct NativeSettingsRoot: View {
                                 .font(OfficialUISpec.Typography.xs13.monospaced())
                                 .foregroundStyle(OfficialUISpec.Token.caption)
                             HStack(spacing: OfficialUISpec.Spacing.p8) {
-                                Button(official(namespace: "ui-agent-preset", key: "view")) {
-                                    Task { _ = await readAgentPreset(preset.id) }
+                                if preset.trust == "system", preset.broken == nil {
+                                    Button(official(namespace: "ui-agent-preset", key: "view")) {
+                                        Task { _ = await readAgentPreset(preset.id) }
+                                    }
                                 }
-                                if agentPresetStore.hasDocument {
-                                    Button(official(namespace: "ui-agent-preset", key: "openLocation")) {
+                                if preset.trust == "user" {
+                                    Button(official(namespace: "ui-agent-preset", key: agentPresetStore.hasDocument ? "openLocation" : "showLocation")) {
                                         Task { _ = await openAgentPresetDocument(preset.id) }
+                                    }
+                                }
+                                Button(official(namespace: "ui-agent-preset", key: "duplicate")) {
+                                    copySource = preset
+                                    copyID = ""
+                                    copyName = ""
+                                }
+                                .disabled(!agentPresetStore.authorable || preset.broken != nil)
+                                if preset.trust == "user" {
+                                    Button(official(namespace: "ui-agent-preset", key: "delete"), role: .destructive) {
+                                        pendingDelete = preset
                                     }
                                 }
                             }
@@ -202,7 +223,75 @@ struct NativeSettingsRoot: View {
                     }
                 }
             }
+            .sheet(item: $copySource) { source in
+                copySheet(source: source)
+            }
+            .confirmationDialog(
+                official(namespace: "ui-agent-preset", key: "deleteTitle"),
+                isPresented: Binding(
+                    get: { pendingDelete != nil },
+                    set: { if !$0 { pendingDelete = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                Button(official(namespace: "ui-agent-preset", key: "cancel"), role: .cancel) {
+                    pendingDelete = nil
+                }
+                Button(deleteInFlight ? official(namespace: "ui-agent-preset", key: "deleting") : official(namespace: "ui-agent-preset", key: "deleteConfirm"), role: .destructive) {
+                    guard let pendingDelete else { return }
+                    deleteInFlight = true
+                    Task {
+                        let removed = await removeAgentPreset(pendingDelete.id)
+                        deleteInFlight = false
+                        if removed { self.pendingDelete = nil }
+                    }
+                }
+                .disabled(deleteInFlight)
+            } message: {
+                Text(official(namespace: "ui-agent-preset", key: "deleteDescription"))
+            }
         }
+    }
+
+    private func copySheet(source: AgentPresetEntryDTO) -> some View {
+        VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p12) {
+            Text(official(namespace: "ui-agent-preset", key: "copyIntro"))
+                .font(OfficialUISpec.Typography.xs13)
+                .foregroundStyle(OfficialUISpec.Token.caption)
+            Text(official(namespace: "ui-agent-preset", key: "copyOf") + " " + (source.name ?? source.id))
+            TextField(official(namespace: "ui-agent-preset", key: "presetId"), text: $copyID, prompt: Text(official(namespace: "ui-agent-preset", key: "presetIdPlaceholder")))
+            TextField(official(namespace: "ui-agent-preset", key: "displayName"), text: $copyName, prompt: Text(official(namespace: "ui-agent-preset", key: "displayNamePlaceholder")))
+            HStack {
+                Button(official(namespace: "ui-agent-preset", key: "cancel")) {
+                    copySource = nil
+                }
+                Spacer()
+                Button(copyInFlight ? official(namespace: "ui-agent-preset", key: "creating") : official(namespace: "ui-agent-preset", key: "create")) {
+                    let request = AgentPresetCopyRequest(
+                        from: source.id,
+                        agentPreset: copyID,
+                        name: copyName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : copyName.trimmingCharacters(in: .whitespacesAndNewlines)
+                    )
+                    copyInFlight = true
+                    Task {
+                        let copied = await copyAgentPreset(request)
+                        if copied { _ = await openAgentPresetDocument(request.agentPreset) }
+                        copyInFlight = false
+                        if copied { copySource = nil }
+                    }
+                }
+                .disabled(!copyIDIsSubmittable || copyInFlight)
+            }
+        }
+        .padding(OfficialUISpec.Spacing.p16)
+        .frame(minWidth: 440)
+    }
+
+    private var copyIDIsSubmittable: Bool {
+        guard !copyID.isEmpty,
+              copyID.range(of: "^[a-z0-9][a-z0-9-]*$", options: .regularExpression) != nil
+        else { return false }
+        return !agentPresetStore.presets.contains(where: { $0.id == copyID })
     }
 
     @ViewBuilder
