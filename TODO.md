@@ -506,6 +506,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 
 - [ ] **GP-1：骨架 DOM 生成器。** 由原生壳同步生成同构骨架（结构 + 契约属性 + ID 映射表），几何复用 `OfficialColumnLayoutFixtures` 算法；内容留空。
   - 验收：骨架节点与原生组件树一一对应；契约属性与 T11.8 快照一致。
+  - 进度：已在 `GlassCore/Plugin/GhostPlaneSkeleton.swift` 实现纯 Core generator。其输入仅包含 native-authoritative viewport、sidebar/details preference 与 stable chat anchor identity，并调用现有 `OfficialColumnLayout.resolve` 得到三栏几何；不复制 CSS 公式、不接受内容或 plugin runtime。输出建立锁定官方 `ConversationRoot`/`ChatView`/`SlotMap` 所要求的唯一 `[data-conversation-scroll]`、`[data-chat-flow]`、`[data-composer-seat]`、`data-streaming=false`、`conversation.session`、header、chat node、turn tail、details tool、composer 与 `tool.call.toolview` 空 seat，以及由 stable key 映射的 anchor element IDs。非有限几何、重复 key 或不在 `[A-Za-z0-9_.:-]` 的 key 在 HTML emission 前 fail-closed；skeleton 不写入用户文本、模型输出、凭据、plugin HTML 或 JavaScript。`GhostPlaneSkeletonTests` 和 `glass/ci/ghost-plane-skeleton-portable-check.swift` 覆盖官方列几何、必需 contract、空内容、重复/恶意 key 负例；后者已在 Linux Swift 6.2.4 通过并接入 `portable-checks`。来源与 GP-2/T11.5 分界见 `notes/GP-1-skeleton-dom-contract.md`。当前实现尚待自身 macOS-26 Core 构建/XCTest 与未来 T11.8 对官方快照的 drift 证据，故保持未勾选。
 
 - [ ] **GP-2：固定锚点平面 host。** 单一共享近透明 WKWebView + 官方模块表 + SlotRegistry + token 注入 + tapIndex 重放；settings 卡片作为其固定锚点特例。
   - 验收：官方 loader 契约下插件 client entry 正常激活（inject 服务齐备）。

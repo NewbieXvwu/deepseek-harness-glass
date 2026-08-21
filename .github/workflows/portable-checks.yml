@@ -172,3 +172,7 @@ jobs:
             glass/ci/swift-adapter-registry-portable-check.swift \
             -o /tmp/swift-adapter-registry-portable-check
           /tmp/swift-adapter-registry-portable-check
+          swiftc glass/Sources/Core/Plugin/GhostPlaneSkeleton.swift \
+            glass/ci/ghost-plane-skeleton-portable-check.swift \
+            -o /tmp/ghost-plane-skeleton-portable-check
+          /tmp/ghost-plane-skeleton-portable-check
