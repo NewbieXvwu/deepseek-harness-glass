@@ -62,7 +62,23 @@ struct NativeSettingsRoot: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .ready:
-            if selection == .general, store.themePreference.status == .ready {
+            if selection == .plugins {
+                let cards = NativeBuiltinPluginCard.dispatched(from: store.namespaces)
+                List {
+                    if cards.isEmpty {
+                        Text(official(namespace: "ui-settings-plugins", key: "empty"))
+                    } else {
+                        ForEach(cards) { card in
+                            VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p4) {
+                                Text(card.title)
+                                Text(card.description)
+                                    .font(OfficialUISpec.Typography.xs13)
+                                    .foregroundStyle(OfficialUISpec.Token.caption)
+                            }
+                        }
+                    }
+                }
+            } else if selection == .general, store.themePreference.status == .ready {
                 List {
                     Section(official(namespace: "ui-theme", key: "appearance.title")) {
                         HStack(spacing: OfficialUISpec.Spacing.p8) {
