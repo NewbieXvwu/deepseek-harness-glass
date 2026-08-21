@@ -15,12 +15,17 @@ final class RawEventReplayReducerTests: XCTestCase {
 
         let final = tryUnwrap(snapshots.last)
         XCTAssertEqual(final.map(\.kind), ["user", "assistant-step"])
+        XCTAssertEqual(final.map(\.key), [
+            conversationContextKey(kind: "input-message", id: "fixture-user-1"),
+            conversationContextKey(kind: "assistant-step", id: "1:1"),
+        ])
         XCTAssertEqual(Set(final.map(\.key)).count, final.count)
         let assistant = tryUnwrap(final.last?.data as? CoreAssistantNode)
         XCTAssertEqual(assistant.status, .settled)
         XCTAssertEqual(assistant.blocks.map(\.kind), [.text])
         XCTAssertEqual(assistant.blocks.first?.text, "fixture answer")
         XCTAssertEqual(snapshots.dropLast().flatMap { $0 }.filter { $0.kind == "assistant-step" }.map(\.key).last, final.last?.key)
+        XCTAssertTrue(reducer.snapshot(target: "inspector").isEmpty)
     }
 
     func testRetryErrorReplayCancelsScheduledAttemptAtHostTurnClosure() throws {
