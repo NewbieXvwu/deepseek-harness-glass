@@ -371,7 +371,10 @@ struct NativeQuestionComposer: View {
             TextEditor(text: customBinding)
                 .font(OfficialUISpec.Typography.s14)
                 .scrollContentBackground(.hidden)
-                .frame(minHeight: OfficialUISpec.Geometry.px64, maxHeight: 144)
+                .frame(
+                    minHeight: OfficialUISpec.Geometry.px60 + OfficialUISpec.Spacing.p4,
+                    maxHeight: OfficialUISpec.Geometry.px140 + OfficialUISpec.Spacing.p4
+                )
                 .padding(OfficialUISpec.Spacing.p8)
                 .background(OfficialUISpec.Token.base, in: RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r8, style: .continuous))
                 .overlay {
