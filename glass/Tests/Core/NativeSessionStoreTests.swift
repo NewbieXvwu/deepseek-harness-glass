@@ -96,6 +96,57 @@ final class NativeSessionStoreTests: XCTestCase {
         await eventually(timeout: 1) { store.failedMessageFeedbackLoad && store.messageFeedbackItems.isEmpty && !store.isLoadingMessageFeedback }
     }
 
+    func testAuthorityRecoveryResyncsMessageFeedbackFromLatestHostList() async {
+        let feedbackLists = expectation(description: "initial and recovered feedback lists reach Host")
+        feedbackLists.expectedFulfillmentCount = 2
+        let recoveryHistory = expectation(description: "event gap reaches authority history recovery")
+        let initialFeedback = MessageFeedbackListResponse(
+            ok: true,
+            value: .init(items: [
+                .init(messageId: "assistant-1", rating: .positive, note: "initial", version: "v1", createdAt: 1, updatedAt: 1),
+            ]),
+            error: nil
+        )
+        let feedbackAPI = RecordingMessageFeedbackAPI(response: initialFeedback, reached: feedbackLists)
+        let sessionAPI = GapRecoveringSessionAPI(recoveryReachedHistory: recoveryHistory)
+        let store = NativeSessionStore()
+        store.open(
+            sessionID: "recovery-session",
+            using: sessionAPI,
+            endpoint: URL(string: "http://127.0.0.1:1")!,
+            messageFeedbackAPI: feedbackAPI
+        )
+        await eventually(timeout: 1) { store.messageFeedbackItems["assistant-1"]?.version == "v1" }
+
+        feedbackAPI.response = .init(
+            ok: true,
+            value: .init(items: [
+                .init(messageId: "assistant-1", rating: .negative, note: "recovered", version: "v2", createdAt: 1, updatedAt: 2),
+            ]),
+            error: nil
+        )
+        store.applyMuxFrame(sessionEventFrame(
+            sessionID: "recovery-session",
+            seq: 3,
+            type: "user/message",
+            data: .object([
+                "id": .string("feedback-gap"),
+                "content": .array([.object(["type": .string("text"), "text": .string("trigger authority recovery")])]),
+                "source": .object(["kind": .string("user")]),
+            ]),
+            surfaceOp: "append"
+        ), sessionID: "recovery-session")
+        await fulfillment(of: [recoveryHistory, feedbackLists], timeout: 1)
+        await eventually(timeout: 1) {
+            store.messageFeedbackItems["assistant-1"]?.version == "v2"
+                && store.messageFeedbackItems["assistant-1"]?.rating == .negative
+        }
+
+        XCTAssertEqual(feedbackAPI.sessionIDs, ["recovery-session", "recovery-session"])
+        XCTAssertEqual(store.messageFeedbackItems["assistant-1"]?.note, "recovered")
+        XCTAssertFalse(store.failedMessageFeedbackLoad)
+    }
+
     func testMessageFeedbackMutationUsesCommittedVersionAndReconcilesConflict() async {
         let reached = expectation(description: "feedback seed reaches typed Host facade")
         let initial = MessageFeedbackListResponse(

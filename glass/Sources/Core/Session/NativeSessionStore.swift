@@ -506,6 +506,10 @@ final class NativeSessionStore: ObservableObject {
     private var subagentContinuationAPI: (any NativeSubagentContinuationAPI)?
     private var messageFeedbackAPI: (any NativeMessageFeedbackAPI)?
     private var messageFeedbackTask: Task<Void, Never>?
+    /// RC8 reconnect resync waits behind any admitted feedback mutation before
+    /// taking a fresh complete list, so an older list cannot revive a stale CAS
+    /// version after a mutation result has committed.
+    private var messageFeedbackResyncTask: Task<Void, Never>?
     private var messageFeedbackMutationTask: Task<Void, Never>?
     private var messageFeedbackMutationGeneration: UInt = 0
     private var hasLoadedMessageFeedback = false
@@ -596,6 +600,8 @@ final class NativeSessionStore: ObservableObject {
     func setMessageFeedbackAPIForTesting(_ api: (any NativeMessageFeedbackAPI)?) {
         messageFeedbackTask?.cancel()
         messageFeedbackTask = nil
+        messageFeedbackResyncTask?.cancel()
+        messageFeedbackResyncTask = nil
         messageFeedbackItems = [:]
         isLoadingMessageFeedback = false
         failedMessageFeedbackLoad = false
@@ -648,6 +654,30 @@ final class NativeSessionStore: ObservableObject {
                 self?.hasLoadedMessageFeedback = false
                 self?.failedMessageFeedbackLoad = true
             }
+        }
+    }
+
+    /// RC8 `MessageFeedbackController.resync`: serialize the reconnect list
+    /// behind the prior mutation tail. The completed Host list remains the only
+    /// source that replaces the sidecar; no local version is synthesized.
+    private func resyncMessageFeedbackAfterRecovery() {
+        guard messageFeedbackAPI != nil, let sessionID = activeSessionID else { return }
+        messageFeedbackResyncTask?.cancel()
+        let generation = recoveryGeneration
+        let priorMutation = messageFeedbackMutationTask
+        messageFeedbackResyncTask = Task { [weak self] in
+            if let priorMutation { await priorMutation.value }
+            guard !Task.isCancelled,
+                  self?.recoveryGeneration == generation,
+                  self?.activeSessionID == sessionID
+            else { return }
+            self?.refreshMessageFeedback()
+            if let loading = self?.messageFeedbackTask { await loading.value }
+            guard !Task.isCancelled,
+                  self?.recoveryGeneration == generation,
+                  self?.activeSessionID == sessionID
+            else { return }
+            self?.messageFeedbackResyncTask = nil
         }
     }
 
@@ -1019,6 +1049,8 @@ final class NativeSessionStore: ObservableObject {
         subagentCatalogTasks = [:]
         messageFeedbackTask?.cancel()
         messageFeedbackTask = nil
+        messageFeedbackResyncTask?.cancel()
+        messageFeedbackResyncTask = nil
         messageFeedbackMutationTask?.cancel()
         messageFeedbackMutationTask = nil
         messageFeedbackItems = [:]
@@ -1172,6 +1204,8 @@ final class NativeSessionStore: ObservableObject {
         recoveryBufferGeneration = nil
         messageFeedbackTask?.cancel()
         messageFeedbackTask = nil
+        messageFeedbackResyncTask?.cancel()
+        messageFeedbackResyncTask = nil
         messageFeedbackMutationTask?.cancel()
         messageFeedbackMutationTask = nil
         messageFeedbackAPI = nil
@@ -1247,6 +1281,8 @@ final class NativeSessionStore: ObservableObject {
         recoveryBufferGeneration = nil
         messageFeedbackTask?.cancel()
         messageFeedbackTask = nil
+        messageFeedbackResyncTask?.cancel()
+        messageFeedbackResyncTask = nil
         messageFeedbackMutationTask?.cancel()
         messageFeedbackMutationTask = nil
         messageFeedbackAPI = nil
@@ -1923,6 +1959,7 @@ final class NativeSessionStore: ObservableObject {
                 self?.hasMoreHistory = history.hasMore
                 self?.phase = .ready(sessionID: sessionID)
                 self?.stitchRecoveryLiveBuffer(generation: generation)
+                self?.resyncMessageFeedbackAfterRecovery()
             } catch {
                 guard !Task.isCancelled,
                       self?.recoveryGeneration == generation,
