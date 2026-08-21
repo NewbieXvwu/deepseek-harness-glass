@@ -147,6 +147,67 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertFalse(store.failedMessageFeedbackLoad)
     }
 
+    func testRecoveryFeedbackResyncWaitsForCommittedSameSessionMutation() async {
+        let feedbackLists = expectation(description: "initial and post-mutation feedback lists reach Host")
+        feedbackLists.expectedFulfillmentCount = 2
+        let mutationReached = expectation(description: "feedback mutation reaches Host before recovery resync")
+        let recoveryHistory = expectation(description: "gap recovery reaches authority history")
+        let feedbackAPI = GatedRecoveryFeedbackAPI(
+            listResponse: .init(
+                ok: true,
+                value: .init(items: [
+                    .init(messageId: "assistant-1", rating: .positive, note: "initial", version: "v1", createdAt: 1, updatedAt: 1),
+                ]),
+                error: nil
+            ),
+            listReached: feedbackLists,
+            mutationReached: mutationReached
+        )
+        let store = NativeSessionStore()
+        store.open(
+            sessionID: "recovery-session",
+            using: GapRecoveringSessionAPI(recoveryReachedHistory: recoveryHistory),
+            endpoint: URL(string: "http://127.0.0.1:1")!,
+            messageFeedbackAPI: feedbackAPI
+        )
+        await eventually(timeout: 1) { store.messageFeedbackItems["assistant-1"]?.version == "v1" }
+
+        store.toggleMessageFeedback(messageID: "assistant-1", rating: .negative)
+        await fulfillment(of: [mutationReached], timeout: 1)
+        XCTAssertTrue(store.isSubmittingMessageFeedback)
+
+        feedbackAPI.listResponse = .init(
+            ok: true,
+            value: .init(items: [
+                .init(messageId: "assistant-1", rating: .negative, note: "resynced", version: "v3", createdAt: 1, updatedAt: 3),
+            ]),
+            error: nil
+        )
+        store.applyMuxFrame(sessionEventFrame(
+            sessionID: "recovery-session",
+            seq: 3,
+            type: "user/message",
+            data: .object([
+                "id": .string("mutation-recovery-gap"),
+                "content": .array([.object(["type": .string("text"), "text": .string("trigger recovery")])]),
+                "source": .object(["kind": .string("user")]),
+            ]),
+            surfaceOp: "append"
+        ), sessionID: "recovery-session")
+        await fulfillment(of: [recoveryHistory], timeout: 1)
+        XCTAssertEqual(feedbackAPI.sessionIDs.count, 1, "resync must wait behind the admitted mutation")
+
+        await feedbackAPI.releaseMutation()
+        await fulfillment(of: [feedbackLists], timeout: 1)
+        await eventually(timeout: 1) {
+            store.messageFeedbackItems["assistant-1"]?.version == "v3" && !store.isSubmittingMessageFeedback
+        }
+
+        XCTAssertEqual(feedbackAPI.putRequests.first?.ifVersion, "v1")
+        XCTAssertEqual(feedbackAPI.sessionIDs, ["recovery-session", "recovery-session"])
+        XCTAssertEqual(store.messageFeedbackItems["assistant-1"]?.note, "resynced")
+    }
+
     func testMessageFeedbackMutationUsesCommittedVersionAndReconcilesConflict() async {
         let reached = expectation(description: "feedback seed reaches typed Host facade")
         let initial = MessageFeedbackListResponse(
@@ -1591,6 +1652,49 @@ final class NativeSessionStoreTests: XCTestCase {
             deleteRequests.append(request)
             return deleteResponse
         }
+    }
+
+    @MainActor
+    private final class GatedRecoveryFeedbackAPI: NativeMessageFeedbackAPI {
+        var listResponse: MessageFeedbackListResponse
+        let listReached: XCTestExpectation
+        let mutationReached: XCTestExpectation
+        private let mutationGate = RecoveryGate()
+        private(set) var sessionIDs: [String] = []
+        private(set) var putRequests: [MessageFeedbackPutRequest] = []
+
+        init(
+            listResponse: MessageFeedbackListResponse,
+            listReached: XCTestExpectation,
+            mutationReached: XCTestExpectation
+        ) {
+            self.listResponse = listResponse
+            self.listReached = listReached
+            self.mutationReached = mutationReached
+        }
+
+        func list(sessionID: String) async throws -> MessageFeedbackListResponse {
+            sessionIDs.append(sessionID)
+            listReached.fulfill()
+            return listResponse
+        }
+
+        func put(_ request: MessageFeedbackPutRequest) async throws -> MessageFeedbackPutResponse {
+            putRequests.append(request)
+            mutationReached.fulfill()
+            await mutationGate.wait()
+            return .init(
+                ok: true,
+                value: .init(messageId: request.messageId, rating: request.rating, note: request.note, version: "v2", createdAt: 1, updatedAt: 2),
+                error: nil
+            )
+        }
+
+        func delete(_: MessageFeedbackDeleteRequest) async throws -> MessageFeedbackDeleteResponse {
+            throw DSHTransportError.invalidEndpoint
+        }
+
+        func releaseMutation() async { await mutationGate.open() }
     }
 
     private final class RecordingSubagentContinuationAPI: NativeSubagentContinuationAPI {

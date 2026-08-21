@@ -511,6 +511,10 @@ final class NativeSessionStore: ObservableObject {
     /// version after a mutation result has committed.
     private var messageFeedbackResyncTask: Task<Void, Never>?
     private var messageFeedbackMutationTask: Task<Void, Never>?
+    /// Feedback mutations survive a same-session authority recovery so RC8
+    /// reconnect resync can serialize behind their committed Host version. Only
+    /// a session lifecycle change invalidates these writes.
+    private var messageFeedbackSessionGeneration: UInt = 0
     private var messageFeedbackMutationGeneration: UInt = 0
     private var hasLoadedMessageFeedback = false
     private var subagentCatalogTask: Task<Void, Never>?
@@ -602,6 +606,7 @@ final class NativeSessionStore: ObservableObject {
         messageFeedbackTask = nil
         messageFeedbackResyncTask?.cancel()
         messageFeedbackResyncTask = nil
+        messageFeedbackSessionGeneration &+= 1
         messageFeedbackItems = [:]
         isLoadingMessageFeedback = false
         failedMessageFeedbackLoad = false
@@ -714,7 +719,7 @@ final class NativeSessionStore: ObservableObject {
 
     private func enqueueMessageFeedbackMutation(_ action: MessageFeedbackAction) {
         guard let api = messageFeedbackAPI, let sessionID = activeSessionID else { return }
-        let generation = recoveryGeneration
+        let generation = messageFeedbackSessionGeneration
         let actionMessageID = action.messageID
         messageFeedbackMutationGeneration &+= 1
         let mutationGeneration = messageFeedbackMutationGeneration
@@ -725,7 +730,7 @@ final class NativeSessionStore: ObservableObject {
         messageFeedbackMutationTask = Task { [weak self] in
             if let previous { await previous.value }
             guard !Task.isCancelled,
-                  self?.recoveryGeneration == generation,
+                  self?.messageFeedbackSessionGeneration == generation,
                   self?.activeSessionID == sessionID
             else { return }
 
@@ -738,7 +743,7 @@ final class NativeSessionStore: ObservableObject {
                 }
             }
             guard !Task.isCancelled,
-                  self?.recoveryGeneration == generation,
+                  self?.messageFeedbackSessionGeneration == generation,
                   self?.activeSessionID == sessionID,
                   self?.hasLoadedMessageFeedback == true
             else {
@@ -803,7 +808,7 @@ final class NativeSessionStore: ObservableObject {
         sessionID: String,
         mutationGeneration: UInt
     ) {
-        guard recoveryGeneration == generation, activeSessionID == sessionID else { return }
+        guard messageFeedbackSessionGeneration == generation, activeSessionID == sessionID else { return }
         if response.ok, let item = response.value {
             messageFeedbackItems[messageID] = item
             settleMessageFeedbackMutation(generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration, failureCode: nil)
@@ -839,7 +844,7 @@ final class NativeSessionStore: ObservableObject {
     }
 
     private func settleMessageFeedbackMutation(generation: UInt, sessionID: String, mutationGeneration: UInt, failureCode: String?) {
-        guard recoveryGeneration == generation,
+        guard messageFeedbackSessionGeneration == generation,
               activeSessionID == sessionID,
               messageFeedbackMutationGeneration == mutationGeneration
         else { return }
@@ -1051,6 +1056,7 @@ final class NativeSessionStore: ObservableObject {
         messageFeedbackTask = nil
         messageFeedbackResyncTask?.cancel()
         messageFeedbackResyncTask = nil
+        messageFeedbackSessionGeneration &+= 1
         messageFeedbackMutationTask?.cancel()
         messageFeedbackMutationTask = nil
         messageFeedbackItems = [:]
@@ -1206,6 +1212,7 @@ final class NativeSessionStore: ObservableObject {
         messageFeedbackTask = nil
         messageFeedbackResyncTask?.cancel()
         messageFeedbackResyncTask = nil
+        messageFeedbackSessionGeneration &+= 1
         messageFeedbackMutationTask?.cancel()
         messageFeedbackMutationTask = nil
         messageFeedbackAPI = nil
@@ -1283,6 +1290,7 @@ final class NativeSessionStore: ObservableObject {
         messageFeedbackTask = nil
         messageFeedbackResyncTask?.cancel()
         messageFeedbackResyncTask = nil
+        messageFeedbackSessionGeneration &+= 1
         messageFeedbackMutationTask?.cancel()
         messageFeedbackMutationTask = nil
         messageFeedbackAPI = nil
