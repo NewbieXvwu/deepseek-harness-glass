@@ -7,14 +7,14 @@ final class SSEClientTests: XCTestCase {
     func testRecordedStreamReconnectDropsReplayedRPCIDsAndLowSequences() async throws {
         let opener = RecordedSSEOpener(scripts: [
             [
-                .frame(sessionEvent(rpcId: "event-1", sequence: 1)),
+                .frame(Self.sessionEvent(rpcId: "event-1", sequence: 1)),
                 .failure(.network("fixture-disconnect")),
             ],
             [
-                .frame(sessionEvent(rpcId: "event-1-replay", sequence: 1)),
+                .frame(Self.sessionEvent(rpcId: "event-1-replay", sequence: 1)),
                 .frame(projection(rpcId: "projection-3", sequence: 3)),
                 .frame(projection(rpcId: "projection-2-replay", sequence: 2)),
-                .frame(sessionEvent(rpcId: "event-2", sequence: 2)),
+                .frame(Self.sessionEvent(rpcId: "event-2", sequence: 2)),
             ],
         ])
         let client = SSEClient(
@@ -76,8 +76,8 @@ final class SSEClientTests: XCTestCase {
 
     func testSequenceFenceDoesNotCrossDeduplicateDifferentSessions() async throws {
         let opener = RecordedSSEOpener(scripts: [[
-            .frame(sessionEvent(rpcId: "session-a-seq-1", sequence: 1, sessionID: "fixture-session-a")),
-            .frame(sessionEvent(rpcId: "session-b-seq-1", sequence: 1, sessionID: "fixture-session-b")),
+            .frame(Self.sessionEvent(rpcId: "session-a-seq-1", sequence: 1, sessionID: "fixture-session-a")),
+            .frame(Self.sessionEvent(rpcId: "session-b-seq-1", sequence: 1, sessionID: "fixture-session-b")),
         ]])
         let client = SSEClient(
             baseURL: URL(string: "http://127.0.0.1:9237/")!,
@@ -150,10 +150,10 @@ final class SSEClientTests: XCTestCase {
 
     func testHighFrequencyOutOfOrderStreamDropsLateFrameWithoutBlockingNewTail() async throws {
         var script = (1 ... 1_000).map { sequence in
-            RecordedSSEElement.frame(sessionEvent(rpcId: "live-\(sequence)", sequence: sequence))
+            RecordedSSEElement.frame(Self.sessionEvent(rpcId: "live-\(sequence)", sequence: sequence))
         }
-        script.append(.frame(sessionEvent(rpcId: "late-1000", sequence: 1_000)))
-        script.append(.frame(sessionEvent(rpcId: "live-1001", sequence: 1_001)))
+        script.append(.frame(Self.sessionEvent(rpcId: "late-1000", sequence: 1_000)))
+        script.append(.frame(Self.sessionEvent(rpcId: "live-1001", sequence: 1_001)))
         let opener = RecordedSSEOpener(scripts: [script])
         let client = SSEClient(
             baseURL: URL(string: "http://127.0.0.1:9238/")!,
@@ -409,7 +409,7 @@ final class SSEClientTests: XCTestCase {
         XCTAssertNil(parser.consume(line: "data: {\"type\":\"server-response\",\"rpcId\":\"bad\"}"))
         XCTAssertNil(parser.consume(line: ""))
 
-        let wire = try JSONEncoder().encode(sessionEvent(rpcId: "valid", sequence: 8))
+        let wire = try JSONEncoder().encode(Self.sessionEvent(rpcId: "valid", sequence: 8))
         XCTAssertNil(parser.consume(line: "data: " + String(decoding: wire, as: UTF8.self)))
         let valid = parser.consume(line: "")
         XCTAssertEqual(valid?.type, "server-request")
