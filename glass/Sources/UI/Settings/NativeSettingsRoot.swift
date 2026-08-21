@@ -324,6 +324,14 @@ struct NativeSettingsRoot: View {
                             Text(provider.settingsNs)
                                 .font(OfficialUISpec.Typography.xs13)
                                 .foregroundStyle(OfficialUISpec.Token.caption)
+                            if let reference = NativeProviderCredentialReferencePresentation.reference(
+                                for: provider,
+                                namespaces: store.namespaces
+                            ), let credential = credentialStore.view(for: reference) {
+                                Text(NativeCredentialStatusPresentation.statusText(credential))
+                                    .font(OfficialUISpec.Typography.xs13)
+                                    .foregroundStyle(OfficialUISpec.Token.caption)
+                            }
                         }
                     }
                 }
@@ -350,7 +358,19 @@ struct NativeSettingsRoot: View {
                     }
                 }
             }
+            .task(id: providerCredentialReferences) {
+                for reference in providerCredentialReferences {
+                    await refreshCredential(reference)
+                }
+            }
         }
+    }
+
+    private var providerCredentialReferences: [String] {
+        NativeProviderCredentialReferencePresentation.references(
+            for: modelDirectoryStore.providers,
+            namespaces: store.namespaces
+        )
     }
 
     private static func official(namespace: String, key: String) -> String {
