@@ -42,6 +42,28 @@ final class SSEClientTests: XCTestCase {
         XCTAssertTrue(traces.contains { $0.outcome == .opened })
     }
 
+    func testRawReconnectFixtureDropsOutOfOrderSequenceWithoutBlockingNewerFrame() async throws {
+        let fixture = try OfficialRawEventReplayFixtureCatalog.load()
+        let replay = tryUnwrap(fixture.cases.first(where: { $0.id == "reconnect-duplicate-sequence" }))
+        let opener = RecordedSSEOpener(scripts: [[
+            .frame(replaySessionEvent(rpcId: "fixture-40", event: replay.events[0])),
+            .frame(replaySessionEvent(rpcId: "fixture-42", event: replay.events[2])),
+            .frame(replaySessionEvent(rpcId: "fixture-41-late", event: replay.events[1])),
+            .frame(replaySessionEvent(rpcId: "fixture-43", event: replay.events[4])),
+        ]])
+        let client = SSEClient(
+            baseURL: URL(string: "http://127.0.0.1:9236/")!,
+            testStreamOpener: { endpoint in opener.open(endpoint) }
+        )
+        var frames: [RPCServerRequest] = []
+        let stream = await client.reconnectingStream(.mux, policy: .init(initialDelay: 0.01, maximumDelay: 0.02, multiplier: 2))
+        for try await frame in stream { frames.append(frame) }
+
+        XCTAssertEqual(frames.map { $0.payload.objectValue?["event"]?.objectValue?["seq"]?.numberValue }, [40, 42, 43])
+        XCTAssertEqual(frames.map(\.rpcId), ["fixture-40", "fixture-42", "fixture-43"])
+        XCTAssertEqual(opener.openedEndpoints(), [.mux])
+    }
+
     func testRawReconnectFixtureDropsDuplicateSequenceAcrossStreamReopen() async throws {
         let fixture = try OfficialRawEventReplayFixtureCatalog.load()
         let replay = tryUnwrap(fixture.cases.first(where: { $0.id == "reconnect-duplicate-sequence" }))
