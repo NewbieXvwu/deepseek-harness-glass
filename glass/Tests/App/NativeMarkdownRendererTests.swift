@@ -101,6 +101,20 @@ final class NativeMarkdownRendererTests: XCTestCase {
         XCTAssertEqual(unknown, [.init(text: code, kind: .plain)])
     }
 
+    func testLongMarkdownAndCodePerformanceBaselinePreservesContent() {
+        let code = (0 ..< 2_000).map { "let value\($0) = \($0) // line \($0)" }.joined(separator: "\n")
+        let markdown = "# Fixture\n\n```swift\n\(code)\n```\n\n" + (0 ..< 200).map { "- [safe](https://example.com/\($0))" }.joined(separator: "\n")
+        measure(metrics: [XCTClockMetric()]) {
+            let blocks = NativeMarkdownDocument.parse(markdown)
+            let renderedCode = NativeCodeHighlighter.fragments(code: code, language: "swift").map(\.text).joined()
+            XCTAssertEqual(renderedCode, code)
+            XCTAssertTrue(blocks.contains { block in
+                if case let .code(_, language, rendered) = block { return language == "swift" && rendered == code }
+                return false
+            })
+        }
+    }
+
     func testQuoteAndListsBecomeStableNativeBlocksWithoutUnsafeLinkActivation() {
         let blocks = NativeMarkdownDocument.parse(
             "intro\n> quoted [safe](https://example.com)\n> `file:///private`\n- first\n- [unsafe](file:///tmp/private)\n1. ordered\n2. second\nafter"
