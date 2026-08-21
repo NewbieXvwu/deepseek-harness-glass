@@ -334,7 +334,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 - [ ] **T7.1：实现 sidebar 的静态结构。** 复刻 wordmark、New Session、workspace seat、settings seat、滚动区与底部固定区域；所有文字引用 `OfficialUISpec`。
   - 依赖：T2.2、T5.2。
   - 验收：无 workspace 与有 workspace 两种状态使用官方文案和结构，不出现自创欢迎页。
-  - 进度：依据 RC8 `ui-sidebar/tests/sidebar-root.client.spec.tsx`，`NativeAccessibilityRuntimeTests` 已将 wide sidebar 的两个独立 New Session 操作（wordmark + capsule）从存在性断言加严为精确计数 2，并继续禁止 rail-only Open sidebar 控件出现在 wide 焦点树。当前仍须核验 workspace region/settings/footer seat、无/有 workspace 状态的 official/native 浅深色结构配对、人工差异分类与 macOS 当前 SHA 工件，故保持未勾选。
+  - 进度：依据 RC8 `ui-sidebar/tests/sidebar-root.client.spec.tsx`，`NativeAccessibilityRuntimeTests` 已将 wide sidebar 的两个独立 New Session 操作（wordmark + capsule）从存在性断言加严为精确计数 2，并继续禁止 rail-only Open sidebar 控件出现在 wide 焦点树。wide sidebar 现进一步以真实原生 AX tree 精确断言官方 `Workspaces` section、Search sessions、View options、Add workspace 和底部 Settings 各恰好一个，防止空 Host snapshot 移除 region/settings/footer seat 或复制其动作。当前仍须补有 workspace 状态以及 official/native 浅深色结构配对、人工差异分类与 macOS 当前 SHA 工件，故保持未勾选。
 
 - [ ] **T7.2：实现 workspace/session browser。** 支持 workspace list、create、reorder、archive、ungrouped、session list、selected/running/blank 状态和空会话复用。
   - 依赖：T4.5、T6.1、T7.1。

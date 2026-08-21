@@ -45,9 +45,24 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
                 // the wordmark shortcut and the outlined capsule.
                 OfficialUISpec.Text.newSessionAccessibility,
                 OfficialUISpec.Text.collapseSidebarAccessibility,
+                // `SidebarRoot` retains the workspace region and its action
+                // seats independently of whether any Host workspace exists.
+                // Assert the mounted native counterparts rather than inferring
+                // them from source text or a prebuilt snapshot.
+                OfficialUISpec.Text.workspaces,
+                OfficialUISpec.Text.searchSessionsAccessibility,
+                OfficialUISpec.Text.viewOptions,
+                OfficialUISpec.Text.addWorkspace,
                 OfficialUISpec.Text.settings,
             ],
-            expectedCounts: [OfficialUISpec.Text.newSessionAccessibility: 2],
+            expectedCounts: [
+                OfficialUISpec.Text.newSessionAccessibility: 2,
+                OfficialUISpec.Text.workspaces: 1,
+                OfficialUISpec.Text.searchSessionsAccessibility: 1,
+                OfficialUISpec.Text.viewOptions: 1,
+                OfficialUISpec.Text.addWorkspace: 1,
+                OfficialUISpec.Text.settings: 1,
+            ],
             forbidden: [OfficialUISpec.Text.openSidebarAccessibility]
         )
     }
