@@ -13,7 +13,13 @@ mkdir -p "$STAGE/Contents/MacOS" "$STAGE/Contents/Resources"
 
 echo "== 1/4 编译 Swift 壳 =="
 swift build -c release --product DeepSeekHarnessGlassApp
-cp .build/release/DeepSeekHarnessGlassApp "$STAGE/Contents/MacOS/DeepSeek Harness"
+# SwiftPM selects a target-triple build directory (for example
+# `.build/arm64-apple-macosx/release`) on macOS 26. Never infer this location
+# from the legacy `.build/release` symlink: an earlier standalone build can
+# leave that path usable for the executable while hiding resource bundles.
+SWIFTPM_BIN_PATH="$(swift build -c release --show-bin-path)"
+test -x "$SWIFTPM_BIN_PATH/DeepSeekHarnessGlassApp"
+cp "$SWIFTPM_BIN_PATH/DeepSeekHarnessGlassApp" "$STAGE/Contents/MacOS/DeepSeek Harness"
 
 # SwiftPM resources live in target-specific bundles beside the executable. The
 # executable alone is insufficient in a .app: `Bundle.module` must retain every
@@ -22,7 +28,7 @@ swiftpm_resource_bundle_count=0
 while IFS= read -r bundle; do
   cp -R "$bundle" "$STAGE/Contents/Resources/"
   swiftpm_resource_bundle_count=$((swiftpm_resource_bundle_count + 1))
-done < <(find .build/release -maxdepth 1 -type d -name '*.bundle' -print | sort)
+done < <(find "$SWIFTPM_BIN_PATH" -maxdepth 1 -type d -name '*.bundle' -print | sort)
 if [[ "$swiftpm_resource_bundle_count" -eq 0 ]]; then
   echo "error: SwiftPM produced no resource bundles for the native app" >&2
   exit 1

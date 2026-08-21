@@ -41,4 +41,30 @@ final class RecoveryGateTests: XCTestCase {
         await fulfillment(of: [freshReleased], timeout: 1)
         await fresh.value
     }
+
+    func testOpenIsIdempotentAndLateCancellationCannotDoubleResume() async {
+        let gate = RecoveryGate()
+        let released = expectation(description: "waiter exits after first open")
+        let waiter = Task {
+            await gate.wait()
+            released.fulfill()
+            // A cancellation callback racing a late `open()` must find no
+            // table entry and resume nothing a second time.
+            try? await Task.sleep(nanoseconds: 20_000_000)
+        }
+
+        await gate.open()
+        await fulfillment(of: [released], timeout: 1)
+        await gate.open()
+        waiter.cancel()
+        await waiter.value
+
+        let trailing = expectation(description: "post-open wait returns immediately")
+        let trailingTask = Task {
+            await gate.wait()
+            trailing.fulfill()
+        }
+        await fulfillment(of: [trailing], timeout: 1)
+        await trailingTask.value
+    }
 }
