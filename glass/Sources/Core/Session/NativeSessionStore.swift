@@ -428,6 +428,7 @@ final class NativeSessionStore: ObservableObject {
     /// A missing API or failed load remains empty; no local rating is invented.
     @Published private(set) var messageFeedbackItems: [String: MessageFeedbackItemDTO] = [:]
     @Published private(set) var isLoadingMessageFeedback = false
+    @Published private(set) var isMessageFeedbackAvailable = false
     @Published private(set) var failedMessageFeedbackLoad = false
     @Published private(set) var isSubmittingMessageFeedback = false
     @Published private(set) var messageFeedbackActionFailureCode: String?
@@ -557,6 +558,7 @@ final class NativeSessionStore: ObservableObject {
         isSubmittingMessageFeedback = false
         messageFeedbackActionFailureCode = nil
         hasLoadedMessageFeedback = false
+        isMessageFeedbackAvailable = api != nil
         messageFeedbackAPI = api
     }
 
@@ -957,6 +959,7 @@ final class NativeSessionStore: ObservableObject {
         self.subagentCatalogAPI = subagentCatalogAPI
         self.subagentContinuationAPI = subagentContinuationAPI
         self.messageFeedbackAPI = messageFeedbackAPI
+        self.isMessageFeedbackAvailable = messageFeedbackAPI != nil
         self.hostPathAPI = hostPathAPI
         self.activeSessionCWD = sessionCWD
         self.endpoint = endpoint
@@ -1059,6 +1062,7 @@ final class NativeSessionStore: ObservableObject {
         messageFeedbackMutationTask?.cancel()
         messageFeedbackMutationTask = nil
         messageFeedbackAPI = nil
+        isMessageFeedbackAvailable = false
         messageFeedbackItems = [:]
         isLoadingMessageFeedback = false
         failedMessageFeedbackLoad = false
@@ -1119,6 +1123,7 @@ final class NativeSessionStore: ObservableObject {
         messageFeedbackMutationTask?.cancel()
         messageFeedbackMutationTask = nil
         messageFeedbackAPI = nil
+        isMessageFeedbackAvailable = false
         messageFeedbackItems = [:]
         isLoadingMessageFeedback = false
         failedMessageFeedbackLoad = false

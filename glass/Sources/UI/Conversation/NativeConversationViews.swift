@@ -218,6 +218,7 @@ private struct NativeActiveConversationSurface: View {
                 deliverablesForAssistant: sessionStore.deliverables,
                 openKnownProjectPath: sessionStore.openKnownProjectPath,
                 messageFeedbackItems: sessionStore.messageFeedbackItems,
+                isMessageFeedbackAvailable: sessionStore.isMessageFeedbackAvailable,
                 isSubmittingMessageFeedback: sessionStore.isSubmittingMessageFeedback,
                 toggleMessageFeedback: sessionStore.toggleMessageFeedback,
                 openSession: openSession
@@ -257,6 +258,7 @@ private struct NativeTranscriptScrollView: View {
     let deliverablesForAssistant: (CoreAssistantNode) -> [String]
     let openKnownProjectPath: (String) -> Void
     let messageFeedbackItems: [String: MessageFeedbackItemDTO]
+    let isMessageFeedbackAvailable: Bool
     let isSubmittingMessageFeedback: Bool
     let toggleMessageFeedback: (String, MessageFeedbackRatingDTO) -> Void
     let openSession: (String) -> Void
@@ -336,6 +338,7 @@ private struct NativeTranscriptScrollView: View {
                                 deliverablesForAssistant: deliverablesForAssistant,
                                 openKnownProjectPath: openKnownProjectPath,
                                 messageFeedbackItems: messageFeedbackItems,
+                                isMessageFeedbackAvailable: isMessageFeedbackAvailable,
                                 isSubmittingMessageFeedback: isSubmittingMessageFeedback,
                                 toggleMessageFeedback: toggleMessageFeedback,
                                 openSession: openSession
@@ -376,6 +379,7 @@ private struct NativeConversationNodeRow: View {
     let deliverablesForAssistant: (CoreAssistantNode) -> [String]
     let openKnownProjectPath: (String) -> Void
     let messageFeedbackItems: [String: MessageFeedbackItemDTO]
+    let isMessageFeedbackAvailable: Bool
     let isSubmittingMessageFeedback: Bool
     let toggleMessageFeedback: (String, MessageFeedbackRatingDTO) -> Void
     let openSession: (String) -> Void
@@ -464,7 +468,7 @@ private struct NativeConversationNodeRow: View {
             if !text.isEmpty {
                 NativeMarkdownText(markdown: text, streaming: assistant.status == .running)
                 NativeMessageActionRow(text: text, time: assistant.time, clockPosition: .end)
-                if assistant.status == .settled, let messageID = assistant.messageID {
+                if isMessageFeedbackAvailable, assistant.status == .settled, let messageID = assistant.messageID {
                     NativeMessageFeedbackActions(
                         item: messageFeedbackItems[messageID],
                         isSubmitting: isSubmittingMessageFeedback,

@@ -76,7 +76,9 @@ final class NativeSessionStoreTests: XCTestCase {
         let store = NativeSessionStore()
         let sessionAPI = RejectingSessionAPI(promptReachedFacade: nil)
         store.open(sessionID: "feedback-session", using: sessionAPI, endpoint: URL(string: "http://127.0.0.1:1")!)
+        XCTAssertFalse(store.isMessageFeedbackAvailable)
         store.setMessageFeedbackAPIForTesting(feedbackAPI)
+        XCTAssertTrue(store.isMessageFeedbackAvailable)
         store.refreshMessageFeedback()
         await fulfillment(of: [reached], timeout: 1)
         await eventually(timeout: 1) { store.messageFeedbackItems["assistant-1"]?.version == "v1" && !store.isLoadingMessageFeedback }
