@@ -60,6 +60,8 @@ struct NativeSettingsRoot: View {
     @State private var discoveryProvider: LLMProviderDTO?
     @State private var selectedDiscoveredModelIDs: Set<String> = []
     @State private var discoveryAdoptionInFlight = false
+    private let ghostPlaneProfileStore = GhostPlaneProfilePreferenceStore()
+    @State private var useIsolatedGhostPlaneProfile = false
 
     var body: some View {
         NavigationSplitView {
@@ -131,6 +133,25 @@ struct NativeSettingsRoot: View {
                                 .accessibilityAddTraits(store.themePreference.current == preference ? .isSelected : [])
                             }
                         }
+                    }
+                    Section("Plugin profile") {
+                        Toggle("Use an isolated plugin profile", isOn: Binding(
+                            get: { useIsolatedGhostPlaneProfile },
+                            set: { enabled in
+                                useIsolatedGhostPlaneProfile = enabled
+                                ghostPlaneProfileStore.set(.init(selection: enabled ? .isolated(name: "plugins") : .sharedWeb))
+                            }
+                        ))
+                        Text("Stored locally. This does not change Host settings or DSH_HOME.")
+                            .font(OfficialUISpec.Typography.xs13)
+                            .foregroundStyle(OfficialUISpec.Token.caption)
+                    }
+                }
+                .onAppear {
+                    if case .isolated = ghostPlaneProfileStore.preference.selection {
+                        useIsolatedGhostPlaneProfile = true
+                    } else {
+                        useIsolatedGhostPlaneProfile = false
                     }
                 }
             } else {
