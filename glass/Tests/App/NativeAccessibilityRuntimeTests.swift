@@ -99,6 +99,39 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         )
     }
 
+    func testFileToolPathAccessibilityFollowsVerifiedCapability() throws {
+        let invocation = NativeSessionStore.ToolInvocation(
+            id: "write-path",
+            name: "write",
+            arguments: #"{"file_path":"src/main.swift","content":"let value = 1"}"#,
+            output: nil,
+            state: .completed,
+            sequence: 1,
+            view: nil
+        )
+        try assertAccessibleLabels(
+            in: NativeToolRow(
+                invocation: invocation,
+                selected: false,
+                openKnownProjectPath: { _ in },
+                canOpenProjectPath: true,
+                inspect: {}
+            ),
+            expected: [OfficialUISpec.Text.toolWrite, OfficialUISpec.Text.producedFilesOpen(name: "src/main.swift")]
+        )
+        try assertAccessibleLabels(
+            in: NativeToolRow(
+                invocation: invocation,
+                selected: false,
+                openKnownProjectPath: { _ in },
+                canOpenProjectPath: false,
+                inspect: {}
+            ),
+            expected: [OfficialUISpec.Text.toolWrite],
+            forbidden: [OfficialUISpec.Text.producedFilesOpen(name: "src/main.swift")]
+        )
+    }
+
     func testRuntimeLocaleCatalogAcceptsComposerLabelsAndRejectsInjectedNonOfficialLabel() {
         // These values are evaluated through the same production runtime locale
         // API that mounted native controls consume. AX tree traversal remains a
