@@ -940,6 +940,31 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.modelDirectoryStatus, .ready)
     }
 
+    func testResidentResyncSupersedesStaleInitialHistoryOnSameEndpoint() async {
+        let staleHistoryReached = expectation(description: "same-endpoint initial history is delayed")
+        let api = DelayedOpeningHistorySessionAPI(staleHistoryReached: staleHistoryReached)
+        let store = NativeSessionStore()
+        let sessionID = "resident-resync-stale-open"
+        let endpoint = URL(string: "http://127.0.0.1:1")!
+
+        store.open(sessionID: sessionID, using: api, endpoint: endpoint)
+        await fulfillment(of: [staleHistoryReached], timeout: 1)
+        store.resyncActiveSession()
+        await eventually(timeout: 1) {
+            store.phase == .ready(sessionID: sessionID)
+                && store.items.map(\.text) == ["resynced authority"]
+                && store.modelDirectory?.current.model == "resynced-model"
+        }
+
+        await api.releaseHistory()
+        await eventually(timeout: 1) {
+            store.items.map(\.text) == ["resynced authority"]
+                && store.modelDirectory?.current.model == "resynced-model"
+        }
+        XCTAssertEqual(api.historyCalls, 2)
+        XCTAssertEqual(store.modelDirectoryStatus, .ready)
+    }
+
     func testConcurrentGapFramesCoalesceIntoOneAuthorityRecovery() async {
         let recoveryHistoryReached = expectation(description: "first gap recovery history is held")
         let api = CoalescingGapFailureSessionAPI(recoveryHistoryReached: recoveryHistoryReached)
@@ -2448,19 +2473,31 @@ final class NativeSessionStoreTests: XCTestCase {
     private final class DelayedOpeningHistorySessionAPI: NativeSessionAPI {
         let staleHistoryReached: XCTestExpectation
         private let historyGate = RecoveryGate()
+        private(set) var historyCalls = 0
+        private var modelsCalls = 0
 
         init(staleHistoryReached: XCTestExpectation) {
             self.staleHistoryReached = staleHistoryReached
         }
 
         func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
-            staleHistoryReached.fulfill()
-            await historyGate.wait()
-            return .init(events: [historyEntry(seq: 1, id: "stale", text: "stale authority")], hasMore: false, projections: nil)
+            historyCalls += 1
+            if historyCalls == 1 {
+                staleHistoryReached.fulfill()
+                await historyGate.wait()
+                return .init(events: [historyEntry(seq: 1, id: "stale", text: "stale authority")], hasMore: false, projections: nil)
+            }
+            return .init(events: [historyEntry(seq: 2, id: "resynced", text: "resynced authority")], hasMore: false, projections: nil)
         }
 
         func models(sessionID _: String) async throws -> SessionModelsResponse {
-            .init(current: .init(provider: "provider", model: "stale-model", reasoningEffort: nil), routable: true, groups: [], failures: [])
+            modelsCalls += 1
+            return .init(
+                current: .init(provider: "provider", model: modelsCalls == 1 ? "stale-model" : "resynced-model", reasoningEffort: nil),
+                routable: true,
+                groups: [],
+                failures: []
+            )
         }
 
         func releaseHistory() async { await historyGate.open() }
