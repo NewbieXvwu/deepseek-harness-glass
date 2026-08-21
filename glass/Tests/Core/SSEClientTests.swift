@@ -139,6 +139,34 @@ final class SSEClientTests: XCTestCase {
         XCTAssertEqual(opener.openedEndpoints(), [.mux])
     }
 
+    func testReconnectDiagnosticsStayBoundedAcrossRepeatedNetworkFailures() async throws {
+        let scripts = Array(repeating: [RecordedSSEElement.failure(.network("fixture-disconnect"))], count: 81)
+        let opener = RecordedSSEOpener(scripts: scripts)
+        let client = SSEClient(
+            baseURL: URL(string: "http://127.0.0.1:9240/")!,
+            testStreamOpener: { endpoint in opener.open(endpoint) }
+        )
+        let stream = await client.reconnectingStream(
+            .mux,
+            policy: .init(initialDelay: 0, maximumDelay: 0, multiplier: 1, maximumReconnectAttempts: 80)
+        )
+
+        do {
+            for try await _ in stream { XCTFail("failure-only carrier must not deliver a frame") }
+            XCTFail("finite repeated failures must exhaust")
+        } catch {
+            // Exhaustion surfaces the terminal typed network error after the
+            // trace buffer has retained only its bounded recent window.
+        }
+
+        let traces = await client.recentReconnectTraces()
+        XCTAssertEqual(opener.openedEndpoints().count, 81)
+        XCTAssertEqual(traces.count, 100)
+        XCTAssertEqual(traces.last?.outcome, .exhausted)
+        XCTAssertEqual(traces.last?.attempt, 81)
+        XCTAssertEqual(traces.filter { $0.outcome == .opened }.count, 50)
+    }
+
     func testHighFrequencyConsumerTerminationCancelsCarrierWithoutOpeningReconnect() async throws {
         let firstFrameProduced = expectation(description: "high-frequency carrier produces first frame")
         let producerStopped = expectation(description: "carrier producer observes stream termination")
