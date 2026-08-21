@@ -42,6 +42,16 @@ final class OfficialRawEventReplayFixtureCatalogTests: XCTestCase {
         XCTAssertEqual(userIDs.last, "fixture-long-user-1000")
     }
 
+    private func tryUnwrap<T>(_ value: T?, file: StaticString = #filePath, line: UInt = #line) throws -> T {
+        guard let value else {
+            XCTFail("Expected non-nil value", file: file, line: line)
+            throw FixtureUnwrapError.missingValue
+        }
+        return value
+    }
+
+    private enum FixtureUnwrapError: Error { case missingValue }
+
     func testReplayEventPayloadsContainNoCapturedCredentialOrPrivatePathMarkers() throws {
         let fixture = try OfficialRawEventReplayFixtureCatalog.load()
         let forbidden = ["/Users/", "/home/", "BEGIN PRIVATE", "api_key", "sk-"]
