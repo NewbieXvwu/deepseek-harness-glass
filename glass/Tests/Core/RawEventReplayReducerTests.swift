@@ -34,6 +34,22 @@ final class RawEventReplayReducerTests: XCTestCase {
         XCTAssertEqual(reducer.snapshot(target: "chat").filter { $0.kind == "model-retry" }.count, 1)
     }
 
+    func testConcurrentToolAndAssistantReplayPreservesBothTypedNodes() throws {
+        let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
+        let events = try events(for: "interleaved-tool-and-assistant")
+
+        XCTAssertEqual(reducer.replaceWindow(events.map { .init(event: $0) }, hasMore: false), .immediate)
+        let chat = reducer.snapshot(target: "chat")
+        let tool = tryUnwrap(chat.first(where: { $0.kind == "tool-call" })?.data as? CoreToolCallNode)
+        let assistant = tryUnwrap(chat.first(where: { $0.kind == "assistant-step" })?.data as? CoreAssistantNode)
+        XCTAssertEqual(tool.callID, "fixture-call-1")
+        XCTAssertEqual(tool.status, .settled)
+        XCTAssertEqual(tool.resultContent.first?.text, "fixture result")
+        XCTAssertEqual(assistant.status, .running)
+        XCTAssertEqual(assistant.blocks.first?.text, "working")
+        XCTAssertEqual(Set(chat.map(\.key)).count, chat.count)
+    }
+
     func testUnknownReplayEventIsSafelyIgnoredWithoutManufacturingANode() throws {
         let events = try events(for: "unknown-node-safe-ignore")
         let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())

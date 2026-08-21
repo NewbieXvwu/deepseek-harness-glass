@@ -499,7 +499,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 - [ ] **T12.2：建立 reducer snapshot tests。** 对每个 raw event append 后的 node snapshot、turn/step boundary、projection value、queue 和 pending interaction 做断言。
   - 依赖：T6.5、T6.6。
   - 验收：已支持 node 类型的状态覆盖率和负面 fixture 清单可追踪；未知 event 不导致崩溃。
-  - 进度：`RawEventReplayReducerTests` 已直接 decode T12.1 catalog 的 JSON `SessionEventDTO` 并逐事件 append，验证 happy streaming 的最终 chat snapshot 仅有 user + 单一 stable-key assistant row，最终 block 为 Host durable text 而非 transient state；unknown `plugin/future-node` 则可安全留在 raw window 而不制造 chat/inspector node；error/retry fixture 进一步锁定 Host turn closure 将 scheduled attempt 结算为 cancelled 且维持单一 retry node。其余 error/reconnect/concurrent/long-session fixture 的完整 snapshot、boundary、projection、queue 与 pending interaction matrix 仍待接入，故保持未勾选。
+  - 进度：`RawEventReplayReducerTests` 已直接 decode T12.1 catalog 的 JSON `SessionEventDTO` 并逐事件 append，验证 happy streaming 的最终 chat snapshot 仅有 user + 单一 stable-key assistant row，最终 block 为 Host durable text 而非 transient state；unknown `plugin/future-node` 则可安全留在 raw window 而不制造 chat/inspector node；error/retry fixture 进一步锁定 Host turn closure 将 scheduled attempt 结算为 cancelled 且维持单一 retry node；concurrent fixture 锁定同一步骤中 tool 与 running assistant 各自保留 typed node、tool result correlation 与唯一 stable key。其余 error/reconnect/concurrent/long-session fixture 的完整 snapshot、boundary、projection、queue 与 pending interaction matrix 仍待接入，故保持未勾选。
 
 - [ ] **T12.3：建立 transport 混沌与重连测试 (Chaos & Resilience Tests)。** 在真实运行期注入网络抖动：模拟迟到 response、重复/乱序 SSE 帧、高频流式推送中的连续取消、Host 崩溃后热重启自愈与重连 Sequence Fence 屏障。
   - 依赖：T4.6、T6.7。
