@@ -23,6 +23,7 @@ final class NativeAgentPresetStore: ObservableObject {
     @Published private(set) var authorable = false
     @Published private(set) var hasDocument = false
     @Published private(set) var selectedPreset: String?
+    @Published private(set) var isSelecting = false
     /// Preset-directory paths supplied by `agentPreset.openDocument` when the
     /// Host cannot open them itself. These remain Host text, not local URLs.
     @Published private(set) var revealedPaths: [String: String] = [:]
@@ -54,10 +55,11 @@ final class NativeAgentPresetStore: ObservableObject {
             presets = []
             authorable = false
             hasDocument = false
-        selectedPreset = nil
-        revealedPaths = [:]
-        detail = nil
-        phase = .failed
+            selectedPreset = nil
+            isSelecting = false
+            revealedPaths = [:]
+            detail = nil
+            phase = .failed
         }
     }
 
@@ -130,7 +132,10 @@ final class NativeAgentPresetStore: ObservableObject {
     /// no local selection claim is made.
     @discardableResult
     func select(sessionID: String, agentPreset: String, using api: (any NativeAgentPresetAPI)?) async -> Bool {
-        guard let api else { return false }
+        guard let api, !isSelecting else { return false }
+        guard presets.contains(where: { $0.id == agentPreset && $0.broken == nil }) else { return false }
+        isSelecting = true
+        defer { isSelecting = false }
         do {
             let response = try await api.select(sessionID: sessionID, agentPreset: agentPreset)
             guard presets.contains(where: { $0.id == response.agentPreset && $0.broken == nil }) else { return false }
@@ -147,6 +152,7 @@ final class NativeAgentPresetStore: ObservableObject {
         authorable = false
         hasDocument = false
         selectedPreset = nil
+        isSelecting = false
         revealedPaths = [:]
         detail = nil
     }

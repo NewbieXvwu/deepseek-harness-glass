@@ -237,10 +237,10 @@ final class NativeShellPresentation: ObservableObject {
             }
         }
         workspaceStore.refresh(using: apis)
+        Task { [weak self] in await self?.agentPresetStore.refresh(using: apis.agentPresets) }
         if settingsPresented {
             settingsStore.load(using: apis.settings)
             Task { [weak self] in await self?.modelDirectoryStore.refresh(using: apis.llm) }
-            Task { [weak self] in await self?.agentPresetStore.refresh(using: apis.agentPresets) }
         }
         workspaceStore.observeHostEvents(at: connection.endpoint, using: apis, diagnostics: connection.diagnostics)
         if let selectedSessionID {
@@ -345,6 +345,17 @@ final class NativeShellPresentation: ObservableObject {
 
     func removeAgentPreset(_ agentPreset: String) async -> Bool {
         await agentPresetStore.remove(agentPreset: agentPreset, using: apis?.agentPresets)
+    }
+
+    /// RC8 seat selection is legal only while the Host projects this session as
+    /// blank. Running-session histories cannot be recomposed locally.
+    func selectAgentPreset(sessionID: String, presetID: String) async -> Bool {
+        guard let apis,
+              workspaceStore.snapshot.sessions.contains(where: { $0.sessionId == sessionID && $0.blank })
+        else { return false }
+        let selected = await agentPresetStore.select(sessionID: sessionID, agentPreset: presetID, using: apis.agentPresets)
+        if selected { workspaceStore.refresh(using: apis) }
+        return selected
     }
 
     func selectAgentPresetDefault(_ preset: AgentPresetEntryDTO) async -> Bool {
@@ -629,6 +640,11 @@ final class NativeShellController: NativeSplitViewController {
                 selectedWorkspaceTitle: Self.selectedWorkspaceTitle(for: presentation),
                 sessionSnapshot: presentation.workspaceStore.snapshot,
                 sessionStore: presentation.sessionStore,
+                agentPresetStore: presentation.agentPresetStore,
+                selectAgentPreset: { [weak presentation] sessionID, presetID in
+                    guard let presentation else { return false }
+                    return await presentation.selectAgentPreset(sessionID: sessionID, presetID: presetID)
+                },
                 jobsPopoverInitiallyOpen: presentation.jobsPopoverInitiallyOpen,
                 jobsLanguageCode: presentation.jobsSnapshotLanguageCode,
                 openSession: { sessionID in
@@ -700,6 +716,11 @@ final class NativeShellController: NativeSplitViewController {
                 selectedWorkspaceTitle: Self.selectedWorkspaceTitle(for: presentation),
                 sessionSnapshot: presentation.workspaceStore.snapshot,
                 sessionStore: presentation.sessionStore,
+                agentPresetStore: presentation.agentPresetStore,
+                selectAgentPreset: { [weak presentation] sessionID, presetID in
+                    guard let presentation else { return false }
+                    return await presentation.selectAgentPreset(sessionID: sessionID, presetID: presetID)
+                },
                 jobsPopoverInitiallyOpen: presentation.jobsPopoverInitiallyOpen,
                 jobsLanguageCode: presentation.jobsSnapshotLanguageCode,
                 openSession: { [weak self] sessionID in

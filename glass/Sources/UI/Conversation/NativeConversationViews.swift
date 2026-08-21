@@ -12,6 +12,8 @@ struct NativeConversationColumn: View {
     let selectedWorkspaceTitle: String?
     let sessionSnapshot: NativeWorkspaceStore.Snapshot
     @ObservedObject var sessionStore: NativeSessionStore
+    @ObservedObject var agentPresetStore: NativeAgentPresetStore
+    let selectAgentPreset: (String, String) async -> Bool
     let jobsPopoverInitiallyOpen: Bool
     let jobsLanguageCode: String?
     let openSession: (String) -> Void
@@ -27,6 +29,8 @@ struct NativeConversationColumn: View {
         selectedWorkspaceTitle: String?,
         sessionSnapshot: NativeWorkspaceStore.Snapshot,
         sessionStore: NativeSessionStore,
+        agentPresetStore: NativeAgentPresetStore,
+        selectAgentPreset: @escaping (String, String) async -> Bool,
         jobsPopoverInitiallyOpen: Bool,
         jobsLanguageCode: String?,
         openSession: @escaping (String) -> Void,
@@ -38,6 +42,8 @@ struct NativeConversationColumn: View {
         self.selectedWorkspaceTitle = selectedWorkspaceTitle
         self.sessionSnapshot = sessionSnapshot
         self.sessionStore = sessionStore
+        self.agentPresetStore = agentPresetStore
+        self.selectAgentPreset = selectAgentPreset
         self.jobsPopoverInitiallyOpen = jobsPopoverInitiallyOpen
         self.jobsLanguageCode = jobsLanguageCode
         self.openSession = openSession
@@ -54,6 +60,8 @@ struct NativeConversationColumn: View {
             NativeActiveConversationSurface(
                 sessionSnapshot: sessionSnapshot,
                 sessionStore: sessionStore,
+                agentPresetStore: agentPresetStore,
+                selectAgentPreset: selectAgentPreset,
                 jobsPopoverInitiallyOpen: jobsPopoverInitiallyOpen,
                 jobsLanguageCode: jobsLanguageCode,
                 openSession: openSession,
@@ -71,6 +79,8 @@ struct NativeConversationColumn: View {
 private struct NativeActiveConversationSurface: View {
     let sessionSnapshot: NativeWorkspaceStore.Snapshot
     @ObservedObject var sessionStore: NativeSessionStore
+    @ObservedObject var agentPresetStore: NativeAgentPresetStore
+    let selectAgentPreset: (String, String) async -> Bool
     let jobsPopoverInitiallyOpen: Bool
     let jobsLanguageCode: String?
     let openSession: (String) -> Void
@@ -96,10 +106,25 @@ private struct NativeActiveConversationSurface: View {
                 openSession: openSession,
                 selectView: sessionStore.selectView
             )
+            if let blankSession {
+                NativeAgentPresetSeat(session: blankSession, store: agentPresetStore) { presetID in
+                    await selectAgentPreset(blankSession.sessionId, presetID)
+                }
+                .padding(.horizontal, OfficialUISpec.Spacing.p16)
+                .padding(.vertical, OfficialUISpec.Spacing.p8)
+            }
             activeViewBody
             composerDock
         }
         .background(OfficialUISpec.Token.base)
+    }
+
+    private var blankSession: SessionSummaryDTO? {
+        guard let sessionID = sessionStore.selectedSessionID,
+              let session = sessionSnapshot.sessions.first(where: { $0.sessionId == sessionID }),
+              session.blank
+        else { return nil }
+        return session
     }
 
     private var contributionContext: NativeConversationContributionContext {
