@@ -152,6 +152,38 @@ final class NativeWorkspaceStoreTests: XCTestCase {
         )
     }
 
+    func testHostWorkspaceRefreshPreservesWorkspaceAndSessionOrderAfterReorder() {
+        let store = NativeWorkspaceStore()
+        let first = SessionSummaryDTO(
+            sessionId: "first", updatedAt: 1, running: false, blank: false,
+            pendingInteraction: nil, parentSessionId: nil, origin: nil, cwd: "/first",
+            agentPreset: nil, projections: nil
+        )
+        let second = SessionSummaryDTO(
+            sessionId: "second", updatedAt: 2, running: false, blank: false,
+            pendingInteraction: nil, parentSessionId: nil, origin: nil, cwd: "/second",
+            agentPreset: nil, projections: nil
+        )
+        let workspaceB = WorkspaceSummaryDTO(
+            workspaceId: "workspace-b", path: "/second", title: "B", sessionIds: ["second"],
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-02T00:00:00.000Z"
+        )
+        let workspaceA = WorkspaceSummaryDTO(
+            workspaceId: "workspace-a", path: "/first", title: "A", sessionIds: ["first"],
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-02T00:00:00.000Z"
+        )
+
+        store.applyHostWorkspaceList(
+            .init(items: [workspaceB, workspaceA], archivedSessionIds: []),
+            sessions: .init(items: [second, first])
+        )
+
+        XCTAssertEqual(store.snapshot.workspaces.map(\.workspaceId), ["workspace-b", "workspace-a"])
+        XCTAssertEqual(store.snapshot.sessions.map(\.sessionId), ["second", "first"])
+        XCTAssertEqual(store.snapshot.sessions(in: workspaceB).map(\.sessionId), ["second"])
+        XCTAssertEqual(store.snapshot.sessions(in: workspaceA).map(\.sessionId), ["first"])
+    }
+
     func testRailSearchArmsWideInputAndFocusesOnlyAfterExpansionSettles() {
         let armed = NativeWorkspaceBrowserSearchOnExpand.armedState()
         XCTAssertEqual(armed, .init(searchExpanded: true, awaitsWideFocus: true))
