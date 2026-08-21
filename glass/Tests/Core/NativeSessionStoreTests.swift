@@ -884,6 +884,43 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.modelDirectoryStatus, .ready)
     }
 
+    func testResidentResyncSupersedesInFlightGapRepairAndDropsItsLiveBuffer() async {
+        let staleHistoryReached = expectation(description: "gap repair history is delayed")
+        let resyncedHistoryReached = expectation(description: "resident resync issues newer authority history")
+        let api = SupersedingGapRecoverySessionAPI(
+            staleHistoryReached: staleHistoryReached,
+            newHistoryReached: resyncedHistoryReached
+        )
+        let store = NativeSessionStore()
+        let sessionID = "resident-resync-gap-repair"
+        store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+        await eventually(timeout: 1) { store.phase == .ready(sessionID: sessionID) && store.items.map(\.text) == ["baseline"] }
+
+        store.applyMuxFrame(sessionEventFrame(
+            sessionID: sessionID,
+            seq: 3,
+            type: "user/message",
+            data: .object([
+                "id": .string("obsolete-gap-tail"),
+                "content": .array([.object(["type": .string("text"), "text": .string("must be dropped by full resync")])]),
+                "source": .object(["kind": .string("user")]),
+            ]),
+            surfaceOp: "append"
+        ), sessionID: sessionID)
+        await fulfillment(of: [staleHistoryReached], timeout: 1)
+
+        store.resyncActiveSession()
+        await fulfillment(of: [resyncedHistoryReached], timeout: 1)
+        await api.releaseStaleHistory()
+        await eventually(timeout: 1) {
+            store.phase == .ready(sessionID: sessionID)
+                && store.items.map(\.text) == ["baseline", "new host authority"]
+                && store.modelDirectory?.current.model == "model-new"
+        }
+        XCTAssertFalse(store.items.contains(where: { $0.text == "must be dropped by full resync" }))
+        XCTAssertEqual(store.items.map(\.sequence), [1, 2])
+    }
+
     func testAheadWatermarkFailureKeepsFirstWindowReady() async {
         let recoveryHistoryReached = expectation(description: "ahead watermark recovery history is held")
         let api = CoalescingGapFailureSessionAPI(recoveryHistoryReached: recoveryHistoryReached)
