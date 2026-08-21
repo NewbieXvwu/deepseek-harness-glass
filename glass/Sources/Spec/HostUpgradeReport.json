@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "hostBuildId": "dsh-0.1.1-rc.1-official-528c682e",
+  "officialSourceCommit": "528c682e061696f5a160f363f236ecbf53cbd006",
+  "uiSpecRevision": "official-528c682e-ui-spec-r1",
+  "protocolFixtureRevision": "official-528c682e-web-ui-r1",
+  "rawEventFixtureRevision": "official-528c682e-raw-event-replay-r1",
+  "governanceDocument": "notes/T13.3-host-upgrade-governance.md",
+  "requiredArtifacts": {
+    "rpcDTOContract": "glass/Sources/Spec/Fixtures/official-rpc-dto-manifest.json",
+    "transportContract": "glass/Sources/Spec/Fixtures/official-transport-contract-manifest.json",
+    "rawEventCatalog": "glass/Sources/Core/Resources/official-raw-event-replay-fixtures.json",
+    "reducerReplayTests": "glass/Tests/Core/RawEventReplayReducerTests.swift",
+    "transportChaosTests": "glass/Tests/Core/SSEClientTests.swift",
+    "upgradeGovernance": "notes/T13.3-host-upgrade-governance.md"
+  },
+  "requiredReviewStages": [
+    "official-source-lock",
+    "structured-spec-regeneration",
+    "typed-dto-and-facade-contracts",
+    "raw-event-reducer-and-transport-replay",
+    "macos-visual-accessibility-performance-evidence",
+    "supported-builds-release-gate"
+  ]
+}

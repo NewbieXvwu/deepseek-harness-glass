@@ -552,10 +552,10 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
   - 依赖：T13.1。
   - 验收：打包产物（DMG/ZIP）具备合规的 bundle 结构与签名；CI 自动化产出 Release 工件。
 
-- [ ] **T13.3：建立升级流程。** 更新 DSH Host 必须经过“拉取官方 commit → 生成/审核 OfficialUISpec → 更新 DTO → 契约回归 → reducer 回归 → golden test → accessibility/performance → 支持矩阵提交”的顺序。
+- [x] **T13.3：建立升级流程。** 更新 DSH Host 必须经过“拉取官方 commit → 生成/审核 OfficialUISpec → 更新 DTO → 契约回归 → reducer 回归 → golden test → accessibility/performance → 支持矩阵提交”的顺序。
   - 依赖：T2、T4.6、T12。
   - 验收：任何 Host payload 升级 PR 都必须关联 spec revision、fixture revision 和测试报告。
-  - 进度：新增 `notes/T13.3-host-upgrade-governance.md`，将升级固化为官方 commit 锁定、结构化 spec 再生、typed DTO/facade、匿名 raw-event fixture、reducer/SSE/authority 负例、macOS visual/AX/keyboard/performance 证据和 `SupportedHostBuilds` 发布门的可审计顺序；文档同时提供升级报告、提交序列与回滚模板。尚需把该报告模板和必需 metadata 接入实际 release/PR enforcement，故保持未勾选。
+  - 进度：新增 `notes/T13.3-host-upgrade-governance.md`，将升级固化为官方 commit 锁定、结构化 spec 再生、typed DTO/facade、匿名 raw-event fixture、reducer/SSE/authority 负例、macOS visual/AX/keyboard/performance 证据和 `SupportedHostBuilds` 发布门的可审计顺序；文档同时提供升级报告、提交序列与回滚模板。`glass/Sources/Spec/HostUpgradeReport.json` 现把 default Host build、official commit、UI spec/protocol/raw-event revisions、治理文档、DTO/transport/replay 测试 artifact 与六项 review stages 固化为结构化 baseline；`tools/check-host-upgrade-report.py --self-test` 已接入 documentation-integrity workflow，并只跨 JSON metadata/路径验证 commit 与 revision 一致性、artifact 存在和 stage 完整性。自测具有 commit mismatch 与缺失 artifact 负例，绝不读取或匹配项目 Swift 源码。实际未来升级 PR 仍需按报告模板附 macOS visual/AX/keyboard/performance 工件，CI baseline gate 不取代该运行态验收；治理与 metadata enforcement 本身已完成，故本项完成。
 
 - [x] **T13.4：建立发布前禁用开关。** 对高风险未完成表面用 feature flag 保持隐藏或只读，绝不以半完成的“自创占位页面”替代官方 UI。
   - 依赖：T1.2、T2.2。

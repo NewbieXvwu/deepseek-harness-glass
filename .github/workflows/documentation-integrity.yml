@@ -11,8 +11,14 @@ on:
       - "CONTINUOUS_EXECUTION_PLAN.md"
       - "notes/**"
       - "visual-review/**"
+      - "glass/Sources/Spec/HostUpgradeReport.json"
+      - "glass/Sources/Spec/SupportedHostBuilds.json"
+      - "glass/Sources/Spec/OfficialUISpec/official-ui-spec-build.json"
+      - "glass/Sources/Spec/Locales/official-locales.json"
+      - "glass/Sources/Core/Resources/official-raw-event-replay-fixtures.json"
       - ".github/workflows/documentation-integrity.yml"
       - "tools/check-markdown-links.py"
+      - "tools/check-host-upgrade-report.py"
   pull_request:
     paths:
       - "README.md"
@@ -22,8 +28,14 @@ on:
       - "CONTINUOUS_EXECUTION_PLAN.md"
       - "notes/**"
       - "visual-review/**"
+      - "glass/Sources/Spec/HostUpgradeReport.json"
+      - "glass/Sources/Spec/SupportedHostBuilds.json"
+      - "glass/Sources/Spec/OfficialUISpec/official-ui-spec-build.json"
+      - "glass/Sources/Spec/Locales/official-locales.json"
+      - "glass/Sources/Core/Resources/official-raw-event-replay-fixtures.json"
       - ".github/workflows/documentation-integrity.yml"
       - "tools/check-markdown-links.py"
+      - "tools/check-host-upgrade-report.py"
   workflow_dispatch:
 
 permissions:
@@ -46,6 +58,9 @@ jobs:
 
       - name: Check internal links
         run: python3 tools/check-markdown-links.py
+
+      - name: Verify structured Host upgrade report
+        run: python3 tools/check-host-upgrade-report.py --self-test
 
       - name: Verify visual review artifacts exist
         run: |
