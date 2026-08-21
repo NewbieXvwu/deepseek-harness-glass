@@ -256,6 +256,12 @@ enum OfficialUISpec {
         static let feedbackLikeActive = "Remove rating"
         static let feedbackDislike = "Bad response"
         static let feedbackDislikeActive = "Remove rating"
+        static let feedbackNoteOpen = "Add a note"
+        static let feedbackNoteDialog = "Feedback"
+        static let feedbackNotePlaceholder = "What was good, or what went wrong? (optional)"
+        static let feedbackNoteSave = "Save"
+        static let feedbackNoteCancel = "Cancel"
+        static let feedbackNoteAccessibility = "Feedback note"
         // Source: packages/client/ui-conversation/src/client/locales.ts:291-295 (en)
         static let compactionTitle = "Context compacted"
         static let compactionRunning = "Compacting context…"

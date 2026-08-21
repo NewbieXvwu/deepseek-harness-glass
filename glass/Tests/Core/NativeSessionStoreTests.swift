@@ -142,6 +142,35 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.messageFeedbackItems["assistant-1"]?.note, "remote")
     }
 
+    func testMessageFeedbackNoteSaveUsesCommittedRatingAndVersion() async {
+        let reached = expectation(description: "feedback note seed reaches typed Host facade")
+        let initial = MessageFeedbackListResponse(
+            ok: true,
+            value: .init(items: [
+                .init(messageId: "assistant-note", rating: .positive, note: "old", version: "v1", createdAt: 1, updatedAt: 1),
+            ]),
+            error: nil
+        )
+        let feedbackAPI = RecordingMessageFeedbackAPI(response: initial, reached: reached)
+        feedbackAPI.putResponse = .init(
+            ok: true,
+            value: .init(messageId: "assistant-note", rating: .positive, note: "new", version: "v2", createdAt: 1, updatedAt: 2),
+            error: nil
+        )
+        let store = NativeSessionStore()
+        store.open(sessionID: "feedback-note", using: RejectingSessionAPI(promptReachedFacade: nil), endpoint: URL(string: "http://127.0.0.1:1")!)
+        store.setMessageFeedbackAPIForTesting(feedbackAPI)
+        store.refreshMessageFeedback()
+        await fulfillment(of: [reached], timeout: 1)
+        await eventually(timeout: 1) { store.messageFeedbackItems["assistant-note"]?.version == "v1" }
+
+        store.saveMessageFeedbackNote(messageID: "assistant-note", note: "  new  ")
+        await eventually(timeout: 1) { feedbackAPI.putRequests.count == 1 && store.messageFeedbackItems["assistant-note"]?.version == "v2" }
+        XCTAssertEqual(feedbackAPI.putRequests.first?.rating, .positive)
+        XCTAssertEqual(feedbackAPI.putRequests.first?.note, "new")
+        XCTAssertEqual(feedbackAPI.putRequests.first?.ifVersion, "v1")
+    }
+
     func testSubagentCatalogPublishesOnlyHostCompleteSnapshotAndFailsClosed() async {
         let catalog = SubagentListResponse(entries: [
             .init(kind: "child", id: "child-a", activity: "running", hasChildren: true, mode: "continuable", label: "Investigate", reason: nil),

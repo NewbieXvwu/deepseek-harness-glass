@@ -608,6 +608,7 @@ final class NativeSessionStore: ObservableObject {
 
     private enum MessageFeedbackAction {
         case toggle(messageID: String, rating: MessageFeedbackRatingDTO)
+        case rate(messageID: String, rating: MessageFeedbackRatingDTO, note: String?)
         case clear(messageID: String)
     }
 
@@ -619,6 +620,14 @@ final class NativeSessionStore: ObservableObject {
 
     func clearMessageFeedback(messageID: String) {
         enqueueMessageFeedbackMutation(.clear(messageID: messageID))
+    }
+
+    /// RC8 note editor only saves against an already committed rating. An empty
+    /// draft is a deliberate `note: nil` clear, not an invented no-op.
+    func saveMessageFeedbackNote(messageID: String, note: String) {
+        guard let item = messageFeedbackItems[messageID] else { return }
+        let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        enqueueMessageFeedbackMutation(.rate(messageID: messageID, rating: item.rating, note: trimmed.isEmpty ? nil : trimmed))
     }
 
     private func enqueueMessageFeedbackMutation(_ action: MessageFeedbackAction) {
@@ -656,7 +665,7 @@ final class NativeSessionStore: ObservableObject {
             let messageID: String
             let observed: MessageFeedbackItemDTO?
             switch action {
-            case let .toggle(id, _), let .clear(id):
+            case let .toggle(id, _), let .rate(id, _, _), let .clear(id):
                 messageID = id
                 observed = self?.messageFeedbackItems[id]
             }
@@ -676,6 +685,19 @@ final class NativeSessionStore: ObservableObject {
                         ))
                         self?.applyMessageFeedbackPut(response, messageID: messageID, generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration)
                     }
+                case let .rate(_, rating, note):
+                    guard let observed else {
+                        self?.settleMessageFeedbackMutation(generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration, failureCode: nil)
+                        return
+                    }
+                    let response = try await api.put(.init(
+                        sessionId: sessionID,
+                        messageId: messageID,
+                        rating: rating,
+                        note: note,
+                        ifVersion: observed.version
+                    ))
+                    self?.applyMessageFeedbackPut(response, messageID: messageID, generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration)
                 case .clear:
                     guard let observed else {
                         self?.settleMessageFeedbackMutation(generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration, failureCode: nil)
