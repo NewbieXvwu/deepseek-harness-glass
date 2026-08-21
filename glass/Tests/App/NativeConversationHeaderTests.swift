@@ -44,7 +44,8 @@ final class NativeConversationHeaderTests: XCTestCase {
         let context = NativeConversationContributionContext(
             sessionID: sessionStore.selectedSessionID,
             sessionSnapshot: .empty,
-            sessionStore: sessionStore
+            sessionStore: sessionStore,
+            openSession: { _ in }
         )
 
         XCTAssertEqual(
@@ -136,7 +137,8 @@ final class NativeConversationHeaderTests: XCTestCase {
         let context = NativeConversationContributionContext(
             sessionID: nil,
             sessionSnapshot: .init(workspaces: [], sessions: [], archivedSessionIDs: [], selectedSessionID: nil, selectedWorkspaceID: nil),
-            sessionStore: NativeSessionStore()
+            sessionStore: NativeSessionStore(),
+            openSession: { _ in }
         )
 
         XCTAssertEqual(registry.render(slot: .actions, context: context).count, 1)
