@@ -106,6 +106,10 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
             OfficialUISpec.Text.trajectoryCalls,
             OfficialUISpec.Text.trajectorySearch,
             OfficialUISpec.Text.trajectorySearchPlaceholder,
+            OfficialUISpec.Text.trajectoryEventDetails,
+            OfficialUISpec.Text.trajectorySummary,
+            OfficialUISpec.Text.trajectoryPayload,
+            OfficialUISpec.Text.trajectoryResult,
         ]
         XCTAssertTrue(rendered.allSatisfy(officialValues.contains))
     }

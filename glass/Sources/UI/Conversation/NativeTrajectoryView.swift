@@ -21,11 +21,11 @@ struct NativeTrajectoryView: View {
     @ObservedObject var sessionStore: NativeSessionStore
     @State private var mode: LedgerMode = .turns
     @State private var searchText = ""
+    @State private var selectedCallID: String?
 
     private var normalizedQuery: String {
-        searchText.trimmingCharacters(in: .whitespacesAndNewlines).localizedCaseInsensitiveCompare("") == .orderedSame
-            ? ""
-            : searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed
     }
 
     private var turns: [TurnRecord] {
@@ -45,29 +45,51 @@ struct NativeTrajectoryView: View {
         }
     }
 
+    private var selectedCall: NativeSessionStore.ToolInvocation? {
+        calls.first(where: { $0.id == selectedCallID })
+    }
+
     var body: some View {
         VStack(spacing: OfficialUISpec.Spacing.p0) {
             toolbar
             Divider().overlay(OfficialUISpec.Token.hairline)
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p8) {
-                    switch mode {
-                    case .turns:
-                        ForEach(turns) { record in
-                            NativeTrajectoryTurnRow(record: record)
-                        }
-                    case .calls:
-                        ForEach(calls) { invocation in
-                            NativeTrajectoryCallRow(invocation: invocation)
-                        }
-                    }
+            HStack(spacing: OfficialUISpec.Spacing.p0) {
+                ledger
+                if mode == .calls, let selectedCall {
+                    Divider().overlay(OfficialUISpec.Token.hairline)
+                    NativeTrajectoryCallDetail(invocation: selectedCall)
+                        .frame(minWidth: 240, idealWidth: 320, maxWidth: 380)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(OfficialUISpec.Spacing.p16)
             }
+        }
+        .onChange(of: mode) { _, newMode in
+            if newMode != .calls { selectedCallID = nil }
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(OfficialUISpec.Text.trajectory)
+    }
+
+    private var ledger: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p8) {
+                switch mode {
+                case .turns:
+                    ForEach(turns) { record in
+                        NativeTrajectoryTurnRow(record: record)
+                    }
+                case .calls:
+                    ForEach(calls) { invocation in
+                        NativeTrajectoryCallRow(
+                            invocation: invocation,
+                            selected: selectedCallID == invocation.id,
+                            select: { selectedCallID = invocation.id }
+                        )
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(OfficialUISpec.Spacing.p16)
+        }
     }
 
     private var toolbar: some View {
@@ -119,30 +141,78 @@ private struct NativeTrajectoryTurnRow: View {
 
 private struct NativeTrajectoryCallRow: View {
     let invocation: NativeSessionStore.ToolInvocation
+    let selected: Bool
+    let select: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p4) {
-            HStack(spacing: OfficialUISpec.Spacing.p8) {
-                Text(String(invocation.sequence))
-                    .font(OfficialUISpec.Typography.xxxs11.monospaced())
-                    .foregroundStyle(OfficialUISpec.Token.caption)
-                Text(invocation.name)
-                    .font(OfficialUISpec.Typography.xsStrong13)
-                    .foregroundStyle(OfficialUISpec.Token.primary)
-                Spacer(minLength: 0)
+        Button(action: select) {
+            VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p4) {
+                HStack(spacing: OfficialUISpec.Spacing.p8) {
+                    Text(String(invocation.sequence))
+                        .font(OfficialUISpec.Typography.xxxs11.monospaced())
+                        .foregroundStyle(OfficialUISpec.Token.caption)
+                    Text(invocation.name)
+                        .font(OfficialUISpec.Typography.xsStrong13)
+                        .foregroundStyle(OfficialUISpec.Token.primary)
+                    Spacer(minLength: 0)
+                }
+                Text(invocation.arguments)
+                    .font(OfficialUISpec.Typography.xs13.monospaced())
+                    .foregroundStyle(OfficialUISpec.Token.secondary)
+                    .lineLimit(2)
             }
-            Text(invocation.arguments)
-                .font(OfficialUISpec.Typography.xs13.monospaced())
-                .foregroundStyle(OfficialUISpec.Token.secondary)
-                .lineLimit(2)
-                .textSelection(.enabled)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(OfficialUISpec.Spacing.p12)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(OfficialUISpec.Spacing.p12)
-        .background(OfficialUISpec.Token.elevated, in: RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r8, style: .continuous))
+        .buttonStyle(.plain)
+        .background(selected ? OfficialUISpec.Token.businessBlueSoft : OfficialUISpec.Token.elevated, in: RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r8, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r8, style: .continuous)
-                .stroke(OfficialUISpec.Token.hairline, lineWidth: OfficialUISpec.Geometry.px1)
+                .stroke(selected ? OfficialUISpec.Token.businessBlue : OfficialUISpec.Token.hairline, lineWidth: OfficialUISpec.Geometry.px1)
         }
+        .accessibilityLabel(invocation.name)
+    }
+}
+
+private struct NativeTrajectoryCallDetail: View {
+    private enum DetailTab: Hashable { case payload, result }
+
+    let invocation: NativeSessionStore.ToolInvocation
+    @State private var tab: DetailTab = .payload
+
+    private var hasResult: Bool { invocation.output?.isEmpty == false }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p8) {
+            Text(OfficialUISpec.Text.trajectoryEventDetails)
+                .font(OfficialUISpec.Typography.xsStrong13)
+                .foregroundStyle(OfficialUISpec.Token.primary)
+            Picker(OfficialUISpec.Text.trajectoryEventDetails, selection: $tab) {
+                Text(OfficialUISpec.Text.trajectoryPayload).tag(DetailTab.payload)
+                if hasResult {
+                    Text(OfficialUISpec.Text.trajectoryResult).tag(DetailTab.result)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            ScrollView {
+                Text(tab == .payload ? invocation.arguments : (invocation.output ?? ""))
+                    .font(OfficialUISpec.Typography.xs13.monospaced())
+                    .foregroundStyle(OfficialUISpec.Token.secondary)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(OfficialUISpec.Spacing.p12)
+                    .background(OfficialUISpec.Token.elevated, in: RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r8, style: .continuous))
+            }
+        }
+        .padding(OfficialUISpec.Spacing.p16)
+        .onChange(of: invocation.id) { _, _ in
+            tab = .payload
+        }
+        .onChange(of: invocation.output) { _, newOutput in
+            if newOutput?.isEmpty != false { tab = .payload }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(OfficialUISpec.Text.trajectoryEventDetails)
     }
 }
