@@ -43,6 +43,21 @@ final class RawEventReplayReducerTests: XCTestCase {
         XCTAssertTrue(reducer.snapshot(target: "inspector").isEmpty)
     }
 
+    func testReconnectReplayDeduplicatesRepeatedSequenceWithoutLosingLiveAssistantTail() throws {
+        let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
+        let events = try events(for: "reconnect-duplicate-sequence")
+
+        XCTAssertEqual(reducer.replaceWindow(events.map { .init(event: $0) }, hasMore: false), .immediate)
+        let chat = reducer.snapshot(target: "chat")
+        let assistant = tryUnwrap(chat.first?.data as? CoreAssistantNode)
+
+        XCTAssertEqual(chat.map(\.kind), ["assistant-step"])
+        XCTAssertEqual(chat.map(\.key), [conversationContextKey(kind: "assistant-step", id: "3:1")])
+        XCTAssertEqual(assistant.status, .running)
+        XCTAssertEqual(assistant.blocks.first?.text, "first second")
+        XCTAssertTrue(reducer.snapshot(target: "inspector").isEmpty)
+    }
+
     func testConcurrentToolAndAssistantReplayPreservesBothTypedNodes() throws {
         let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
         let events = try events(for: "interleaved-tool-and-assistant")
