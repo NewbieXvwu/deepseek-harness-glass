@@ -439,3 +439,42 @@ describe('reference capture: official welcome and session Jobs action', () => {
     }
   }, 120_000)
 })
+
+
+describe('reference capture: official model selector', () => {
+  let modelScaffold: WebScaffold
+  let modelBrowser: Awaited<ReturnType<typeof chromium.launch>>
+
+  beforeAll(async () => {
+    modelScaffold = await launchWebScaffold()
+    modelBrowser = await chromium.launch({ headless: true })
+  }, 120_000)
+
+  afterAll(async () => {
+    await modelBrowser?.close()
+    await modelScaffold?.close()
+  })
+
+  it('captures the official model selector from a real workspace-backed composer', async () => {
+    const name = 'model-selector-light'
+    const context = await modelBrowser.newContext({ viewport, locale: 'en-US', colorScheme: 'light', deviceScaleFactor: 1 })
+    const page = await context.newPage()
+    const consoleTripwire = watchConsole(page)
+    try {
+      await page.goto(modelScaffold.baseUrl, { waitUntil: 'load' })
+      await page.locator('#root').waitFor({ state: 'attached', timeout: 30_000 })
+      await applyOfficialColorScheme(page, 'light')
+      await connectFreshWorkspace(page, modelScaffold.workspaceCwd)
+      const trigger = page.getByRole('button', { name: 'Select model, current DeepSeek-V4-Flash' })
+      await trigger.waitFor({ timeout: 30_000 })
+      // The matching macOS capture exercises the same closed trigger. Native
+      // AppKit Menu presentation is intentionally a separate interaction scene.
+      await page.screenshot({ path: join(outputDirectory, `${name}.png`) })
+      await writeCaptureMetadata(page, name, 'light', viewport, consoleTripwire.warnings, consoleTripwire.pageErrors)
+      expect(consoleTripwire.warnings).toEqual([])
+      expect(consoleTripwire.pageErrors).toEqual([])
+    } finally {
+      await context.close()
+    }
+  }, 120_000)
+})

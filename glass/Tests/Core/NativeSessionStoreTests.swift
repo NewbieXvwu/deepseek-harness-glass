@@ -1034,7 +1034,7 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.chatNodes.compactMap { $0.data as? CoreUserMessageNode }.map(\.seq), [1, 2, 3, 4])
     }
 
-    func testLiveEventGapRecoversFullAuthorityWindowInsteadOfAppendingDiscontinuousTail() async {
+    func testLiveEventGapRecoversAuthorityWindowThenStitchesPostCutTail() async {
         let recoveryReachedHistory = expectation(description: "gap triggers a second authority history read")
         let api = GapRecoveringSessionAPI(recoveryReachedHistory: recoveryReachedHistory)
         let store = NativeSessionStore()
@@ -1047,17 +1047,17 @@ final class NativeSessionStoreTests: XCTestCase {
             type: "user/message",
             data: .object([
                 "id": .string("gap"),
-                "content": .array([.object(["type": .string("text"), "text": .string("must not append")])]),
+                "content": .array([.object(["type": .string("text"), "text": .string("post-cut tail")])]),
                 "source": .object(["kind": .string("user")]),
             ]),
             surfaceOp: "append"
         ), sessionID: "recovery-session")
         await fulfillment(of: [recoveryReachedHistory], timeout: 1)
-        await eventually(timeout: 1) { store.items.map(\.text) == ["baseline", "recovered authority"] }
+        await eventually(timeout: 1) { store.items.map(\.text) == ["baseline", "recovered authority", "post-cut tail"] }
 
-        XCTAssertEqual(store.items.map(\.sequence), [1, 2])
-        XCTAssertFalse(store.items.contains(where: { $0.text == "must not append" }))
-        XCTAssertEqual(store.chatNodes.compactMap { $0.data as? CoreUserMessageNode }.map(\.seq), [1, 2])
+        XCTAssertEqual(store.items.map(\.sequence), [1, 2, 3])
+        XCTAssertEqual(store.items.last?.text, "post-cut tail")
+        XCTAssertEqual(store.chatNodes.compactMap { $0.data as? CoreUserMessageNode }.map(\.seq), [1, 2, 3])
     }
 
     func testSessionModelsAuthorityPublishesTypedDirectoryAndClearsForColdSession() async {

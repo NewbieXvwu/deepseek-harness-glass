@@ -177,9 +177,9 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         permissionStore.loadSnapshotPermissionFixture()
         let language = Locale.current.language.languageCode?.identifier ?? "en"
         let modelLabel = NativeComposerModelSelector.localizedValue(
-            key: "trigger.ariaEffort",
+            key: "trigger.aria",
             language: language,
-            replacements: ["model": "DeepSeek V4", "effort": "Balanced"]
+            replacements: ["model": "DeepSeek-V4-Flash"]
         )
         let permissionLabel = NativeComposerPermissionSelector.localizedValue(
             key: "input.accessMode",

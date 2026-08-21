@@ -165,6 +165,8 @@ jobs:
           test -s "artifacts/official-webui/welcome-no-workspace-dark.json"
           test -s "artifacts/official-webui/jobs-expanded-light.png"
           test -s "artifacts/official-webui/jobs-expanded-light.json"
+          test -s "artifacts/official-webui/model-selector-light.png"
+          test -s "artifacts/official-webui/model-selector-light.json"
           test -s "artifacts/official-webui/jobs-expanded-dark.png"
           test -s "artifacts/official-webui/jobs-expanded-dark.json"
           test -s "artifacts/official-webui/tooling-inspector-light.png"
@@ -340,6 +342,7 @@ jobs:
           test -s "$snapshot_dir/welcome-light.png"
           test -s "$snapshot_dir/welcome-dark.png"
           test -s "$snapshot_dir/conversation-dark.png"
+          test -s "$snapshot_dir/model-selector-light.png"
           test -s "$snapshot_dir/jobs-expanded-light.png"
           test -s "$snapshot_dir/jobs-expanded-dark.png"
           test -s "$snapshot_dir/tooling-inspector-light.png"
@@ -393,6 +396,15 @@ jobs:
             --column-fixtures glass/Sources/Spec/Fixtures/official-column-layout-fixtures.json
           test -s artifacts/visual-diff/welcome-no-workspace-dark-comparison.png
           test -s artifacts/visual-diff/welcome-no-workspace-dark-report.json
+          python glass/ci/compare_visual_pair.py \
+            --official artifacts/official-webui/model-selector-light.png \
+            --native artifacts/native-shell/model-selector-light.png \
+            --out-dir artifacts/visual-diff \
+            --scene model-selector-light \
+            --policy glass/Sources/Spec/Fixtures/visual-validation-policy.json \
+            --column-fixtures glass/Sources/Spec/Fixtures/official-column-layout-fixtures.json
+          test -s artifacts/visual-diff/model-selector-light-comparison.png
+          test -s artifacts/visual-diff/model-selector-light-report.json
           python glass/ci/compare_visual_pair.py \
             --official artifacts/official-webui/sidebar-rail-narrow-light.png \
             --native artifacts/native-shell/sidebar-rail-narrow-light.png \

@@ -257,6 +257,21 @@
       "ariaBaseline": "apps/web/tests/snapshots/lifecycle-chrome/reloaded.expected.md",
       "screenshotBaseline": "artifacts/official-webui/error-recovery-reload.png",
       "nativeEntry": "NativeSessionStore reconnect and replay projection"
+    },
+    {
+      "id": "model-selector-light",
+      "officialTest": "apps/web/tests/capture-official-welcome.e2e.ts",
+      "sourceLines": "445-482",
+      "hostFixture": { "kind": "fresh-scaffold", "modelCalls": "none", "workspace": "connectFreshWorkspace with the default real provider directory" },
+      "viewport": { "width": 1280, "height": 840 },
+      "colorScheme": "light",
+      "accessibility": { "reduceTransparency": false, "increaseContrast": false, "reduceMotion": false, "keyboardOnly": false },
+      "actions": ["navigate to the fresh official scaffold", "connect a fresh workspace", "wait for the enabled composer", "wait for the closed Select model trigger with current DeepSeek-V4-Flash", "capture root geometry and body ARIA"],
+      "expectedVisibleText": ["DeepSeek-V4-Flash"],
+      "expectedLayoutTree": ["AppFrame", "selected session treeitem", "ConversationRoot", "InputBar", "closed model trigger"],
+      "ariaBaseline": "artifacts/official-webui/model-selector-light.json",
+      "screenshotBaseline": "artifacts/official-webui/model-selector-light.png",
+      "nativeEntry": "SnapshotExporter.DSH_GLASS_SNAPSHOT_MODE=model"
     }
   ]
 }

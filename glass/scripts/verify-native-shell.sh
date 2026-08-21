@@ -23,6 +23,14 @@ DSH_GLASS_SNAPSHOT_MODE="conversation" \
 DSH_GLASS_SNAPSHOT_COLOR_SCHEME="dark" \
 "$BINARY"
 
+# The locked official capture is a workspace-backed composer with the default
+# Host model directory resolved, but its model trigger remains closed. Native
+# uses the same 1280×840 viewport and a matching complete `session.models` fact.
+DSH_GLASS_SNAPSHOT_PATH="$OUTPUT_DIR/model-selector-light.png" \
+DSH_GLASS_SNAPSHOT_MODE="model" \
+DSH_GLASS_SNAPSHOT_COLOR_SCHEME="light" \
+"$BINARY"
+
 # Same 1280×840 viewport and Host-owned job snapshot as the official captures.
 DSH_GLASS_SNAPSHOT_PATH="$OUTPUT_DIR/jobs-expanded-light.png" \
 DSH_GLASS_SNAPSHOT_MODE="jobs" \
@@ -132,7 +140,7 @@ DSH_GLASS_SNAPSHOT_WIDTH="1023" \
 DSH_GLASS_SNAPSHOT_HEIGHT="840" \
 "$BINARY"
 
-for image in "$OUTPUT_DIR/welcome-light.png" "$OUTPUT_DIR/welcome-dark.png" "$OUTPUT_DIR/sidebar-rail-narrow-light.png" "$OUTPUT_DIR/sidebar-rail-narrow-dark.png" "$OUTPUT_DIR/conversation-dark.png" "$OUTPUT_DIR/jobs-expanded-light.png" "$OUTPUT_DIR/jobs-expanded-dark.png" "$OUTPUT_DIR/tooling-inspector-light.png" "$OUTPUT_DIR/tooling-inspector-dark.png" "$OUTPUT_DIR/approval-panel-light.png" "$OUTPUT_DIR/question-composer-light.png" "$OUTPUT_DIR/workspace-search-official-viewport.png" "$OUTPUT_DIR/workspace-rename-official-viewport.png" "$OUTPUT_DIR/session-rename-official-viewport.png" "$OUTPUT_DIR/workspace-delete-official-viewport.png" "$OUTPUT_DIR/workspace-search-official-viewport-dark.png" "$OUTPUT_DIR/workspace-rename-official-viewport-dark.png" "$OUTPUT_DIR/session-rename-official-viewport-dark.png" "$OUTPUT_DIR/workspace-delete-official-viewport-dark.png" "$OUTPUT_DIR/approval-panel-official-viewport.png" "$OUTPUT_DIR/question-composer-official-viewport.png"; do
+for image in "$OUTPUT_DIR/welcome-light.png" "$OUTPUT_DIR/welcome-dark.png" "$OUTPUT_DIR/sidebar-rail-narrow-light.png" "$OUTPUT_DIR/sidebar-rail-narrow-dark.png" "$OUTPUT_DIR/conversation-dark.png" "$OUTPUT_DIR/model-selector-light.png" "$OUTPUT_DIR/jobs-expanded-light.png" "$OUTPUT_DIR/jobs-expanded-dark.png" "$OUTPUT_DIR/tooling-inspector-light.png" "$OUTPUT_DIR/tooling-inspector-dark.png" "$OUTPUT_DIR/approval-panel-light.png" "$OUTPUT_DIR/question-composer-light.png" "$OUTPUT_DIR/workspace-search-official-viewport.png" "$OUTPUT_DIR/workspace-rename-official-viewport.png" "$OUTPUT_DIR/session-rename-official-viewport.png" "$OUTPUT_DIR/workspace-delete-official-viewport.png" "$OUTPUT_DIR/workspace-search-official-viewport-dark.png" "$OUTPUT_DIR/workspace-rename-official-viewport-dark.png" "$OUTPUT_DIR/session-rename-official-viewport-dark.png" "$OUTPUT_DIR/workspace-delete-official-viewport-dark.png" "$OUTPUT_DIR/approval-panel-official-viewport.png" "$OUTPUT_DIR/question-composer-official-viewport.png"; do
   test -s "$image"
   sips -g pixelWidth -g pixelHeight "$image"
 done

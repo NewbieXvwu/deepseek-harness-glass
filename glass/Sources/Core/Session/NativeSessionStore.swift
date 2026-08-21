@@ -2443,9 +2443,9 @@ final class NativeSessionStore: ObservableObject {
         appliedSequences = Set(conversationEvents.map(\.event.seq))
     }
 
-    /// Snapshot-only Host-shaped `session.models` fixture. It gives the native
-    /// composer a complete routable directory with two models and reasoning
-    /// effort choices; it never stands in for a live selection mutation.
+    /// Snapshot-only Host-shaped `session.models` fixture matching the locked
+    /// Web capture's real default route. It never stands in for a live selection
+    /// mutation or synthesizes provider capabilities absent from that capture.
     func loadSnapshotModelSelectionFixture() {
         let sessionID = "fx-alpha"
         phase = .ready(sessionID: sessionID)
@@ -2456,27 +2456,14 @@ final class NativeSessionStore: ObservableObject {
         queuedMessages = []
         backgroundJobs = []
         modelDirectory = .init(response: .init(
-            current: .init(provider: "deepseek-official", model: "deepseek-v4", reasoningEffort: "balanced"),
+            current: .init(provider: "deepseek-official", model: "deepseek-v4-flash", reasoningEffort: nil),
             routable: true,
             groups: [
                 .init(id: "deepseek-official", name: "DeepSeek", models: [
-                    .init(id: "deepseek-v4", name: "DeepSeek V4", description: "General reasoning", reasoning: .init(
-                        efforts: [
-                            .init(id: "balanced", name: "Balanced", description: "Default quality and speed"),
-                            .init(id: "deep", name: "Deep", description: "More deliberate reasoning"),
-                        ],
-                        defaultEffort: "balanced"
-                    )),
-                    .init(id: "deepseek-v4-fast", name: "DeepSeek V4 Fast", description: "Lower-latency responses", reasoning: .init(
-                        efforts: [.init(id: "fast", name: "Fast", description: "Prioritizes latency")],
-                        defaultEffort: "fast"
-                    )),
-                ]),
-                .init(id: "local", name: "Local", models: [
-                    .init(id: "offline", name: "Offline", description: "Local development model", reasoning: nil),
+                    .init(id: "deepseek-v4-flash", name: "DeepSeek-V4-Flash", description: nil, reasoning: nil),
                 ]),
             ],
-            failures: [.init(id: "fixture-unavailable", name: "Optional provider", message: "Catalog unavailable")]
+            failures: []
         ))
         modelDirectoryStatus = .ready
         isSelectingModel = false
