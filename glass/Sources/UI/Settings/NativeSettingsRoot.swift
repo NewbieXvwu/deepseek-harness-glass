@@ -30,6 +30,9 @@ struct NativeSettingsRoot: View {
     let close: () -> Void
     /// Typed actions owned by the shell; the view cannot access transport.
     let selectTheme: (CoreThemePreference) -> Void
+    @ObservedObject var credentialStore: NativeCredentialStore
+    let refreshCredential: (String) async -> Void
+    let setCredential: (String, String) async -> Bool
     let savePluginCard: (NativePluginCardDraft) async -> Bool
     @State private var selection: SectionID? = .general
 
@@ -75,6 +78,9 @@ struct NativeSettingsRoot: View {
                                     card: card,
                                     namespace: namespace,
                                     writable: store.writable,
+                                    credentialStore: credentialStore,
+                                    refreshCredential: refreshCredential,
+                                    setCredential: setCredential,
                                     save: savePluginCard
                                 )
                             }

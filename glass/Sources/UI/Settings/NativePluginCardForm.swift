@@ -11,22 +11,33 @@ struct NativePluginCardForm: View {
     let card: NativeBuiltinPluginCard
     let namespace: SettingsNamespaceDTO
     let writable: Bool
+    @ObservedObject var credentialStore: NativeCredentialStore
+    let refreshCredential: (String) async -> Void
+    let setCredential: (String, String) async -> Bool
     let save: (NativePluginCardDraft) async -> Bool
 
     @State private var expanded = false
     @State private var draft: NativePluginCardDraft
     @State private var saving = false
     @State private var saveFailed = false
+    @State private var credentialText = ""
+    @State private var savingCredential = false
 
     init(
         card: NativeBuiltinPluginCard,
         namespace: SettingsNamespaceDTO,
         writable: Bool,
+        credentialStore: NativeCredentialStore,
+        refreshCredential: @escaping (String) async -> Void,
+        setCredential: @escaping (String, String) async -> Bool,
         save: @escaping (NativePluginCardDraft) async -> Bool
     ) {
         self.card = card
         self.namespace = namespace
         self.writable = writable
+        self.credentialStore = credentialStore
+        self.refreshCredential = refreshCredential
+        self.setCredential = setCredential
         self.save = save
         _draft = State(initialValue: .init(namespace: namespace, fields: card.fields))
     }
@@ -60,6 +71,9 @@ struct NativePluginCardForm: View {
                 ForEach(card.fields, id: \.path) { field in
                     fieldControl(field)
                 }
+                if let credential = webSearchCredential {
+                    credentialControl(credential)
+                }
                 if draft.hasInvalidDraft {
                     Text(official("invalidNumber"))
                 }
@@ -80,6 +94,11 @@ struct NativePluginCardForm: View {
         .onChange(of: namespace.revision) { _, _ in
             draft = .init(namespace: namespace, fields: card.fields)
             saveFailed = false
+        }
+        .task(id: webSearchCredential?.reference) {
+            if let reference = webSearchCredential?.reference {
+                await refreshCredential(reference)
+            }
         }
     }
 
@@ -107,6 +126,35 @@ struct NativePluginCardForm: View {
         }
     }
 
+    @ViewBuilder
+    private func credentialControl(_ presentation: NativeWebSearchCredentialPresentation) -> some View {
+        VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p4) {
+            SecureField(modelsOfficial("keyInput"), text: $credentialText)
+                .disabled(!presentation.writable || savingCredential)
+            if let view = credentialStore.view(for: presentation.reference) {
+                Text(NativeCredentialStatusPresentation.statusText(view))
+                    .font(OfficialUISpec.Typography.xs13)
+                    .foregroundStyle(OfficialUISpec.Token.caption)
+            } else {
+                Text(modelsOfficial("keyPlaceholderNative"))
+                    .font(OfficialUISpec.Typography.xs13)
+                    .foregroundStyle(OfficialUISpec.Token.caption)
+            }
+            Button(official("save")) { persistCredential(presentation.reference) }
+                .disabled(!presentation.writable || credentialText.isEmpty || savingCredential)
+        }
+    }
+
+    private var webSearchCredential: NativeWebSearchCredentialPresentation? {
+        guard card == .webSearch,
+              let base = NativeWebSearchCredentialPresentation.project(namespace: namespace, credential: nil)
+        else { return nil }
+        return NativeWebSearchCredentialPresentation.project(
+            namespace: namespace,
+            credential: credentialStore.view(for: base.reference)
+        )
+    }
+
     private func binding(for field: NativePluginCardField) -> Binding<String> {
         .init(
             get: { draft.state(for: field)?.text ?? "" },
@@ -115,6 +163,19 @@ struct NativePluginCardForm: View {
                 saveFailed = false
             }
         )
+    }
+
+    private func persistCredential(_ reference: String) {
+        let value = credentialText
+        savingCredential = true
+        Task {
+            let accepted = await setCredential(reference, value)
+            await MainActor.run {
+                savingCredential = false
+                saveFailed = !accepted
+                if accepted { credentialText = "" }
+            }
+        }
     }
 
     private func persist() {
@@ -135,5 +196,9 @@ struct NativePluginCardForm: View {
 
     private func official(_ key: String) -> String {
         OfficialUISpec.LocaleCatalog.value(namespace: "ui-settings-plugins", key: key, language: "en") ?? ""
+    }
+
+    private func modelsOfficial(_ key: String) -> String {
+        OfficialUISpec.LocaleCatalog.value(namespace: "ui-settings-models", key: key, language: "en") ?? ""
     }
 }

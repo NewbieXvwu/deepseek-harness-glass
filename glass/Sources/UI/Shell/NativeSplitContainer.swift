@@ -92,6 +92,7 @@ final class NativeShellPresentation: ObservableObject {
     let workspaceStore: NativeWorkspaceStore
     let sessionStore: NativeSessionStore
     let settingsStore: NativeSettingsStore
+    let credentialStore: NativeCredentialStore
     @Published var settingsPresented = false
     /// Window-resident native counterparts of RC8's contribution ledgers.
     /// They deliberately outlive individual SwiftUI root-view assignments.
@@ -117,6 +118,7 @@ final class NativeShellPresentation: ObservableObject {
         workspaceStore: NativeWorkspaceStore? = nil,
         sessionStore: NativeSessionStore? = nil,
         settingsStore: NativeSettingsStore? = nil,
+        credentialStore: NativeCredentialStore? = nil,
         workspaceSnapshotDialog: WorkspaceBrowserView.SnapshotDialog = .none,
         jobsPopoverInitiallyOpen: Bool = false,
         jobsSnapshotLanguageCode: String? = nil,
@@ -128,6 +130,7 @@ final class NativeShellPresentation: ObservableObject {
         self.workspaceStore = workspaceStore ?? NativeWorkspaceStore()
         self.sessionStore = sessionStore ?? NativeSessionStore()
         self.settingsStore = settingsStore ?? NativeSettingsStore()
+        self.credentialStore = credentialStore ?? NativeCredentialStore()
         self.workspaceSnapshotDialog = workspaceSnapshotDialog
         self.jobsPopoverInitiallyOpen = jobsPopoverInitiallyOpen
         self.jobsSnapshotLanguageCode = jobsSnapshotLanguageCode
@@ -332,6 +335,14 @@ final class NativeShellPresentation: ObservableObject {
         } catch {
             return false
         }
+    }
+
+    func refreshCredential(_ reference: String) async {
+        await credentialStore.refresh(refs: [reference], using: apis?.credentials)
+    }
+
+    func setCredential(reference: String, value: String) async -> Bool {
+        await credentialStore.set(reference: reference, value: value, using: apis?.credentials)
     }
 
     func selectSession(_ sessionID: String, workspaceID: String?) {
@@ -676,6 +687,14 @@ final class NativeShellController: NativeSplitViewController {
             close: { [weak presentation] in presentation?.closeSettings() },
             selectTheme: { [weak presentation] preference in
                 presentation?.selectThemePreference(preference)
+            },
+            credentialStore: presentation.credentialStore,
+            refreshCredential: { [weak presentation] reference in
+                await presentation?.refreshCredential(reference)
+            },
+            setCredential: { [weak presentation] reference, value in
+                guard let presentation else { return false }
+                return await presentation.setCredential(reference: reference, value: value)
             },
             savePluginCard: { [weak presentation] draft in
                 guard let presentation else { return false }
