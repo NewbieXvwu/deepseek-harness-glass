@@ -336,7 +336,12 @@ struct NativeToolDetailsBody: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
 
                         sectionLabel("details.output")
-                        if invocation.state == .running {
+                        if let terminal = terminalPresentation(for: invocation) {
+                            // rc.2 terminalCardModel also admits a running
+                            // terminal call. It replaces `details.running`; a
+                            // running non-terminal tool remains generic below.
+                            NativeTerminalToolCardBody(presentation: terminal)
+                        } else if invocation.state == .running {
                             Text(OfficialUISpec.Text.toolDetailsRunning)
                                 .font(OfficialUISpec.Typography.xs13)
                                 .foregroundStyle(OfficialUISpec.Token.secondary)
@@ -357,6 +362,14 @@ struct NativeToolDetailsBody: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             }
         }
+    }
+
+    private func terminalPresentation(for invocation: NativeSessionStore.ToolInvocation) -> NativeTerminalCardPresentation? {
+        NativeTerminalCardPresentation.resolve(
+            call: invocation.callView?.nativeTerminalView,
+            result: invocation.resultView?.nativeTerminalView,
+            settled: invocation.state != .running
+        )
     }
 
     @ViewBuilder
