@@ -929,6 +929,18 @@ extension NativeShellController: NSWindowDelegate {
 /// deterministic T5.2 regression tests. It mirrors the official columns
 /// constraints rather than relying on AppKit's implicit proportional resize.
 struct NativeSplitLayoutPolicy {
+    /// Mirrors RC8 AppFrame's ResizeObserver contract: column concessions are
+    /// recomputed on a real frame-width change, but never reapplied during the
+    /// nested same-width AppKit layout pass caused by divider placement.
+    static func needsViewportReconciliation(
+        hasAppliedLayout: Bool,
+        lastResolvedViewport: CGFloat?,
+        viewport: CGFloat
+    ) -> Bool {
+        guard viewport > 0 else { return false }
+        return !hasAppliedLayout || lastResolvedViewport != viewport
+    }
+
     static func sidebarDividerPosition(proposed: CGFloat, collapsed: Bool) -> CGFloat {
         if collapsed { return OfficialUISpec.Layout.sidebarCollapsed }
         return min(max(proposed, OfficialUISpec.Layout.sidebarMinimum), OfficialUISpec.Layout.sidebarMaximum)
@@ -964,6 +976,10 @@ class NativeSplitViewController: NSSplitViewController {
     private var detailsPreference: CGFloat
     private(set) var renderedSidebarCollapsed: Bool
     private var detailsVisible: Bool
+    /// The official AppFrame re-solves columns whenever its own frame changes.
+    /// Keep that viewport identity separately so AppKit relayout from divider
+    /// placement does not reapply a solver result over a same-width user drag.
+    private var lastResolvedViewport: CGFloat?
     private var hasAppliedInitialLayout = false
 
     init(
@@ -1011,7 +1027,11 @@ class NativeSplitViewController: NSSplitViewController {
 
     override func viewDidLayout() {
         super.viewDidLayout()
-        guard !hasAppliedInitialLayout else { return }
+        guard NativeSplitLayoutPolicy.needsViewportReconciliation(
+            hasAppliedLayout: hasAppliedInitialLayout,
+            lastResolvedViewport: lastResolvedViewport,
+            viewport: splitView.bounds.width
+        ) else { return }
         applyLayout()
     }
 
@@ -1035,20 +1055,30 @@ class NativeSplitViewController: NSSplitViewController {
         renderedSidebarCollapsed = sidebarCollapsed
         self.detailsVisible = detailsVisible
         if behaviorChanged { hasAppliedInitialLayout = false }
-        applyLayout()
+        applyLayout(force: true)
     }
 
-    private func applyLayout() {
-        guard isViewLoaded, splitView.bounds.width > 0 else { return }
+    private func applyLayout(force: Bool = false) {
+        guard isViewLoaded else { return }
+        let viewport = splitView.bounds.width
+        guard force || NativeSplitLayoutPolicy.needsViewportReconciliation(
+            hasAppliedLayout: hasAppliedInitialLayout,
+            lastResolvedViewport: lastResolvedViewport,
+            viewport: viewport
+        ) else { return }
         let columns = OfficialColumnLayout.resolve(
-            viewport: splitView.bounds.width,
+            viewport: viewport,
             sidebarPreference: renderedSidebarCollapsed ? 0 : sidebarPreference,
             detailsPreference: detailsVisible ? detailsPreference : 0
         )
+        // Record before moving dividers: those moves cause a nested AppKit
+        // layout pass, which must not turn a one-shot viewport reconciliation
+        // into a feedback loop.
+        lastResolvedViewport = viewport
         detailsItem.isCollapsed = columns.details == 0
         splitView.setPosition(columns.sidebar, ofDividerAt: 0)
         if columns.details > 0, splitViewItems.count > 2 {
-            splitView.setPosition(splitView.bounds.width - columns.details, ofDividerAt: 1)
+            splitView.setPosition(viewport - columns.details, ofDividerAt: 1)
         }
         hasAppliedInitialLayout = true
     }

@@ -128,6 +128,41 @@ final class NativeSplitLayoutPolicyTests: XCTestCase {
         XCTAssertEqual(rewidened.center, OfficialUISpec.Layout.centerMinimum)
     }
 
+    func testViewportReconciliationRunsOnFirstLayoutAndFrameWidthChangesOnly() {
+        XCTAssertTrue(
+            NativeSplitLayoutPolicy.needsViewportReconciliation(
+                hasAppliedLayout: false,
+                lastResolvedViewport: nil,
+                viewport: 1280
+            ),
+            "the first nonzero AppKit frame layout must resolve official columns"
+        )
+        XCTAssertFalse(
+            NativeSplitLayoutPolicy.needsViewportReconciliation(
+                hasAppliedLayout: true,
+                lastResolvedViewport: 1280,
+                viewport: 1280
+            ),
+            "divider placement can trigger a nested same-width layout but must not overwrite the drag"
+        )
+        XCTAssertTrue(
+            NativeSplitLayoutPolicy.needsViewportReconciliation(
+                hasAppliedLayout: true,
+                lastResolvedViewport: 1280,
+                viewport: 1023
+            ),
+            "a real frame resize must re-run the official concession chain"
+        )
+        XCTAssertFalse(
+            NativeSplitLayoutPolicy.needsViewportReconciliation(
+                hasAppliedLayout: false,
+                lastResolvedViewport: nil,
+                viewport: 0
+            ),
+            "zero-width pre-layout bounds cannot produce an official layout"
+        )
+    }
+
     func testNarrowViewportUsesTheOfficialFiftySixPointRail() {
         XCTAssertLessThan(1023, OfficialUISpec.Layout.sidebarAutoCollapse)
         let layout = OfficialColumnLayout.resolve(
