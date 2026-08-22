@@ -230,11 +230,28 @@ private struct NativeTerminalToolCardBody: View {
                     .foregroundStyle(OfficialUISpec.Token.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            Text(prompt)
+            HStack(alignment: .firstTextBaseline, spacing: OfficialUISpec.Spacing.p8) {
+                NativeStateDot(state: runState)
+                VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p0) {
+                    ForEach(Array(commandLines.enumerated()), id: \.offset) { index, line in
+                        HStack(alignment: .firstTextBaseline, spacing: OfficialUISpec.Spacing.p8) {
+                            Text(index == 0 ? cwdLabel : "$")
+                                .foregroundStyle(OfficialUISpec.Token.caption)
+                            Text(line)
+                                .foregroundStyle(OfficialUISpec.Token.primary)
+                        }
+                    }
+                }
                 .font(OfficialUISpec.Typography.codeSmall12)
-                .foregroundStyle(OfficialUISpec.Token.primary)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                if let terminalStatus {
+                    Text(terminalStatus)
+                        .font(OfficialUISpec.Typography.xs13)
+                        .foregroundStyle(OfficialUISpec.Token.errorPrimary)
+                }
+            }
+            .accessibilityLabel(status)
             if let output = presentation.output {
                 Divider()
                 Text(output)
@@ -248,29 +265,45 @@ private struct NativeTerminalToolCardBody: View {
                     .font(OfficialUISpec.Typography.codeSmall12)
                     .foregroundStyle(OfficialUISpec.Token.secondary)
             }
-            Text(status)
-                .font(OfficialUISpec.Typography.xs13)
-                .foregroundStyle(presentation.failed ? OfficialUISpec.Token.errorPrimary : OfficialUISpec.Token.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(OfficialUISpec.Spacing.p10)
         .background(OfficialUISpec.Token.elevated, in: RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r8, style: .continuous))
     }
 
-    private var prompt: String {
-        let directory = presentation.cwd ?? ""
-        return directory.isEmpty ? "$ \(presentation.command)" : "\(directory) $ \(presentation.command)"
+    private var commandLines: [String] {
+        let command = presentation.command.hasSuffix("\n")
+            ? String(presentation.command.dropLast())
+            : presentation.command
+        return command.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+    }
+
+    private var cwdLabel: String {
+        guard let cwd = presentation.cwd, !cwd.isEmpty else { return "$" }
+        let trimmed = cwd.trimmingCharacters(in: CharacterSet(charactersIn: "/\\"))
+        guard let last = trimmed.split(whereSeparator: { $0 == "/" || $0 == "\\" }).last, !last.isEmpty else {
+            return cwd
+        }
+        return String(last)
+    }
+
+    private var runState: NativeStateDot.State {
+        if presentation.running { return .ongoing }
+        return presentation.failed ? .error : .done
     }
 
     private var status: String {
         if presentation.running { return locale("terminal.running") }
+        return presentation.failed ? locale("terminal.failed") : locale("terminal.done")
+    }
+
+    private var terminalStatus: String? {
         if let signal = presentation.signal {
             return locale("terminal.signal", replacing: ["signal": signal])
         }
         if let exitCode = presentation.exitCode, exitCode != 0 {
             return locale("terminal.exitCode", replacing: ["code": String(exitCode)])
         }
-        return locale("terminal.done")
+        return nil
     }
 
     private func locale(_ key: String, replacing values: [String: String] = [:]) -> String {
