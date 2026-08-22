@@ -98,6 +98,28 @@ final class NativeToolRowModelTests: XCTestCase {
         )
     }
 
+    func testExpandedBodyUsesOfficialCodeProgramAndGenericJSONFallback() {
+        XCTAssertNil(NativeToolRowPresentation.body(toolName: "bash", arguments: ""))
+        XCTAssertEqual(
+            NativeToolRowPresentation.body(toolName: "bash", arguments: "partial request"),
+            "partial request"
+        )
+        XCTAssertEqual(
+            NativeToolRowPresentation.body(
+                toolName: "run_code",
+                arguments: #"{"description":"render chart","code":"print(1)\nprint(2)"}"#
+            ),
+            "print(1)\nprint(2)"
+        )
+        XCTAssertEqual(
+            NativeToolRowPresentation.body(
+                toolName: "bash",
+                arguments: #"{"command":"pwd","description":"show workspace"}"#
+            ),
+            "{\n  \"command\" : \"pwd\",\n  \"description\" : \"show workspace\"\n}"
+        )
+    }
+
     func testToolSummaryFallsBackSafelyForMalformedAndGenericArguments() {
         XCTAssertEqual(
             NativeToolRowModel.summary(
