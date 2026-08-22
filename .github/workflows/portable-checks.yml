@@ -224,6 +224,12 @@ jobs:
             glass/ci/native-settings-onboarding-ledger-portable-check.swift \
             -o /tmp/native-settings-onboarding-ledger-portable-check
           /tmp/native-settings-onboarding-ledger-portable-check
+          # T10.1 Models onboarding readiness joins provider, settings, and
+          # credential facts without inventing a usable route after failures.
+          swiftc glass/Sources/Core/Settings/NativeSettingsOnboardingReadiness.swift \
+            glass/ci/native-settings-onboarding-readiness-portable-check.swift \
+            -o /tmp/native-settings-onboarding-readiness-portable-check
+          /tmp/native-settings-onboarding-readiness-portable-check
           swiftc glass/Sources/Core/Plugin/NativeUIManifest.swift \
             glass/Sources/UI/Settings/NativeSchemaFormDraft.swift \
             glass/ci/native-schema-form-draft-portable-check.swift \
