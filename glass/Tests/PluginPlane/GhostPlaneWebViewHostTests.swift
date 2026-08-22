@@ -129,7 +129,7 @@ final class GhostPlaneWebViewHostTests: XCTestCase {
             """,
             arguments: [:], in: nil, in: .page
         )
-        try await host.promoteModuleFactories([.init(pluginID: "dsh-review-loop", revision: "r1", graphRevision: "graph-r1")])
+        try await host.promoteModuleFactories([try activationPermit()])
         let result = try await host.webView.callAsyncJavaScript(
             """
             return {
@@ -228,20 +228,38 @@ final class GhostPlaneWebViewHostTests: XCTestCase {
         ))
     }
 
-    private func admittedReplay() throws -> GhostPlaneTapIndexReplay {
+    private func admittedManifest() throws -> GhostPlaneModuleManifest {
         let policy = try policy()
         let data = Data("""
         {"rev":"graph-r1","entries":[{"id":"dsh-review-loop","url":"http://127.0.0.1:7342/plugins/dsh-review-loop/client.js?rev=r1","rev":"r1","inject":[],"immediately":true,"external":[]}]}
         """.utf8)
-        let manifest: GhostPlaneModuleManifest
         switch GhostPlaneModuleManifest.admit(data: data, policy: policy, staticModuleSpecifiers: []) {
-        case .admitted(let value): manifest = value
+        case .admitted(let value): return value
         case .rejected(let reason): throw NSError(
             domain: "GhostPlaneWebViewHostTests",
             code: 1,
             userInfo: [NSLocalizedDescriptionKey: "manifest unexpectedly rejected: \(reason)"]
         )
         }
+    }
+
+    private func activationPermit() throws -> GhostPlaneModuleActivationGate.ActivationPermit {
+        var gate = GhostPlaneModuleActivationGate(manifest: try admittedManifest(), staticModuleSpecifiers: [])
+        guard case .admitted = gate.admitArrival(pluginID: "dsh-review-loop", revision: "r1") else {
+            throw NSError(domain: "GhostPlaneWebViewHostTests", code: 3, userInfo: [NSLocalizedDescriptionKey: "arrival unexpectedly rejected"])
+        }
+        switch gate.permitActivation(pluginID: "dsh-review-loop") {
+        case .permitted(let permit): return permit
+        case .rejected(let reason): throw NSError(
+            domain: "GhostPlaneWebViewHostTests",
+            code: 4,
+            userInfo: [NSLocalizedDescriptionKey: "activation unexpectedly rejected: \(reason)"]
+        )
+        }
+    }
+
+    private func admittedReplay() throws -> GhostPlaneTapIndexReplay {
+        let manifest = try admittedManifest()
         let source = GhostPlaneTapIndexReplay.Source(pluginID: "dsh-review-loop", revision: "r1")
         let records: [GhostPlaneTapIndexReplay.Record] = [
             .init(
