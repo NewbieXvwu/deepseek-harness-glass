@@ -73,6 +73,36 @@ struct NativeConversationColumn: View {
     }
 }
 
+/// Source: RC8 `ConversationRoot` phase selection. This pure mapping keeps the
+/// no-session/summary-blank/loading distinction explicit before the resident
+/// composer tree is consolidated: a session summary is the only native fact
+/// allowed to prove that a loading session belongs on the hero.
+enum NativeConversationRootPhase: Equatable {
+    case hero
+    case settling
+    case active
+
+    static func resolve(
+        mode: NativeAppShell.PresentationMode,
+        sessionID: String?,
+        sessionPhase: NativeSessionStore.Phase,
+        snapshot: NativeWorkspaceStore.Snapshot
+    ) -> Self {
+        guard mode != .welcome else { return .hero }
+        guard let sessionID else { return .hero }
+        let summaryBlank = snapshot.sessions.first(where: { $0.sessionId == sessionID })?.blank == true
+
+        switch sessionPhase {
+        case .loading:
+            return summaryBlank ? .hero : .settling
+        case .idle:
+            return summaryBlank ? .hero : .settling
+        case .ready, .failed:
+            return summaryBlank ? .hero : .active
+        }
+    }
+}
+
 /// First native transcript surface. The Store provides a session.history
 /// baseline plus official mux event deltas; the root remains visually stable
 /// for snapshot fixtures whose deterministic conversation mode has no Host.

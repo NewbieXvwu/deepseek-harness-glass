@@ -227,6 +227,103 @@ final class NativeConversationHeaderTests: XCTestCase {
         XCTAssertFalse(drafted.hidesChrome)
     }
 
+    func testConversationRootPhaseUsesSummaryBlankOnlyToBypassLoadingSettling() {
+        let blank = summary(
+            id: "blank",
+            title: "Blank",
+            blank: true,
+            parent: nil,
+            origin: nil,
+            preset: "standard"
+        )
+        let nonBlank = summary(
+            id: "active",
+            title: "Active",
+            blank: false,
+            parent: nil,
+            origin: nil,
+            preset: "standard"
+        )
+        let blankSnapshot = NativeWorkspaceStore.Snapshot(
+            workspaces: [],
+            sessions: [blank],
+            archivedSessionIDs: [],
+            selectedSessionID: "blank",
+            selectedWorkspaceID: nil
+        )
+        let activeSnapshot = NativeWorkspaceStore.Snapshot(
+            workspaces: [],
+            sessions: [nonBlank],
+            archivedSessionIDs: [],
+            selectedSessionID: "active",
+            selectedWorkspaceID: nil
+        )
+
+        XCTAssertEqual(
+            NativeConversationRootPhase.resolve(
+                mode: .welcome,
+                sessionID: nil,
+                sessionPhase: .idle,
+                snapshot: .empty
+            ),
+            .hero
+        )
+        XCTAssertEqual(
+            NativeConversationRootPhase.resolve(
+                mode: .conversation,
+                sessionID: nil,
+                sessionPhase: .idle,
+                snapshot: .empty
+            ),
+            .hero
+        )
+        XCTAssertEqual(
+            NativeConversationRootPhase.resolve(
+                mode: .conversation,
+                sessionID: "active",
+                sessionPhase: .loading(sessionID: "active"),
+                snapshot: activeSnapshot
+            ),
+            .settling
+        )
+        XCTAssertEqual(
+            NativeConversationRootPhase.resolve(
+                mode: .conversation,
+                sessionID: "blank",
+                sessionPhase: .loading(sessionID: "blank"),
+                snapshot: blankSnapshot
+            ),
+            .hero
+        )
+        XCTAssertEqual(
+            NativeConversationRootPhase.resolve(
+                mode: .conversation,
+                sessionID: "active",
+                sessionPhase: .ready(sessionID: "active"),
+                snapshot: activeSnapshot
+            ),
+            .active
+        )
+        XCTAssertEqual(
+            NativeConversationRootPhase.resolve(
+                mode: .conversation,
+                sessionID: "active",
+                sessionPhase: .failed(sessionID: "active"),
+                snapshot: activeSnapshot
+            ),
+            .active
+        )
+        XCTAssertEqual(
+            NativeConversationRootPhase.resolve(
+                mode: .conversation,
+                sessionID: "blank",
+                sessionPhase: .failed(sessionID: "blank"),
+                snapshot: blankSnapshot
+            ),
+            .hero
+        )
+    }
+
     private func summary(
         id: String,
         title: String,
