@@ -67,6 +67,15 @@ struct NativeToolRow: View {
                     .accessibilityLabel(rowAccessibilityLabel)
                     .accessibilityValue(stateDescription)
                 }
+                if let todo, todo.activeExtra > 0 {
+                    Button(action: toggleExpandedAndInspect) {
+                        Text("+\(todo.activeExtra)")
+                            .font(OfficialUISpec.Typography.s14)
+                            .foregroundStyle(OfficialUISpec.Token.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("+\(todo.activeExtra)")
+                }
                 Spacer(minLength: 0)
             }
 
@@ -117,6 +126,7 @@ struct NativeToolRow: View {
     }
 
     private var title: String {
+        if isTodoTool { return conversationLocale("todo.rowTitle") }
         switch variant {
         case .search: OfficialUISpec.Text.toolSearch
         case .read: OfficialUISpec.Text.toolRead
@@ -129,12 +139,35 @@ struct NativeToolRow: View {
     }
 
     private var summary: String {
-        NativeToolRowModel.summary(
+        if let todo { return todoSummary(todo) }
+        return NativeToolRowModel.summary(
             toolName: invocation.name,
             arguments: invocation.arguments,
             isGeneric: variant == .others,
             separator: OfficialUISpec.Text.toolSummarySeparator
         )
+    }
+
+    private var isTodoTool: Bool { invocation.name == "todo_write" }
+
+    private var todo: NativeToolTodoSummary? {
+        NativeToolTodoPresentation.resolve(toolName: invocation.name, arguments: invocation.arguments)
+    }
+
+    private func todoSummary(_ todo: NativeToolTodoSummary) -> String {
+        let completed = conversationLocale(
+            "todo.completed",
+            replacing: ["done": String(todo.done), "total": String(todo.total)]
+        )
+        guard let activeContent = todo.activeContent else { return completed }
+        return completed + " · " + activeContent
+    }
+
+    private func conversationLocale(_ key: String, replacing values: [String: String] = [:]) -> String {
+        let template = OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: key, language: "en") ?? ""
+        return values.reduce(template) { partial, replacement in
+            partial.replacingOccurrences(of: "{\(replacement.key)}", with: replacement.value)
+        }
     }
 
     private var filePath: String? {
@@ -227,6 +260,7 @@ struct NativeToolRow: View {
     }
 
     private var iconName: String {
+        if isTodoTool { return "icon-checklist" }
         switch variant {
         case .search: "icon-tool-search"
         case .read: "icon-tool-read"

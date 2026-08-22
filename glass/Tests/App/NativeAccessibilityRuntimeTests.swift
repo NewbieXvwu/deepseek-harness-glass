@@ -423,6 +423,33 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         )
     }
 
+    func testTodoWriteRowExportsOfficialSummaryAndParallelSuffix() throws {
+        let invocation = NativeSessionStore.ToolInvocation(
+            id: "todo-row",
+            name: "todo_write",
+            arguments: #"{"todos":[{"content":"done","status":"completed"},{"content":"write renderer","status":"in_progress"},{"content":"run checks","status":"in_progress"},{"content":"later","status":"pending"}]}"#,
+            output: nil,
+            textOutput: nil,
+            errorName: nil,
+            errorCode: nil,
+            state: .completed,
+            sequence: 1,
+            callView: nil,
+            resultView: nil
+        )
+        try assertAccessibleLabels(
+            in: NativeToolRow(
+                invocation: invocation,
+                selected: false,
+                openKnownProjectPath: { _ in },
+                canOpenProjectPath: false,
+                inspect: {}
+            ),
+            expected: ["Update to-do list", "1/4 completed · write renderer", "+1"],
+            forbidden: [OfficialUISpec.Text.toolCall]
+        )
+    }
+
     func testTypedTerminalDetailsExportsVisibleANSISpansWithoutControlBytes() throws {
         let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.input", language: "en"))
         let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.output", language: "en"))
