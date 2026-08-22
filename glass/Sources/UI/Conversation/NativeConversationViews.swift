@@ -53,23 +53,104 @@ struct NativeConversationColumn: View {
         self.headerContributions = headerContributions
     }
 
+    private var rootPhase: NativeConversationRootPhase {
+        NativeConversationRootPhase.resolve(
+            mode: mode,
+            sessionID: sessionStore.selectedSessionID,
+            sessionPhase: sessionStore.phase,
+            snapshot: sessionSnapshot
+        )
+    }
+
     var body: some View {
-        switch mode {
-        case .welcome:
-            NativeWelcomeSurface(selectedWorkspaceTitle: selectedWorkspaceTitle)
-        case .conversation, .tooling, .approval, .question:
-            NativeActiveConversationSurface(
-                sessionSnapshot: sessionSnapshot,
-                sessionStore: sessionStore,
-                agentPresetStore: agentPresetStore,
-                selectAgentPreset: selectAgentPreset,
-                jobsPopoverInitiallyOpen: jobsPopoverInitiallyOpen,
-                jobsLanguageCode: jobsLanguageCode,
-                openSession: openSession,
-                canOpenProjectPath: canOpenProjectPath,
-                viewRegistry: viewRegistry,
-                headerContributions: headerContributions
-            )
+        // Source: RC8 ConversationRoot. A nonblank session whose authority
+        // baseline is still landing must not briefly render the active composer
+        // before the Host establishes whether the session is hero or docked.
+        if rootPhase == .settling {
+            Color.clear
+                .background(OfficialUISpec.Token.base)
+                .accessibilityHidden(true)
+        } else {
+            switch mode {
+            case .welcome:
+                NativeWelcomeSurface(
+                    selectedWorkspaceTitle: selectedWorkspaceTitle,
+                    sessionStore: sessionStore
+                )
+            case .conversation, .tooling, .approval, .question:
+                NativeActiveConversationSurface(
+                    sessionSnapshot: sessionSnapshot,
+                    sessionStore: sessionStore,
+                    agentPresetStore: agentPresetStore,
+                    selectAgentPreset: selectAgentPreset,
+                    jobsPopoverInitiallyOpen: jobsPopoverInitiallyOpen,
+                    jobsLanguageCode: jobsLanguageCode,
+                    openSession: openSession,
+                    canOpenProjectPath: canOpenProjectPath,
+                    viewRegistry: viewRegistry,
+                    headerContributions: headerContributions
+                )
+            }
+        }
+    }
+}
+
+/// Source: RC8 `ConversationRoot` phase selection. This pure mapping keeps the
+/// no-session/summary-blank/loading distinction explicit before the resident
+/// composer tree is consolidated: a session summary is the only native fact
+/// allowed to prove that a loading session belongs on the hero.
+enum NativeConversationRootPhase: Equatable {
+    case hero
+    case settling
+    case active
+
+    static func resolve(
+        mode: NativeAppShell.PresentationMode,
+        sessionID: String?,
+        sessionPhase: NativeSessionStore.Phase,
+        snapshot: NativeWorkspaceStore.Snapshot
+    ) -> Self {
+        guard mode != .welcome else { return .hero }
+        guard let sessionID else { return .hero }
+        let summaryBlank = snapshot.sessions.first(where: { $0.sessionId == sessionID })?.blank == true
+
+        switch sessionPhase {
+        case .loading:
+            return summaryBlank ? .hero : .settling
+        case .idle:
+            return summaryBlank ? .hero : .settling
+        case .ready, .failed:
+            return summaryBlank ? .hero : .active
+        }
+    }
+}
+
+/// Source: RC8 `ConversationRoot`: one root-owned input bar receives either a
+/// hero or docked layout posture. `hero` keeps no-workspace as an inert property
+/// rather than constructing a second static composer tree, so the bound draft
+/// and AppKit focus identity remain owned by the same native control.
+enum NativeComposerPresentation: Equatable {
+    case hero(workspaceTitle: String?)
+    case docked
+
+    var isHero: Bool {
+        if case .hero = self { return true }
+        return false
+    }
+
+    var isWorkspaceTrigger: Bool {
+        if case let .hero(workspaceTitle) = self { return workspaceTitle == nil }
+        return false
+    }
+
+    var placeholder: String {
+        switch self {
+        case let .hero(workspaceTitle):
+            return workspaceTitle == nil
+                ? OfficialUISpec.Text.composerWorkspacePlaceholder
+                : OfficialUISpec.Text.composerHeroPlaceholder
+        case .docked:
+            return OfficialUISpec.Text.composerDefaultPlaceholder
         }
     }
 }
@@ -254,6 +335,7 @@ private struct NativeActiveConversationSurface: View {
         } else {
             NativeInteractiveComposerCard(
                 sessionStore: sessionStore,
+                presentation: .docked,
                 fullAccessConfirmationOpen: $fullAccessConfirmationOpen,
                 fullAccessAcknowledged: $fullAccessAcknowledged
             )
@@ -599,6 +681,11 @@ private struct NativeConversationNodeRow: View {
 
 struct NativeWelcomeSurface: View {
     let selectedWorkspaceTitle: String?
+    @ObservedObject var sessionStore: NativeSessionStore
+    // Hero posture never opens the permission confirmation, but still feeds
+    // the shared interactive composer the same bindings as docked posture.
+    @State private var fullAccessConfirmationOpen = false
+    @State private var fullAccessAcknowledged = false
 
     var body: some View {
         GeometryReader { geometry in
@@ -643,11 +730,11 @@ struct NativeWelcomeSurface: View {
                     }
                     .padding(.leading, OfficialUISpec.Spacing.p20)
 
-                    NativeComposerCard(
-                        placeholder: selectedWorkspaceTitle == nil
-                            ? OfficialUISpec.Text.composerWorkspacePlaceholder
-                            : OfficialUISpec.Text.composerHeroPlaceholder,
-                        isWorkspaceTrigger: selectedWorkspaceTitle == nil
+                    NativeInteractiveComposerCard(
+                        sessionStore: sessionStore,
+                        presentation: .hero(workspaceTitle: selectedWorkspaceTitle),
+                        fullAccessConfirmationOpen: $fullAccessConfirmationOpen,
+                        fullAccessAcknowledged: $fullAccessAcknowledged
                     )
                 }
                 .frame(width: cardWidth)
@@ -684,81 +771,6 @@ private struct NativeHeroChip: View {
     }
 }
 
-struct NativeComposerCard: View {
-    let placeholder: String
-    let isWorkspaceTrigger: Bool
-
-    var body: some View {
-        VStack(spacing: OfficialUISpec.Spacing.p12) {
-            Text(placeholder)
-                .font(OfficialUISpec.Typography.base16)
-                .foregroundStyle(OfficialUISpec.Token.caption)
-                .frame(maxWidth: .infinity, minHeight: OfficialUISpec.Geometry.px48, alignment: .topLeading)
-                .padding(.horizontal, OfficialUISpec.Spacing.p16)
-                .padding(.top, OfficialUISpec.Spacing.p4)
-
-            HStack(spacing: OfficialUISpec.Spacing.p0) {
-                Button(action: {}) {
-                    OfficialAssetImage(name: "icon-plus", template: true)
-                        .frame(width: OfficialUISpec.Geometry.px14, height: OfficialUISpec.Geometry.px14)
-                        .frame(width: OfficialUISpec.Geometry.px28, height: OfficialUISpec.Geometry.px28)
-                }
-                .buttonStyle(OfficialComposerIconButtonStyle())
-                .disabled(isWorkspaceTrigger)
-
-                if !isWorkspaceTrigger {
-                    NativeHeroComposerControl(
-                        asset: "icon-permission-workspace-write",
-                        title: OfficialUISpec.Text.fixtureWorkspaceWrite
-                    )
-                    .padding(.leading, OfficialUISpec.Spacing.p16)
-                }
-
-                Spacer(minLength: 0)
-
-                if !isWorkspaceTrigger {
-                    HStack(spacing: OfficialUISpec.Spacing.p2) {
-                        Text(OfficialUISpec.Text.fixtureModelName)
-                        Text(OfficialUISpec.Text.fixtureReasoningEffort)
-                            .foregroundStyle(OfficialUISpec.Token.secondary)
-                        OfficialAssetImage(name: "icon-chevron-down", template: true)
-                            .frame(width: OfficialUISpec.Geometry.px12, height: OfficialUISpec.Geometry.px12)
-                            .foregroundStyle(OfficialUISpec.Token.caption)
-                    }
-                    .font(OfficialUISpec.Typography.xsStrong13)
-                    .foregroundStyle(OfficialUISpec.Token.primary)
-                    .frame(minHeight: OfficialUISpec.Layout.composerControlHeight, alignment: .leading)
-                    .padding(.trailing, OfficialUISpec.Spacing.p12)
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel(OfficialUISpec.Text.fixtureModelName)
-                }
-
-                Button(action: {}) {
-                    OfficialAssetImage(name: "icon-send-up", template: true)
-                        .frame(width: OfficialUISpec.Geometry.px16, height: OfficialUISpec.Geometry.px16)
-                        .frame(width: OfficialUISpec.Geometry.px34, height: OfficialUISpec.Geometry.px34)
-                }
-                .buttonStyle(NativeSendButtonStyle(enabled: !isWorkspaceTrigger))
-                .disabled(isWorkspaceTrigger)
-                .accessibilityLabel(OfficialUISpec.Text.sendMessageAccessibility)
-            }
-            .padding(.horizontal, OfficialUISpec.Spacing.p8)
-            .padding(.bottom, OfficialUISpec.Spacing.p6)
-        }
-        .padding(.top, OfficialUISpec.Spacing.p10)
-        .frame(maxWidth: .infinity, minHeight: OfficialUISpec.Geometry.px112)
-        .background(OfficialUISpec.Token.elevated, in: RoundedRectangle(cornerRadius: OfficialUISpec.Layout.composerCornerRadius, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: OfficialUISpec.Layout.composerCornerRadius, style: .continuous)
-                .strokeBorder(
-                    isWorkspaceTrigger ? OfficialUISpec.Token.businessBlue : OfficialUISpec.Token.border,
-                    style: StrokeStyle(lineWidth: 1, dash: isWorkspaceTrigger ? [4, 4] : [])
-                )
-        }
-        .officialLevel2Shadow()
-    }
-}
-
 private struct NativeHeroComposerControl: View {
     let asset: String
     let title: String
@@ -782,19 +794,23 @@ private struct NativeHeroComposerControl: View {
 
 private struct NativeInteractiveComposerCard: View {
     @ObservedObject var sessionStore: NativeSessionStore
+    let presentation: NativeComposerPresentation
     @Binding var fullAccessConfirmationOpen: Bool
     @Binding var fullAccessAcknowledged: Bool
     @FocusState private var draftFocused: Bool
 
+    private var isWorkspaceTrigger: Bool { presentation.isWorkspaceTrigger }
+
     private var sendEnabled: Bool {
-        (!sessionStore.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            || !sessionStore.pendingImages.isEmpty)
+        !isWorkspaceTrigger
+            && (!sessionStore.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                || !sessionStore.pendingImages.isEmpty)
             && !sessionStore.isSubmittingPrompt
             && sessionStore.isPromptRouteAvailable
     }
 
     private var modelBlockedNotice: String? {
-        guard !sessionStore.isPromptRouteAvailable else { return nil }
+        guard !presentation.isHero, !sessionStore.isPromptRouteAvailable else { return nil }
         return OfficialUISpec.LocaleCatalog.value(
             namespace: "ui-model-selection",
             key: "blocked.composer",
@@ -820,13 +836,13 @@ private struct NativeInteractiveComposerCard: View {
 
     var body: some View {
         VStack(spacing: OfficialUISpec.Spacing.p12) {
-            if !sessionStore.pendingImages.isEmpty {
+            if !presentation.isHero, !sessionStore.pendingImages.isEmpty {
                 NativePendingImageRail(
                     images: sessionStore.pendingImages,
                     remove: sessionStore.removePendingImage
                 )
             }
-            if let imageAdmissionNotice {
+            if !presentation.isHero, let imageAdmissionNotice {
                 Text(imageAdmissionNotice)
                     .font(OfficialUISpec.Typography.xs13)
                     .foregroundStyle(OfficialUISpec.Token.errorPrimary)
@@ -842,7 +858,7 @@ private struct NativeInteractiveComposerCard: View {
             }
             ZStack(alignment: .topLeading) {
                 if sessionStore.draft.isEmpty {
-                    Text(OfficialUISpec.Text.composerDefaultPlaceholder)
+                    Text(presentation.placeholder)
                         .font(OfficialUISpec.Typography.base16)
                         .foregroundStyle(OfficialUISpec.Token.caption)
                         .padding(.horizontal, OfficialUISpec.Spacing.p16)
@@ -857,13 +873,15 @@ private struct NativeInteractiveComposerCard: View {
                     .frame(minHeight: OfficialUISpec.Geometry.px48, maxHeight: OfficialUISpec.Geometry.px336)
                     .padding(.horizontal, OfficialUISpec.Spacing.p10)
                     .padding(.top, OfficialUISpec.Spacing.p2)
+                    .disabled(isWorkspaceTrigger)
                     .onKeyPress { press in
-                        guard press.key == .return else { return .ignored }
+                        guard !isWorkspaceTrigger, press.key == .return else { return .ignored }
                         if press.modifiers.contains(.shift) { return .ignored }
                         sessionStore.submitDraft()
                         return .handled
                     }
                     .onDrop(of: [.fileURL], isTargeted: nil) { providers in
+                        guard !isWorkspaceTrigger else { return false }
                         for provider in providers {
                             provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
                                 guard let data = item as? Data,
@@ -874,7 +892,7 @@ private struct NativeInteractiveComposerCard: View {
                         }
                         return !providers.isEmpty
                     }
-                    .accessibilityLabel(OfficialUISpec.Text.composerDefaultPlaceholder)
+                    .accessibilityLabel(presentation.placeholder)
             }
 
             HStack(spacing: OfficialUISpec.Spacing.p8) {
@@ -886,19 +904,46 @@ private struct NativeInteractiveComposerCard: View {
                         .frame(width: OfficialUISpec.Geometry.px28, height: OfficialUISpec.Geometry.px28)
                 }
                 .buttonStyle(OfficialComposerIconButtonStyle())
+                .disabled(isWorkspaceTrigger)
                 .accessibilityLabel(OfficialUISpec.Text.commandsAccessibility)
 
-                Spacer(minLength: 0)
+                if presentation.isHero {
+                    if !isWorkspaceTrigger {
+                        NativeHeroComposerControl(
+                            asset: "icon-permission-workspace-write",
+                            title: OfficialUISpec.Text.fixtureWorkspaceWrite
+                        )
+                        .padding(.leading, OfficialUISpec.Spacing.p16)
+                    }
+                    Spacer(minLength: 0)
+                    if !isWorkspaceTrigger {
+                        HStack(spacing: OfficialUISpec.Spacing.p2) {
+                            Text(OfficialUISpec.Text.fixtureModelName)
+                            Text(OfficialUISpec.Text.fixtureReasoningEffort)
+                                .foregroundStyle(OfficialUISpec.Token.secondary)
+                            OfficialAssetImage(name: "icon-chevron-down", template: true)
+                                .frame(width: OfficialUISpec.Geometry.px12, height: OfficialUISpec.Geometry.px12)
+                                .foregroundStyle(OfficialUISpec.Token.caption)
+                        }
+                        .font(OfficialUISpec.Typography.xsStrong13)
+                        .foregroundStyle(OfficialUISpec.Token.primary)
+                        .frame(minHeight: OfficialUISpec.Layout.composerControlHeight, alignment: .leading)
+                        .padding(.trailing, OfficialUISpec.Spacing.p12)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel(OfficialUISpec.Text.fixtureModelName)
+                    }
+                } else {
+                    Spacer(minLength: 0)
+                    NativeComposerPermissionSelector(
+                        sessionStore: sessionStore,
+                        fullAccessConfirmationOpen: $fullAccessConfirmationOpen,
+                        fullAccessAcknowledged: $fullAccessAcknowledged
+                    )
+                    NativeComposerModelSelector(sessionStore: sessionStore)
+                    NativeContextMeter(sessionStore: sessionStore)
+                }
 
-                NativeComposerPermissionSelector(
-                    sessionStore: sessionStore,
-                    fullAccessConfirmationOpen: $fullAccessConfirmationOpen,
-                    fullAccessAcknowledged: $fullAccessAcknowledged
-                )
-                NativeComposerModelSelector(sessionStore: sessionStore)
-                NativeContextMeter(sessionStore: sessionStore)
-
-                if sessionStore.isRunning {
+                if !presentation.isHero, sessionStore.isRunning {
                     Button(action: sessionStore.cancelRunningTurn) {
                         OfficialAssetImage(name: "icon-stop", template: true)
                             .frame(width: OfficialUISpec.Geometry.px16, height: OfficialUISpec.Geometry.px16)
@@ -925,10 +970,15 @@ private struct NativeInteractiveComposerCard: View {
         .background(OfficialUISpec.Token.elevated, in: RoundedRectangle(cornerRadius: OfficialUISpec.Layout.composerCornerRadius, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: OfficialUISpec.Layout.composerCornerRadius, style: .continuous)
-                .strokeBorder(OfficialUISpec.Token.border, lineWidth: 1)
+                .strokeBorder(
+                    isWorkspaceTrigger ? OfficialUISpec.Token.businessBlue : OfficialUISpec.Token.border,
+                    style: StrokeStyle(lineWidth: 1, dash: isWorkspaceTrigger ? [4, 4] : [])
+                )
         }
         .officialLevel2Shadow()
-        .onAppear { draftFocused = true }
+        .onAppear {
+            if !isWorkspaceTrigger { draftFocused = true }
+        }
     }
 }
 

@@ -90,8 +90,7 @@ final class NativeSchemaFormDraftTests: XCTestCase {
     private func fixtureNamespace() -> SettingsNamespaceDTO {
         .init(
             ns: "example",
-            applies: "host",
-            revision: 4,
+            schema: .object([:]),
             value: .object([
                 "enabled": .bool(false), "timeoutMs": .number(10), "mode": .string("fast"),
                 "cachePath": .string("/tmp/cache"), "hostState": .string("ready"),
@@ -100,8 +99,9 @@ final class NativeSchemaFormDraftTests: XCTestCase {
                 "enabled": .bool(false), "timeoutMs": .number(5), "mode": .string("safe"), "cachePath": .string("/tmp/cache"),
             ]),
             user: .object(["timeoutMs": .number(10), "mode": .string("fast")]),
-            schema: .object([:]),
-            secrets: []
+            applies: "host",
+            secrets: [],
+            revision: 4
         )
     }
 }
