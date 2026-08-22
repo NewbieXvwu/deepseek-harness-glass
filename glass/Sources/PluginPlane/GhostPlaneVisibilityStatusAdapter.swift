@@ -9,10 +9,12 @@ public final class GhostPlaneVisibilityStatusAdapter {
     public var onStatusChange: ((Bool) -> Void)?
 
     private weak var window: NSWindow?
+    private let center: NotificationCenter
     private var observers: [NSObjectProtocol] = []
 
     public init(window: NSWindow, center: NotificationCenter = .default) {
         self.window = window
+        self.center = center
         isVisible = window.isVisible && !window.isMiniaturized
         let names: [Notification.Name] = [
             NSWindow.didMiniaturizeNotification,
@@ -31,7 +33,7 @@ public final class GhostPlaneVisibilityStatusAdapter {
         }
     }
 
-    deinit { observers.forEach(NotificationCenter.default.removeObserver) }
+    deinit { observers.forEach { center.removeObserver($0) } }
 
     public func refresh() {
         guard let window else { update(false); return }
