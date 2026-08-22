@@ -187,6 +187,12 @@ jobs:
             glass/ci/native-tool-row-presentation-portable-check.swift \
             -o /tmp/native-tool-row-presentation-portable-check
           /tmp/native-tool-row-presentation-portable-check
+          # T10.1 section ledger is Foundation-only; execute stable order and
+          # first-active/unregister/empty fallback outside the macOS UI graph.
+          swiftc glass/Sources/Core/Settings/NativeSettingsSectionLedger.swift \
+            glass/ci/native-settings-section-ledger-portable-check.swift \
+            -o /tmp/native-settings-section-ledger-portable-check
+          /tmp/native-settings-section-ledger-portable-check
           swiftc glass/Sources/Core/Plugin/NativeUIManifest.swift \
             glass/Sources/UI/Settings/NativeSchemaFormDraft.swift \
             glass/ci/native-schema-form-draft-portable-check.swift \

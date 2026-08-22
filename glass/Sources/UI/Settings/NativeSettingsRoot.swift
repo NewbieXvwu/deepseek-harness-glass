@@ -13,7 +13,7 @@ struct NativeSettingsRoot: View {
         case general
         case models
         case plugins
-        case agentPresets
+        case agentPresets = "agent-presets"
 
         var id: String { rawValue }
 
@@ -51,6 +51,28 @@ struct NativeSettingsRoot: View {
     let unsetCredential: (String) async -> Bool
     let savePluginCard: (NativePluginCardDraft) async -> Bool
     @State private var selection: SectionID? = .general
+
+    /// rc.2 settings.section registrations: general=0, models=10,
+    /// plugins=15, agent-presets=20. The row list is deliberately limited to
+    /// native renderers that exist in this build; it never exposes an unknown
+    /// Host/plugin section with no approved native body.
+    private var sectionRows: [NativeSettingsSectionRow] {
+        [
+            .init(id: SectionID.general.rawValue, order: 0, label: SectionID.general.title),
+            .init(id: SectionID.models.rawValue, order: 10, label: SectionID.models.title),
+            .init(id: SectionID.plugins.rawValue, order: 15, label: SectionID.plugins.title),
+            .init(id: SectionID.agentPresets.rawValue, order: 20, label: SectionID.agentPresets.title),
+        ]
+    }
+
+    private var visibleSections: [SectionID] {
+        NativeSettingsSectionLedger.ordered(sectionRows).compactMap { SectionID(rawValue: $0.id) }
+    }
+
+    private var activeSection: SectionID? {
+        let requested = selection?.rawValue
+        return NativeSettingsSectionLedger.activeID(requested: requested, rows: sectionRows).flatMap(SectionID.init(rawValue:))
+    }
     @State private var copySource: AgentPresetEntryDTO?
     @State private var copyID = ""
     @State private var copyName = ""
@@ -66,7 +88,7 @@ struct NativeSettingsRoot: View {
 
     var body: some View {
         NavigationSplitView {
-            List(SectionID.allCases, selection: $selection) { section in
+            List(visibleSections, selection: $selection) { section in
                 Text(section.title).tag(Optional(section))
             }
             .navigationTitle(Self.official(namespace: "ui-settings-general", key: "title"))
@@ -76,11 +98,19 @@ struct NativeSettingsRoot: View {
         .frame(minWidth: 620, minHeight: 420)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button(Self.official(namespace: "ui-settings-general", key: "close"), action: close)
+                Button(Self.official(namespace: "ui-settings-general", key: "close"), action: closeSettings)
                     .focused($closeFocused)
             }
         }
-        .onAppear { closeFocused = true }
+        .onAppear {
+            closeFocused = true
+            selection = activeSection
+        }
+    }
+
+    private func closeSettings() {
+        selection = NativeSettingsSectionLedger.closedSelection().flatMap(SectionID.init(rawValue:))
+        close()
     }
 
     @ViewBuilder
@@ -96,11 +126,11 @@ struct NativeSettingsRoot: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .ready:
-            if selection == .models {
+            if activeSection == .models {
                 modelsDetail
-            } else if selection == .agentPresets {
+            } else if activeSection == .agentPresets {
                 agentPresetsDetail
-            } else if selection == .plugins {
+            } else if activeSection == .plugins {
                 let cards = NativeBuiltinPluginCard.dispatched(from: store.namespaces)
                 List {
                     if cards.isEmpty {
@@ -121,7 +151,7 @@ struct NativeSettingsRoot: View {
                         }
                     }
                 }
-            } else if selection == .general, store.themePreference.status == .ready {
+            } else if activeSection == .general, store.themePreference.status == .ready {
                 List {
                     Section(Self.official(namespace: "ui-theme", key: "appearance.title")) {
                         HStack(spacing: OfficialUISpec.Spacing.p8) {
@@ -140,13 +170,15 @@ struct NativeSettingsRoot: View {
                 }
             } else {
                 List {
-                    Section(selection?.title ?? SectionID.general.title) {
-                        ForEach(store.namespaces, id: \.ns) { namespace in
-                            VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p4) {
-                                Text(namespace.ns)
-                                Text(namespace.applies)
-                                    .font(OfficialUISpec.Typography.xs13)
-                                    .foregroundStyle(OfficialUISpec.Token.caption)
+                    if let activeSection {
+                        Section(activeSection.title) {
+                            ForEach(store.namespaces, id: \.ns) { namespace in
+                                VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p4) {
+                                    Text(namespace.ns)
+                                    Text(namespace.applies)
+                                        .font(OfficialUISpec.Typography.xs13)
+                                        .foregroundStyle(OfficialUISpec.Token.caption)
+                                }
                             }
                         }
                     }
