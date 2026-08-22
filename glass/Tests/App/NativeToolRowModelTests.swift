@@ -53,6 +53,51 @@ final class NativeToolRowModelTests: XCTestCase {
         XCTAssertNil(NativeToolRowModel.filePath(toolName: "write", arguments: "partial request"))
     }
 
+    func testOfficialSummaryKeysCoverSearchBashReadAndCodeWithoutGrantingPaths() {
+        XCTAssertEqual(
+            NativeToolRowModel.summary(
+                toolName: "web_search",
+                arguments: #"{"queries":["first query","second query"],"query":"ignored query"}"#,
+                isGeneric: false,
+                separator: OfficialUISpec.Text.toolSummarySeparator
+            ),
+            "first query, second query"
+        )
+        XCTAssertEqual(
+            NativeToolRowModel.summary(
+                toolName: "bash",
+                arguments: #"{"command":"pwd","description":"show workspace"}"#,
+                isGeneric: false,
+                separator: OfficialUISpec.Text.toolSummarySeparator
+            ),
+            "show workspace"
+        )
+        XCTAssertEqual(
+            NativeToolRowModel.summary(
+                toolName: "web_fetch",
+                arguments: #"{"url":"https://example.invalid/docs"}"#,
+                isGeneric: false,
+                separator: OfficialUISpec.Text.toolSummarySeparator
+            ),
+            "https://example.invalid/docs"
+        )
+        XCTAssertNil(
+            NativeToolRowModel.filePath(
+                toolName: "web_fetch",
+                arguments: #"{"url":"https://example.invalid/docs"}"#
+            )
+        )
+        XCTAssertEqual(
+            NativeToolRowModel.summary(
+                toolName: "run_code",
+                arguments: #"{"description":"render chart","code":"print(1)"}"#,
+                isGeneric: false,
+                separator: OfficialUISpec.Text.toolSummarySeparator
+            ),
+            "render chart"
+        )
+    }
+
     func testToolSummaryFallsBackSafelyForMalformedAndGenericArguments() {
         XCTAssertEqual(
             NativeToolRowModel.summary(
