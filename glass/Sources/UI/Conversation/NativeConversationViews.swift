@@ -52,23 +52,41 @@ struct NativeConversationColumn: View {
         self.headerContributions = headerContributions
     }
 
+    private var rootPhase: NativeConversationRootPhase {
+        NativeConversationRootPhase.resolve(
+            mode: mode,
+            sessionID: sessionStore.selectedSessionID,
+            sessionPhase: sessionStore.phase,
+            snapshot: sessionSnapshot
+        )
+    }
+
     var body: some View {
-        switch mode {
-        case .welcome:
-            NativeWelcomeSurface(selectedWorkspaceTitle: selectedWorkspaceTitle)
-        case .conversation, .tooling, .approval, .question:
-            NativeActiveConversationSurface(
-                sessionSnapshot: sessionSnapshot,
-                sessionStore: sessionStore,
-                agentPresetStore: agentPresetStore,
-                selectAgentPreset: selectAgentPreset,
-                jobsPopoverInitiallyOpen: jobsPopoverInitiallyOpen,
-                jobsLanguageCode: jobsLanguageCode,
-                openSession: openSession,
-                canOpenProjectPath: canOpenProjectPath,
-                viewRegistry: viewRegistry,
-                headerContributions: headerContributions
-            )
+        // Source: RC8 ConversationRoot. A nonblank session whose authority
+        // baseline is still landing must not briefly render the active composer
+        // before the Host establishes whether the session is hero or docked.
+        if rootPhase == .settling {
+            Color.clear
+                .background(OfficialUISpec.Token.base)
+                .accessibilityHidden(true)
+        } else {
+            switch mode {
+            case .welcome:
+                NativeWelcomeSurface(selectedWorkspaceTitle: selectedWorkspaceTitle)
+            case .conversation, .tooling, .approval, .question:
+                NativeActiveConversationSurface(
+                    sessionSnapshot: sessionSnapshot,
+                    sessionStore: sessionStore,
+                    agentPresetStore: agentPresetStore,
+                    selectAgentPreset: selectAgentPreset,
+                    jobsPopoverInitiallyOpen: jobsPopoverInitiallyOpen,
+                    jobsLanguageCode: jobsLanguageCode,
+                    openSession: openSession,
+                    canOpenProjectPath: canOpenProjectPath,
+                    viewRegistry: viewRegistry,
+                    headerContributions: headerContributions
+                )
+            }
         }
     }
 }
