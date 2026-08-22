@@ -1,0 +1,5 @@
+# SPM package: mutation scope is committed in CI; run locally for full coverage.
+testTarget: GlassPortableCoreTests
+timeout: 60
+concurrency: 4
+sourcesPath: Sources/PortableCore

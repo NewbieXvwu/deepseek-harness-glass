@@ -1,0 +1,88 @@
+name: mutation-testing
+
+# Mutation score gate for the native macOS client. Scope is intentionally
+# small (PortableCore only) so the gate finishes quickly in CI; run
+# `swift-mutation-testing` locally with the full sources path for deep coverage.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "glass/Sources/PortableCore/**"
+      - "glass/Sources/Core/Host/HostPathDisplay.swift"
+      - "glass/Tests/PortableCore/**"
+      - "glass/.swift-mutation-testing.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workspace }}-mutation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mutation-gate:
+    name: mutation score gate (PortableCore)
+    runs-on: macos-26
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install swift-mutation-testing
+        run: |
+          brew tap ericodx/homebrew-tools
+          brew trust ericodx/tools
+          brew install swift-mutation-testing
+          swift-mutation-testing --version
+
+      - name: Restore mutation cache
+        uses: actions/cache@v5
+        with:
+          path: glass/.swift-mutation-testing-cache
+          key: mutation-cache-${{ runner.os }}-${{ hashFiles('glass/Sources/PortableCore/**', 'glass/Tests/PortableCore/**', 'glass/.swift-mutation-testing.yml') }}
+          restore-keys: |
+            mutation-cache-${{ runner.os }}-
+
+      - name: Run mutation testing
+        run: |
+          cd glass
+          swift-mutation-testing "$PWD" --quiet --output mutation-report.json
+
+      - name: Enforce mutation score threshold
+        run: |
+          python3 - <<'PY'
+          import json
+          import sys
+
+          with open("glass/mutation-report.json", encoding="utf-8") as handle:
+              report = json.load(handle)
+
+          # Stryker-compatible report carries the score as a 0-100 ratio.
+          score = report.get("mutationScore")
+          if score is None:
+              summary = report.get("summary")
+              if isinstance(summary, dict):
+                  score = summary.get("mutationScore")
+          if score is None:
+              for value in report.values():
+                  if isinstance(value, dict) and "mutationScore" in value:
+                      score = value["mutationScore"]
+                      break
+          if score is None:
+              print("mutation report has no mutationScore field")
+              sys.exit(1)
+
+          threshold = 0.70
+          print(f"mutation score: {score * 100:.1f}% (threshold {(threshold * 100):.0f}%)")
+          if score < threshold:
+              print("mutation score below gate threshold")
+              sys.exit(1)
+          PY
+
+      - name: Upload mutation report
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-report
+          path: glass/mutation-report.json
+          if-no-files-found: error
