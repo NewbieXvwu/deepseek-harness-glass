@@ -161,6 +161,38 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         )
     }
 
+    func testToolDetailsExportsOfficialSectionsAndSelectionEmptyStates() throws {
+        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.input", language: "en"))
+        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.output", language: "en"))
+        let notInWindow = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.notInWindow", language: "en"))
+        let invocation = NativeSessionStore.ToolInvocation(
+            id: "details-call",
+            name: "custom_tool",
+            arguments: "{}",
+            output: "result",
+            errorName: nil,
+            errorCode: nil,
+            state: .completed,
+            sequence: 1,
+            callView: nil,
+            resultView: nil
+        )
+        try assertAccessibleLabels(
+            in: NativeToolDetailsBody(invocation: invocation, selectedCallID: invocation.id),
+            expected: [input, output, "{}", "result"]
+        )
+        try assertAccessibleLabels(
+            in: NativeToolDetailsBody(invocation: nil, selectedCallID: "evicted-call"),
+            expected: [notInWindow],
+            forbidden: [OfficialUISpec.Text.detailsEmpty]
+        )
+        try assertAccessibleLabels(
+            in: NativeToolDetailsBody(invocation: nil, selectedCallID: nil),
+            expected: [OfficialUISpec.Text.detailsEmpty],
+            forbidden: [notInWindow]
+        )
+    }
+
     func testFileToolPathAccessibilityFollowsVerifiedCapability() throws {
         let invocation = NativeSessionStore.ToolInvocation(
             id: "write-path",

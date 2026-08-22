@@ -1040,7 +1040,7 @@ struct NativeDetailsView: View {
     var body: some View {
         VStack(spacing: OfficialUISpec.Spacing.p0) {
             HStack(spacing: OfficialUISpec.Spacing.p8) {
-                Text(OfficialUISpec.Text.details)
+                Text(selectedInvocation?.name ?? OfficialUISpec.Text.details)
                     .font(OfficialUISpec.Typography.sStrong14)
                 Spacer(minLength: 0)
                 Button(action: close) {
@@ -1057,7 +1057,10 @@ struct NativeDetailsView: View {
                 Rectangle().fill(OfficialUISpec.Token.hairline).frame(height: OfficialUISpec.Geometry.px1)
             }
 
-            NativeToolDetailsBody(invocation: selectedInvocation)
+            NativeToolDetailsBody(
+                invocation: selectedInvocation,
+                selectedCallID: sessionStore.selectedToolCallID
+            )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(Color.clear)

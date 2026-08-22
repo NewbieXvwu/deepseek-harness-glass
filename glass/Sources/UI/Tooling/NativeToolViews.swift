@@ -285,60 +285,56 @@ private struct NativeTerminalToolCardBody: View {
 /// separately approved native adapter can claim a specific Host `view.card`.
 struct NativeToolDetailsBody: View {
     let invocation: NativeSessionStore.ToolInvocation?
+    /// The selection is retained by the surrounding details column. A non-nil
+    /// selection whose material is absent is the official out-of-window state,
+    /// not the no-selection guidance state.
+    let selectedCallID: String?
 
     var body: some View {
         Group {
             if let invocation {
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text(title(for: invocation.name))
-                            .font(OfficialUISpec.Typography.xsStrong13)
-                            .foregroundStyle(OfficialUISpec.Token.primary)
+                    VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p12) {
+                        sectionLabel("details.input")
+                        Text(invocation.arguments)
+                            .font(OfficialUISpec.Typography.codeSmall12)
+                            .foregroundStyle(OfficialUISpec.Token.secondary)
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        sectionLabel("details.output")
                         if invocation.state == .running {
                             Text(OfficialUISpec.Text.toolDetailsRunning)
                                 .font(OfficialUISpec.Typography.xs13)
                                 .foregroundStyle(OfficialUISpec.Token.secondary)
-                        }
-                        VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p8) {
-                            Text(invocation.arguments)
+                        } else {
+                            Text(invocation.output ?? "")
                                 .font(OfficialUISpec.Typography.codeSmall12)
-                                .foregroundStyle(OfficialUISpec.Token.secondary)
+                                .foregroundStyle(invocation.state == .failed ? OfficialUISpec.Token.errorPrimary : OfficialUISpec.Token.secondary)
                                 .textSelection(.enabled)
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                            if let output = invocation.output {
-                                Divider()
-                                Text(output)
-                                    .font(OfficialUISpec.Typography.codeSmall12)
-                                    .foregroundStyle(invocation.state == .failed ? OfficialUISpec.Token.errorPrimary : OfficialUISpec.Token.secondary)
-                                    .textSelection(.enabled)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                            }
                         }
-                        .padding(OfficialUISpec.Spacing.p10)
-                        .background(OfficialUISpec.Token.elevated, in: RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r12, style: .continuous))
                     }
                     .padding(OfficialUISpec.Spacing.p16)
                 }
             } else {
-                Text(OfficialUISpec.Text.detailsEmpty)
+                Text(selectedCallID == nil ? OfficialUISpec.Text.detailsEmpty : locale("details.notInWindow"))
                     .font(OfficialUISpec.Typography.xs13)
                     .foregroundStyle(OfficialUISpec.Token.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             }
         }
     }
-}
 
-private extension NativeToolDetailsBody {
-    func title(for name: String) -> String {
-        switch name {
-        case "bash", "pwsh": OfficialUISpec.Text.toolBash
-        case "read", "web_fetch", "cordis_package_inspect", "cordis_runtime_inspect": OfficialUISpec.Text.toolRead
-        case "web_search", "grep", "glob": OfficialUISpec.Text.toolSearch
-        case "write": OfficialUISpec.Text.toolWrite
-        case "edit": OfficialUISpec.Text.toolEdit
-        case "run_code": OfficialUISpec.Text.toolCode
-        default: OfficialUISpec.Text.toolCall
-        }
+    @ViewBuilder
+    private func sectionLabel(_ key: String) -> some View {
+        Text(locale(key))
+            .font(OfficialUISpec.Typography.xsStrong13)
+            .foregroundStyle(OfficialUISpec.Token.primary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func locale(_ key: String) -> String {
+        OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: key, language: "en") ?? ""
     }
 }
