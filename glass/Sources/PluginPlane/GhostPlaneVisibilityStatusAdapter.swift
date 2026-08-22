@@ -17,7 +17,11 @@ public final class GhostPlaneVisibilityStatusAdapter {
         let names: [Notification.Name] = [
             NSWindow.didMiniaturizeNotification,
             NSWindow.didDeminiaturizeNotification,
-            NSWindow.didBecomeVisibleNotification,
+            // NSWindow has no didBecomeVisible notification. The coordinator's
+            // show-and-focus path makes the retained window key after ordering it
+            // front, so this is the observable transition that refreshes the
+            // document-visible projection without inventing a window lifecycle.
+            NSWindow.didBecomeKeyNotification,
             NSWindow.willCloseNotification,
         ]
         observers = names.map { name in

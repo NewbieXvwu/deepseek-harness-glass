@@ -3971,7 +3971,7 @@ final class NativeSessionStoreTests: XCTestCase {
             self.imageLimits = imageLimits
         }
 
-        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws {
+        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
             guard opensAuthority else { throw DSHTransportError.invalidEndpoint }
             let projections = imageLimits.map {
                 SessionProjectionsDTO(asOfSeq: 0, values: [
