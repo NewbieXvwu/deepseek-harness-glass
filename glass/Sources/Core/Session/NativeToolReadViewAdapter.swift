@@ -23,7 +23,9 @@ extension ToolEventViewDTO {
             else { return nil }
             lines.append(.init(number: number, text: text))
         }
-        guard totalLines >= lines.count else { return nil }
+        guard totalLines >= lines.count,
+              lines.allSatisfy({ $0.number <= totalLines })
+        else { return nil }
         return NativeToolReadView(
             card: card,
             title: object["title"]?.stringValue,

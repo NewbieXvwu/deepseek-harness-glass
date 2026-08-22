@@ -193,6 +193,47 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         )
     }
 
+    func testTypedReadDetailsExportsAdmittedReadChromeAndSource() throws {
+        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.input", language: "en"))
+        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.output", language: "en"))
+        let invocation = NativeSessionStore.ToolInvocation(
+            id: "read-details",
+            name: "read",
+            arguments: #"{"file_path":"README.md"}"#,
+            output: "generic output must be replaced only by an admitted card",
+            errorName: nil,
+            errorCode: nil,
+            state: .completed,
+            sequence: 1,
+            callView: nil,
+            resultView: ToolEventViewDTO(for: "result", view: .object([
+                "card": .string("read"),
+                "title": .string("README preview"),
+                "path": .string("README.md"),
+                "lines": .array([
+                    .object(["number": .number(4), "text": .string("# Heading")]),
+                    .object(["number": .number(5), "text": .string("body")]),
+                ]),
+                "totalLines": .number(5),
+                "lang": .string("markdown"),
+            ]))
+        )
+        try assertAccessibleLabels(
+            in: NativeToolDetailsBody(invocation: invocation, selectedCallID: invocation.id),
+            expected: [
+                input,
+                output,
+                "README preview",
+                "显示 2 / 5 行",
+                "markdown",
+                OfficialUISpec.Text.copy,
+                "# Heading",
+                "body",
+            ],
+            forbidden: ["generic output must be replaced only by an admitted card"]
+        )
+    }
+
     func testFileToolPathAccessibilityFollowsVerifiedCapability() throws {
         let invocation = NativeSessionStore.ToolInvocation(
             id: "write-path",

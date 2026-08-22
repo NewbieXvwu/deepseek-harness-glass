@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import Foundation
 
 #if DEEPSEEK_HARNESS_PACKAGE
@@ -72,6 +73,8 @@ struct NativeToolRow: View {
             if expanded {
                 if let terminal {
                     NativeTerminalToolCardBody(presentation: terminal)
+                } else if let read {
+                    NativeReadToolCardBody(presentation: read, maxLines: 8)
                 } else {
                     let body = NativeToolRowPresentation.body(toolName: invocation.name, arguments: invocation.arguments)
                     VStack(alignment: .leading, spacing: 8) {
@@ -140,6 +143,15 @@ struct NativeToolRow: View {
             call: invocation.callView?.nativeTerminalView,
             result: invocation.resultView?.nativeTerminalView,
             settled: state != .running
+        )
+    }
+
+    /// Read is result-side only in rc.2. A running call has no result content;
+    /// all unknown/malformed result cards remain in the generic branch.
+    private var read: NativeReadCardPresentation? {
+        NativeReadCardPresentation.resolve(
+            result: invocation.resultView?.nativeReadView,
+            completed: state != .running
         )
     }
 
@@ -314,6 +326,121 @@ private struct NativeTerminalToolCardBody: View {
     }
 }
 
+/// Native result-side read card for a Host-admitted `card:'read'` envelope.
+/// The Core adapter owns every payload validation; this view only renders the
+/// typed projection and never interprets tool arguments as source content.
+private struct NativeReadToolCardBody: View {
+    let presentation: NativeReadCardPresentation
+    let maxLines: Int
+
+    @State private var expanded = false
+    @State private var copied = false
+
+    private var window: NativeReadCardWindowPresentation {
+        NativeReadCardWindowPresentation.resolve(lines: presentation.lines, maxLines: maxLines, expanded: expanded)
+    }
+
+    private var isWindowed: Bool { presentation.lines.count < presentation.totalLines }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p0) {
+            HStack(spacing: OfficialUISpec.Spacing.p12) {
+                Text(presentation.label)
+                    .font(OfficialUISpec.Typography.codeSmall12)
+                    .foregroundStyle(OfficialUISpec.Token.primary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Spacer(minLength: 0)
+                if isWindowed {
+                    Text(readWindowLabel)
+                        .font(OfficialUISpec.Typography.xs13)
+                        .foregroundStyle(OfficialUISpec.Token.caption)
+                }
+                if let lang = presentation.lang, !lang.isEmpty {
+                    Text(lang)
+                        .font(OfficialUISpec.Typography.codeSmall12)
+                        .foregroundStyle(OfficialUISpec.Token.caption)
+                }
+                if !presentation.lines.isEmpty {
+                    Button(action: copySource) {
+                        Text(copied ? OfficialUISpec.Text.copied : OfficialUISpec.Text.copy)
+                            .font(OfficialUISpec.Typography.xs13)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(OfficialUISpec.Token.secondary)
+                    .accessibilityLabel(copied ? OfficialUISpec.Text.copied : OfficialUISpec.Text.copy)
+                }
+            }
+            .padding(.horizontal, OfficialUISpec.Spacing.p14)
+            .padding(.vertical, OfficialUISpec.Spacing.p9)
+            .background(OfficialUISpec.Token.markdownCodeBlockBanner)
+
+            ScrollView(.horizontal, showsIndicators: true) {
+                VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p0) {
+                    lineRows(window.head)
+                    if window.hiddenCount > 0 {
+                        Button(action: { expanded.toggle() }) {
+                            Text(expanded ? OfficialUISpec.Text.readCollapse : readExpandLabel)
+                                .font(OfficialUISpec.Typography.codeBlock13)
+                                .foregroundStyle(OfficialUISpec.Token.caption)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(expanded ? OfficialUISpec.Text.readCollapseAccessibility : readExpandAccessibilityLabel)
+                        .accessibilityValue(expanded ? "true" : "false")
+                    }
+                    lineRows(window.tail)
+                }
+                .padding(.vertical, OfficialUISpec.Spacing.p12)
+            }
+        }
+        .background(OfficialUISpec.Token.markdownCodeBlock, in: RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r12, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r12, style: .continuous))
+    }
+
+    @ViewBuilder
+    private func lineRows(_ lines: [NativeToolReadLine]) -> some View {
+        ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
+            HStack(alignment: .firstTextBaseline, spacing: OfficialUISpec.Spacing.p0) {
+                Text(String(line.number))
+                    .font(OfficialUISpec.Typography.codeBlock13)
+                    .foregroundStyle(OfficialUISpec.Token.caption)
+                    .frame(width: OfficialUISpec.Geometry.px48, alignment: .trailing)
+                    .padding(.trailing, OfficialUISpec.Spacing.p14)
+                    .accessibilityHidden(true)
+                Text(line.text)
+                    .font(OfficialUISpec.Typography.codeBlock13)
+                    .foregroundStyle(OfficialUISpec.Token.primary)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .textSelection(.enabled)
+            }
+            .frame(minHeight: OfficialUISpec.Geometry.px22, alignment: .leading)
+        }
+    }
+
+    private var readWindowLabel: String {
+        OfficialUISpec.Text.readWindowTemplate
+            .replacingOccurrences(of: "{shown}", with: String(presentation.lines.count))
+            .replacingOccurrences(of: "{total}", with: String(presentation.totalLines))
+    }
+
+    private var readExpandLabel: String {
+        OfficialUISpec.Text.readExpandTemplate.replacingOccurrences(of: "{n}", with: String(window.hiddenCount))
+    }
+
+    private var readExpandAccessibilityLabel: String {
+        OfficialUISpec.Text.readExpandAccessibilityTemplate.replacingOccurrences(of: "{n}", with: String(window.hiddenCount))
+    }
+
+    private func copySource() {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        guard pasteboard.setString(presentation.lines.map(\.text).joined(separator: "\\n"), forType: .string) else { return }
+        copied = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { copied = false }
+    }
+}
+
 /// Native generic details fallback. It is intentionally text/JSON only until a
 /// separately approved native adapter can claim a specific Host `view.card`.
 struct NativeToolDetailsBody: View {
@@ -341,6 +468,10 @@ struct NativeToolDetailsBody: View {
                             // terminal call. It replaces `details.running`; a
                             // running non-terminal tool remains generic below.
                             NativeTerminalToolCardBody(presentation: terminal)
+                        } else if let read = readPresentation(for: invocation) {
+                            // rc.2 readCardModel is result-side only, so this
+                            // never replaces the generic running placeholder.
+                            NativeReadToolCardBody(presentation: read, maxLines: 16)
                         } else if invocation.state == .running {
                             Text(OfficialUISpec.Text.toolDetailsRunning)
                                 .font(OfficialUISpec.Typography.xs13)
@@ -369,6 +500,13 @@ struct NativeToolDetailsBody: View {
             call: invocation.callView?.nativeTerminalView,
             result: invocation.resultView?.nativeTerminalView,
             settled: invocation.state != .running
+        )
+    }
+
+    private func readPresentation(for invocation: NativeSessionStore.ToolInvocation) -> NativeReadCardPresentation? {
+        NativeReadCardPresentation.resolve(
+            result: invocation.resultView?.nativeReadView,
+            completed: invocation.state != .running
         )
     }
 

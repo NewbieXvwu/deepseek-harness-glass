@@ -69,6 +69,14 @@ final class NativeToolReadViewAdapterTests: XCTestCase {
         ]))
         XCTAssertNil(malformedTotal.nativeReadView)
 
+        let outOfRangeLine = ToolEventViewDTO(for: "result", view: .object([
+            "card": .string("read"),
+            "path": .string("README.md"),
+            "lines": .array([.object(["number": .number(5), "text": .string("outside")])]),
+            "totalLines": .number(4),
+        ]))
+        XCTAssertNil(outOfRangeLine.nativeReadView)
+
         let valid = NativeToolReadView(card: "read", title: nil, path: "README.md", lines: [], totalLines: 0, lang: nil)
         XCTAssertNil(NativeReadCardPresentation.resolve(result: valid, completed: false))
         XCTAssertNil(NativeReadCardPresentation.resolve(result: NativeToolReadView(card: "unknown", title: nil, path: "README.md", lines: [], totalLines: 0, lang: nil), completed: true))

@@ -451,6 +451,14 @@ enum OfficialUISpec {
         static let toolFailed = "Failed"
         static let toolStopped = "Stopped"
         static let toolDetailsRunning = "Running…"
+        // Source: rc.2 ui-primitives/ReadBlock.tsx. These chrome strings are
+        // intentionally literal in the official primitive rather than locale
+        // keys, and are registered here solely for faithful native rendering.
+        static let readWindowTemplate = "显示 {shown} / {total} 行"
+        static let readExpandTemplate = "… 其余 {n} 行"
+        static let readExpandAccessibilityTemplate = "展开其余 {n} 行"
+        static let readCollapse = "收起"
+        static let readCollapseAccessibility = "收起内容"
         static let toolSummarySeparator = "·"
         static let approvalWaiting = "Waiting for approval"
         static let approvalDetailsAccessibility = "Approval details"
@@ -487,6 +495,10 @@ enum OfficialUISpec {
         static let base = Theme.aliasBgBase.adaptiveColor
         static let sidebar = Theme.specificSidebarFill.adaptiveColor
         static let elevated = Theme.aliasBgLayer1.adaptiveColor
+        /// Source: rc.2 `ui-primitives/ReadBlock.module.css` code surface.
+        static let markdownCodeBlock = Theme.aliasMarkdownCodeBlock.adaptiveColor
+        /// Source: rc.2 `ui-primitives/ReadBlock.module.css` banner surface.
+        static let markdownCodeBlockBanner = Theme.aliasMarkdownCodeBlockBanner.adaptiveColor
         /// Source: `--dsw-specific-tip`, used by RC8 Todo/Goal composer strips.
         static let specificTip = Theme.specificTip.adaptiveColor
         static let primary = Theme.aliasLabelPrimary.adaptiveColor
@@ -544,6 +556,8 @@ enum OfficialUISpec {
         static let p6: CGFloat = 6
         static let p7: CGFloat = 7
         static let p8: CGFloat = 8
+        /// Source: rc.2 `ui-primitives/ReadBlock.module.css` banner vertical inset.
+        static let p9: CGFloat = 9
         static let p10: CGFloat = 10
         static let p12: CGFloat = 12
         static let p14: CGFloat = 14
