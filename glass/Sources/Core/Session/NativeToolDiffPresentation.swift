@@ -88,3 +88,29 @@ struct NativeDiffRowsPresentation: Equatable, Sendable {
         return body.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
     }
 }
+
+/// Structural DiffBlock head/tail cap. It mirrors the shared primitive rule and
+/// carries no text or UI state so row/details can use their distinct 8/16 caps.
+struct NativeDiffWindowPresentation: Equatable, Sendable {
+    let head: [NativeDiffRowsPresentation.Row]
+    let tail: [NativeDiffRowsPresentation.Row]
+    let hiddenCount: Int
+
+    static func resolve(
+        rows: [NativeDiffRowsPresentation.Row],
+        maxLines: Int,
+        expanded: Bool
+    ) -> NativeDiffWindowPresentation {
+        guard maxLines >= 0, !expanded, rows.count > maxLines else {
+            return .init(head: rows, tail: [], hiddenCount: 0)
+        }
+        let hidden = rows.count - maxLines
+        let headCount = (maxLines + 1) / 2
+        let tailCount = maxLines - headCount
+        return .init(
+            head: Array(rows.prefix(headCount)),
+            tail: tailCount == 0 ? [] : Array(rows.suffix(tailCount)),
+            hiddenCount: hidden
+        )
+    }
+}

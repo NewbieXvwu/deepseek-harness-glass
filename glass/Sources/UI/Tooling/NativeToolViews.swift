@@ -73,6 +73,8 @@ struct NativeToolRow: View {
             if expanded {
                 if let terminal {
                     NativeTerminalToolCardBody(presentation: terminal)
+                } else if let diff {
+                    NativeDiffToolCardBody(presentation: diff, maxLines: 8)
                 } else if let read {
                     NativeReadToolCardBody(presentation: read, maxLines: 8)
                 } else {
@@ -152,6 +154,14 @@ struct NativeToolRow: View {
         NativeReadCardPresentation.resolve(
             result: invocation.resultView?.nativeReadView,
             completed: state != .running
+        )
+    }
+
+    private var diff: NativeDiffCardPresentation? {
+        NativeDiffCardPresentation.resolve(
+            call: invocation.callView?.nativeDiffView,
+            result: invocation.resultView?.nativeDiffView,
+            settled: state != .running
         )
     }
 
@@ -441,6 +451,131 @@ private struct NativeReadToolCardBody: View {
     }
 }
 
+/// Native DiffBlock counterpart for an admitted `card:'diff'` intent. The Core
+/// projection owns call/result authority and hunk validation; this view only
+/// supplies the primitive's visual state, copy feedback and height cap.
+private struct NativeDiffToolCardBody: View {
+    let presentation: NativeDiffCardPresentation
+    let maxLines: Int
+
+    @State private var expanded = false
+    @State private var copied = false
+
+    private var rows: NativeDiffRowsPresentation {
+        NativeDiffRowsPresentation.resolve(diffs: presentation.diffs)
+    }
+
+    private var window: NativeDiffWindowPresentation {
+        NativeDiffWindowPresentation.resolve(rows: rows.rows, maxLines: maxLines, expanded: expanded)
+    }
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p0) {
+                ScrollView(.horizontal, showsIndicators: true) {
+                    VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p0) {
+                        diffRows(window.head)
+                        if window.hiddenCount > 0 {
+                            Button(action: { expanded.toggle() }) {
+                                Text(expanded ? OfficialUISpec.Text.readCollapse : readExpandLabel)
+                                    .font(OfficialUISpec.Typography.codeBlock13)
+                                    .foregroundStyle(OfficialUISpec.Token.caption)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(expanded ? OfficialUISpec.Text.diffCollapseAccessibility : diffExpandAccessibilityLabel)
+                            .accessibilityValue(expanded ? "true" : "false")
+                        }
+                        diffRows(window.tail)
+                    }
+                    .padding(.horizontal, OfficialUISpec.Spacing.p14)
+                    .padding(.vertical, OfficialUISpec.Spacing.p12)
+                }
+                Text(footer)
+                    .font(OfficialUISpec.Typography.codeBlock13)
+                    .foregroundStyle(OfficialUISpec.Token.caption)
+                    .padding(.horizontal, OfficialUISpec.Spacing.p14)
+                    .padding(.bottom, OfficialUISpec.Spacing.p12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            Button(action: copyDiff) {
+                Text(copied ? OfficialUISpec.Text.copied : OfficialUISpec.Text.copy)
+                    .font(OfficialUISpec.Typography.xs13)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(OfficialUISpec.Token.secondary)
+            .padding(.top, OfficialUISpec.Spacing.p8)
+            .padding(.trailing, OfficialUISpec.Spacing.p12)
+            .accessibilityLabel(copied ? OfficialUISpec.Text.copied : OfficialUISpec.Text.copy)
+        }
+        .background(OfficialUISpec.Token.markdownCodeBlock, in: RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r12, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r12, style: .continuous))
+    }
+
+    @ViewBuilder
+    private func diffRows(_ source: [NativeDiffRowsPresentation.Row]) -> some View {
+        ForEach(Array(source.enumerated()), id: \.offset) { _, row in
+            HStack(alignment: .firstTextBaseline, spacing: OfficialUISpec.Spacing.p0) {
+                switch row.kind {
+                case .path:
+                    Text(row.text)
+                        .font(OfficialUISpec.Typography.codeBlock13.weight(.semibold))
+                        .foregroundStyle(OfficialUISpec.Token.primary)
+                        .padding(.trailing, OfficialUISpec.Geometry.px56)
+                case .gap:
+                    Text(row.text)
+                        .font(OfficialUISpec.Typography.codeBlock13)
+                        .foregroundStyle(OfficialUISpec.Token.caption)
+                case .deletion:
+                    Text("- ")
+                        .foregroundStyle(OfficialUISpec.Token.errorPrimary)
+                    Text(row.text)
+                        .foregroundStyle(OfficialUISpec.Token.errorPrimary)
+                case .addition:
+                    Text("+ ")
+                        .foregroundStyle(OfficialUISpec.Token.success)
+                    Text(row.text)
+                        .foregroundStyle(OfficialUISpec.Token.success)
+                }
+            }
+            .font(OfficialUISpec.Typography.codeBlock13)
+            .fixedSize(horizontal: true, vertical: false)
+            .frame(minHeight: OfficialUISpec.Geometry.px22, alignment: .leading)
+        }
+    }
+
+    private var readExpandLabel: String {
+        OfficialUISpec.Text.readExpandTemplate.replacingOccurrences(of: "{n}", with: String(window.hiddenCount))
+    }
+
+    private var diffExpandAccessibilityLabel: String {
+        OfficialUISpec.Text.diffExpandAccessibilityTemplate.replacingOccurrences(of: "{n}", with: String(window.hiddenCount))
+    }
+
+    private var footer: String {
+        OfficialUISpec.Text.diffFooterTemplate
+            .replacingOccurrences(of: "{added}", with: String(rows.added))
+            .replacingOccurrences(of: "{removed}", with: String(rows.removed))
+            .replacingOccurrences(of: "{files}", with: String(rows.files))
+            .replacingOccurrences(of: "{suffix}", with: rows.files == 1 ? "" : "s")
+    }
+
+    private func copyDiff() {
+        let source = rows.rows.map { row in
+            switch row.kind {
+            case .deletion: "- \(row.text)"
+            case .addition: "+ \(row.text)"
+            case .path, .gap: row.text
+            }
+        }.joined(separator: "\n")
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        guard pasteboard.setString(source, forType: .string) else { return }
+        copied = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { copied = false }
+    }
+}
+
 /// Native generic details fallback. It is intentionally text/JSON only until a
 /// separately approved native adapter can claim a specific Host `view.card`.
 struct NativeToolDetailsBody: View {
@@ -468,10 +603,15 @@ struct NativeToolDetailsBody: View {
                             // terminal call. It replaces `details.running`; a
                             // running non-terminal tool remains generic below.
                             NativeTerminalToolCardBody(presentation: terminal)
+                                .id(invocation.id)
                         } else if let read = readPresentation(for: invocation) {
                             // rc.2 readCardModel is result-side only, so this
                             // never replaces the generic running placeholder.
                             NativeReadToolCardBody(presentation: read, maxLines: 16)
+                                .id(invocation.id)
+                        } else if let diff = diffPresentation(for: invocation) {
+                            NativeDiffToolCardBody(presentation: diff, maxLines: 16)
+                                .id(invocation.id)
                         } else if invocation.state == .running {
                             Text(OfficialUISpec.Text.toolDetailsRunning)
                                 .font(OfficialUISpec.Typography.xs13)
@@ -507,6 +647,14 @@ struct NativeToolDetailsBody: View {
         NativeReadCardPresentation.resolve(
             result: invocation.resultView?.nativeReadView,
             completed: invocation.state != .running
+        )
+    }
+
+    private func diffPresentation(for invocation: NativeSessionStore.ToolInvocation) -> NativeDiffCardPresentation? {
+        NativeDiffCardPresentation.resolve(
+            call: invocation.callView?.nativeDiffView,
+            result: invocation.resultView?.nativeDiffView,
+            settled: invocation.state != .running
         )
     }
 

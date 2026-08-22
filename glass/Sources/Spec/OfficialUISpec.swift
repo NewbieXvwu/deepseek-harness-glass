@@ -459,6 +459,10 @@ enum OfficialUISpec {
         static let readExpandAccessibilityTemplate = "展开其余 {n} 行"
         static let readCollapse = "收起"
         static let readCollapseAccessibility = "收起内容"
+        // Source: rc.2 ui-primitives/DiffBlock.tsx literal chrome.
+        static let diffExpandAccessibilityTemplate = "展开其余 {n} 行差异"
+        static let diffCollapseAccessibility = "收起差异"
+        static let diffFooterTemplate = "└ +{added} -{removed} · {files} file{suffix}"
         static let toolSummarySeparator = "·"
         static let approvalWaiting = "Waiting for approval"
         static let approvalDetailsAccessibility = "Approval details"

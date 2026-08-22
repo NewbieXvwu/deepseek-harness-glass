@@ -234,6 +234,46 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         )
     }
 
+    func testTypedDiffDetailsUsesAppliedResultAndExportsChrome() throws {
+        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.input", language: "en"))
+        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.output", language: "en"))
+        let invocation = NativeSessionStore.ToolInvocation(
+            id: "diff-details",
+            name: "edit",
+            arguments: #"{"path":"draft.txt"}"#,
+            output: "generic output must not leak into admitted diff",
+            errorName: nil,
+            errorCode: nil,
+            state: .completed,
+            sequence: 1,
+            callView: ToolEventViewDTO(for: "call", view: .object([
+                "card": .string("diff"),
+                "diffs": .array([.object([
+                    "path": .string("draft.txt"), "oldText": .string("before"), "newText": .string("intent"),
+                ])]),
+            ])),
+            resultView: ToolEventViewDTO(for: "result", view: .object([
+                "card": .string("diff"),
+                "diffs": .array([.object([
+                    "path": .string("draft.txt"), "oldText": .string("before"), "newText": .string("applied"),
+                ])]),
+            ]))
+        )
+        try assertAccessibleLabels(
+            in: NativeToolDetailsBody(invocation: invocation, selectedCallID: invocation.id),
+            expected: [
+                input,
+                output,
+                "draft.txt",
+                "before",
+                "applied",
+                OfficialUISpec.Text.copy,
+                "└ +1 -1 · 1 file",
+            ],
+            forbidden: ["intent", "generic output must not leak into admitted diff"]
+        )
+    }
+
     func testFileToolPathAccessibilityFollowsVerifiedCapability() throws {
         let invocation = NativeSessionStore.ToolInvocation(
             id: "write-path",
