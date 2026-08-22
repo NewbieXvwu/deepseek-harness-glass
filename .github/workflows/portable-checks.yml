@@ -193,6 +193,12 @@ jobs:
             glass/ci/native-settings-section-ledger-portable-check.swift \
             -o /tmp/native-settings-section-ledger-portable-check
           /tmp/native-settings-section-ledger-portable-check
+          # T10.1 onboarding selection also remains Foundation-only; exercise
+          # first-pending ownership, stale completion rejection, and reset.
+          swiftc glass/Sources/Core/Settings/NativeSettingsOnboardingLedger.swift \
+            glass/ci/native-settings-onboarding-ledger-portable-check.swift \
+            -o /tmp/native-settings-onboarding-ledger-portable-check
+          /tmp/native-settings-onboarding-ledger-portable-check
           swiftc glass/Sources/Core/Plugin/NativeUIManifest.swift \
             glass/Sources/UI/Settings/NativeSchemaFormDraft.swift \
             glass/ci/native-schema-form-draft-portable-check.swift \
