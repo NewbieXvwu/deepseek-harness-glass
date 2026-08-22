@@ -185,6 +185,33 @@ struct NativeToolRowPresentationPortableCheck {
         guard zeroCap.head.isEmpty, zeroCap.tail.isEmpty, zeroCap.hiddenCount == 20 else {
             throw CheckFailure("zero read cap must hide every line without inventing a head/tail line")
         }
+
+        let callDiff = NativeToolDiffView(card: "diff", diffs: [.init(path: "draft.txt", oldText: "before", newText: "intent")])
+        let resultDiff = NativeToolDiffView(card: "diff", diffs: [.init(path: "draft.txt", oldText: "before", newText: "applied")])
+        guard NativeDiffCardPresentation.resolve(call: callDiff, result: nil, settled: false)?.source == .call else {
+            throw CheckFailure("running typed diff must use the intended call-side hunk")
+        }
+        guard let settledDiff = NativeDiffCardPresentation.resolve(call: callDiff, result: resultDiff, settled: true),
+              settledDiff.source == .result,
+              settledDiff.diffs.first?.newText == "applied" else {
+            throw CheckFailure("settled typed diff must replace call intent with result-side applied hunk")
+        }
+        guard NativeDiffCardPresentation.resolve(call: callDiff, result: nil, settled: true) == nil,
+              NativeDiffCardPresentation.resolve(call: nil, result: NativeToolDiffView(card: "unknown", diffs: resultDiff.diffs), settled: true) == nil else {
+            throw CheckFailure("missing or unknown settled diff must remain generic")
+        }
+        let diffRows = NativeDiffRowsPresentation.resolve(diffs: [
+            .init(path: "a.swift", oldText: "old\n", newText: "new\n\n"),
+            .init(path: "a.swift", oldText: nil, newText: "second"),
+            .init(path: "b.swift", oldText: "", newText: "created"),
+        ])
+        guard diffRows.rows.map(\.kind) == [.path, .deletion, .addition, .addition, .gap, .addition, .path, .addition],
+              diffRows.rows.map(\.text) == ["a.swift", "old", "new", "", "⋯", "second", "b.swift", "created"],
+              diffRows.added == 4,
+              diffRows.removed == 1,
+              diffRows.files == 2 else {
+            throw CheckFailure("diff rows must preserve source terminator, interior blank, same-path gap, and distinct-file totals")
+        }
         print("native tool row presentation portable check passed")
     }
 
