@@ -276,6 +276,14 @@ private struct NativeTerminalToolCardBody: View {
         NativeTerminalOutputWindow.resolve(lines: outputPresentation?.lines ?? [], maxLines: maxLines, expanded: expanded)
     }
 
+    private var ansiWindow: NativeTerminalANSILineWindow {
+        NativeTerminalANSILineWindow.resolve(
+            lines: outputPresentation?.ansiLines ?? [],
+            maxLines: maxLines,
+            expanded: expanded
+        )
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p8) {
             if let description = presentation.description, !description.isEmpty {
@@ -320,7 +328,7 @@ private struct NativeTerminalToolCardBody: View {
                 }
                 ScrollView(.horizontal, showsIndicators: true) {
                     VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p0) {
-                        outputLines(outputWindow.head)
+                        outputLines(ansiWindow.head)
                         if outputWindow.hiddenCount > 0 {
                             Button(action: { expanded.toggle() }) {
                                 Text(expanded
@@ -336,7 +344,7 @@ private struct NativeTerminalToolCardBody: View {
                                                 : locale("terminal.expandAria", replacing: ["n": String(outputWindow.hiddenCount)]))
                             .accessibilityValue(expanded ? "true" : "false")
                         }
-                        outputLines(outputWindow.tail)
+                        outputLines(ansiWindow.tail)
                     }
                     .padding(.vertical, OfficialUISpec.Spacing.p8)
                 }
@@ -353,14 +361,17 @@ private struct NativeTerminalToolCardBody: View {
     }
 
     @ViewBuilder
-    private func outputLines(_ lines: [String]) -> some View {
+    private func outputLines(_ lines: [[NativeTerminalANSISpan]]) -> some View {
         ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
-            Text(line)
-                .font(OfficialUISpec.Typography.codeSmall12)
-                .foregroundStyle(OfficialUISpec.Token.primary)
-                .fixedSize(horizontal: true, vertical: false)
-                .textSelection(.enabled)
-                .frame(minHeight: OfficialUISpec.Geometry.px22, alignment: .leading)
+            HStack(alignment: .firstTextBaseline, spacing: OfficialUISpec.Spacing.p0) {
+                ForEach(Array(line.enumerated()), id: \.offset) { _, span in
+                    NativeTerminalANSISpanText(span: span)
+                }
+            }
+            .font(OfficialUISpec.Typography.codeSmall12)
+            .fixedSize(horizontal: true, vertical: false)
+            .textSelection(.enabled)
+            .frame(minHeight: OfficialUISpec.Geometry.px22, alignment: .leading)
         }
     }
 
@@ -414,6 +425,88 @@ private struct NativeTerminalToolCardBody: View {
         return values.reduce(template) { partial, replacement in
             partial.replacingOccurrences(of: "{\(replacement.key)}", with: replacement.value)
         }
+    }
+}
+
+/// SwiftUI renderer for a Foundation-admitted ANSI span. Basic terminal colors
+/// use the same official semantic roles as rc.2; palette/truecolor values are
+/// Host-authored terminal data and retain their literal RGB appearance.
+private struct NativeTerminalANSISpanText: View {
+    let span: NativeTerminalANSISpan
+
+    private var style: NativeTerminalANSIStyle { span.style ?? .init() }
+
+    private var text: Text {
+        var text = Text(span.text)
+        if style.bold { text = text.bold() }
+        if style.italic { text = text.italic() }
+        if style.underline { text = text.underline() }
+        if style.strikethrough { text = text.strikethrough() }
+        return text
+    }
+
+    var body: some View {
+        text
+            .foregroundStyle(foreground ?? OfficialUISpec.Token.primary)
+            .background(background ?? Color.clear)
+            .opacity(style.hidden ? 0 : (style.dim ? 0.7 : 1))
+    }
+
+    private var foreground: Color? { color(style.foreground) }
+    private var background: Color? { color(style.background) }
+
+    private func color(_ color: NativeTerminalANSIColor?) -> Color? {
+        guard let color else { return nil }
+        switch color {
+        case let .basic(basic):
+            switch basic {
+            case .black, .white: return OfficialUISpec.Token.primary
+            case .brightBlack: return OfficialUISpec.Token.caption
+            case .red: return OfficialUISpec.Token.errorPrimary
+            case .brightRed: return OfficialUISpec.Token.errorSecondary
+            case .green, .brightGreen: return OfficialUISpec.Token.success
+            case .yellow: return OfficialUISpec.Token.warningPrimary
+            case .brightYellow: return OfficialUISpec.Token.warningBorder
+            case .blue, .brightBlue: return OfficialUISpec.Token.businessBlue
+            case .magenta: return literal(red: 187, green: 0, blue: 187)
+            case .brightMagenta: return literal(red: 255, green: 85, blue: 255)
+            case .cyan: return literal(red: 0, green: 187, blue: 187)
+            case .brightCyan: return literal(red: 0, green: 255, blue: 255)
+            }
+        case let .rgb(red, green, blue):
+            return literal(red: red, green: green, blue: blue)
+        case let .palette(index):
+            return palette(index)
+        }
+    }
+
+    private func palette(_ index: Int) -> Color {
+        let standard: [Color] = [
+            literal(red: 0, green: 0, blue: 0), literal(red: 187, green: 0, blue: 0),
+            literal(red: 0, green: 187, blue: 0), literal(red: 187, green: 187, blue: 0),
+            literal(red: 0, green: 0, blue: 187), literal(red: 187, green: 0, blue: 187),
+            literal(red: 0, green: 187, blue: 187), literal(red: 255, green: 255, blue: 255),
+            literal(red: 85, green: 85, blue: 85), literal(red: 255, green: 85, blue: 85),
+            literal(red: 0, green: 255, blue: 0), literal(red: 255, green: 255, blue: 85),
+            literal(red: 85, green: 85, blue: 255), literal(red: 255, green: 85, blue: 255),
+            literal(red: 0, green: 255, blue: 255), literal(red: 255, green: 255, blue: 255),
+        ]
+        if (0..<standard.count).contains(index) { return standard[index] }
+        if (16...231).contains(index) {
+            let value = index - 16
+            let components = [0, 95, 135, 175, 215, 255]
+            return literal(
+                red: components[value / 36],
+                green: components[(value / 6) % 6],
+                blue: components[value % 6]
+            )
+        }
+        let gray = 8 + (index - 232) * 10
+        return literal(red: gray, green: gray, blue: gray)
+    }
+
+    private func literal(red: Int, green: Int, blue: Int) -> Color {
+        Color(red: Double(red) / 255, green: Double(green) / 255, blue: Double(blue) / 255)
     }
 }
 

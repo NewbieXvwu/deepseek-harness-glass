@@ -94,21 +94,33 @@ public struct NativeTerminalCardPresentation: Equatable, Sendable {
 }
 
 /// Raw terminal output projection used by the native TerminalBlock counterpart.
-/// It owns only line/height semantics; ANSI styled-span parity remains separate
-/// from this safe text projection and never affects the copied Host raw output.
+/// It parses spans once over the complete Host output so SGR state can thread
+/// across lines, but preserves raw output untouched for clipboard copying.
 public struct NativeTerminalOutputPresentation: Equatable, Sendable {
     public let rawOutput: String
+    public let ansiLines: [[NativeTerminalANSISpan]]
     public let lines: [String]
     public let isVisiblyEmpty: Bool
+    public let requiresCursorReplay: Bool
 
     public static func resolve(output: String?) -> NativeTerminalOutputPresentation? {
         guard let output else { return nil }
-        let body = output.hasSuffix("\n") ? String(output.dropLast()) : output
-        let lines = body.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        let parsed = NativeTerminalANSIPresentation.parse(output)
+        // rc.2 drops the parsed terminal newline, including `line\\nESC[0m`:
+        // only a final fully empty parsed line is a terminator; a preceding
+        // blank line remains visible.
+        let ansiLines = parsed.lines.count > 1 && (parsed.lines.last?.allSatisfy { $0.text.isEmpty } ?? false)
+            ? Array(parsed.lines.dropLast())
+            : parsed.lines
+        let lines = ansiLines.map { $0.map(\.text).joined() }
         return .init(
             rawOutput: output,
+            ansiLines: ansiLines,
             lines: lines,
-            isVisiblyEmpty: lines.allSatisfy { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            isVisiblyEmpty: ansiLines.allSatisfy { line in
+                line.allSatisfy { $0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            },
+            requiresCursorReplay: parsed.requiresCursorReplay
         )
     }
 }
@@ -122,6 +134,33 @@ public struct NativeTerminalOutputWindow: Equatable, Sendable {
     public let hiddenCount: Int
 
     public static func resolve(lines: [String], maxLines: Int?, expanded: Bool) -> NativeTerminalOutputWindow {
+        guard let maxLines, maxLines >= 0, !expanded, lines.count > maxLines else {
+            return .init(head: lines, tail: [], hiddenCount: 0)
+        }
+        let hidden = lines.count - maxLines
+        let headCount = (maxLines + 1) / 2
+        let tailCount = maxLines - headCount
+        return .init(
+            head: Array(lines.prefix(headCount)),
+            tail: tailCount == 0 ? [] : Array(lines.suffix(tailCount)),
+            hiddenCount: hidden
+        )
+    }
+}
+
+/// The typed-span counterpart of `NativeTerminalOutputWindow`. It shares the
+/// exact head/tail counts but never reparses individual lines, preserving SGR
+/// state that began before a capped tail line.
+public struct NativeTerminalANSILineWindow: Equatable, Sendable {
+    public let head: [[NativeTerminalANSISpan]]
+    public let tail: [[NativeTerminalANSISpan]]
+    public let hiddenCount: Int
+
+    public static func resolve(
+        lines: [[NativeTerminalANSISpan]],
+        maxLines: Int?,
+        expanded: Bool
+    ) -> NativeTerminalANSILineWindow {
         guard let maxLines, maxLines >= 0, !expanded, lines.count > maxLines else {
             return .init(head: lines, tail: [], hiddenCount: 0)
         }

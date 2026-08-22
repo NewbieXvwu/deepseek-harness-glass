@@ -423,6 +423,34 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         )
     }
 
+    func testTypedTerminalDetailsExportsVisibleANSISpansWithoutControlBytes() throws {
+        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.input", language: "en"))
+        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.output", language: "en"))
+        let invocation = NativeSessionStore.ToolInvocation(
+            id: "terminal-ansi-details",
+            name: "bash",
+            arguments: #"{"command":"printf"}"#,
+            output: "generic terminal output must not leak",
+            textOutput: "generic terminal output must not leak",
+            errorName: nil,
+            errorCode: nil,
+            state: .completed,
+            sequence: 1,
+            callView: ToolEventViewDTO(for: "call", view: .object([
+                "card": .string("terminal"), "title": .string("printf"),
+            ])),
+            resultView: ToolEventViewDTO(for: "result", view: .object([
+                "card": .string("terminal"), "title": .string("printf"),
+                "output": .string("\u{1B}[31mred\u{1B}[0m plain\n"), "exitCode": .number(0),
+            ]))
+        )
+        try assertAccessibleLabels(
+            in: NativeToolDetailsBody(invocation: invocation, selectedCallID: invocation.id),
+            expected: [input, output, "red", "plain"],
+            forbidden: ["\u{1B}[31m", "generic terminal output must not leak"]
+        )
+    }
+
     func testFileToolPathAccessibilityFollowsVerifiedCapability() throws {
         let invocation = NativeSessionStore.ToolInvocation(
             id: "write-path",
