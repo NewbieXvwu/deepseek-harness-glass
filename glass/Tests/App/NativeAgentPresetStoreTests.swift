@@ -61,8 +61,10 @@ final class NativeAgentPresetStoreTests: XCTestCase {
         ])
         let store = NativeAgentPresetStore()
         await store.refresh(using: api)
-        XCTAssertTrue(await store.select(sessionID: "session", agentPreset: "custom", using: api))
-        XCTAssertTrue(await store.read(agentPreset: "custom", using: api))
+        let selected = await store.select(sessionID: "session", agentPreset: "custom", using: api)
+        XCTAssertTrue(selected)
+        let read = await store.read(agentPreset: "custom", using: api)
+        XCTAssertTrue(read)
 
         let removed = await store.remove(agentPreset: "custom", using: api)
 
@@ -78,11 +80,13 @@ final class NativeAgentPresetStoreTests: XCTestCase {
         let store = NativeAgentPresetStore()
         await store.refresh(using: api)
 
-        XCTAssertTrue(await store.openDocument(agentPreset: "custom", using: api))
+        let openedBeforeDocumentExists = await store.openDocument(agentPreset: "custom", using: api)
+        XCTAssertTrue(openedBeforeDocumentExists)
         XCTAssertEqual(store.revealedPaths, ["custom": "/host/preset"])
 
         api.openedDocument = true
-        XCTAssertTrue(await store.openDocument(agentPreset: "custom", using: api))
+        let openedAfterDocumentExists = await store.openDocument(agentPreset: "custom", using: api)
+        XCTAssertTrue(openedAfterDocumentExists)
         XCTAssertEqual(store.revealedPaths, ["custom": "/host/preset"])
 
         api.removePresetFromRoster(id: "custom")

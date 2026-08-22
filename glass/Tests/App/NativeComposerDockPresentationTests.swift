@@ -7,9 +7,9 @@ final class NativeComposerDockPresentationTests: XCTestCase {
     func testHostProjectionDocksUseFixedTodoGoalQueueStatsOrder() {
         XCTAssertEqual(
             NativeComposerDockPresentation.components(
-                todos: [.init(id: "todo-1", text: "Host todo", status: .pending)],
-                goal: .init(id: "goal-1", title: "Host goal", phase: .active),
-                queuedMessages: [.init(id: "queue-1", content: [.text("Host queue")])],
+                todos: [.init(content: "Host todo", status: .pending)],
+                goal: goal(),
+                queuedMessages: [queuedMessage()],
                 chatNodes: [assistantNode()],
                 locallyClearedGoalID: nil,
                 hasPendingTakeover: false
@@ -22,7 +22,7 @@ final class NativeComposerDockPresentationTests: XCTestCase {
         XCTAssertEqual(
             NativeComposerDockPresentation.components(
                 todos: [],
-                goal: .init(id: "goal-1", title: "Host goal", phase: .active),
+                goal: goal(),
                 queuedMessages: [],
                 chatNodes: [],
                 locallyClearedGoalID: "goal-1",
@@ -35,14 +35,41 @@ final class NativeComposerDockPresentationTests: XCTestCase {
     func testPendingTakeoverHidesAllDocksIncludingStatsUntilHostResolvesInteraction() {
         XCTAssertEqual(
             NativeComposerDockPresentation.components(
-                todos: [.init(id: "todo-1", text: "Host todo", status: .pending)],
-                goal: .init(id: "goal-1", title: "Host goal", phase: .active),
-                queuedMessages: [.init(id: "queue-1", content: [.text("Host queue")])],
+                todos: [.init(content: "Host todo", status: .pending)],
+                goal: goal(),
+                queuedMessages: [queuedMessage()],
                 chatNodes: [assistantNode()],
                 locallyClearedGoalID: nil,
                 hasPendingTakeover: true
             ),
             []
+        )
+    }
+
+    private func goal() -> CoreGoalProjection {
+        .init(
+            id: "goal-1",
+            revision: 1,
+            objective: "Host goal",
+            phase: .active,
+            blockedReason: nil,
+            maxGoalRounds: 3,
+            roundsStarted: 0,
+            createdAt: 1,
+            updatedAt: 1
+        )
+    }
+
+    private func queuedMessage() -> NativeSessionStore.QueuedMessage {
+        .init(
+            id: "queue-1",
+            messageID: "queue-1",
+            placement: .queued,
+            role: "user",
+            content: [.string("Host queue")],
+            source: .object([:]),
+            preview: "Host queue",
+            text: "Host queue"
         )
     }
 
