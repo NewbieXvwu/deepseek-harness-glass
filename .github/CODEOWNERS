@@ -1,0 +1,9 @@
+# 默认审阅人：所有变更需仓库所有者复核
+* @NewbieXvwu
+
+# 高风险路径优先审阅：生产核心与测试质量红线
+glass/Sources/Core/ @NewbieXvwu
+glass/Tests/ @NewbieXvwu
+glass/ci/ @NewbieXvwu
+tools/ @NewbieXvwu
+.github/workflows/ @NewbieXvwu

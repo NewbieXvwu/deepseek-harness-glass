@@ -79,3 +79,27 @@ TODO 条目是原子完成单元：
 Host payload 升级顺序：锁定新官方 commit → 生成和审阅 `OfficialUISpec` → 更新 DTO → 契约回归 → reducer 回归 → 官方/原生 golden → 无障碍与性能 → 更新 `SupportedHostBuilds.json` → 当前 SHA CI 成功。
 
 正式发布还需要 clean environment 构建、Build Manifest、Developer ID 签名、Hardened Runtime、公证和 stapling。
+
+## 8. 变更提交流程（强制）
+
+**禁止直接向 `main` 推送变更。** 所有变更必须走分支 → PR → CI 全绿 → 审阅 → 合并：
+
+1. 从 `main` 切出功能分支：`git switch -c feat/TXX.x-<short-name>`。
+2. 小步提交，一条提交一个主题（消息格式见第 6 节）。
+3. 推送前自检（必须全部通过）：
+   - `cd glass && swift build`
+   - `swift test --filter <受影响套件>`（改动触及的测试全部通过）
+   - `python3 glass/ci/check-test-integrity.py` 输出 **0 恒真断言命中**
+   - 新增测试必须能杀死至少一个突变体；无法本地跑突变时在 PR 中说明理由
+4. 推送分支并开启 PR，按 `.github/pull_request_template.md` 填写自检清单。
+5. 等待 `portable-checks` 与 `native-ui`（以及触及 PortableCore 时的 `mutation-testing`）全绿；任何红色必须修复或提供 review 豁免的理由。
+6. 审阅人（见 `.github/CODEOWNERS`）复核后合并；合并使用 **Squash and merge**，保留单一主题化提交。
+
+质量红线（违反即打回）：
+
+- 无恒真/镜像/仪式断言（`XCTAssertTrue(静态常量)`、测试复制实现、只验元数据不验行为）。
+- 无盲等时序（`Task.sleep` 代替 expectation/eventually）、无忙轮询死等、无 `string contains` 代替精确断言。
+- 无纯预览假数据被当作业务测试（`loadSnapshot*Fixture` 只许预览，不许断言硬编码字段）。
+- 无 `glass/ci/*portable-check.swift` 双轨文件、无重复 stub 分叉。
+- 无吞错测试（`catch { return false }` 不记录、空 catch）。
+- 删除低价值测试比保留假绿测试更受欢迎。
