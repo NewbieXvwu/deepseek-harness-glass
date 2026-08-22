@@ -359,6 +359,45 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         )
     }
 
+    func testTypedTerminalDetailsExportsCappedOutputAndCopy() throws {
+        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.input", language: "en"))
+        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.output", language: "en"))
+        let lines = (1...20).map(String.init)
+        let invocation = NativeSessionStore.ToolInvocation(
+            id: "terminal-details",
+            name: "bash",
+            arguments: #"{"command":"seq 20"}"#,
+            output: "generic terminal output must not leak",
+            textOutput: "generic terminal output must not leak",
+            errorName: nil,
+            errorCode: nil,
+            state: .completed,
+            sequence: 1,
+            callView: ToolEventViewDTO(for: "call", view: .object([
+                "card": .string("terminal"), "title": .string("seq 20"), "cwd": .string("/workspace"),
+            ])),
+            resultView: ToolEventViewDTO(for: "result", view: .object([
+                "card": .string("terminal"), "title": .string("seq 20"), "output": .string(lines.joined(separator: "\n") + "\n"),
+                "exitCode": .number(0),
+            ]))
+        )
+        try assertAccessibleLabels(
+            in: NativeToolDetailsBody(invocation: invocation, selectedCallID: invocation.id),
+            expected: [
+                input,
+                output,
+                "seq 20",
+                OfficialUISpec.Text.copy,
+                "1",
+                "8",
+                "13",
+                "20",
+                "… 4 more lines",
+            ],
+            forbidden: ["generic terminal output must not leak", "9", "12"]
+        )
+    }
+
     func testFileToolPathAccessibilityFollowsVerifiedCapability() throws {
         let invocation = NativeSessionStore.ToolInvocation(
             id: "write-path",

@@ -72,7 +72,7 @@ struct NativeToolRow: View {
 
             if expanded {
                 if let terminal {
-                    NativeTerminalToolCardBody(presentation: terminal)
+                    NativeTerminalToolCardBody(presentation: terminal, maxLines: nil)
                 } else if let diff {
                     NativeDiffToolCardBody(presentation: diff, maxLines: 8)
                 } else if let read {
@@ -262,6 +262,19 @@ struct NativeToolRow: View {
 /// never construct this body and remain in the safe raw fallback above.
 private struct NativeTerminalToolCardBody: View {
     let presentation: NativeTerminalCardPresentation
+    /// `nil` mirrors ToolRow's uncapped terminal body; details uses 16.
+    let maxLines: Int?
+
+    @State private var expanded = false
+    @State private var copied = false
+
+    private var outputPresentation: NativeTerminalOutputPresentation? {
+        NativeTerminalOutputPresentation.resolve(output: presentation.output)
+    }
+
+    private var outputWindow: NativeTerminalOutputWindow {
+        NativeTerminalOutputWindow.resolve(lines: outputPresentation?.lines ?? [], maxLines: maxLines, expanded: expanded)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p8) {
@@ -293,13 +306,40 @@ private struct NativeTerminalToolCardBody: View {
                 }
             }
             .accessibilityLabel(status)
-            if let output = presentation.output {
+            if let output = outputPresentation, !presentation.running, !output.isVisiblyEmpty {
                 Divider()
-                Text(output)
-                    .font(OfficialUISpec.Typography.codeSmall12)
-                    .foregroundStyle(presentation.failed ? OfficialUISpec.Token.errorPrimary : OfficialUISpec.Token.secondary)
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                HStack {
+                    Spacer(minLength: 0)
+                    Button(action: copyOutput) {
+                        Text(copied ? OfficialUISpec.Text.copied : OfficialUISpec.Text.copy)
+                            .font(OfficialUISpec.Typography.xs13)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(OfficialUISpec.Token.secondary)
+                    .accessibilityLabel(copied ? OfficialUISpec.Text.copied : OfficialUISpec.Text.copy)
+                }
+                ScrollView(.horizontal, showsIndicators: true) {
+                    VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p0) {
+                        outputLines(outputWindow.head)
+                        if outputWindow.hiddenCount > 0 {
+                            Button(action: { expanded.toggle() }) {
+                                Text(expanded
+                                     ? locale("terminal.collapseAria")
+                                     : locale("terminal.expandRest", replacing: ["n": String(outputWindow.hiddenCount)]))
+                                    .font(OfficialUISpec.Typography.codeSmall12)
+                                    .foregroundStyle(OfficialUISpec.Token.caption)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(expanded
+                                                ? locale("terminal.collapseAria")
+                                                : locale("terminal.expandAria", replacing: ["n": String(outputWindow.hiddenCount)]))
+                            .accessibilityValue(expanded ? "true" : "false")
+                        }
+                        outputLines(outputWindow.tail)
+                    }
+                    .padding(.vertical, OfficialUISpec.Spacing.p8)
+                }
             } else if !presentation.running {
                 Divider()
                 Text(locale("terminal.noOutput"))
@@ -308,7 +348,29 @@ private struct NativeTerminalToolCardBody: View {
             }
         }
         .padding(OfficialUISpec.Spacing.p10)
-        .background(OfficialUISpec.Token.elevated, in: RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r8, style: .continuous))
+        .background(OfficialUISpec.Token.markdownCodeBlock, in: RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r12, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r12, style: .continuous))
+    }
+
+    @ViewBuilder
+    private func outputLines(_ lines: [String]) -> some View {
+        ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
+            Text(line)
+                .font(OfficialUISpec.Typography.codeSmall12)
+                .foregroundStyle(OfficialUISpec.Token.primary)
+                .fixedSize(horizontal: true, vertical: false)
+                .textSelection(.enabled)
+                .frame(minHeight: OfficialUISpec.Geometry.px22, alignment: .leading)
+        }
+    }
+
+    private func copyOutput() {
+        guard let rawOutput = outputPresentation?.rawOutput else { return }
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        guard pasteboard.setString(rawOutput, forType: .string) else { return }
+        copied = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { copied = false }
     }
 
     private var commandLines: [String] {
@@ -925,7 +987,7 @@ struct NativeToolDetailsBody: View {
                             // rc.2 terminalCardModel also admits a running
                             // terminal call. It replaces `details.running`; a
                             // running non-terminal tool remains generic below.
-                            NativeTerminalToolCardBody(presentation: terminal)
+                            NativeTerminalToolCardBody(presentation: terminal, maxLines: 16)
                                 .id(invocation.id)
                         } else if let read = readPresentation(for: invocation) {
                             // rc.2 readCardModel is result-side only, so this

@@ -92,3 +92,46 @@ public struct NativeTerminalCardPresentation: Equatable, Sendable {
         !running && ((exitCode != nil && exitCode != 0) || signal != nil)
     }
 }
+
+/// Raw terminal output projection used by the native TerminalBlock counterpart.
+/// It owns only line/height semantics; ANSI styled-span parity remains separate
+/// from this safe text projection and never affects the copied Host raw output.
+public struct NativeTerminalOutputPresentation: Equatable, Sendable {
+    public let rawOutput: String
+    public let lines: [String]
+    public let isVisiblyEmpty: Bool
+
+    public static func resolve(output: String?) -> NativeTerminalOutputPresentation? {
+        guard let output else { return nil }
+        let body = output.hasSuffix("\n") ? String(output.dropLast()) : output
+        let lines = body.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        return .init(
+            rawOutput: output,
+            lines: lines,
+            isVisiblyEmpty: lines.allSatisfy { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        )
+    }
+}
+
+/// Shared head/tail cap used by terminal details. The row passes `nil` maxLines
+/// because rc.2 ToolRow expands terminal output without a cap; details uses the
+/// primitive default 16-line cap.
+public struct NativeTerminalOutputWindow: Equatable, Sendable {
+    public let head: [String]
+    public let tail: [String]
+    public let hiddenCount: Int
+
+    public static func resolve(lines: [String], maxLines: Int?, expanded: Bool) -> NativeTerminalOutputWindow {
+        guard let maxLines, maxLines >= 0, !expanded, lines.count > maxLines else {
+            return .init(head: lines, tail: [], hiddenCount: 0)
+        }
+        let hidden = lines.count - maxLines
+        let headCount = (maxLines + 1) / 2
+        let tailCount = maxLines - headCount
+        return .init(
+            head: Array(lines.prefix(headCount)),
+            tail: tailCount == 0 ? [] : Array(lines.suffix(tailCount)),
+            hiddenCount: hidden
+        )
+    }
+}

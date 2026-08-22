@@ -262,6 +262,27 @@ struct NativeToolRowPresentationPortableCheck {
         guard unsafeWeb.destination == nil, unsafeWeb.label == "javascript:alert(1)" else {
             throw CheckFailure("non-http web source must remain an inert raw-text label")
         }
+
+        guard let terminalOutput = NativeTerminalOutputPresentation.resolve(output: "one\ntwo\n\n"),
+              terminalOutput.rawOutput == "one\ntwo\n\n",
+              terminalOutput.lines == ["one", "two", ""],
+              !terminalOutput.isVisiblyEmpty else {
+            throw CheckFailure("terminal output must drop one terminator while retaining raw copy text and genuine blank final line")
+        }
+        guard NativeTerminalOutputPresentation.resolve(output: " \n\t\n")?.isVisiblyEmpty == true else {
+            throw CheckFailure("whitespace-only terminal output must take the no-output path")
+        }
+        let terminalLines = (1...20).map(String.init)
+        let terminalDetails = NativeTerminalOutputWindow.resolve(lines: terminalLines, maxLines: 16, expanded: false)
+        guard terminalDetails.head == Array(terminalLines.prefix(8)),
+              terminalDetails.tail == Array(terminalLines.suffix(8)),
+              terminalDetails.hiddenCount == 4 else {
+            throw CheckFailure("terminal details must use the official 16-line head/tail cap")
+        }
+        let terminalRow = NativeTerminalOutputWindow.resolve(lines: terminalLines, maxLines: nil, expanded: false)
+        guard terminalRow.head == terminalLines, terminalRow.tail.isEmpty, terminalRow.hiddenCount == 0 else {
+            throw CheckFailure("terminal row must remain uncapped")
+        }
         print("native tool row presentation portable check passed")
     }
 

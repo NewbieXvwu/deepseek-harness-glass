@@ -47,3 +47,30 @@ final class NativeToolTerminalViewAdapterTests: XCTestCase {
         )
     }
 }
+
+final class NativeTerminalOutputPresentationTests: XCTestCase {
+    func testOutputProjectionDropsOneTerminatorPreservesInteriorBlankAndCapsDetailsOnly() throws {
+        let projection = try XCTUnwrap(NativeTerminalOutputPresentation.resolve(output: "one\ntwo\n\n"))
+        XCTAssertEqual(projection.rawOutput, "one\ntwo\n\n")
+        XCTAssertEqual(projection.lines, ["one", "two", ""])
+        XCTAssertFalse(projection.isVisiblyEmpty)
+
+        let lines = (1...20).map(String.init)
+        let details = NativeTerminalOutputWindow.resolve(lines: lines, maxLines: 16, expanded: false)
+        XCTAssertEqual(details.head, Array(lines.prefix(8)))
+        XCTAssertEqual(details.tail, Array(lines.suffix(8)))
+        XCTAssertEqual(details.hiddenCount, 4)
+        let row = NativeTerminalOutputWindow.resolve(lines: lines, maxLines: nil, expanded: false)
+        XCTAssertEqual(row.head, lines)
+        XCTAssertTrue(row.tail.isEmpty)
+        XCTAssertEqual(row.hiddenCount, 0)
+        XCTAssertEqual(NativeTerminalOutputWindow.resolve(lines: lines, maxLines: 16, expanded: true).head, lines)
+    }
+
+    func testOutputProjectionKeepsRawCopyTextButTreatsWhitespaceOnlyAsEmpty() throws {
+        let whitespace = try XCTUnwrap(NativeTerminalOutputPresentation.resolve(output: " \n\t\n"))
+        XCTAssertEqual(whitespace.rawOutput, " \n\t\n")
+        XCTAssertTrue(whitespace.isVisiblyEmpty)
+        XCTAssertNil(NativeTerminalOutputPresentation.resolve(output: nil))
+    }
+}
