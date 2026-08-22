@@ -3,6 +3,7 @@ import Foundation
 
 #if DEEPSEEK_HARNESS_PACKAGE
 @testable import GlassCore
+@testable import GlassPortableCore
 @testable import GlassSpec
 #endif
 /// Native generic fallback for the official `tool.call.toolview` seat.
@@ -41,7 +42,7 @@ struct NativeToolRow: View {
                     .frame(width: OfficialUISpec.Spacing.p2, height: OfficialUISpec.Spacing.p2)
                     .padding(.horizontal, OfficialUISpec.Spacing.p8)
 
-                if let filePath, canOpenProjectPath, state != .failed {
+                if let filePath, canOpenProjectPath, !rowFailed {
                     Button(action: { openKnownProjectPath(filePath) }) {
                         Text(summary)
                             .font(OfficialUISpec.Typography.s14)
@@ -57,7 +58,7 @@ struct NativeToolRow: View {
                     Button(action: toggleExpandedAndInspect) {
                         Text(summary)
                             .font(OfficialUISpec.Typography.s14)
-                            .foregroundStyle(state == .failed ? OfficialUISpec.Token.errorPrimary : OfficialUISpec.Token.secondary)
+                            .foregroundStyle(rowFailed ? OfficialUISpec.Token.errorPrimary : OfficialUISpec.Token.secondary)
                             .lineLimit(1)
                             .truncationMode(.tail)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -70,26 +71,30 @@ struct NativeToolRow: View {
             }
 
             if expanded {
-                let body = NativeToolRowPresentation.body(toolName: invocation.name, arguments: invocation.arguments)
-                VStack(alignment: .leading, spacing: 8) {
-                    if let body {
-                        Text(body)
-                            .font(OfficialUISpec.Typography.codeSmall12)
-                            .foregroundStyle(OfficialUISpec.Token.secondary)
-                            .textSelection(.enabled)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                if let terminal {
+                    NativeTerminalToolCardBody(presentation: terminal)
+                } else {
+                    let body = NativeToolRowPresentation.body(toolName: invocation.name, arguments: invocation.arguments)
+                    VStack(alignment: .leading, spacing: 8) {
+                        if let body {
+                            Text(body)
+                                .font(OfficialUISpec.Typography.codeSmall12)
+                                .foregroundStyle(OfficialUISpec.Token.secondary)
+                                .textSelection(.enabled)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        if let output = invocation.output {
+                            if body != nil { Divider() }
+                            Text(output)
+                                .font(OfficialUISpec.Typography.codeSmall12)
+                                .foregroundStyle(rowFailed ? OfficialUISpec.Token.errorPrimary : OfficialUISpec.Token.secondary)
+                                .textSelection(.enabled)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
                     }
-                    if let output = invocation.output {
-                        if body != nil { Divider() }
-                        Text(output)
-                            .font(OfficialUISpec.Typography.codeSmall12)
-                            .foregroundStyle(state == .failed ? OfficialUISpec.Token.errorPrimary : OfficialUISpec.Token.secondary)
-                            .textSelection(.enabled)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
+                    .padding(OfficialUISpec.Spacing.p10)
+                    .background(OfficialUISpec.Token.elevated, in: RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r8, style: .continuous))
                 }
-                .padding(OfficialUISpec.Spacing.p10)
-                .background(OfficialUISpec.Token.elevated, in: RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r8, style: .continuous))
             }
         }
         .padding(.horizontal, OfficialUISpec.Spacing.p8)
@@ -128,13 +133,29 @@ struct NativeToolRow: View {
         NativeToolRowModel.filePath(toolName: invocation.name, arguments: invocation.arguments)
     }
 
+    /// `ToolEventView.for` was retained separately by Core. A terminal call is
+    /// insufficient once a result arrives: the settled side must itself admit
+    /// `card:'terminal'`, otherwise the official generic raw fallback wins.
+    private var terminal: NativeTerminalCardPresentation? {
+        NativeTerminalCardPresentation.resolve(
+            call: invocation.callView?.nativeTerminalView,
+            result: invocation.resultView?.nativeTerminalView,
+            settled: state != .running
+        )
+    }
+
     private var rowAccessibilityLabel: String {
         summary.isEmpty ? title : "\(title) \(summary)"
     }
 
     private var state: NativeSessionStore.ToolInvocation.State { invocation.state }
 
+    private var rowFailed: Bool {
+        state == .failed || terminal?.failed == true
+    }
+
     private var stateDescription: String {
+        if terminal?.failed == true { return OfficialUISpec.Text.toolFailed }
         switch state {
         case .running: OfficialUISpec.Text.toolRunning
         case .completed: ""
@@ -145,17 +166,23 @@ struct NativeToolRow: View {
 
     @ViewBuilder
     private var leading: some View {
-        switch state {
-        case .running:
-            ProgressView().controlSize(.mini)
-        case .failed:
+        if rowFailed {
             Circle().fill(OfficialUISpec.Token.errorPrimary).frame(width: OfficialUISpec.Geometry.px8, height: OfficialUISpec.Geometry.px8)
-        case .stopped:
-            Circle().fill(OfficialUISpec.Token.warningPrimary).frame(width: OfficialUISpec.Geometry.px8, height: OfficialUISpec.Geometry.px8)
-        case .completed:
-            OfficialAssetImage(name: iconName, template: true)
-                .frame(width: OfficialUISpec.Geometry.px14, height: OfficialUISpec.Geometry.px14)
-                .foregroundStyle(OfficialUISpec.Token.secondary)
+        } else {
+            switch state {
+            case .running:
+                ProgressView().controlSize(.mini)
+            case .failed:
+                // `rowFailed` handles this state above; retain the exhaustive
+                // state switch so a future enum case cannot silently render.
+                Circle().fill(OfficialUISpec.Token.errorPrimary).frame(width: OfficialUISpec.Geometry.px8, height: OfficialUISpec.Geometry.px8)
+            case .stopped:
+                Circle().fill(OfficialUISpec.Token.warningPrimary).frame(width: OfficialUISpec.Geometry.px8, height: OfficialUISpec.Geometry.px8)
+            case .completed:
+                OfficialAssetImage(name: iconName, template: true)
+                    .frame(width: OfficialUISpec.Geometry.px14, height: OfficialUISpec.Geometry.px14)
+                    .foregroundStyle(OfficialUISpec.Token.secondary)
+            }
         }
     }
 
@@ -183,6 +210,74 @@ struct NativeToolRow: View {
         case "edit": .edit
         case "run_code": .code
         default: .others
+        }
+    }
+}
+
+/// Native terminal body for the official `card:'terminal'` renderer intent.
+///
+/// The Host card owns command/output/status facts. This view deliberately has no
+/// local card selection and no generic input section: a terminal card replaces
+/// the generic body exactly as rc.2 `ToolRow` does. Unknown or mismatched views
+/// never construct this body and remain in the safe raw fallback above.
+private struct NativeTerminalToolCardBody: View {
+    let presentation: NativeTerminalCardPresentation
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p8) {
+            if let description = presentation.description, !description.isEmpty {
+                Text(description)
+                    .font(OfficialUISpec.Typography.xs13)
+                    .foregroundStyle(OfficialUISpec.Token.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            Text(prompt)
+                .font(OfficialUISpec.Typography.codeSmall12)
+                .foregroundStyle(OfficialUISpec.Token.primary)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            if let output = presentation.output {
+                Divider()
+                Text(output)
+                    .font(OfficialUISpec.Typography.codeSmall12)
+                    .foregroundStyle(presentation.failed ? OfficialUISpec.Token.errorPrimary : OfficialUISpec.Token.secondary)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else if !presentation.running {
+                Divider()
+                Text(locale("terminal.noOutput"))
+                    .font(OfficialUISpec.Typography.codeSmall12)
+                    .foregroundStyle(OfficialUISpec.Token.secondary)
+            }
+            Text(status)
+                .font(OfficialUISpec.Typography.xs13)
+                .foregroundStyle(presentation.failed ? OfficialUISpec.Token.errorPrimary : OfficialUISpec.Token.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(OfficialUISpec.Spacing.p10)
+        .background(OfficialUISpec.Token.elevated, in: RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r8, style: .continuous))
+    }
+
+    private var prompt: String {
+        let directory = presentation.cwd ?? ""
+        return directory.isEmpty ? "$ \(presentation.command)" : "\(directory) $ \(presentation.command)"
+    }
+
+    private var status: String {
+        if presentation.running { return locale("terminal.running") }
+        if let signal = presentation.signal {
+            return locale("terminal.signal", replacing: ["signal": signal])
+        }
+        if let exitCode = presentation.exitCode, exitCode != 0 {
+            return locale("terminal.exitCode", replacing: ["code": String(exitCode)])
+        }
+        return locale("terminal.done")
+    }
+
+    private func locale(_ key: String, replacing values: [String: String] = [:]) -> String {
+        let template = OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: key, language: "en") ?? ""
+        return values.reduce(template) { partial, replacement in
+            partial.replacingOccurrences(of: "{\(replacement.key)}", with: replacement.value)
         }
     }
 }

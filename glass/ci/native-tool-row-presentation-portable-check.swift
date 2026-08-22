@@ -61,6 +61,53 @@ struct NativeToolRowPresentationPortableCheck {
         ), pretty.contains("\n"), pretty.contains("\"command\""), pretty.contains("\"description\"") else {
             throw CheckFailure("generic JSON arguments must retain a pretty, complete body")
         }
+
+        let call = NativeToolTerminalView(
+            card: "terminal",
+            title: "pwd",
+            description: "Show workspace",
+            cwd: "sub"
+        )
+        guard let running = NativeTerminalCardPresentation.resolve(call: call, result: nil, settled: false) else {
+            throw CheckFailure("terminal call view must derive a running card")
+        }
+        try expectEqual(running.command, "pwd", "running terminal card must use call title")
+        guard running.running, running.output == nil, running.cwd == "sub" else {
+            throw CheckFailure("running terminal card must retain only call-side material")
+        }
+
+        guard let settled = NativeTerminalCardPresentation.resolve(
+            call: call,
+            result: NativeToolTerminalView(card: "terminal", title: "pwd -P", output: "/workspace\\n", exitCode: 3),
+            settled: true
+        ) else {
+            throw CheckFailure("terminal result view must derive a settled card")
+        }
+        try expectEqual(settled.command, "pwd -P", "result title must replace call title")
+        try expectEqual(settled.output, "/workspace\\n", "terminal result output must be retained")
+        guard settled.failed else { throw CheckFailure("nonzero settled terminal exit must surface as terminal failure") }
+
+        guard NativeTerminalCardPresentation.resolve(
+            call: call,
+            result: NativeToolTerminalView(card: "generic", output: "background"),
+            settled: true
+        ) == nil else {
+            throw CheckFailure("generic settled result must not inherit a terminal call card")
+        }
+        guard NativeTerminalCardPresentation.resolve(
+            call: NativeToolTerminalView(card: "unknown", title: "pwd"),
+            result: nil,
+            settled: false
+        ) == nil else {
+            throw CheckFailure("unknown running card must remain generic")
+        }
+        guard let truncated = NativeTerminalCardPresentation.resolve(
+            call: nil,
+            result: NativeToolTerminalView(card: "terminal", title: "echo hi", output: "hi"),
+            settled: true
+        ), truncated.cwd == nil, truncated.command == "echo hi" else {
+            throw CheckFailure("truncated call side must retain result title without inventing cwd")
+        }
         print("native tool row presentation portable check passed")
     }
 

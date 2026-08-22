@@ -169,7 +169,8 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
             output: nil,
             state: .completed,
             sequence: 1,
-            view: nil
+            callView: nil,
+            resultView: nil
         )
         try assertAccessibleLabels(
             in: NativeToolRow(

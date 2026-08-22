@@ -335,7 +335,12 @@ final class NativeSessionStore: ObservableObject {
         var output: String?
         var state: State
         let sequence: Int
-        var view: JSONValue?
+        /// The Host presents call and settled-result sides independently. They
+        /// cannot share one field: a terminal result needs both views, while a
+        /// terminal call followed by a generic result must take the raw generic
+        /// fallback rather than inherit the earlier terminal card.
+        var callView: ToolEventViewDTO?
+        var resultView: ToolEventViewDTO?
     }
 
     /// Host `session/queue` whole-snapshot row. It is transient and therefore
@@ -1929,7 +1934,7 @@ final class NativeSessionStore: ObservableObject {
 
     private func applyHistory(_ entries: [SessionHistoryEntryDTO]) {
         for entry in entries.sorted(by: { $0.event.seq < $1.event.seq }) {
-            apply(event: entry.event, view: entry.view?.view)
+            apply(event: entry.event, view: entry.view)
         }
     }
 
@@ -1963,7 +1968,7 @@ final class NativeSessionStore: ObservableObject {
                 return
             }
             appendConversationEvent(.init(event: event, view: view))
-            apply(event: event, view: view?.view)
+            apply(event: event, view: view)
         case "session/subscribed":
             applySubscription(object, sessionID: sessionID)
         case "session/projection":
@@ -2053,7 +2058,7 @@ final class NativeSessionStore: ObservableObject {
             let tail = conversationReducer.rawWindow().map(\.event.seq).max()
             guard tail == nil || entry.event.seq > tail! else { continue }
             appendConversationEvent(.init(entry: entry))
-            apply(event: entry.event, view: entry.view?.view)
+            apply(event: entry.event, view: entry.view)
         }
     }
 
@@ -2415,7 +2420,7 @@ final class NativeSessionStore: ObservableObject {
         }
     }
 
-    private func apply(event: SessionEventDTO, view: JSONValue? = nil) {
+    private func apply(event: SessionEventDTO, view: ToolEventViewDTO? = nil) {
         if event.type != "assistant/chunk" {
             guard appliedSequences.insert(event.seq).inserted else { return }
         }
@@ -2454,9 +2459,12 @@ final class NativeSessionStore: ObservableObject {
             isRunning = true
             applyAssistantChunk(event)
         case "tool/call":
-            applyToolCall(event, view: view)
+            // The `for` discriminator is part of the official ToolEventView
+            // contract. A mismatched or unknown target receives no specialized
+            // renderer and safely retains the generic arguments/output path.
+            applyToolCall(event, view: view?.for == "call" ? view : nil)
         case "tool/result":
-            applyToolResult(event, view: view)
+            applyToolResult(event, view: view?.for == "result" ? view : nil)
         case "turn/end":
             isRunning = false
             settleStreaming()
@@ -2493,7 +2501,7 @@ final class NativeSessionStore: ObservableObject {
         }
     }
 
-    private func applyToolCall(_ event: SessionEventDTO, view: JSONValue?) {
+    private func applyToolCall(_ event: SessionEventDTO, view: ToolEventViewDTO?) {
         guard let data = event.data.objectValue,
               let callID = data["callId"]?.stringValue,
               let name = data["name"]?.stringValue,
@@ -2507,7 +2515,8 @@ final class NativeSessionStore: ObservableObject {
             output: nil,
             state: .running,
             sequence: event.seq,
-            view: view
+            callView: view,
+            resultView: nil
         )
         // Sorted-insert by sequence; keeps the timeline merge linear and avoids
         // re-sorting the whole array on every tool call.
@@ -2524,7 +2533,7 @@ final class NativeSessionStore: ObservableObject {
         toolInvocations.insert(invocation, at: lower)
     }
 
-    private func applyToolResult(_ event: SessionEventDTO, view: JSONValue?) {
+    private func applyToolResult(_ event: SessionEventDTO, view: ToolEventViewDTO?) {
         guard let data = event.data.objectValue,
               let message = data["message"]?.objectValue,
               let source = message["source"]?.objectValue,
@@ -2535,7 +2544,7 @@ final class NativeSessionStore: ObservableObject {
         guard let index = toolInvocations.firstIndex(where: { $0.id == callID }) else { return }
         toolInvocations[index].output = output
         toolInvocations[index].state = errorCode == "interrupted" ? .stopped : (errorCode == nil ? .completed : .failed)
-        toolInvocations[index].view = view ?? toolInvocations[index].view
+        toolInvocations[index].resultView = view ?? toolInvocations[index].resultView
     }
 
     func selectToolCall(_ callID: String?) {
@@ -2900,7 +2909,8 @@ final class NativeSessionStore: ObservableObject {
                 output: "# Project instructions",
                 state: .completed,
                 sequence: 102,
-                view: nil
+                callView: nil,
+                resultView: nil
             ),
             ToolInvocation(
                 id: "snapshot-bash",
@@ -2909,7 +2919,8 @@ final class NativeSessionStore: ObservableObject {
                 output: nil,
                 state: .running,
                 sequence: 103,
-                view: nil
+                callView: nil,
+                resultView: nil
             )
         ]
         queuedMessages = []
@@ -3045,7 +3056,8 @@ final class NativeSessionStore: ObservableObject {
                 output: nil,
                 state: .completed,
                 sequence: 303 + index * 2,
-                view: nil
+                callView: nil,
+                resultView: nil
             )
         }
         queuedMessages = []

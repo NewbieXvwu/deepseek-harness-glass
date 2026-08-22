@@ -1,5 +1,6 @@
 import XCTest
 
+@testable import GlassPortableCore
 @testable import GlassSpec
 @testable import GlassUI
 
@@ -118,6 +119,64 @@ final class NativeToolRowModelTests: XCTestCase {
             ),
             "{\n  \"command\" : \"pwd\",\n  \"description\" : \"show workspace\"\n}"
         )
+    }
+
+    func testTerminalPresentationUsesAdmittedCallAndResultViewsWithoutOverridingGenericResults() {
+        let call = NativeToolTerminalView(
+            card: "terminal",
+            title: "pwd",
+            description: "Show workspace",
+            cwd: "sub"
+        )
+        let running = NativeTerminalCardPresentation.resolve(call: call, result: nil, settled: false)
+        XCTAssertEqual(running?.command, "pwd")
+        XCTAssertEqual(running?.description, "Show workspace")
+        XCTAssertEqual(running?.cwd, "sub")
+        XCTAssertTrue(running?.running == true)
+        XCTAssertNil(running?.output)
+        XCTAssertFalse(running?.failed == true)
+
+        let settled = NativeTerminalCardPresentation.resolve(
+            call: call,
+            result: NativeToolTerminalView(
+                card: "terminal",
+                title: "pwd -P",
+                output: "/workspace\\n",
+                exitCode: 3
+            ),
+            settled: true
+        )
+        XCTAssertEqual(settled?.command, "pwd -P")
+        XCTAssertEqual(settled?.output, "/workspace\\n")
+        XCTAssertTrue(settled?.failed == true)
+
+        XCTAssertNil(
+            NativeTerminalCardPresentation.resolve(
+                call: call,
+                result: NativeToolTerminalView(card: "generic", output: "background started"),
+                settled: true
+            )
+        )
+        XCTAssertNil(
+            NativeTerminalCardPresentation.resolve(
+                call: NativeToolTerminalView(card: "unknown", title: "pwd"),
+                result: nil,
+                settled: false
+            )
+        )
+    }
+
+    func testTerminalPresentationRetainsResultOnlyWindowTruncationWithoutInventingCWD() {
+        let presentation = NativeTerminalCardPresentation.resolve(
+            call: nil,
+            result: NativeToolTerminalView(card: "terminal", title: "echo hi", output: "hi", signal: "SIGKILL"),
+            settled: true
+        )
+        XCTAssertEqual(presentation?.command, "echo hi")
+        XCTAssertNil(presentation?.cwd)
+        XCTAssertEqual(presentation?.output, "hi")
+        XCTAssertEqual(presentation?.signal, "SIGKILL")
+        XCTAssertTrue(presentation?.failed == true)
     }
 
     func testToolSummaryFallsBackSafelyForMalformedAndGenericArguments() {
