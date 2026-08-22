@@ -3,7 +3,6 @@ import Foundation
 
 #if DEEPSEEK_HARNESS_PACKAGE
 @testable import GlassCore
-@testable import GlassPortableCore
 @testable import GlassSpec
 #endif
 /// Native generic fallback for the official `tool.call.toolview` seat.

@@ -2548,6 +2548,74 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual((finalNodes.first?.data as? CoreAssistantNode)?.blocks.compactMap(\.text).joined(), "settled")
     }
 
+    func testToolResultRetainsEveryContentBlockAndUsesStructuredEmptyErrorFallback() {
+        let store = NativeSessionStore()
+        store.loadSnapshotToolingFixture()
+
+        store.applyMuxFrame(sessionEventFrame(
+            sessionID: "snapshot-tooling",
+            seq: 105,
+            type: "tool/call",
+            data: .object([
+                "callId": .string("result-text-mixed"),
+                "name": .string("custom_tool"),
+                "arguments": .string("{}"),
+            ])
+        ), sessionID: "snapshot-tooling")
+        store.applyMuxFrame(sessionEventFrame(
+            sessionID: "snapshot-tooling",
+            seq: 106,
+            type: "tool/result",
+            data: .object([
+                "message": .object([
+                    "source": .object(["callId": .string("result-text-mixed")]),
+                    "content": .array([
+                        .object(["type": .string("text"), "text": .string("first")]),
+                        .object(["type": .string("reasoning"), "text": .string("why")]),
+                        .object(["type": .string("text"), "text": .string("third")]),
+                    ]),
+                ]),
+            ])
+        ), sessionID: "snapshot-tooling")
+
+        let mixed = tryUnwrap(store.toolInvocations.first(where: { $0.id == "result-text-mixed" }))
+        XCTAssertTrue(mixed.output?.hasPrefix("first\n") == true)
+        XCTAssertTrue(mixed.output?.contains("\"type\"") == true)
+        XCTAssertTrue(mixed.output?.contains("\"reasoning\"") == true)
+        XCTAssertTrue(mixed.output?.hasSuffix("\nthird") == true)
+        XCTAssertNil(mixed.errorName)
+        XCTAssertNil(mixed.errorCode)
+
+        store.applyMuxFrame(sessionEventFrame(
+            sessionID: "snapshot-tooling",
+            seq: 107,
+            type: "tool/call",
+            data: .object([
+                "callId": .string("result-text-empty-error"),
+                "name": .string("custom_tool"),
+                "arguments": .string("{}"),
+            ])
+        ), sessionID: "snapshot-tooling")
+        store.applyMuxFrame(sessionEventFrame(
+            sessionID: "snapshot-tooling",
+            seq: 108,
+            type: "tool/result",
+            data: .object([
+                "error": .object(["name": .string("ToolError"), "code": .string("interrupted")]),
+                "message": .object([
+                    "source": .object(["callId": .string("result-text-empty-error")]),
+                    "content": .array([]),
+                ]),
+            ])
+        ), sessionID: "snapshot-tooling")
+
+        let empty = tryUnwrap(store.toolInvocations.first(where: { $0.id == "result-text-empty-error" }))
+        XCTAssertEqual(empty.output, "ToolError: interrupted")
+        XCTAssertEqual(empty.errorName, "ToolError")
+        XCTAssertEqual(empty.errorCode, "interrupted")
+        XCTAssertEqual(empty.state, .stopped)
+    }
+
     func testSnapshotFeedbackFixtureSettlesTypedAssistantAndPublishesSidecar() {
         let store = NativeSessionStore()
         store.loadSnapshotFeedbackFixture()

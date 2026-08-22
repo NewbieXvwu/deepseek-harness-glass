@@ -1,7 +1,5 @@
 import Foundation
 
-import GlassPortableCore
-
 /// Core owns the only raw-JSON adapter for the native terminal card. It rejects
 /// all non-string/non-integral values instead of coercing plugin-defined wire
 /// payloads into an official-looking terminal presentation.

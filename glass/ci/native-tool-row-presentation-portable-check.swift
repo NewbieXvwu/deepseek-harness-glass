@@ -108,6 +108,28 @@ struct NativeToolRowPresentationPortableCheck {
         ), truncated.cwd == nil, truncated.command == "echo hi" else {
             throw CheckFailure("truncated call side must retain result title without inventing cwd")
         }
+
+        try expectEqual(
+            NativeToolResultTextPresentation.flatten(
+                parts: ["first", "{\n  \"type\" : \"reasoning\"\n}", "third"],
+                errorName: nil,
+                errorCode: nil
+            ),
+            "first\n{\n  \"type\" : \"reasoning\"\n}\nthird",
+            "result text must retain every block in original order with one newline"
+        )
+        try expectEqual(
+            NativeToolResultTextPresentation.flatten(
+                parts: [],
+                errorName: "ToolError",
+                errorCode: "interrupted"
+            ),
+            "ToolError: interrupted",
+            "empty result must use only its structured error fallback"
+        )
+        guard NativeToolResultTextPresentation.flatten(parts: [], errorName: nil, errorCode: "interrupted") == nil else {
+            throw CheckFailure("partial structured error must not invent fallback prose")
+        }
         print("native tool row presentation portable check passed")
     }
 

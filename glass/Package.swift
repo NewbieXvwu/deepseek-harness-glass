@@ -30,7 +30,7 @@ let package = Package(
         ),
         .target(
             name: "GlassCore",
-            dependencies: ["GlassSpec", "GlassPortableCore"],
+            dependencies: ["GlassSpec"],
             path: "Sources/Core",
             resources: [.process("Resources")],
             swiftSettings: [.define("DEEPSEEK_HARNESS_PACKAGE"), .unsafeFlags(["-enable-testing"])]
@@ -83,7 +83,7 @@ let package = Package(
         ),
         .testTarget(
             name: "GlassAppTests",
-            dependencies: ["DeepSeekHarnessGlassApp", "GlassCore", "GlassPortableCore", "GlassSpec", "GlassUI"],
+            dependencies: ["DeepSeekHarnessGlassApp", "GlassCore", "GlassSpec", "GlassUI"],
             path: "Tests/App"
         ),
         .testTarget(

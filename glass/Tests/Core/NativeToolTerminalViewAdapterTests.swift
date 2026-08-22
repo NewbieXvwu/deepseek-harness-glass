@@ -1,7 +1,6 @@
 import XCTest
 
 @testable import GlassCore
-@testable import GlassPortableCore
 
 final class NativeToolTerminalViewAdapterTests: XCTestCase {
     func testTerminalAdapterRetainsOnlyOfficiallyTypedTerminalFields() {

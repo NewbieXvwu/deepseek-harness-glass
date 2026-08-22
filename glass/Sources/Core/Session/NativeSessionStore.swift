@@ -333,6 +333,10 @@ final class NativeSessionStore: ObservableObject {
         let name: String
         let arguments: String
         var output: String?
+        /// Structured result error is retained for the rc.2 `resultText` empty
+        /// fallback (`name: code`); it is not synthesized from transport state.
+        var errorName: String?
+        var errorCode: String?
         var state: State
         let sequence: Int
         /// The Host presents call and settled-result sides independently. They
@@ -2513,6 +2517,8 @@ final class NativeSessionStore: ObservableObject {
             name: name,
             arguments: arguments,
             output: nil,
+            errorName: nil,
+            errorCode: nil,
             state: .running,
             sequence: event.seq,
             callView: view,
@@ -2539,10 +2545,14 @@ final class NativeSessionStore: ObservableObject {
               let source = message["source"]?.objectValue,
               let callID = source["callId"]?.stringValue
         else { return }
-        let errorCode = data["error"]?.objectValue?["code"]?.stringValue
-        let output = textContent(in: .object(message)) ?? prettyContent(in: message)
+        let error = data["error"]?.objectValue
+        let errorName = error?["name"]?.stringValue
+        let errorCode = error?["code"]?.stringValue
+        let output = resultText(in: message, errorName: errorName, errorCode: errorCode)
         guard let index = toolInvocations.firstIndex(where: { $0.id == callID }) else { return }
         toolInvocations[index].output = output
+        toolInvocations[index].errorName = errorName
+        toolInvocations[index].errorCode = errorCode
         toolInvocations[index].state = errorCode == "interrupted" ? .stopped : (errorCode == nil ? .completed : .failed)
         toolInvocations[index].resultView = view ?? toolInvocations[index].resultView
     }
@@ -2907,6 +2917,8 @@ final class NativeSessionStore: ObservableObject {
                 name: "read",
                 arguments: "{\"path\":\"README.md\"}",
                 output: "# Project instructions",
+                errorName: nil,
+                errorCode: nil,
                 state: .completed,
                 sequence: 102,
                 callView: nil,
@@ -2917,6 +2929,8 @@ final class NativeSessionStore: ObservableObject {
                 name: "bash",
                 arguments: "pwd",
                 output: nil,
+                errorName: nil,
+                errorCode: nil,
                 state: .running,
                 sequence: 103,
                 callView: nil,
@@ -3054,6 +3068,8 @@ final class NativeSessionStore: ObservableObject {
                 name: "write",
                 arguments: "{\"file_path\":\"\(path)\",\"content\":\"content of \(path)\"}",
                 output: nil,
+                errorName: nil,
+                errorCode: nil,
                 state: .completed,
                 sequence: 303 + index * 2,
                 callView: nil,
@@ -3278,13 +3294,33 @@ final class NativeSessionStore: ObservableObject {
         lhs.sequence < rhs.sequence || (lhs.sequence == rhs.sequence && lhs.id < rhs.id)
     }
 
-    private func prettyContent(in message: [String: JSONValue]) -> String? {
-        guard let content = message["content"]?.arrayValue,
-              let data = try? Self.jsonEncoder.encode(content),
-              let rendered = String(data: data, encoding: .utf8),
-              !rendered.isEmpty
-        else { return nil }
-        return rendered
+    /// Mirrors rc.2 `resultText`: each text content block stays verbatim, every
+    /// non-text block is rendered as its own pretty JSON object, and parts retain
+    /// their original order with one newline between them. An empty result uses
+    /// only a Host-provided `name: code` error fallback.
+    private func resultText(
+        in message: [String: JSONValue],
+        errorName: String?,
+        errorCode: String?
+    ) -> String? {
+        let parts = (message["content"]?.arrayValue ?? []).compactMap { block -> String? in
+            if let object = block.objectValue,
+               object["type"]?.stringValue == "text",
+               let text = object["text"]?.stringValue {
+                return text
+            }
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted]
+            guard let encoded = try? encoder.encode(block),
+                  let rendered = String(data: encoded, encoding: .utf8)
+            else { return nil }
+            return rendered
+        }
+        return NativeToolResultTextPresentation.flatten(
+            parts: parts,
+            errorName: errorName,
+            errorCode: errorCode
+        )
     }
 
     /// Source: `sessions.schema.ts:contentBlockSchema`; the native transcript

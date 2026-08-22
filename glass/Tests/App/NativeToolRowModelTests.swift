@@ -1,6 +1,5 @@
 import XCTest
 
-@testable import GlassPortableCore
 @testable import GlassSpec
 @testable import GlassUI
 

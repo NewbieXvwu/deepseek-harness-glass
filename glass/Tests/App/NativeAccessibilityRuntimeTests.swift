@@ -167,6 +167,8 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
             name: "write",
             arguments: #"{"file_path":"src/main.swift","content":"let value = 1"}"#,
             output: nil,
+            errorName: nil,
+            errorCode: nil,
             state: .completed,
             sequence: 1,
             callView: nil,
