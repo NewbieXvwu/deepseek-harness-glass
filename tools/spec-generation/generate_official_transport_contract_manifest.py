@@ -15,8 +15,8 @@ import json
 import pathlib
 from typing import Any
 
-COMMIT = "528c682e061696f5a160f363f236ecbf53cbd006"
-REVISION = "official-528c682e-transport-contract-r1"
+COMMIT = "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e"
+REVISION = "official-b150a55-transport-contract-r1"
 
 CONTRACTS: list[dict[str, Any]] = [
     {"id": "session.history", "kind": "rpc", "source": "packages/host/apiproxy/src/api/sessions.schema.ts", "symbols": ["sessionHistoryRequestSchema", "sessionHistoryValueSchema"], "requestFields": ["sessionId", "beforeSeq?", "maxMessages?"], "valueFields": ["events", "hasMore", "projections?"], "enums": []},

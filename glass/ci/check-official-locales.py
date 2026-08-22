@@ -18,7 +18,7 @@ CATALOG = ROOT / "Sources/Spec/Locales/official-locales.json"
 SPEC_BUILD = ROOT / "Sources/Spec/OfficialUISpec/official-ui-spec-build.json"
 GENERATOR = REPOSITORY_ROOT / "tools/spec-generation/generate_official_locales.ts"
 GENERATOR_DIR = GENERATOR.parent
-EXPECTED_COMMIT = "528c682e061696f5a160f363f236ecbf53cbd006"
+EXPECTED_COMMIT = "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e"
 
 
 def arguments() -> argparse.Namespace:

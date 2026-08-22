@@ -2,7 +2,7 @@ import Foundation
 
 
 /// Source: `packages/client/runtime/src/client/workspaces/path.ts:abbreviateHomePath` at
-/// `deepseek-ai/deepseek-harness@528c682e061696f5a160f363f236ecbf53cbd006`.
+/// `deepseek-ai/deepseek-harness@b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`.
 ///
 /// This is display-only: callers retain and copy the full Host-provided path.
 /// POSIX home and its descendants use `~`; Windows drive and UNC paths remain

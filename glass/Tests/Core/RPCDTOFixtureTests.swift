@@ -9,7 +9,7 @@ final class RPCDTOFixtureTests: XCTestCase {
         let fixture = try OfficialRPCFixtureCatalog.load()
         XCTAssertEqual(fixture.schemaVersion, 1)
         XCTAssertEqual(fixture.officialSourceCommit, OfficialUISpec.Build.sourceCommit)
-        XCTAssertEqual(fixture.fixtureRevision, "official-528c682e-web-ui-r1")
+        XCTAssertEqual(fixture.fixtureRevision, "official-b150a55-web-ui-r1")
         XCTAssertEqual(fixture.endpointClass, "isolated local pinned dsh web")
         XCTAssertEqual(fixture.records.count, 16)
         XCTAssertEqual(Set(fixture.records.map(\.method)).count, fixture.records.count)

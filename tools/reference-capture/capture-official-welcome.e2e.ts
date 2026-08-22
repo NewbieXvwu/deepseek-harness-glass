@@ -79,7 +79,7 @@ async function writeCaptureMetadata(
   })
   const ariaSnapshot = await page.locator('body').ariaSnapshot()
   await writeFile(join(outputDirectory, `${name}.json`), JSON.stringify({
-    officialSourceCommit: '528c682e061696f5a160f363f236ecbf53cbd006',
+    officialSourceCommit: 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e',
     viewport: captureViewport,
     locale: 'en-US',
     colorScheme,
@@ -394,6 +394,34 @@ describe('reference capture: official welcome and session Jobs action', () => {
     } finally {
       await context.close()
       await toolingScaffold.close()
+    }
+  }, 120_000)
+
+  it('captures official rc.2 Full access confirmation from the live permission picker', async () => {
+    const name = 'permission-confirmation-light'
+    const permissionScaffold = await launchWebScaffold()
+    const context = await browser.newContext({ viewport, locale: 'en-US', colorScheme: 'light', deviceScaleFactor: 1 })
+    const page = await context.newPage()
+    const consoleTripwire = watchConsole(page)
+    try {
+      await page.goto(permissionScaffold.baseUrl, { waitUntil: 'load' })
+      await page.locator('#root').waitFor({ state: 'attached', timeout: 30_000 })
+      await applyOfficialColorScheme(page, 'light')
+      await connectFreshWorkspace(page, permissionScaffold.workspaceCwd)
+      const accessMode = page.locator('[aria-label^="Access mode"]')
+      await accessMode.waitFor({ timeout: 30_000 })
+      await accessMode.click()
+      await page.getByRole('menuitem', { name: 'Full access', exact: true }).click()
+      const confirmation = page.getByRole('dialog', { name: 'Enable Full access?' })
+      await confirmation.waitFor({ timeout: 30_000 })
+      await confirmation.getByRole('checkbox').waitFor({ timeout: 30_000 })
+      await page.screenshot({ path: join(outputDirectory, `${name}.png`) })
+      await writeCaptureMetadata(page, name, 'light', viewport, consoleTripwire.warnings, consoleTripwire.pageErrors)
+      expect(consoleTripwire.warnings).toEqual([])
+      expect(consoleTripwire.pageErrors).toEqual([])
+    } finally {
+      await context.close()
+      await permissionScaffold.close()
     }
   }, 120_000)
 

@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "hostBuildId": "dsh-0.1.1-rc.1-official-528c682e",
-  "officialSourceCommit": "528c682e061696f5a160f363f236ecbf53cbd006",
-  "uiSpecRevision": "official-528c682e-ui-spec-r1",
-  "protocolFixtureRevision": "official-528c682e-web-ui-r1",
-  "rawEventFixtureRevision": "official-528c682e-raw-event-replay-r1",
+  "hostBuildId": "dsh-0.1.1-rc.2-official-b150a55",
+  "officialSourceCommit": "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e",
+  "uiSpecRevision": "official-b150a55-ui-spec-r1",
+  "protocolFixtureRevision": "official-b150a55-web-ui-r1",
+  "rawEventFixtureRevision": "official-b150a55-raw-event-replay-r1",
   "governanceDocument": "notes/T13.3-host-upgrade-governance.md",
   "requiredArtifacts": {
     "rpcDTOContract": "glass/Sources/Spec/Fixtures/official-rpc-dto-manifest.json",

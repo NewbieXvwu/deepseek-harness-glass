@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "528c682e061696f5a160f363f236ecbf53cbd006",
-  "hostBuildId": "dsh-0.1.1-rc.1-official-528c682e",
-  "uiSpecRevision": "official-528c682e-ui-spec-r1",
-  "localeRevision": "sha256:b86f1138e77fdc6fb70277156da411cc2abe89149781fdd78bdf90583723170f",
+  "sourceCommit": "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e",
+  "hostBuildId": "dsh-0.1.1-rc.2-official-b150a55",
+  "uiSpecRevision": "official-b150a55-ui-spec-r1",
+  "localeRevision": "sha256:757f092e6ab96b53f4b6b435adb6ea41b3d6b2064536f49f0ec8a86ab30eb3f9",
   "tokenRevision": "sha256:2d1743337b8fbba4bd052e8f1ecd24e490c2b5707faf8c185bfeae78fa702989",
   "layoutRevision": "sha256:9a5adf77d69258cf9e892a6d81f214fbdb16ca782cbafd941d95ccd4435b6b43",
   "fixtureRevision": "sha256:872c1643d024121234a07c1e04c8b473907b75ba183a43874062fd809b818688",
-  "generatedAt": "2026-08-21T14:21:44+08:00",
+  "generatedAt": "2026-08-21T20:03:37+08:00",
   "generator": {
     "name": "generate_official_ui_spec_build.py",
     "version": "1.0.0"
@@ -93,8 +93,8 @@
     },
     {
       "path": "packages/client/ui-conversation/src/client/locales.ts",
-      "sha256": "0efc5e71ff197aed8aa8bd5eeab9c42e56588da4a1d315492f2acbc248e053d3",
-      "lines": 367,
+      "sha256": "513cdd457f22c5e44dbf253bb244e43c74c888c10ca25a8c3bf14e189aca661d",
+      "lines": 361,
       "kind": "locale"
     },
     {
@@ -135,8 +135,8 @@
     },
     {
       "path": "packages/client/ui-permission-presets/src/client/locales.ts",
-      "sha256": "f473703cd85b599572db5d9190d8100f5786028f9620e68e097de48234c03574",
-      "lines": 64,
+      "sha256": "7ecaf0e24163dee251724e6647256d54e6e4cedef2e8f656c8df82f6551e5db1",
+      "lines": 52,
       "kind": "locale"
     },
     {

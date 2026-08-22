@@ -1,4 +1,5 @@
 import AppKit
+import Foundation
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -87,36 +88,68 @@ private struct NativeActiveConversationSurface: View {
     let canOpenProjectPath: Bool
     @ObservedObject var viewRegistry: NativeConversationViewRegistry
     @ObservedObject var headerContributions: NativeConversationHeaderContributionRegistry
+    @State private var fullAccessConfirmationOpen = ProcessInfo.processInfo.environment[
+        "DSH_GLASS_SNAPSHOT_PERMISSION_CONFIRMATION"
+    ] == "1"
+    @State private var fullAccessAcknowledged = false
 
     var body: some View {
-        VStack(spacing: OfficialUISpec.Spacing.p0) {
-            NativeConversationHeader(
-                presentation: NativeSessionHeaderPresentation(
-                    snapshot: sessionSnapshot,
-                    sessionID: sessionStore.selectedSessionID,
-                    composerIsBlank: sessionStore.chatNodes.isEmpty && sessionStore.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                    selectedViewID: sessionStore.selectedViewID,
-                    viewRegistry: viewRegistry
-                ),
-                jobs: sessionStore.backgroundJobs,
-                jobsPopoverInitiallyOpen: jobsPopoverInitiallyOpen,
-                jobsLanguageCode: jobsLanguageCode,
-                contributionContext: contributionContext,
-                headerContributions: headerContributions,
-                openSession: openSession,
-                selectView: sessionStore.selectView
-            )
-            if let blankSession {
-                NativeAgentPresetSeat(session: blankSession, store: agentPresetStore) { presetID in
-                    await selectAgentPreset(blankSession.sessionId, presetID)
+        ZStack {
+            VStack(spacing: OfficialUISpec.Spacing.p0) {
+                NativeConversationHeader(
+                    presentation: NativeSessionHeaderPresentation(
+                        snapshot: sessionSnapshot,
+                        sessionID: sessionStore.selectedSessionID,
+                        composerIsBlank: sessionStore.chatNodes.isEmpty && sessionStore.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                        selectedViewID: sessionStore.selectedViewID,
+                        viewRegistry: viewRegistry
+                    ),
+                    jobs: sessionStore.backgroundJobs,
+                    jobsPopoverInitiallyOpen: jobsPopoverInitiallyOpen,
+                    jobsLanguageCode: jobsLanguageCode,
+                    contributionContext: contributionContext,
+                    headerContributions: headerContributions,
+                    openSession: openSession,
+                    selectView: sessionStore.selectView
+                )
+                if let blankSession {
+                    NativeAgentPresetSeat(session: blankSession, store: agentPresetStore) { presetID in
+                        await selectAgentPreset(blankSession.sessionId, presetID)
+                    }
+                    .padding(.horizontal, OfficialUISpec.Spacing.p16)
+                    .padding(.vertical, OfficialUISpec.Spacing.p8)
                 }
-                .padding(.horizontal, OfficialUISpec.Spacing.p16)
-                .padding(.vertical, OfficialUISpec.Spacing.p8)
+                activeViewBody
+                composerDock
             }
-            activeViewBody
-            composerDock
+            .background(OfficialUISpec.Token.base)
+
+            if fullAccessConfirmationOpen {
+                fullAccessConfirmationOverlay
+            }
         }
-        .background(OfficialUISpec.Token.base)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var fullAccessConfirmationOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.24)
+                .ignoresSafeArea()
+                .accessibilityHidden(true)
+            NativeFullAccessPermissionConfirmation(
+                acknowledged: $fullAccessAcknowledged,
+                submitting: sessionStore.isSubmittingPermission,
+                language: Locale.current.language.languageCode?.identifier ?? "en",
+                cancel: {
+                    fullAccessConfirmationOpen = false
+                    fullAccessAcknowledged = false
+                },
+                enable: {
+                    fullAccessConfirmationOpen = false
+                    sessionStore.selectPermissionPreset(PermissionPresetProjection.fullAccessPreset)
+                }
+            )
+        }
     }
 
     private var blankSession: SessionSummaryDTO? {
@@ -219,7 +252,11 @@ private struct NativeActiveConversationSurface: View {
                 .padding(.horizontal, OfficialUISpec.Layout.composerClearance)
                 .padding(.bottom, OfficialUISpec.Spacing.p8)
         } else {
-            NativeInteractiveComposerCard(sessionStore: sessionStore)
+            NativeInteractiveComposerCard(
+                sessionStore: sessionStore,
+                fullAccessConfirmationOpen: $fullAccessConfirmationOpen,
+                fullAccessAcknowledged: $fullAccessAcknowledged
+            )
                 .frame(maxWidth: OfficialUISpec.Layout.composerMaximum)
                 .padding(.horizontal, OfficialUISpec.Layout.composerClearance)
                 .padding(.bottom, OfficialUISpec.Spacing.p8)
@@ -745,6 +782,8 @@ private struct NativeHeroComposerControl: View {
 
 private struct NativeInteractiveComposerCard: View {
     @ObservedObject var sessionStore: NativeSessionStore
+    @Binding var fullAccessConfirmationOpen: Bool
+    @Binding var fullAccessAcknowledged: Bool
     @FocusState private var draftFocused: Bool
 
     private var sendEnabled: Bool {
@@ -851,7 +890,11 @@ private struct NativeInteractiveComposerCard: View {
 
                 Spacer(minLength: 0)
 
-                NativeComposerPermissionSelector(sessionStore: sessionStore)
+                NativeComposerPermissionSelector(
+                    sessionStore: sessionStore,
+                    fullAccessConfirmationOpen: $fullAccessConfirmationOpen,
+                    fullAccessAcknowledged: $fullAccessAcknowledged
+                )
                 NativeComposerModelSelector(sessionStore: sessionStore)
                 NativeContextMeter(sessionStore: sessionStore)
 

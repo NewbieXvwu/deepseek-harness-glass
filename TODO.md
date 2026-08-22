@@ -6,7 +6,7 @@
 
 **目标系统：** macOS 26+、Xcode 26+、Apple Silicon。
 
-**官方基线：** `deepseek-ai/deepseek-harness@528c682e061696f5a160f363f236ecbf53cbd006`。任何升级均须通过本文件定义的协议、视觉与无障碍门禁后，才可加入支持矩阵。[1] [2]
+**官方基线：** `deepseek-ai/deepseek-harness@b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`（`dsh-v0.1.1-rc.2`）。任何升级均须通过本文件定义的协议、视觉与无障碍门禁后，才可加入支持矩阵。[1] [2]
 
 > **首要原则：** 本项目不是替换 CSS 或包装网页，而是保留 DeepSeek Harness Host、替换 Browser Client。官方布局常量、文本、字段顺序、状态机与交互语义是规格来源；Liquid Glass 只增强 macOS 的窗口、导航和必要操作控件，不能借机添加任何非官方的产品文案、页面、信息层级或装饰。
 
@@ -635,26 +635,26 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 
 ## References
 
-[1]: https://github.com/deepseek-ai/deepseek-harness/blob/528c682e061696f5a160f363f236ecbf53cbd006/README.zh.md "DeepSeek Harness 官方 README"
-[2]: https://github.com/deepseek-ai/deepseek-harness/blob/528c682e061696f5a160f363f236ecbf53cbd006/docs/architecture.md "DeepSeek Harness Architecture"
-[3]: https://github.com/deepseek-ai/deepseek-harness/blob/528c682e061696f5a160f363f236ecbf53cbd006/packages/bundle/web-app/cordis.patch.yml "官方 Web profile 组合清单"
-[4]: https://github.com/deepseek-ai/deepseek-harness/blob/528c682e061696f5a160f363f236ecbf53cbd006/packages/client/ui-layout/src/client/AppFrame.tsx "官方 AppFrame"
-[5]: https://github.com/deepseek-ai/deepseek-harness/blob/528c682e061696f5a160f363f236ecbf53cbd006/packages/client/ui-layout/src/client/columns.ts "官方三栏布局算法"
-[6]: https://github.com/deepseek-ai/deepseek-harness/blob/528c682e061696f5a160f363f236ecbf53cbd006/packages/client/ui-theme/README.md "官方主题与 token 机制"
-[7]: https://github.com/deepseek-ai/deepseek-harness/blob/528c682e061696f5a160f363f236ecbf53cbd006/packages/host/apiproxy/README.md "官方 Host API Proxy 与客户端 wire contract"
-[8]: https://github.com/deepseek-ai/deepseek-harness/blob/528c682e061696f5a160f363f236ecbf53cbd006/packages/client/runtime/src/client/contract/conversation.ts "官方 Conversation Node Contract"
+[1]: https://github.com/deepseek-ai/deepseek-harness/blob/b150a551b8d465e31e418e1b2eaf5e79bbb7d28e/README.zh.md "DeepSeek Harness 官方 README"
+[2]: https://github.com/deepseek-ai/deepseek-harness/blob/b150a551b8d465e31e418e1b2eaf5e79bbb7d28e/docs/architecture.md "DeepSeek Harness Architecture"
+[3]: https://github.com/deepseek-ai/deepseek-harness/blob/b150a551b8d465e31e418e1b2eaf5e79bbb7d28e/packages/bundle/web-app/cordis.patch.yml "官方 Web profile 组合清单"
+[4]: https://github.com/deepseek-ai/deepseek-harness/blob/b150a551b8d465e31e418e1b2eaf5e79bbb7d28e/packages/client/ui-layout/src/client/AppFrame.tsx "官方 AppFrame"
+[5]: https://github.com/deepseek-ai/deepseek-harness/blob/b150a551b8d465e31e418e1b2eaf5e79bbb7d28e/packages/client/ui-layout/src/client/columns.ts "官方三栏布局算法"
+[6]: https://github.com/deepseek-ai/deepseek-harness/blob/b150a551b8d465e31e418e1b2eaf5e79bbb7d28e/packages/client/ui-theme/README.md "官方主题与 token 机制"
+[7]: https://github.com/deepseek-ai/deepseek-harness/blob/b150a551b8d465e31e418e1b2eaf5e79bbb7d28e/packages/host/apiproxy/README.md "官方 Host API Proxy 与客户端 wire contract"
+[8]: https://github.com/deepseek-ai/deepseek-harness/blob/b150a551b8d465e31e418e1b2eaf5e79bbb7d28e/packages/client/runtime/src/client/contract/conversation.ts "官方 Conversation Node Contract"
 [9]: https://developer.apple.com/documentation/technologyoverviews/adopting-liquid-glass "Apple: Adopting Liquid Glass"
 [10]: https://developer.apple.com/documentation/swiftui/applying-liquid-glass-to-custom-views "Apple: Applying Liquid Glass to custom views"
 [11]: https://developer.apple.com/videos/play/wwdc2025/310/ "Apple WWDC25: Build an AppKit app with the new design"
-[12]: https://github.com/deepseek-ai/deepseek-harness/blob/528c682e061696f5a160f363f236ecbf53cbd006/packages/client/ui-sidebar/README.md "官方 Sidebar 模块说明"
-[13]: https://github.com/deepseek-ai/deepseek-harness/blob/528c682e061696f5a160f363f236ecbf53cbd006/packages/client/ui-conversation/README.md "官方 Conversation UI 模块说明"
-[14]: https://github.com/deepseek-ai/deepseek-harness/blob/528c682e061696f5a160f363f236ecbf53cbd006/packages/client/ui-settings-plugins/README.md "官方插件设置机制"
+[12]: https://github.com/deepseek-ai/deepseek-harness/blob/b150a551b8d465e31e418e1b2eaf5e79bbb7d28e/packages/client/ui-sidebar/README.md "官方 Sidebar 模块说明"
+[13]: https://github.com/deepseek-ai/deepseek-harness/blob/b150a551b8d465e31e418e1b2eaf5e79bbb7d28e/packages/client/ui-conversation/README.md "官方 Conversation UI 模块说明"
+[14]: https://github.com/deepseek-ai/deepseek-harness/blob/b150a551b8d465e31e418e1b2eaf5e79bbb7d28e/packages/client/ui-settings-plugins/README.md "官方插件设置机制"
 
 ## 当前进度：完整可审计状态与唯一续跑入口（2026-08-20）
 
 本节是仓库内**唯一有效的跨会话状态记录**。新会话必须以本节和前文“项目宪章”为起点，不得依赖外部 `CONTINUE_NEXT_SESSION.md`、聊天摘要或未提交的本地笔记。所有状态均以代码、官方来源、视觉证据、门禁和GitHub Actions为准；“部分实现”“能编译”“单一fixture通过”均不等于完成。
 
-> **RC8 重新认证：** 项目唯一官方基线现为 `528c682e`（`dsh-v0.1.1-rc.1`）。所有 `99f6f02`/RC7 视觉工件和人工复核均为历史记录，不能作为 RC8 UI TODO 的完成依据。故 T5.1–T5.6 与 T7.3 已回退为未完成，直到使用 RC8 官方/原生同状态截图、ARIA/geometry、人工差异分类和更新后 head 自身的 macOS-26 CI 重新闭环。Core-only 已勾选项保留其历史实现证据，但后续 RC8 CI 必须持续验证其受控 DTO、规格和回归测试。
+> **RC2 重新认证：** 项目唯一官方基线现为 `b150a55`（`dsh-v0.1.1-rc.2`）。既有 RC7/RC8 视觉工件和人工复核均为历史记录，不能作为 rc.2 UI TODO 的完成依据。故受影响的权限选择与设置控件必须使用 rc.2 官方/原生同状态截图、ARIA/geometry、人工差异分类和本分支自身的 macOS-26 CI 重新闭环。Core-only 已勾选项保留其历史实现证据，但后续 rc.2 CI 必须持续验证受控 DTO、规格和回归测试。
 
 ### A. 当前快照
 
@@ -664,13 +664,13 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 | 分支 | `main` |
 | 当前 main head | `95aa816` — 已将 PR #11 的 Ghost Plane 插件兼容提案合入 `main`，保留当前可审计安全进度并把插件任务重述为登记制红/绿区边界。 |
 | 最近功能链 | `66852ac` 完成 T13.2 签名与分发路径；`95aa816` 合入 PR #11 的插件兼容架构、迁移清单与审阅协议。当前工作树随后修复 `32479644212` 的资源组装夹具遗漏及 `32479644218` 的 Swift 严格并发/`Result` 编译错误，尚待其自身 CI 验证。 |
-| 锁定官方来源 | `deepseek-ai/deepseek-harness@528c682e061696f5a160f363f236ecbf53cbd006` |
+| 锁定官方来源 | `deepseek-ai/deepseek-harness@b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`（`dsh-v0.1.1-rc.2`） |
 | 目标平台 | macOS 26+、Xcode 26+、Apple Silicon、Swift 6 |
-| D1规格门禁 | RC8 本地复验通过：91 text、77 layout、29 assets、11 visual scenes；完整 macOS-26 复验待当前 head。 |
+| D1规格门禁 | rc.2 本地复验通过：120 text、96 layout、35 assets、18 visual scenes；完整 macOS-26 复验待本分支。 |
 | D0原生门禁 | RC8 本地复验通过：核心UI无WebView、DOM脚本和CSS注入；完整 macOS-26 复验待当前 head。 |
 | 最近 RC8 macOS CI | [run 32328246659](https://github.com/NewbieXvwu/deepseek-harness-glass/actions/runs/32328246659)，原始 PR head `d62ef24`，success；通过 RC8 payload、规格与架构门禁、SwiftPM、XCTest、装配、快照和比较，但不能代替 `fb5aab8` 的合并后证据。 |
 | 当前合并门禁 | `95aa816` 已在 `main`；其触发的远端工作流不得以父提交替代。当前本地 CI 恢复修复将独立提交并触发新的 portable/macOS 验证，执行期间不阻塞后续独立工作。 |
-| 当前主阶段 | 先完成 RC8 基线迁移与截图矩阵扩展，再以 RC8 同状态证据重新认证 T5.1–T5.6、T7.3；T6.6 和 T6.7 在此之后继续。 |
+| 当前主阶段 | 完成 rc.2 基线升级、受影响权限控件的官方/原生视觉复核与当前分支 macOS-26 证据；其余 UI 认证继续保留原有未完成状态。 |
 | 已勾选TODO条目 | 共29项：T0.1–T0.3、T1.1–T1.3、T2.1–T2.2、T2.6、T3.1–T3.6、T4.1–T4.6、T6.1–T6.5；T5.1–T5.6、T7.3及其余条目均保持未勾选，直至 RC8 证据闭环。 |
 
 ### B. 阶段状态矩阵
@@ -711,7 +711,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 
 ### D. 视觉场景矩阵
 
-场景目录来源为 `glass/Sources/Spec/Fixtures/visual-scenes.json`，固定官方 commit 为 `528c682e...`（`dsh-v0.1.1-rc.1`）。每个场景均要求固定的 light 或 dark 主题、DPR 1、同状态、同视口；可见表面按矩阵要求逐步同时覆盖浅色与深色。管理 Dialog 和 workspace search 使用 1280×1100 视口。RC7 的截图和人工复核仅作历史记录，不得作为 RC8 TODO 勾选证据。
+场景目录来源为 `glass/Sources/Spec/Fixtures/visual-scenes.json`，固定官方 commit 为 `b150a55...`（`dsh-v0.1.1-rc.2`）。每个场景均要求固定的 light 或 dark 主题、DPR 1、同状态、同视口；可见表面按矩阵要求逐步同时覆盖浅色与深色。管理 Dialog 和 workspace search 使用 1280×1100 视口。RC7/RC8 的截图和人工复核仅作历史记录，不得作为 rc.2 TODO 勾选证据。
 
 | 场景 | 当前证据状态 | 下一步 |
 |---|---|---|

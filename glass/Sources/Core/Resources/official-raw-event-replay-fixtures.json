@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "officialSourceCommit": "528c682e061696f5a160f363f236ecbf53cbd006",
-  "fixtureRevision": "official-528c682e-raw-event-replay-r1",
+  "officialSourceCommit": "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e",
+  "fixtureRevision": "official-b150a55-raw-event-replay-r1",
   "source": {
     "path": "packages/client/runtime/tests/event-script.client.ts",
     "lines": "13-145",
-    "commit": "528c682e061696f5a160f363f236ecbf53cbd006"
+    "commit": "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e"
   },
   "anonymization": {
     "policy": "Deterministic synthetic identifiers and neutral fixture text only; no captured user dialogue, credentials, private paths, or Host configuration values.",

@@ -30,7 +30,7 @@ permissions:
   contents: read
 
 env:
-  OFFICIAL_COMMIT: 528c682e061696f5a160f363f236ecbf53cbd006
+  OFFICIAL_COMMIT: b150a551b8d465e31e418e1b2eaf5e79bbb7d28e
   DSH_NODE_VERSION: 24.19.0
 
 # Allow one concurrent run per PR, cancelling previous in-flight runs
@@ -169,6 +169,8 @@ jobs:
           test -s "artifacts/official-webui/deliverables-light.json"
           test -s "artifacts/official-webui/model-selector-light.png"
           test -s "artifacts/official-webui/model-selector-light.json"
+          test -s "artifacts/official-webui/permission-confirmation-light.png"
+          test -s "artifacts/official-webui/permission-confirmation-light.json"
           test -s "artifacts/official-webui/jobs-expanded-dark.png"
           test -s "artifacts/official-webui/jobs-expanded-dark.json"
           test -s "artifacts/official-webui/tooling-inspector-light.png"
@@ -352,6 +354,7 @@ jobs:
           test -s "$snapshot_dir/conversation-dark.png"
           test -s "$snapshot_dir/deliverables-light.png"
           test -s "$snapshot_dir/model-selector-light.png"
+          test -s "$snapshot_dir/permission-confirmation-light.png"
           test -s "$snapshot_dir/jobs-expanded-light.png"
           test -s "$snapshot_dir/jobs-expanded-dark.png"
           test -s "$snapshot_dir/tooling-inspector-light.png"
@@ -423,6 +426,15 @@ jobs:
             --column-fixtures glass/Sources/Spec/Fixtures/official-column-layout-fixtures.json
           test -s artifacts/visual-diff/model-selector-light-comparison.png
           test -s artifacts/visual-diff/model-selector-light-report.json
+          python glass/ci/compare_visual_pair.py \
+            --official artifacts/official-webui/permission-confirmation-light.png \
+            --native artifacts/native-shell/permission-confirmation-light.png \
+            --out-dir artifacts/visual-diff \
+            --scene permission-confirmation-light \
+            --policy glass/Sources/Spec/Fixtures/visual-validation-policy.json \
+            --column-fixtures glass/Sources/Spec/Fixtures/official-column-layout-fixtures.json
+          test -s artifacts/visual-diff/permission-confirmation-light-comparison.png
+          test -s artifacts/visual-diff/permission-confirmation-light-report.json
           python glass/ci/compare_visual_pair.py \
             --official artifacts/official-webui/sidebar-rail-narrow-light.png \
             --native artifacts/native-shell/sidebar-rail-narrow-light.png \

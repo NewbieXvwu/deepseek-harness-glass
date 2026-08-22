@@ -13,7 +13,7 @@ from typing import Any
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 BASELINE = ROOT / "glass" / "Sources" / "Spec" / "Fixtures" / "official-transport-contract-manifest.json"
 GENERATOR = ROOT / "tools" / "spec-generation" / "generate_official_transport_contract_manifest.py"
-COMMIT = "528c682e061696f5a160f363f236ecbf53cbd006"
+COMMIT = "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e"
 FIELDS = ("kind", "symbols", "requestFields", "valueFields", "enums", "sourceSHA256", "contractSignatureSHA256")
 
 
@@ -26,7 +26,7 @@ def load(path: pathlib.Path) -> dict[str, Any]:
         raise SystemExit(f"unsupported transport contract manifest schema: {data.get('schemaVersion')}")
     if data.get("officialSourceCommit") != COMMIT:
         raise SystemExit(f"transport contract source commit mismatch: {data.get('officialSourceCommit')!r}")
-    if data.get("contractRevision") != "official-528c682e-transport-contract-r1":
+    if data.get("contractRevision") != "official-b150a55-transport-contract-r1":
         raise SystemExit(f"transport contract revision mismatch: {data.get('contractRevision')!r}")
     contracts = data.get("contracts")
     if not isinstance(contracts, list):

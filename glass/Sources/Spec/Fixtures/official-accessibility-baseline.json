@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "officialSourceCommit": "528c682e061696f5a160f363f236ecbf53cbd006",
+  "officialSourceCommit": "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e",
   "principles": {
     "iconOnlyControls": "Every icon-only official control has an explicit accessibilityLabel sourced from OfficialUISpec.Text.",
     "keyboard": "Each keyboardOnly official scene retains a visible focusable control and hidden/closed controls cannot receive focus.",

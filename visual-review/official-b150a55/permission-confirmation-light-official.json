@@ -1,0 +1,33 @@
+{
+  "officialSourceCommit": "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e",
+  "viewport": {
+    "width": 1280,
+    "height": 840
+  },
+  "locale": "en-US",
+  "colorScheme": "light",
+  "geometry": {
+    "root": {
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 840
+    },
+    "text": "DSH Local Buildb150a55New SessionWorkspacesworkspaceNew SessionSettingsInto the UnknownPreviewworkspaceStandard mode Workspace WriteDeepSeek-V4-FlashDetailsClick a tool row in the message flow to view its details",
+    "viewport": {
+      "width": 1280,
+      "height": 840,
+      "devicePixelRatio": 1
+    },
+    "title": "DSH Local Build",
+    "activeElement": {
+      "tagName": "INPUT",
+      "role": null,
+      "ariaLabel": null,
+      "text": ""
+    }
+  },
+  "ariaSnapshot": "- button \"New session\"\n- button \"Collapse sidebar\":\n  - img\n- button \"New session\":\n  - img\n  - text: New Session\n- text: Workspaces\n- button \"Search sessions\":\n  - img\n- textbox \"Search sessions...\"\n- button \"View options\":\n  - img\n- button \"Add workspace\":\n  - img\n- tree \"Sessions\":\n  - treeitem \"workspace\" [expanded]:\n    - img\n    - text: workspace\n  - treeitem \"New Session\" [selected]\n- button \"Settings\":\n  - img\n  - text: Settings\n- text: Into the Unknown Preview\n- button \"Choose workspace\":\n  - img\n  - text: workspace\n  - img\n- button \"Standard mode\":\n  - img\n  - text: Standard mode\n  - img\n- textbox \"Describe what you want to build\"\n- button \"Commands\":\n  - img\n- 'button \"Access mode, current: Workspace Write\" [disabled]': Workspace Write\n- button \"Select model, current DeepSeek-V4-Flash\":\n  - text: DeepSeek-V4-Flash\n  - img\n- button \"Send message\" [disabled]\n- text: Details\n- button \"Close details\"\n- text: Click a tool row in the message flow to view its details\n- dialog \"Enable Full access?\":\n  - heading \"Enable Full access?\" [level=2]\n  - button \"Close\":\n    - img\n  - img\n  - paragraph: Full access reduces confirmation steps and lets the agent perform more actions directly, including sensitive operations, file changes, or external commands. Only use it when you trust the current task.\n  - checkbox \"I understand the risks and want to continue\"\n  - text: I understand the risks and want to continue\n  - button \"Cancel\"\n  - button \"Enable Full access\" [disabled]",
+  "consoleWarnings": [],
+  "pageErrors": []
+}
