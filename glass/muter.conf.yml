@@ -1,0 +1,15 @@
+executable: /usr/bin/swift
+arguments:
+  - test
+  - --filter
+  - GlassPortableCoreTests
+exclude:
+  - Sources/App
+  - Sources/Core
+  - Sources/UI
+  - Sources/Snapshot
+  - Sources/Spec
+  - Sources/PluginPlane
+  - Package.swift
+coverageThreshold: 0
+mutationTestTimeout: 120
