@@ -63,9 +63,9 @@ final class NativeSplitLayoutPolicyTests: XCTestCase {
     }
 
     func testOfficialConcessionChainMatchesStepOneAndStepTwoSeams() {
-        let sidebar = 300
-        let details = OfficialUISpec.Layout.detailsDefault
-        let center = OfficialUISpec.Layout.centerMinimum
+        let sidebar: CGFloat = 300
+        let details: CGFloat = OfficialUISpec.Layout.detailsDefault
+        let center: CGFloat = OfficialUISpec.Layout.centerMinimum
 
         XCTAssertEqual(
             OfficialColumnLayout.resolve(

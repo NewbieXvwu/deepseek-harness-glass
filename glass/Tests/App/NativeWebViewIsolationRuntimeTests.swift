@@ -28,6 +28,8 @@ final class NativeWebViewIsolationRuntimeTests: XCTestCase {
                 selectedWorkspaceTitle: "Fixture workspace",
                 sessionSnapshot: .empty,
                 sessionStore: NativeSessionStore(),
+                agentPresetStore: NativeAgentPresetStore(),
+                selectAgentPreset: { _, _ in false },
                 jobsPopoverInitiallyOpen: false,
                 jobsLanguageCode: nil,
                 openSession: { _ in },

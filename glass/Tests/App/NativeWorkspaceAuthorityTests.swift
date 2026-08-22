@@ -217,7 +217,7 @@ final class NativeWorkspaceAuthorityTests: XCTestCase {
         try await Task.sleep(for: .milliseconds(350))
         XCTAssertTrue(WorkspaceAuthorityURLProtocol.capturedMethods().isEmpty)
         XCTAssertEqual(store.phase, .idle)
-        XCTAssertEqual(store.snapshot.workspaces, [])
+        XCTAssertTrue(store.snapshot.workspaces.isEmpty)
     }
 
     private func mockSession() -> URLSession {
