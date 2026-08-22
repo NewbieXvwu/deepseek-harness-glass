@@ -285,7 +285,7 @@ Apple 建议使用系统导航与标准控件以自动获得 Liquid Glass；在 
 
 ### RC8 T5/T7 截图重新认证矩阵（进行中）
 
-`glass/ci/test_rc8_recapture_matrix.py` 现将 16 个 T5/T7 必经场景同时约束到 `visual-scenes.json`、visual policy、官方 Playwright 采集和 `native-ui` 的存在性/配对比较步骤。新增 `approval-composer-light`、`question-composer-light` 的官方真实 replay capture，并将其配对到原生 1280×1100 snapshot。所有场景仍为 `report-only`，但必须 `mustEnforceBeforeTodoCompletion` 且具有人审条件；未获得当前 SHA macOS 工件、人工分类和必要的 enforce 升级前，T5.1–T5.6 与 T7.3 一律保持未勾选。完整矩阵和证据边界见 `notes/RC8-T5-T7-recapture-matrix.md`。`python3 glass/ci/test_rc8_recapture_matrix.py` 已于 2026-08-22 在当前工作树通过，确认 16 个 T5/T7 场景均接线至 scene catalog、policy、official capture 和 native-ui comparison；该 Python gate 不生成当前 SHA 的 macOS PNG/ARIA/geometry 工件，也不替代人工差异分类或 enforce 升级。
+`glass/ci/test_rc8_recapture_matrix.py` 现将 16 个 T5/T7 必经场景同时约束到 `visual-scenes.json`、visual policy、官方 Playwright 采集和 `native-ui` 的存在性/配对比较步骤。新增 `approval-composer-light`、`question-composer-light` 的官方真实 replay capture，并将其配对到原生 1280×1100 snapshot。所有场景仍为 `report-only`，但必须 `mustEnforceBeforeTodoCompletion` 且具有人审条件；未获得当前 SHA macOS 工件、人工分类和必要的 enforce 升级前，T5.1–T5.6 与 T7.3 一律保持未勾选。完整矩阵和证据边界见 `notes/RC8-T5-T7-recapture-matrix.md`。`python3 glass/ci/test_rc8_recapture_matrix.py` 已于 2026-08-22 在当前工作树通过，确认 16 个 T5/T7 场景均接线至 scene catalog、policy、official capture 和 native-ui comparison；该 Python gate 不生成当前 SHA 的 macOS PNG/ARIA/geometry 工件，也不替代人工差异分类或 enforce 升级。随后在本地按 native-ui 流程尝试 fresh build 锁定官方 WebUI、安装 Chromium 并运行 reference capture，但 `pnpm run build` 于 `build:lib:host` 以 exit 143 在高内存压力下终止，Playwright 未启动且未生成 PNG/ARIA；该失败已记录于 T5.2 来源说明，必须由具备足够内存的 macOS-26 workflow 或恢复后的本地环境重试，不能用历史 official artifacts 代替。
 
 ## 6. 会话状态机与事件投影
 
