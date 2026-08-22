@@ -42,15 +42,15 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
                 settingsPresented: settingsPresented
             )
         }
-        try assertAccessibilityExpanded(
+        try assertAccessibilityValue(
             in: makeSidebar(false),
             label: OfficialUISpec.Text.settings,
-            expected: false
+            expected: "false"
         )
-        try assertAccessibilityExpanded(
+        try assertAccessibilityValue(
             in: makeSidebar(true),
             label: OfficialUISpec.Text.settings,
-            expected: true
+            expected: "true"
         )
     }
 
@@ -778,13 +778,13 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         }
     }
 
-    private func assertAccessibilityExpanded<V: View>(
+    private func assertAccessibilityValue<V: View>(
         in view: V,
         label: String,
-        expected: Bool
+        expected: String
     ) throws {
         guard AXIsProcessTrusted() else {
-            throw XCTSkip("Accessibility trust is unavailable for this XCTest process; run expanded-state assertion in the GUI accessibility-test host.")
+            throw XCTSkip("Accessibility trust is unavailable for this XCTest process; run settings trigger state assertion in the GUI accessibility-test host.")
         }
         let host = NSHostingView(rootView: view)
         let window = NSWindow(
@@ -802,7 +802,7 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         guard let element = accessibilityElements(in: host).first(where: { $0.accessibilityLabel() == label }) else {
             throw XCTSkip("The trusted process exposed no settings trigger accessibility element.")
         }
-        XCTAssertEqual(element.accessibilityExpanded(), expected)
+        XCTAssertEqual(element.accessibilityValue() as? String, expected)
     }
 
     private func accessibilityLabels(in element: any NSAccessibilityProtocol) -> [String] {

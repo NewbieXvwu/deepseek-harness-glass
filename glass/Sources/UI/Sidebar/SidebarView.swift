@@ -8,7 +8,7 @@ struct NativeSidebarView: View {
     let workspaceStore: NativeWorkspaceStore
     /// Source: RC8 `host.describe.home`; absent until the verified Host answers.
     let hostHome: String?
-    /// Native equivalent of the official settings trigger's `aria-expanded`.
+    /// Source for the native settings trigger's expanded accessibility value.
     let settingsPresented: Bool
     let collapsed: Bool
     let setCollapsed: (Bool) -> Void
@@ -175,7 +175,7 @@ struct NativeSidebarView: View {
         }
         .buttonStyle(OfficialSidebarRowButtonStyle())
         .accessibilityLabel(OfficialUISpec.Text.settings)
-        .accessibilityExpanded(settingsPresented)
+        .accessibilityValue(settingsPresented ? "true" : "false")
         .padding(.leading, collapsed ? OfficialUISpec.Spacing.p0 : OfficialUISpec.Layout.sidebarNativeExpandedFooterLeadingAdjustment)
         .padding(.bottom, OfficialUISpec.Spacing.p4)
     }
