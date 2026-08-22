@@ -324,6 +324,23 @@ final class NativeConversationHeaderTests: XCTestCase {
         )
     }
 
+    func testComposerPresentationKeepsHeroPostureInOneInteractiveTree() {
+        let noWorkspace = NativeComposerPresentation.hero(workspaceTitle: nil)
+        XCTAssertTrue(noWorkspace.isHero)
+        XCTAssertTrue(noWorkspace.isWorkspaceTrigger)
+        XCTAssertEqual(noWorkspace.placeholder, OfficialUISpec.Text.composerWorkspacePlaceholder)
+
+        let workspaceHero = NativeComposerPresentation.hero(workspaceTitle: "Workspace")
+        XCTAssertTrue(workspaceHero.isHero)
+        XCTAssertFalse(workspaceHero.isWorkspaceTrigger)
+        XCTAssertEqual(workspaceHero.placeholder, OfficialUISpec.Text.composerHeroPlaceholder)
+
+        let docked = NativeComposerPresentation.docked
+        XCTAssertFalse(docked.isHero)
+        XCTAssertFalse(docked.isWorkspaceTrigger)
+        XCTAssertEqual(docked.placeholder, OfficialUISpec.Text.composerDefaultPlaceholder)
+    }
+
     private func summary(
         id: String,
         title: String,
