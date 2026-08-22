@@ -13,14 +13,14 @@ final class RawEventReplayReducerTests: XCTestCase {
             snapshots.append(reducer.snapshot(target: "chat"))
         }
 
-        let final = tryUnwrap(snapshots.last)
+        let final = try tryUnwrap(snapshots.last)
         XCTAssertEqual(final.map(\.kind), ["user", "assistant-step"])
         XCTAssertEqual(final.map(\.key), [
             conversationContextKey(kind: "input-message", id: "fixture-user-1"),
             conversationContextKey(kind: "assistant-step", id: "1:1"),
         ])
         XCTAssertEqual(Set(final.map(\.key)).count, final.count)
-        let assistant = tryUnwrap(final.last?.data as? CoreAssistantNode)
+        let assistant = try tryUnwrap(final.last?.data as? CoreAssistantNode)
         XCTAssertEqual(assistant.status, .settled)
         XCTAssertEqual(assistant.blocks.map(\.kind), [.text])
         XCTAssertEqual(assistant.blocks.first?.text, "fixture answer")
@@ -34,8 +34,8 @@ final class RawEventReplayReducerTests: XCTestCase {
 
         XCTAssertEqual(reducer.replaceWindow(events.map { .init(event: $0) }, hasMore: false), .immediate)
         let chat = reducer.snapshot(target: "chat")
-        let retryNode = tryUnwrap(chat.first(where: { $0.kind == "model-retry" }))
-        let retry = tryUnwrap(retryNode.data as? CoreRetryNode)
+        let retryNode = try tryUnwrap(chat.first(where: { $0.kind == "model-retry" }))
+        let retry = try tryUnwrap(retryNode.data as? CoreRetryNode)
         XCTAssertEqual(chat.map(\.kind), ["model-retry"])
         XCTAssertEqual(retryNode.key, "model-retry:fixture-retry-1")
         XCTAssertEqual(retry.attempts.map(\.state), [.cancelled])
@@ -54,9 +54,9 @@ final class RawEventReplayReducerTests: XCTestCase {
         }
 
         XCTAssertTrue(snapshots[0].isEmpty)
-        let scheduled = tryUnwrap(snapshots[1].first?.data as? CoreRetryNode)
+        let scheduled = try tryUnwrap(snapshots[1].first?.data as? CoreRetryNode)
         XCTAssertEqual(scheduled.attempts.map(\.state), [.scheduled])
-        let cancelled = tryUnwrap(snapshots[2].first?.data as? CoreRetryNode)
+        let cancelled = try tryUnwrap(snapshots[2].first?.data as? CoreRetryNode)
         XCTAssertEqual(cancelled.attempts.map(\.state), [.cancelled])
         XCTAssertEqual(snapshots[2].map(\.key), ["model-retry:fixture-retry-1"])
         XCTAssertTrue(reducer.snapshot(target: "inspector").isEmpty)
@@ -68,7 +68,7 @@ final class RawEventReplayReducerTests: XCTestCase {
 
         XCTAssertEqual(reducer.replaceWindow(events.map { .init(event: $0) }, hasMore: false), .immediate)
         let chat = reducer.snapshot(target: "chat")
-        let assistant = tryUnwrap(chat.first?.data as? CoreAssistantNode)
+        let assistant = try tryUnwrap(chat.first?.data as? CoreAssistantNode)
 
         XCTAssertEqual(chat.map(\.kind), ["assistant-step"])
         XCTAssertEqual(chat.map(\.key), [conversationContextKey(kind: "assistant-step", id: "3:1")])
@@ -89,12 +89,12 @@ final class RawEventReplayReducerTests: XCTestCase {
 
         XCTAssertTrue(snapshots[0].isEmpty)
         XCTAssertTrue(snapshots[1].isEmpty)
-        let firstTail = tryUnwrap(snapshots[2].first?.data as? CoreAssistantNode)
+        let firstTail = try tryUnwrap(snapshots[2].first?.data as? CoreAssistantNode)
         XCTAssertEqual(firstTail.blocks.first?.text, "first")
         XCTAssertEqual(snapshots[3].map(\.key), snapshots[2].map(\.key))
-        let deduplicatedTail = tryUnwrap(snapshots[3].first?.data as? CoreAssistantNode)
+        let deduplicatedTail = try tryUnwrap(snapshots[3].first?.data as? CoreAssistantNode)
         XCTAssertEqual(deduplicatedTail.blocks.first?.text, "first")
-        let liveTail = tryUnwrap(snapshots[4].first?.data as? CoreAssistantNode)
+        let liveTail = try tryUnwrap(snapshots[4].first?.data as? CoreAssistantNode)
         XCTAssertEqual(liveTail.blocks.first?.text, "first second")
         XCTAssertEqual(liveTail.status, .running)
         XCTAssertTrue(reducer.snapshot(target: "inspector").isEmpty)
@@ -106,8 +106,8 @@ final class RawEventReplayReducerTests: XCTestCase {
 
         XCTAssertEqual(reducer.replaceWindow(events.map { .init(event: $0) }, hasMore: false), .immediate)
         let chat = reducer.snapshot(target: "chat")
-        let tool = tryUnwrap(chat.first(where: { $0.kind == "tool-call" })?.data as? CoreToolCallNode)
-        let assistant = tryUnwrap(chat.first(where: { $0.kind == "assistant-step" })?.data as? CoreAssistantNode)
+        let tool = try tryUnwrap(chat.first(where: { $0.kind == "tool-call" })?.data as? CoreToolCallNode)
+        let assistant = try tryUnwrap(chat.first(where: { $0.kind == "assistant-step" })?.data as? CoreAssistantNode)
         XCTAssertEqual(chat.map(\.kind), ["tool-call", "assistant-step"])
         XCTAssertEqual(chat.map(\.key), [
             conversationContextKey(kind: "tool-call", id: "fixture-call-1"),
@@ -134,14 +134,14 @@ final class RawEventReplayReducerTests: XCTestCase {
 
         XCTAssertTrue(snapshots[0].isEmpty)
         XCTAssertTrue(snapshots[1].isEmpty)
-        let runningTool = tryUnwrap(snapshots[2].first?.data as? CoreToolCallNode)
+        let runningTool = try tryUnwrap(snapshots[2].first?.data as? CoreToolCallNode)
         XCTAssertEqual(snapshots[2].map(\.kind), ["tool-call"])
         XCTAssertEqual(runningTool.status, .running)
         XCTAssertEqual(snapshots[3].map(\.kind), ["tool-call", "assistant-step"])
-        let runningAssistant = tryUnwrap(snapshots[3].last?.data as? CoreAssistantNode)
+        let runningAssistant = try tryUnwrap(snapshots[3].last?.data as? CoreAssistantNode)
         XCTAssertEqual(runningAssistant.status, .running)
         XCTAssertEqual(runningAssistant.blocks.first?.text, "working")
-        let settledTool = tryUnwrap(snapshots[4].first?.data as? CoreToolCallNode)
+        let settledTool = try tryUnwrap(snapshots[4].first?.data as? CoreToolCallNode)
         XCTAssertEqual(settledTool.status, .settled)
         XCTAssertEqual(settledTool.resultContent.first?.text, "fixture result")
         XCTAssertTrue(reducer.snapshot(target: "inspector").isEmpty)
@@ -177,19 +177,19 @@ final class RawEventReplayReducerTests: XCTestCase {
             }
         }
 
-        XCTAssertTrue(tryUnwrap(selectedSnapshots[0]).isEmpty)
-        XCTAssertEqual(tryUnwrap(selectedSnapshots[1]).map(\.kind), ["user"])
-        XCTAssertEqual(tryUnwrap(selectedSnapshots[2]).map(\.key), [
+        XCTAssertTrue(try tryUnwrap(selectedSnapshots[0]).isEmpty)
+        XCTAssertEqual(try tryUnwrap(selectedSnapshots[1]).map(\.kind), ["user"])
+        XCTAssertEqual(try tryUnwrap(selectedSnapshots[2]).map(\.key), [
             conversationContextKey(kind: "input-message", id: "fixture-long-user-1"),
             conversationContextKey(kind: "assistant-step", id: "1:1"),
         ])
-        XCTAssertEqual((tryUnwrap(selectedSnapshots[3]).last?.data as? CoreAssistantNode)?.status, .settled)
+        XCTAssertEqual((try tryUnwrap(selectedSnapshots[3]).last?.data as? CoreAssistantNode)?.status, .settled)
 
-        let beforeLastAssistant = tryUnwrap(selectedSnapshots[events.count - 2])
+        let beforeLastAssistant = try tryUnwrap(selectedSnapshots[events.count - 2])
         XCTAssertEqual(beforeLastAssistant.count, 2_000)
         XCTAssertEqual(beforeLastAssistant.last?.key, conversationContextKey(kind: "assistant-step", id: "1000:1"))
         XCTAssertEqual((beforeLastAssistant.last?.data as? CoreAssistantNode)?.blocks.first?.text, "fixture long answer-1000")
-        XCTAssertEqual((tryUnwrap(selectedSnapshots[events.count - 1]).last?.data as? CoreAssistantNode)?.status, .settled)
+        XCTAssertEqual((try tryUnwrap(selectedSnapshots[events.count - 1]).last?.data as? CoreAssistantNode)?.status, .settled)
         XCTAssertTrue(reducer.snapshot(target: "inspector").isEmpty)
     }
 
@@ -239,20 +239,14 @@ final class RawEventReplayReducerTests: XCTestCase {
         XCTAssertEqual(reducer.rawWindow().map(\.event.type), ["plugin/future-node"])
     }
 
-    private func tryUnwrap<T>(_ value: T?, file: StaticString = #filePath, line: UInt = #line) -> T {
-        guard let value else {
-            XCTFail("Expected non-nil value", file: file, line: line)
-            fatalError("Expected non-nil value")
-        }
-        return value
+    private func tryUnwrap<T>(_ value: T?, file: StaticString = #filePath, line: UInt = #line) throws -> T {
+        try XCTUnwrap(value, "Expected non-nil value", file: file, line: line)
     }
 
     private func events(for id: String, expanded: Bool = false) throws -> [SessionEventDTO] {
         let fixture = try OfficialRawEventReplayFixtureCatalog.load()
-        let replay = tryUnwrap(fixture.cases.first(where: { $0.id == id }))
+        let replay = try tryUnwrap(fixture.cases.first(where: { $0.id == id }))
         let values = expanded ? OfficialRawEventReplayFixtureCatalog.expandedEvents(for: replay) : replay.events
-        return try values.map { event in
-            try JSONDecoder().decode(SessionEventDTO.self, from: JSONEncoder().encode(event))
-        }
+        return try JSONDecoder().decode([SessionEventDTO].self, from: JSONEncoder().encode(values))
     }
 }

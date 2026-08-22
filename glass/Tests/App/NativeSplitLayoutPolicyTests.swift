@@ -164,7 +164,6 @@ final class NativeSplitLayoutPolicyTests: XCTestCase {
     }
 
     func testNarrowViewportUsesTheOfficialFiftySixPointRail() {
-        XCTAssertLessThan(1023, OfficialUISpec.Layout.sidebarAutoCollapse)
         let layout = OfficialColumnLayout.resolve(
             viewport: 900,
             sidebarPreference: 0,

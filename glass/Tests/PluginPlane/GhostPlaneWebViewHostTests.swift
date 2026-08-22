@@ -77,8 +77,7 @@ final class GhostPlaneWebViewHostTests: XCTestCase {
             };
             """,
             arguments: [:],
-            in: nil,
-            in: .page
+                        contentWorld: .page
         ) as? [String: Any]
 
         XCTAssertEqual(result?["color"] as? String, "#3b82f6")
@@ -98,8 +97,7 @@ final class GhostPlaneWebViewHostTests: XCTestCase {
             };
             """,
             arguments: [:],
-            in: nil,
-            in: .page
+                        contentWorld: .page
         ) as? [String: Any]
         XCTAssertEqual(scrollResult?["transform"] as? String, "translate3d(0px, -42.5px, 0px)")
         XCTAssertEqual(scrollResult?["offset"] as? String, "42.5")
@@ -127,7 +125,7 @@ final class GhostPlaneWebViewHostTests: XCTestCase {
             });
             return window.__ModuleLoader__.mode;
             """,
-            arguments: [:], in: nil, in: .page
+            arguments: [:], contentWorld: .page
         )
         try await host.promoteModuleFactories([try activationPermit()])
         let result = try await host.webView.callAsyncJavaScript(
@@ -138,7 +136,7 @@ final class GhostPlaneWebViewHostTests: XCTestCase {
               live: window.__ModuleLoader__.factories.has('dsh-review-loop'),
             };
             """,
-            arguments: [:], in: nil, in: .page
+            arguments: [:], contentWorld: .page
         ) as? [String: Any]
         XCTAssertEqual(result?["mode"] as? String, "live")
         XCTAssertEqual(result?["queued"] as? Int, 0)
@@ -166,7 +164,7 @@ final class GhostPlaneWebViewHostTests: XCTestCase {
             }, { once: true });
             return true;
             """,
-            arguments: [:], in: nil, in: .page
+            arguments: [:], contentWorld: .page
         )
         try await host.emitNativeBridgeEvent(.keyboard(.init(
             phase: .down, key: "Enter", code: "Enter", location: 0,
@@ -177,7 +175,7 @@ final class GhostPlaneWebViewHostTests: XCTestCase {
             const value = window.__ghostNativeBridgeCapture;
             return { direction: value?.direction, epoch: value?.documentEpoch, sequence: value?.sequence, key: value?.event?.key };
             """,
-            arguments: [:], in: nil, in: .page
+            arguments: [:], contentWorld: .page
         ) as? [String: Any]
         XCTAssertEqual(result?["direction"] as? String, "nativeToPlane")
         XCTAssertEqual(result?["epoch"] as? Int, 1)
@@ -216,7 +214,7 @@ final class GhostPlaneWebViewHostTests: XCTestCase {
             });
             return true;
             """,
-            arguments: [:], in: nil, in: .page
+            arguments: [:], contentWorld: .page
         )
         await fulfillment(of: [received], timeout: 5)
     }

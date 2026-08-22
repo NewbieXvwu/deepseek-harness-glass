@@ -453,17 +453,21 @@ if announcedOutput.count > 32_768 {
     private var activeLogHandle: FileHandle?
 
     private func writeLog(_ data: Data) {
-        if activeLogHandle == nil, fileManager.fileExists(atPath: runtime.logFile.path),
-           let handle = try? FileHandle(forWritingTo: runtime.logFile) {
-            activeLogHandle = handle
-        }
-        if let handle = activeLogHandle {
-            try? handle.seekToEnd()
-            try? handle.write(contentsOf: data)
-        } else {
-            // First line, or the file was replaced externally (log rotation):
-            // fall back to atomic replacement until the new file exists.
-            try? data.write(to: runtime.logFile, options: .atomic)
+        do {
+            if activeLogHandle == nil, fileManager.fileExists(atPath: runtime.logFile.path) {
+                activeLogHandle = try FileHandle(forWritingTo: runtime.logFile)
+            }
+            if let handle = activeLogHandle {
+                try handle.seekToEnd()
+                try handle.write(contentsOf: data)
+            } else {
+                // First line, or the file was replaced externally (log rotation):
+                // fall back to atomic replacement until the new file exists.
+                try data.write(to: runtime.logFile, options: .atomic)
+            }
+        } catch {
+            Task { [diagnostics] in await diagnostics.recordRPCError(error) }
+            fputs("[HostLog] writeLog failed: \(error.localizedDescription)\n", stderr)
         }
     }
 }

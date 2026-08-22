@@ -92,7 +92,7 @@ final class SessionHistoryPagerTests: XCTestCase {
 
     func testOlderPageLoadCoalescesWhileARequestIsInFlight() async {
         let pager = SessionHistoryPager()
-        let gate = AsyncGate()
+        let gate = RecoveryGate()
         var beforeSeqRequests: [Int?] = []
         var maxMessageRequests: [Int?] = []
         pager.bind(sessionID: "session") { _, beforeSeq, maxMessages in
@@ -162,27 +162,5 @@ final class SessionHistoryPagerTests: XCTestCase {
             sourceEventSeqs: nil,
             ignorable: nil
         )
-    }
-}
-
-private actor AsyncGate {
-    private var opened = false
-    private var continuation: CheckedContinuation<Void, Never>?
-
-    func wait() async {
-        if opened { return }
-        await withCheckedContinuation { continuation in
-            if opened {
-                continuation.resume()
-            } else {
-                self.continuation = continuation
-            }
-        }
-    }
-
-    func open() {
-        opened = true
-        continuation?.resume()
-        continuation = nil
     }
 }

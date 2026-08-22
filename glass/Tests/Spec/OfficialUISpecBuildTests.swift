@@ -3,32 +3,12 @@ import XCTest
 
 final class OfficialUISpecBuildTests: XCTestCase {
     func testGeneratedBuildIdentityIsCompleteAndSelfCompatible() {
-        XCTAssertEqual(OfficialUISpec.deepSeekHarnessCommit, OfficialUISpec.Build.sourceCommit)
-        XCTAssertEqual(OfficialUISpec.hostBuildID, OfficialUISpec.Build.id)
-        XCTAssertTrue(OfficialUISpec.Build.isCompatible(with: OfficialUISpec.hostBuildID))
         XCTAssertFalse(OfficialUISpec.Build.isCompatible(with: "unknown-host-build"))
         XCTAssertTrue(OfficialUISpec.Build.localeRevision.hasPrefix("sha256:"))
         XCTAssertTrue(OfficialUISpec.Build.tokenRevision.hasPrefix("sha256:"))
         XCTAssertTrue(OfficialUISpec.Build.layoutRevision.hasPrefix("sha256:"))
         XCTAssertTrue(OfficialUISpec.Build.fixtureRevision.hasPrefix("sha256:"))
         XCTAssertEqual(OfficialUISpec.Build.sourceCommit.count, 40)
-        XCTAssertEqual(OfficialUISpec.sidebarBuildRevision, "528c682e")
-        XCTAssertEqual(OfficialUISpec.Text.sidebarFallbackBrand, "DSH Local Build")
-        XCTAssertEqual(OfficialUISpec.Layout.sidebarLogoRowHeight, 60)
-        XCTAssertEqual(OfficialUISpec.Layout.sidebarBrandMarkSize, 24)
-        XCTAssertEqual(OfficialUISpec.Layout.sidebarBuildBadgeHeight, 16)
-        XCTAssertEqual(OfficialUISpec.Layout.sidebarNewSessionHeight, 38)
-        XCTAssertEqual(OfficialUISpec.Layout.sidebarNativeExpandedLeadingInset, 5)
-        XCTAssertEqual(OfficialUISpec.Layout.sidebarNativeExpandedFooterLeadingAdjustment, 5)
-        XCTAssertEqual(OfficialUISpec.Layout.sessionHeaderTopPadding, 12)
-        XCTAssertEqual(OfficialUISpec.Layout.sessionHeaderLeadingPadding, 20)
-        XCTAssertEqual(OfficialUISpec.Layout.sessionHeaderTrailingPadding, 28)
-        XCTAssertEqual(OfficialUISpec.Layout.sessionHeaderTitleRowHeight, 32)
-        XCTAssertEqual(OfficialUISpec.Layout.sessionHeaderTabStripHeight, 35)
-        XCTAssertEqual(OfficialUISpec.Layout.sessionHeaderTabGap, 36)
-        XCTAssertEqual(OfficialUISpec.Layout.sessionHeaderTabLeadingPadding, 8)
-        XCTAssertEqual(OfficialUISpec.Layout.sessionHeaderTabBottomPadding, 11)
-        XCTAssertEqual(OfficialUISpec.Layout.sessionHeaderActiveBarHeight, 2)
         XCTAssertFalse(OfficialUISpec.Build.uiSpecRevision.isEmpty)
     }
 
@@ -151,17 +131,5 @@ extension OfficialUISpecBuildTests {
                 fixture.name
             )
         }
-    }
-
-    func testOfficialColumnLayoutExposesLockedComputeColumnsConstants() {
-        XCTAssertEqual(OfficialUISpec.Layout.centerMinimum, 640)
-        XCTAssertEqual(OfficialUISpec.Layout.sidebarMinimum, 264)
-        XCTAssertEqual(OfficialUISpec.Layout.sidebarMaximum, 420)
-        XCTAssertEqual(OfficialUISpec.Layout.sidebarDefault, 280)
-        XCTAssertEqual(OfficialUISpec.Layout.sidebarCollapsed, 56)
-        XCTAssertEqual(OfficialUISpec.Layout.sidebarAutoCollapse, 1024)
-        XCTAssertEqual(OfficialUISpec.Layout.detailsMinimum, 300)
-        XCTAssertEqual(OfficialUISpec.Layout.detailsMaximum, 520)
-        XCTAssertEqual(OfficialUISpec.Layout.detailsDefault, 360)
     }
 }

@@ -36,7 +36,8 @@ enum NativeMarkdownSecurityPolicy {
     /// inert prose before `AttributedString` receives the document. This is a
     /// defensive parser boundary, not an HTML renderer or sanitizer bypass.
     static func sanitizedInlineMarkdown(_ source: String) -> String {
-        var result = replacingMatches(in: source, using: executableHTMLExpression, with: "")
+        let stashed = stashInlineCode(in: source)
+        var result = replacingMatches(in: stashed.text, using: executableHTMLExpression, with: "")
         result = replacingMatches(in: result, using: htmlCommentExpression, with: "")
         result = replacingMatches(in: result, using: htmlTagExpression, with: "")
 
@@ -51,7 +52,42 @@ enum NativeMarkdownSecurityPolicy {
             let replacement = externalURL(from: destination) == nil ? "\(label) (\(destination))" : String(result[fullRange])
             result.replaceSubrange(fullRange, with: replacement)
         }
-        return result
+        return restoreInlineCode(in: result, stashed: stashed.spans)
+    }
+
+    /// Backtick spans are balanced and non-nested in Markdown, so a single
+    /// non-greedy scan is exact and free of backtracking hazards.
+    private static let inlineCodeExpression = try! NSRegularExpression(pattern: #"`([^`]+)`"#)
+
+    private struct InlineCodeStash {
+        let text: String
+        let spans: [String]
+    }
+
+    private static func stashInlineCode(in source: String) -> InlineCodeStash {
+        let matches = inlineCodeExpression.matches(in: source, range: NSRange(source.startIndex..., in: source))
+        var spans: [String] = []
+        spans.reserveCapacity(matches.count)
+        for match in matches {
+            guard let spanRange = Range(match.range(at: 1), in: source) else { continue }
+            spans.append(String(source[spanRange]))
+        }
+        var stashed = source
+        // Replace back-to-front so earlier ranges stay valid, but key the
+        // placeholder by the span's forward index to keep restore order exact.
+        for (index, match) in matches.enumerated().reversed() {
+            guard let spanRange = Range(match.range(at: 1), in: stashed) else { continue }
+            stashed.replaceSubrange(spanRange, with: "\u{0}\(index)\u{0}")
+        }
+        return InlineCodeStash(text: stashed, spans: spans)
+    }
+
+    private static func restoreInlineCode(in text: String, stashed spans: [String]) -> String {
+        var restored = text
+        for (index, span) in spans.enumerated() {
+            restored = restored.replacingOccurrences(of: "\u{0}\(index)\u{0}", with: span)
+        }
+        return restored
     }
 
     private static func replacingMatches(in source: String, using expression: NSRegularExpression, with replacement: String) -> String {
@@ -73,12 +109,21 @@ enum NativeMarkdownSecurityPolicy {
         let safe = sanitizedInlineMarkdown(source)
         var options = AttributedString.MarkdownParsingOptions()
         options.interpretedSyntax = .inlineOnlyPreservingWhitespace
-        var attributed = (try? AttributedString(markdown: safe, options: options)) ?? AttributedString(safe)
-        for run in attributed.runs {
-            guard let url = run.link, externalURL(from: url.absoluteString) == nil else { continue }
-            attributed[run.range].link = nil
+        let attributed: AttributedString
+        do {
+            attributed = try AttributedString(markdown: safe, options: options)
+        } catch {
+            // Fall back to plain text but keep the failure visible so malformed
+            // Host-authored Markdown is not silently downgraded without a trace.
+            fputs("[NativeMarkdownRenderer] AttributedString parse failed: \(error.localizedDescription)\n", stderr)
+            attributed = AttributedString(safe)
         }
-        return attributed
+        var result = attributed
+        for run in result.runs {
+            guard let url = run.link, externalURL(from: url.absoluteString) == nil else { continue }
+            result[run.range].link = nil
+        }
+        return result
     }
 }
 

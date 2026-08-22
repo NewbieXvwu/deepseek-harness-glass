@@ -57,19 +57,19 @@ final class SessionProjectionStoreTests: XCTestCase {
         XCTAssertNil(store.value(sessionID: "session", key: "todo"))
     }
 
-    func testGoalProjectionReaderUsesWholeHostValueAndTombstonesSafely() {
+    func testGoalProjectionReaderUsesWholeHostValueAndTombstonesSafely() throws {
         let store = SessionProjectionStore()
         store.apply(sessionID: "session", key: "goal", value: goal(phase: "active"), seq: 20)
         store.apply(sessionID: "session", key: "goal", value: goal(phase: "complete"), seq: 19)
 
-        let active = tryUnwrap(SessionGoalProjectionReader.value(from: store, sessionID: "session"))
+        let active = try tryUnwrap(SessionGoalProjectionReader.value(from: store, sessionID: "session"))
         XCTAssertEqual(active.id, "goal-1")
         XCTAssertEqual(active.revision, 4)
         XCTAssertEqual(active.phase, .active)
         XCTAssertNil(active.blockedReason)
 
         store.apply(sessionID: "session", key: "goal", value: goal(phase: "blocked", reason: ["code": .string("awaiting-input"), "message": .string("Need user decision")]), seq: 21)
-        let blocked = tryUnwrap(SessionGoalProjectionReader.value(from: store, sessionID: "session"))
+        let blocked = try tryUnwrap(SessionGoalProjectionReader.value(from: store, sessionID: "session"))
         XCTAssertEqual(blocked.phase, .blocked)
         XCTAssertEqual(blocked.blockedReason, .init(code: "awaiting-input", message: "Need user decision"))
 
@@ -86,7 +86,7 @@ final class SessionProjectionStoreTests: XCTestCase {
         XCTAssertNil(SessionGoalProjectionReader.value(from: store, sessionID: "session"))
     }
 
-    func testTodoProjectionReaderUsesWholeHostListAndRejectsMalformedRows() {
+    func testTodoProjectionReaderUsesWholeHostListAndRejectsMalformedRows() throws {
         let store = SessionProjectionStore()
         store.apply(sessionID: "session", key: "todos", value: .array([
             todo("Inspect source", "completed"),
@@ -95,7 +95,7 @@ final class SessionProjectionStoreTests: XCTestCase {
         ]), seq: 12)
         store.apply(sessionID: "session", key: "todos", value: .array([todo("stale", "pending")]), seq: 11)
 
-        let initial = tryUnwrap(SessionTodoProjectionReader.value(from: store, sessionID: "session"))
+        let initial = try tryUnwrap(SessionTodoProjectionReader.value(from: store, sessionID: "session"))
         XCTAssertEqual(initial, [
             .init(content: "Inspect source", status: .completed),
             .init(content: "Implement native view", status: .inProgress),
@@ -103,7 +103,7 @@ final class SessionProjectionStoreTests: XCTestCase {
         ])
 
         store.apply(sessionID: "session", key: "todos", value: .array([]), seq: 13)
-        XCTAssertEqual(tryUnwrap(SessionTodoProjectionReader.value(from: store, sessionID: "session")), [])
+        XCTAssertEqual(try tryUnwrap(SessionTodoProjectionReader.value(from: store, sessionID: "session")), [])
 
         store.apply(sessionID: "session", key: "todos", value: .array([todo("same", "pending"), todo("same", "completed")]), seq: 14)
         XCTAssertNil(SessionTodoProjectionReader.value(from: store, sessionID: "session"))
@@ -133,8 +133,7 @@ final class SessionProjectionStoreTests: XCTestCase {
         ])
     }
 
-    private func tryUnwrap<T>(_ value: T?) -> T {
-        guard let value else { fatalError("Expected non-nil value") }
-        return value
+    private func tryUnwrap<T>(_ value: T?, file: StaticString = #filePath, line: UInt = #line) throws -> T {
+        try XCTUnwrap(value, "Expected non-nil value", file: file, line: line)
     }
 }

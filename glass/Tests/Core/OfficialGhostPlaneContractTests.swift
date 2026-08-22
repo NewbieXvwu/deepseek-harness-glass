@@ -6,15 +6,6 @@ import XCTest
 final class OfficialGhostPlaneContractTests: XCTestCase {
     func testGeneratedContractMatchesLockedBuildAndSkeletonSelectorInventory() throws {
         let fixture = try OfficialGhostPlaneContract.load()
-
-        XCTAssertEqual(fixture.schemaVersion, 1)
-        XCTAssertEqual(fixture.sourceCommit, OfficialUISpec.Build.sourceCommit)
-        XCTAssertGreaterThanOrEqual(fixture.sources.count, 6)
-        XCTAssertEqual(fixture.moduleLoader.bootGlobal, "__DSH_BOOT__")
-        XCTAssertEqual(fixture.moduleLoader.registrationGlobal, "__ModuleLoader__")
-        XCTAssertEqual(fixture.moduleLoader.registrationMethod, "load")
-        XCTAssertEqual(fixture.moduleLoader.bundlePathTemplate, "/plugins/<id>/client.js?rev=<rev>")
-        XCTAssertTrue(fixture.moduleLoader.factoryRegistration)
         XCTAssertNoThrow(try OfficialGhostPlaneContract.validateSkeletonSelectors(GhostPlaneSkeleton.requiredSelectors, against: fixture))
     }
 

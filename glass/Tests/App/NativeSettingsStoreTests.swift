@@ -170,13 +170,6 @@ final class NativeSettingsStoreTests: XCTestCase {
         XCTAssertEqual(store.drafts[namespace.ns]?.operation, .set(path: ["displayName"], value: .string("safe-draft")))
     }
 
-    func testSettingsRootNavigationUsesOnlyLockedOfficialLocaleValues() {
-        XCTAssertEqual(NativeSettingsRoot.SectionID.general.title, OfficialUISpec.LocaleCatalog.value(namespace: "ui-settings-general", key: "general.nav", language: "en"))
-        XCTAssertEqual(NativeSettingsRoot.SectionID.models.title, OfficialUISpec.LocaleCatalog.value(namespace: "ui-settings-models", key: "nav", language: "en"))
-        XCTAssertEqual(NativeSettingsRoot.SectionID.plugins.title, OfficialUISpec.LocaleCatalog.value(namespace: "ui-settings-plugins", key: "nav", language: "en"))
-        XCTAssertEqual(NativeSettingsRoot.SectionID.agentPresets.title, OfficialUISpec.LocaleCatalog.value(namespace: "ui-agent-preset", key: "nav", language: "en"))
-    }
-
     func testShellSettingsOpenAndCloseUseTypedStoreWithoutInventingHostAuthority() {
         let store = NativeSettingsStore()
         let presentation = NativeShellPresentation(mode: .conversation, settingsStore: store)

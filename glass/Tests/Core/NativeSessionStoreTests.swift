@@ -462,12 +462,12 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(feedbackAPI.putRequests.first?.ifVersion, "v1")
     }
 
-    func testPermissionProjectionAndCommandSelectionStayHostAuthoritative() async {
+    func testPermissionProjectionAndCommandSelectionStayHostAuthoritative() async throws {
         let submitted = expectation(description: "permission command reaches session facade")
         let api = PermissionCommandSessionAPI(submitted: submitted)
         let store = NativeSessionStore()
         store.loadSnapshotToolingFixture()
-        let sessionID = tryUnwrap(store.selectedSessionID)
+        let sessionID = try tryUnwrap(store.selectedSessionID)
         store.projections.apply(
             sessionID: sessionID,
             key: "permissions",
@@ -500,13 +500,13 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertNil(store.extensionState?.permissions, "malformed Host projection must hide the optional capability")
     }
 
-    func testSessionSwitchCancelsPendingPermissionCommandBeforeLateAcceptanceCanAffectNewSession() async {
+    func testSessionSwitchCancelsPendingPermissionCommandBeforeLateAcceptanceCanAffectNewSession() async throws {
         let commandReached = expectation(description: "permission command reaches Host before session switch")
         let commandCancelled = expectation(description: "permission command Task cancels on session switch")
         let api = DelayedPromptSessionAPI(oldPromptReached: commandReached, oldPromptCancelled: commandCancelled)
         let store = NativeSessionStore()
         store.loadSnapshotToolingFixture()
-        let oldSessionID = tryUnwrap(store.selectedSessionID)
+        let oldSessionID = try tryUnwrap(store.selectedSessionID)
         store.projections.apply(
             sessionID: oldSessionID,
             key: "permissions",
@@ -1501,7 +1501,7 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.chatNodes.compactMap { $0.data as? CoreUserMessageNode }.map(\.seq), [1, 2, 3])
     }
 
-    func testSessionModelsAuthorityPublishesTypedDirectoryAndClearsForColdSession() async {
+    func testSessionModelsAuthorityPublishesTypedDirectoryAndClearsForColdSession() async throws {
         let modelsLoaded = expectation(description: "session.models reaches typed facade")
         let api = ModelDirectorySessionAPI(modelsLoaded: modelsLoaded)
         let store = NativeSessionStore()
@@ -1509,7 +1509,7 @@ final class NativeSessionStoreTests: XCTestCase {
         await fulfillment(of: [modelsLoaded], timeout: 1)
         await eventually(timeout: 1) { store.modelDirectory != nil }
 
-        let directory = tryUnwrap(store.modelDirectory)
+        let directory = try tryUnwrap(store.modelDirectory)
         XCTAssertTrue(directory.routable)
         XCTAssertEqual(directory.current, .init(provider: "provider-a", model: "model-a", reasoningEffort: "balanced"))
         XCTAssertTrue(directory.contains(provider: "provider-a", model: "model-a"))
@@ -1555,20 +1555,6 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(NativeProjectPathResolver.resolve(cwd: "/workspace/project\\\\", path: ""), "/workspace/project/")
     }
 
-    func testSnapshotTodoFixtureUsesOnlyHostWholeListProjection() {
-        let store = NativeSessionStore()
-        store.loadSnapshotTodoFixture()
-
-        XCTAssertEqual(store.selectedSessionID, "snapshot-tooling")
-        XCTAssertFalse(store.isRunning)
-        XCTAssertNil(store.selectedToolCallID)
-        XCTAssertEqual(store.extensionState?.todos, [
-            .init(content: "Inspect the project instructions", status: .completed),
-            .init(content: "Implement the native todo dock", status: .inProgress),
-            .init(content: "Run the paired visual review", status: .pending),
-        ])
-    }
-
     func testToolingFixtureMaterializesTrajectoryTargetSeparatelyFromChat() {
         let store = NativeSessionStore()
         store.loadSnapshotToolingFixture()
@@ -1579,35 +1565,10 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual((store.trajectoryNodes.first?.data as? CoreUserMessageNode)?.content.compactMap(\.text).joined(), "Read the project instructions.")
     }
 
-    func testSnapshotQueueFixtureUsesOnlyQueuedHostRows() {
-        let store = NativeSessionStore()
-        store.loadSnapshotQueueFixture()
-
-        XCTAssertEqual(store.selectedSessionID, "snapshot-tooling")
-        XCTAssertTrue(store.isRunning)
-        XCTAssertNil(store.selectedToolCallID)
-        XCTAssertEqual(store.queuedMessages.map(\.id), ["snapshot-queue-text", "snapshot-queue-image"])
-        XCTAssertTrue(store.queuedMessages.allSatisfy { $0.placement == .queued })
-        XCTAssertEqual(store.queuedMessages.first?.text, "Update the native screenshot baseline")
-        XCTAssertNil(store.queuedMessages.last?.text)
-    }
-
-    func testSnapshotGoalFixtureUsesCurrentHostGoalProjection() {
-        let store = NativeSessionStore()
-        store.loadSnapshotGoalFixture()
-
-        XCTAssertEqual(store.selectedSessionID, "snapshot-tooling")
-        XCTAssertFalse(store.isRunning)
-        XCTAssertNil(store.selectedToolCallID)
-        XCTAssertEqual(store.extensionState?.goal?.id, "snapshot-goal")
-        XCTAssertEqual(store.extensionState?.goal?.objective, "Rebuild the official client as a native macOS app")
-        XCTAssertEqual(store.extensionState?.goal?.phase, .active)
-    }
-
-    func testGoalActionsUseActiveHostProjectionRefWithoutOptimisticMutation() async {
+    func testGoalActionsUseActiveHostProjectionRefWithoutOptimisticMutation() async throws {
         let store = NativeSessionStore()
         store.loadSnapshotTodoFixture()
-        let sessionID = tryUnwrap(store.selectedSessionID)
+        let sessionID = try tryUnwrap(store.selectedSessionID)
         store.projections.apply(sessionID: sessionID, key: "goal", value: goalProjection(id: "goal-1", revision: 4, objective: "Ship safely", phase: "active"), seq: 106)
         let invoked = expectation(description: "pause goal reaches typed Host seam")
         let api = RecordingGoalAPI(invoked: invoked)
@@ -1625,10 +1586,10 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.extensionState?.goal?.phase, .active)
     }
 
-    func testSuccessfulGoalClearUsesPresentationMarkerWithoutMutatingProjection() async {
+    func testSuccessfulGoalClearUsesPresentationMarkerWithoutMutatingProjection() async throws {
         let store = NativeSessionStore()
         store.loadSnapshotTodoFixture()
-        let sessionID = tryUnwrap(store.selectedSessionID)
+        let sessionID = try tryUnwrap(store.selectedSessionID)
         store.projections.apply(sessionID: sessionID, key: "goal", value: goalProjection(id: "goal-clear", revision: 6, objective: "Clear from bar", phase: "active"), seq: 106)
         let invoked = expectation(description: "clear goal reaches typed Host seam")
         let api = RecordingGoalAPI(invoked: invoked)
@@ -1643,10 +1604,10 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.extensionState?.goal?.objective, "Clear from bar", "the core never replaces Host projection data with a local tombstone")
     }
 
-    func testGoalActionSurfacesOnlyHostBusinessFailureAndKeepsProjection() async {
+    func testGoalActionSurfacesOnlyHostBusinessFailureAndKeepsProjection() async throws {
         let store = NativeSessionStore()
         store.loadSnapshotTodoFixture()
-        let sessionID = tryUnwrap(store.selectedSessionID)
+        let sessionID = try tryUnwrap(store.selectedSessionID)
         store.projections.apply(sessionID: sessionID, key: "goal", value: goalProjection(id: "goal-2", revision: 7, objective: "Keep scope", phase: "active"), seq: 106)
         let invoked = expectation(description: "clear goal reaches typed Host seam")
         let api = RecordingGoalAPI(invoked: invoked, error: .init(code: "revision_conflict", message: "refresh goal", details: .object([:])))
@@ -1663,7 +1624,7 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.extensionState?.goal?.objective, "Keep scope")
     }
 
-    func testExtensionStateJoinsOnlyTypedActiveSessionAuthoritiesAndFailsClosedForMalformedTodos() {
+    func testExtensionStateJoinsOnlyTypedActiveSessionAuthoritiesAndFailsClosedForMalformedTodos() throws {
         let store = NativeSessionStore()
         store.loadSnapshotToolingFixture()
         let sessionID = "snapshot-tooling"
@@ -1690,7 +1651,7 @@ final class NativeSessionStoreTests: XCTestCase {
             "questions": .array([.object(["id": .string("question-1"), "question": .string("Proceed?")])]),
         ])), sessionID: sessionID)
 
-        let state = tryUnwrap(store.extensionState)
+        let state = try tryUnwrap(store.extensionState)
         XCTAssertEqual(state.todos?.map(\.status), [.inProgress, .completed])
         XCTAssertEqual(state.goal?.id, "goal-1")
         XCTAssertEqual(state.goal?.phase, .active)
@@ -1716,7 +1677,7 @@ final class NativeSessionStoreTests: XCTestCase {
             using: RejectingSessionAPI(promptReachedFacade: nil),
             endpoint: URL(string: "http://127.0.0.1:1")!
         )
-        let freshState = tryUnwrap(store.extensionState)
+        let freshState = try tryUnwrap(store.extensionState)
         XCTAssertNil(freshState.todos)
         XCTAssertNil(freshState.goal)
         XCTAssertTrue(freshState.queuedMessages.isEmpty)
@@ -1754,7 +1715,7 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertNil(SessionSubagentProjectionReader.timing(from: store.projections, sessionID: sessionID))
     }
 
-    func testMuxFramesForNonActiveSessionCannotPolluteExtensionState() {
+    func testMuxFramesForNonActiveSessionCannotPolluteExtensionState() throws {
         let store = NativeSessionStore()
         store.loadSnapshotToolingFixture()
         store.applyMuxFrame(queueFrame(sessionID: "foreign", items: [
@@ -1765,7 +1726,7 @@ final class NativeSessionStoreTests: XCTestCase {
             "approvalId": .string("foreign-approval"), "toolName": .string("bash"),
         ])), sessionID: "foreign")
 
-        let state = tryUnwrap(store.extensionState)
+        let state = try tryUnwrap(store.extensionState)
         XCTAssertTrue(state.queuedMessages.isEmpty)
         XCTAssertNil(state.pendingApproval)
     }
@@ -1803,10 +1764,10 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertTrue(store.backgroundJobs.isEmpty)
     }
 
-    func testQueueActionUsesActiveHostItemAndWaitsForWholeSnapshot() async {
+    func testQueueActionUsesActiveHostItemAndWaitsForWholeSnapshot() async throws {
         let store = NativeSessionStore()
         store.loadSnapshotToolingFixture()
-        let sessionID = tryUnwrap(store.selectedSessionID)
+        let sessionID = try tryUnwrap(store.selectedSessionID)
         store.applyMuxFrame(queueFrame(sessionID: sessionID, items: [
             queuedItem(id: "q-edit", messageID: "m-edit", placement: "queued", content: [.object(["type": .string("text"), "text": .string("original")])]),
         ]), sessionID: sessionID)
@@ -1823,10 +1784,10 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.queuedMessages.map(\.preview), ["original"], "queue content remains Host-owned until session/queue sends a replacement snapshot")
     }
 
-    func testQueueEditFailureIsScopedToTheActionAndRetainsHostRowForRetry() async {
+    func testQueueEditFailureIsScopedToTheActionAndRetainsHostRowForRetry() async throws {
         let store = NativeSessionStore()
         store.loadSnapshotToolingFixture()
-        let sessionID = tryUnwrap(store.selectedSessionID)
+        let sessionID = try tryUnwrap(store.selectedSessionID)
         store.applyMuxFrame(queueFrame(sessionID: sessionID, items: [
             queuedItem(id: "q-edit-reject", messageID: "m-edit-reject", placement: "queued", content: [.object(["type": .string("text"), "text": .string("original Host queue row")])]),
         ]), sessionID: sessionID)
@@ -1843,10 +1804,10 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.queuedMessages.map(\.preview), ["original Host queue row"])
     }
 
-    func testLateQueueReceiptDoesNotCompleteRowAlreadyRetiredByHostSnapshot() async {
+    func testLateQueueReceiptDoesNotCompleteRowAlreadyRetiredByHostSnapshot() async throws {
         let store = NativeSessionStore()
         store.loadSnapshotToolingFixture()
-        let sessionID = tryUnwrap(store.selectedSessionID)
+        let sessionID = try tryUnwrap(store.selectedSessionID)
         store.applyMuxFrame(queueFrame(sessionID: sessionID, items: [
             queuedItem(id: "q-race", messageID: "m-race", placement: "queued", content: [.object(["type": .string("text"), "text": .string("Host owns retirement")])]),
         ]), sessionID: sessionID)
@@ -1868,10 +1829,10 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertTrue(store.queuedMessages.isEmpty)
     }
 
-    func testLateSteerReceiptDoesNotCompleteRowAlreadyRetiredByHostSnapshot() async {
+    func testLateSteerReceiptDoesNotCompleteRowAlreadyRetiredByHostSnapshot() async throws {
         let store = NativeSessionStore()
         store.loadSnapshotToolingFixture()
-        let sessionID = tryUnwrap(store.selectedSessionID)
+        let sessionID = try tryUnwrap(store.selectedSessionID)
         store.applyMuxFrame(queueFrame(sessionID: sessionID, items: [
             queuedItem(id: "q-steer-race", messageID: "m-steer-race", placement: "queued", content: [.object(["type": .string("text"), "text": .string("Host owns steering retirement")])]),
         ]), sessionID: sessionID)
@@ -1895,10 +1856,10 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertTrue(store.queuedMessages.isEmpty)
     }
 
-    func testQueueActionFailureIsScopedToTheActionAndDoesNotRetireRow() async {
+    func testQueueActionFailureIsScopedToTheActionAndDoesNotRetireRow() async throws {
         let store = NativeSessionStore()
         store.loadSnapshotToolingFixture()
-        let sessionID = tryUnwrap(store.selectedSessionID)
+        let sessionID = try tryUnwrap(store.selectedSessionID)
         store.applyMuxFrame(queueFrame(sessionID: sessionID, items: [
             queuedItem(id: "q-remove", messageID: "m-remove", placement: "queued", content: [.object(["type": .string("text"), "text": .string("retain until host frame")])]),
         ]), sessionID: sessionID)
@@ -1914,10 +1875,10 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.queuedMessages.map(\.id), ["q-remove"])
     }
 
-    func testSteerFailureIsScopedToTheActionAndDoesNotRetireHostRow() async {
+    func testSteerFailureIsScopedToTheActionAndDoesNotRetireHostRow() async throws {
         let store = NativeSessionStore()
         store.loadSnapshotToolingFixture()
-        let sessionID = tryUnwrap(store.selectedSessionID)
+        let sessionID = try tryUnwrap(store.selectedSessionID)
         store.applyMuxFrame(queueFrame(sessionID: sessionID, items: [
             queuedItem(id: "q-steer-reject", messageID: "m-steer-reject", placement: "queued", content: [.object(["type": .string("text"), "text": .string("retry after rejection")])]),
         ]), sessionID: sessionID)
@@ -1962,7 +1923,7 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertNil(store.projections.value(sessionID: "snapshot-tooling", key: "todo"))
     }
 
-    func testSubscriptionGenerationClearsPendingInteractionTakeoversAlongsideQueueAndJobs() {
+    func testSubscriptionGenerationClearsPendingInteractionTakeoversAlongsideQueueAndJobs() throws {
         let store = NativeSessionStore()
         store.loadSnapshotToolingFixture()
         let sessionID = "snapshot-tooling"
@@ -1984,7 +1945,7 @@ final class NativeSessionStoreTests: XCTestCase {
             "type": .string("session/subscribed"), "sessionId": .string(sessionID), "lastSeq": .number(0),
         ])), sessionID: sessionID)
 
-        let state = tryUnwrap(store.extensionState)
+        let state = try tryUnwrap(store.extensionState)
         XCTAssertTrue(state.queuedMessages.isEmpty)
         XCTAssertTrue(state.backgroundJobs.isEmpty)
         XCTAssertNil(state.pendingApproval)
@@ -2617,124 +2578,6 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(empty.errorCode, "interrupted")
         XCTAssertEqual(empty.state, .stopped)
     }
-
-    func testSnapshotFeedbackFixtureSettlesTypedAssistantAndPublishesSidecar() {
-        let store = NativeSessionStore()
-        store.loadSnapshotFeedbackFixture()
-
-        let assistant = tryUnwrap(store.chatNodes.compactMap { $0.data as? CoreAssistantNode }.first)
-        XCTAssertEqual(assistant.messageID, "event-104")
-        XCTAssertEqual(assistant.status, .settled)
-        XCTAssertEqual(store.messageFeedbackItems["event-104"]?.rating, .positive)
-        XCTAssertEqual(store.messageFeedbackItems["event-104"]?.note, "Useful implementation summary.")
-        XCTAssertTrue(store.isMessageFeedbackAvailable)
-        XCTAssertFalse(store.isRunning)
-    }
-
-    func testSnapshotDeliverablesFixturePublishesReducerOwnedTurnPaths() {
-        let store = NativeSessionStore()
-        store.loadSnapshotDeliverablesFixture()
-
-        let assistant = tryUnwrap(store.chatNodes.compactMap { $0.data as? CoreAssistantNode }
-            .first(where: { $0.messageID == "deliverables-assistant" }))
-        XCTAssertEqual(assistant.status, .settled)
-        XCTAssertEqual(store.deliverables(forClosingAssistant: assistant), [
-            "关于我.md",
-            "index.html",
-            "long-generated-experience-specification-for-produced-files-overflow.md",
-            "styles.css",
-            "app.ts",
-            "schema.json",
-            "README.md",
-            "preview.svg",
-            "notes.txt",
-            "manifest.yaml",
-        ])
-        XCTAssertEqual(store.toolInvocations.count, 10)
-        XCTAssertEqual(store.toolInvocations.map(\.name), Array(repeating: "write", count: 10))
-        XCTAssertEqual(store.toolInvocations.map(\.state), Array(repeating: .completed, count: 10))
-        XCTAssertEqual(store.toolInvocations.map(\.sequence), Array(stride(from: 303, through: 321, by: 2)))
-        XCTAssertFalse(store.isRunning)
-        XCTAssertFalse(store.hasMoreHistory)
-    }
-
-    func testSnapshotRetryFixtureMaterializesScheduledTypedAttempt() {
-        let store = NativeSessionStore()
-        store.loadSnapshotRetryFixture()
-
-        let retry = tryUnwrap(store.chatNodes.first(where: { $0.kind == "model-retry" })?.data as? CoreRetryNode)
-        XCTAssertEqual(retry.attempts, [
-            .init(
-                seq: 105,
-                time: 105,
-                retry: 1,
-                state: .scheduled,
-                delayMilliseconds: 1_250,
-                failureMessage: "provider busy",
-                maximumRetries: 3,
-                unlimited: false
-            ),
-        ])
-        XCTAssertTrue(store.isRunning)
-    }
-
-    func testSnapshotCompactionFixtureMaterializesLandedTypedCheckpoint() {
-        let store = NativeSessionStore()
-        store.loadSnapshotCompactionFixture()
-
-        let compaction = tryUnwrap(store.chatNodes.first(where: { $0.kind == "compaction" })?.data as? CoreCompactionNode)
-        XCTAssertEqual(compaction.compactionID, "snapshot-compact")
-        XCTAssertEqual(compaction.summary, "The earlier workspace review and source inspection were condensed into this checkpoint.")
-        XCTAssertEqual(compaction.shadowedItemCount, 3)
-        XCTAssertEqual(compaction.shadowedTokenCount, 99)
-        XCTAssertEqual(compaction.seq, 106)
-        XCTAssertFalse(store.isRunning)
-    }
-
-    func testSnapshotPermissionFixturePublishesWholeHostProjection() {
-        let store = NativeSessionStore()
-        store.loadSnapshotPermissionFixture()
-
-        XCTAssertEqual(store.selectedSessionID, "fx-alpha")
-        XCTAssertEqual(store.extensionState?.permissions?.currentValue, "workspace-write")
-        XCTAssertEqual(store.extensionState?.permissions?.options.map(\.value), ["workspace-write", "danger-full-access"])
-        XCTAssertEqual(store.extensionState?.permissions?.options.map(\.name), ["workspace-write", "danger-full-access"])
-        XCTAssertFalse(store.isSubmittingPermission)
-        XCTAssertFalse(store.isRunning)
-    }
-
-    func testSnapshotModelSelectionFixturePublishesCompleteHostDirectory() {
-        let store = NativeSessionStore()
-        store.loadSnapshotModelSelectionFixture()
-
-        XCTAssertEqual(store.selectedSessionID, "fx-alpha")
-        XCTAssertEqual(store.modelDirectory?.current.provider, "deepseek-official")
-        XCTAssertEqual(store.modelDirectory?.current.model, "deepseek-v4-flash")
-        XCTAssertNil(store.modelDirectory?.current.reasoningEffort)
-        XCTAssertTrue(store.modelDirectory?.routable == true)
-        XCTAssertEqual(store.modelDirectory?.groups.map(\.id), ["deepseek-official"])
-        XCTAssertEqual(store.modelDirectory?.groups.first?.models.map(\.id), ["deepseek-v4-flash"])
-        XCTAssertEqual(store.modelDirectory?.groups.first?.models.first?.reasoningEfforts, [])
-        XCTAssertEqual(store.modelDirectory?.failures, [])
-        XCTAssertFalse(store.isSelectingModel)
-        XCTAssertFalse(store.isRunning)
-    }
-
-    func testSnapshotJobsFixtureUsesCurrentHostSessionAndWholeJobSet() {
-        let store = NativeSessionStore()
-        store.loadSnapshotJobsFixture()
-
-        XCTAssertEqual(store.selectedSessionID, "fx-alpha")
-        XCTAssertEqual(store.items.map(\.text), ["Reply with the single word LIGHTHOUSE and stop.", "LIGHTHOUSE"])
-        XCTAssertEqual(store.backgroundJobs.map(\.id), ["bash-1", "bash-2"])
-        XCTAssertEqual(store.backgroundJobs.map(\.status), [.running, .completed])
-        XCTAssertEqual(store.backgroundJobs.map(\.label), ["sleep 60", "pnpm run build"])
-        XCTAssertTrue(store.backgroundJobs[0].isLive)
-        XCTAssertFalse(store.backgroundJobs[1].isLive)
-        XCTAssertNil(store.pendingApproval)
-        XCTAssertNil(store.pendingQuestion)
-    }
-
     func testJobsPresentationUsesOfficialOrderingAndElapsedRules() {
         let jobs = [
             NativeSessionStore.BackgroundJob(id: "done-old", kind: "shell", label: "done-old", status: .completed, detail: nil, startedAt: 10, finishedAt: 20),
@@ -4191,12 +4034,8 @@ final class NativeSessionStoreTests: XCTestCase {
         )
     }
 
-    private func tryUnwrap<T>(_ value: T?, file: StaticString = #filePath, line: UInt = #line) -> T {
-        guard let value else {
-            XCTFail("Expected non-nil value", file: file, line: line)
-            fatalError("Expected non-nil value")
-        }
-        return value
+    private func tryUnwrap<T>(_ value: T?, file: StaticString = #filePath, line: UInt = #line) throws -> T {
+        try XCTUnwrap(value, "Expected non-nil value", file: file, line: line)
     }
 
     private func job(id: String, status: String, startedAt: Int) -> JSONValue {

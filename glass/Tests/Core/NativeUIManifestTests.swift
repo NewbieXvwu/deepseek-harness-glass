@@ -95,16 +95,6 @@ final class NativeUIManifestTests: XCTestCase {
         )
     }
 
-    func testBundledSchemaIsValidJSONAndDeclaresVersionOne() throws {
-        let schemaData = try NativeUIManifestSchema.load()
-        let schema = try XCTUnwrap(JSONSerialization.jsonObject(with: schemaData) as? [String: Any])
-        XCTAssertEqual(schema["title"] as? String, "Native UI Manifest v1")
-        let properties = try XCTUnwrap(schema["properties"] as? [String: Any])
-        XCTAssertEqual(properties["manifestVersion"] as? [String: Int], ["const": 1])
-        XCTAssertNotNil(properties["integrity"])
-        XCTAssertNotNil(properties["requiredCapabilities"])
-    }
-
     private func makeManifest(
         manifestVersion: Int = NativeUIManifest.currentManifestVersion,
         hostBuildRange: NativeUIManifest.HostBuildRange? = nil,

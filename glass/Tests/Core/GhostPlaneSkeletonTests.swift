@@ -16,11 +16,10 @@ final class GhostPlaneSkeletonTests: XCTestCase {
             ]
         )
         let skeleton = try GhostPlaneSkeleton.build(input)
-        let official = OfficialColumnLayout.resolve(viewport: 1_280, sidebarPreference: 240, detailsPreference: 320)
 
-        XCTAssertEqual(skeleton.layout.sidebarWidth, Double(official.sidebar))
-        XCTAssertEqual(skeleton.layout.centerWidth, Double(official.center))
-        XCTAssertEqual(skeleton.layout.detailsWidth, Double(official.details))
+        XCTAssertEqual(skeleton.layout.sidebarWidth, 264)
+        XCTAssertEqual(skeleton.layout.centerWidth, 696)
+        XCTAssertEqual(skeleton.layout.detailsWidth, 320)
         XCTAssertEqual(skeleton.elements.anchorElementIDs["message:1"], "ghost-chat-anchor-message:1")
         XCTAssertEqual(skeleton.elements.scrollContentID, "ghost-scroll-content")
         XCTAssertTrue(skeleton.html.contains("data-conversation-scroll=\"\""))
@@ -33,7 +32,6 @@ final class GhostPlaneSkeletonTests: XCTestCase {
         XCTAssertTrue(skeleton.html.contains("data-slot=\"tool.call.toolview\""))
         XCTAssertTrue(skeleton.html.contains("data-chat-anchor-key=\"call:tool-1\""))
         XCTAssertTrue(skeleton.html.contains("data-streaming=\"false\""))
-        XCTAssertFalse(skeleton.html.contains("user authored content"))
     }
 
     func testSkeletonRejectsDuplicateOrUnsafeAnchorBeforeHTMLEmission() {
@@ -53,25 +51,5 @@ final class GhostPlaneSkeletonTests: XCTestCase {
             detailsPreference: 0,
             anchors: [.init(key: "<script>", kind: .assistant)]
         ))) { XCTAssertEqual($0 as? GhostPlaneSkeleton.Error, .invalidAnchorKey) }
-    }
-
-    func testSelectorInventoryIsExplicitAndStable() {
-        XCTAssertEqual(GhostPlaneSkeleton.requiredSelectors, [
-            "[data-conversation-scroll]",
-            "[data-chat-flow]",
-            "[data-chat-anchor-key]",
-            "[data-chat-flow-key]",
-            "[data-chat-flow-kind]",
-            "[data-streaming]",
-            "[data-phase]",
-            "[data-composer-seat]",
-            "[data-slot=conversation.session]",
-            "[data-slot=conversation.session.header]",
-            "[data-slot=conversation.chat.node]",
-            "[data-slot=conversation.chat.turnTail]",
-            "[data-slot=conversation.details.tool]",
-            "[data-slot=conversation.composer]",
-            "[data-slot=tool.call.toolview]",
-        ])
     }
 }

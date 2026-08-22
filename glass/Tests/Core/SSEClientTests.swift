@@ -85,7 +85,10 @@ final class SSEClientTests: XCTestCase {
         )
         var frames: [RPCServerRequest] = []
         let stream = await client.reconnectingStream(.mux, policy: .init(initialDelay: 0.01, maximumDelay: 0.02, multiplier: 2))
-        for try await frame in stream { frames.append(frame) }
+        for try await frame in stream {
+            frames.append(frame)
+            if frames.count == 2 { break }
+        }
 
         XCTAssertEqual(frames.map(\.rpcId), ["session-a-seq-1", "session-b-seq-1"])
         XCTAssertEqual(frames.map { $0.payload.objectValue?["sessionId"]?.stringValue }, ["fixture-session-a", "fixture-session-b"])
@@ -93,7 +96,7 @@ final class SSEClientTests: XCTestCase {
 
     func testRawReconnectFixtureDropsOutOfOrderSequenceWithoutBlockingNewerFrame() async throws {
         let fixture = try OfficialRawEventReplayFixtureCatalog.load()
-        let replay = tryUnwrap(fixture.cases.first(where: { $0.id == "reconnect-duplicate-sequence" }))
+        let replay = try tryUnwrap(fixture.cases.first(where: { $0.id == "reconnect-duplicate-sequence" }))
         let opener = RecordedSSEOpener(scripts: [[
             .frame(replaySessionEvent(rpcId: "fixture-40", event: replay.events[0])),
             .frame(replaySessionEvent(rpcId: "fixture-42", event: replay.events[2])),
@@ -106,7 +109,10 @@ final class SSEClientTests: XCTestCase {
         )
         var frames: [RPCServerRequest] = []
         let stream = await client.reconnectingStream(.mux, policy: .init(initialDelay: 0.01, maximumDelay: 0.02, multiplier: 2))
-        for try await frame in stream { frames.append(frame) }
+        for try await frame in stream {
+            frames.append(frame)
+            if frames.count == 3 { break }
+        }
 
         XCTAssertEqual(frames.map { $0.payload.objectValue?["event"]?.objectValue?["seq"]?.numberValue }, [40, 42, 43])
         XCTAssertEqual(frames.map(\.rpcId), ["fixture-40", "fixture-42", "fixture-43"])
@@ -115,7 +121,7 @@ final class SSEClientTests: XCTestCase {
 
     func testRawReconnectFixtureDropsDuplicateSequenceAcrossStreamReopen() async throws {
         let fixture = try OfficialRawEventReplayFixtureCatalog.load()
-        let replay = tryUnwrap(fixture.cases.first(where: { $0.id == "reconnect-duplicate-sequence" }))
+        let replay = try tryUnwrap(fixture.cases.first(where: { $0.id == "reconnect-duplicate-sequence" }))
         let opener = RecordedSSEOpener(scripts: [
             [
                 .frame(replaySessionEvent(rpcId: "fixture-40", event: replay.events[0])),
@@ -162,7 +168,10 @@ final class SSEClientTests: XCTestCase {
 
         var frames: [RPCServerRequest] = []
         let stream = await client.reconnectingStream(.mux, policy: .init(initialDelay: 0.01, maximumDelay: 0.02, multiplier: 2))
-        for try await frame in stream { frames.append(frame) }
+        for try await frame in stream {
+            frames.append(frame)
+            if frames.count == 1001 { break }
+        }
 
         XCTAssertEqual(frames.count, 1_001)
         XCTAssertEqual(frames.first?.rpcId, "live-1")
@@ -186,9 +195,8 @@ final class SSEClientTests: XCTestCase {
         do {
             for try await _ in stream { XCTFail("failure-only carrier must not deliver a frame") }
             XCTFail("finite repeated failures must exhaust")
-        } catch {
-            // Exhaustion surfaces the terminal typed network error after the
-            // trace buffer has retained only its bounded recent window.
+        } catch let error {
+            XCTAssertTrue(error is DSHTransportError, "expected DSHTransportError, got \(error)")
         }
 
         let traces = await client.recentReconnectTraces()
@@ -417,12 +425,8 @@ final class SSEClientTests: XCTestCase {
         XCTAssertEqual(valid?.method, "session/event")
     }
 
-    private func tryUnwrap<T>(_ value: T?, file: StaticString = #filePath, line: UInt = #line) -> T {
-        guard let value else {
-            XCTFail("Expected non-nil value", file: file, line: line)
-            fatalError("Expected non-nil value")
-        }
-        return value
+    private func tryUnwrap<T>(_ value: T?, file: StaticString = #filePath, line: UInt = #line) throws -> T {
+        try XCTUnwrap(value, "Expected non-nil value", file: file, line: line)
     }
 
     private static func sessionEvent(rpcId: String, sequence: Int, sessionID: String = "fixture-session") -> RPCServerRequest {

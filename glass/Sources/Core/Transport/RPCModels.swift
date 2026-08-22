@@ -104,16 +104,30 @@ struct RPCBusinessError: Codable, Equatable, Sendable, Error {
 
     var disposition: RPCErrorDisposition {
         let normalized = code.lowercased()
-        if normalized.contains("revision") || normalized.contains("conflict") || normalized.contains("stale") {
+        switch normalized {
+        case "revision_conflict", "revision-conflict", "conflict", "stale", "stale_revision", "stale-revision":
+            return .requiresRefresh
+        case "validation_invalid", "validation_error", "validation-error", "invalid_argument", "invalid-argument", "invalid_request", "invalid-request", "permission_denied", "permission-denied":
+            return .requiresUserCorrection
+        case "method_not_found", "method-not-found", "session-not-found", "session_not_found", "workspace-not-found", "workspace_not_found", "not_found", "not-found", "notfound", "unsupported":
+            return .unsupported
+        case "service_unavailable", "service-unavailable", "rate_limit", "rate-limit", "busy", "unavailable", "retry":
+            return .retryable
+        case "internal_error", "internal-error", "internal":
+            return .programFault
+        default:
+            break
+        }
+        if normalized.hasPrefix("revision") || normalized.hasPrefix("conflict") || normalized.hasPrefix("stale") {
             return .requiresRefresh
         }
-        if normalized.contains("invalid") || normalized.contains("validation") || normalized.contains("required") || normalized.contains("permission") {
+        if normalized.hasPrefix("invalid") || normalized.hasPrefix("validation") || normalized.hasPrefix("required") || normalized.hasPrefix("permission") {
             return .requiresUserCorrection
         }
-        if normalized.contains("unsupported") || normalized.contains("not_found") || normalized.contains("notfound") || normalized.contains("method") {
+        if normalized.hasPrefix("unsupported") || normalized.hasPrefix("not_found") || normalized.hasPrefix("not-found") || normalized.hasPrefix("notfound") || normalized.hasPrefix("method") {
             return .unsupported
         }
-        if normalized.contains("retry") || normalized.contains("busy") || normalized.contains("unavailable") || normalized.contains("rate") {
+        if normalized.hasPrefix("retry") || normalized.hasPrefix("busy") || normalized.hasPrefix("unavailable") || normalized.hasPrefix("rate") {
             return .retryable
         }
         return .programFault

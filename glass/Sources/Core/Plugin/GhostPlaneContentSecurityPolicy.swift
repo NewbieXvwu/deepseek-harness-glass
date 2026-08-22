@@ -12,11 +12,12 @@ public enum GhostPlaneContentSecurityPolicy {
     /// tag. The host fails closed when it cannot locate a real head element;
     /// that prevents a caller from using an arbitrary HTML fragment as a plane.
     public static func inject(into nativeSkeletonHTML: String) -> String? {
-        guard let match = nativeSkeletonHTML.range(of: "<head(?:\\s[^>]*)?>", options: [.regularExpression, .caseInsensitive]) else {
+        guard let headStart = nativeSkeletonHTML.range(of: "<head", options: .caseInsensitive),
+              let tagEnd = nativeSkeletonHTML[headStart.lowerBound...].firstRange(of: ">") else {
             return nil
         }
-        let prefix = nativeSkeletonHTML[..<match.upperBound]
-        let suffix = nativeSkeletonHTML[match.upperBound...]
+        let prefix = nativeSkeletonHTML[..<tagEnd.upperBound]
+        let suffix = nativeSkeletonHTML[tagEnd.upperBound...]
         return String(prefix) + metaTag + suffix
     }
 }

@@ -3,12 +3,15 @@
 
 from __future__ import annotations
 
+import copy
 import importlib.util
+import json
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
 CHECKER = ROOT / "ci/check-package-target-graph.py"
+FIXTURE = ROOT / "ci/fixtures/package-target-graph-expected.json"
 
 spec = importlib.util.spec_from_file_location("package_target_graph", CHECKER)
 if spec is None or spec.loader is None:
@@ -18,10 +21,9 @@ spec.loader.exec_module(module)
 
 
 def description() -> dict[str, object]:
-    targets: list[dict[str, object]] = []
-    for name, (path, dependencies) in module.EXPECTED.items():
-        targets.append({"name": name, "path": path, "target_dependencies": sorted(dependencies)})
-    return {"targets": targets}
+    """Load the static baseline JSON fixture rather than dynamically mirroring EXPECTED."""
+    data = json.loads(FIXTURE.read_text(encoding="utf-8"))
+    return copy.deepcopy(data)
 
 
 def main() -> None:

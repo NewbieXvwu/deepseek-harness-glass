@@ -127,6 +127,7 @@ struct WorkspaceBrowserView: View {
     @State private var deleting = false
     @State private var deleteCommittedID: String?
     @State private var deleteError: String?
+    @State private var reorderError: String?
     /// Source: RC8 `createWorkspaceViewStore`: new browsers group by workspace
     /// and promote activity in the `updated` ordering mode.
     @State private var sessionGroupMode: NativeWorkspaceBrowserOrdering.SessionGroupMode = .workspace
@@ -535,7 +536,8 @@ struct WorkspaceBrowserView: View {
 
     @ViewBuilder
     private var searchResults: some View {
-        let results = matchingSessions
+        let merged = mergedSearchResults
+        let results = matchingSessions(for: merged)
         ForEach(results) { result in
             nativeSearchResultRow(
                 result,
@@ -551,7 +553,7 @@ struct WorkspaceBrowserView: View {
         if !remoteSearchIsPending && results.isEmpty {
             NativeWorkspaceEmptyState(text: OfficialUISpec.Text.noMatchingSessions)
         }
-        if matchingHasMore {
+        if matchingHasMore(for: merged) {
             NativeWorkspaceSearchStatus(
                 text: OfficialUISpec.Text.searchHasMore(OfficialUISpec.Layout.sessionSearchResultLimit),
                 warning: false
@@ -575,14 +577,22 @@ struct WorkspaceBrowserView: View {
     }
 
     private var matchingHasMore: Bool {
+        matchingHasMore(for: mergedSearchResults)
+    }
+
+    private func matchingHasMore(for merged: [SearchResult]) -> Bool {
         let query = trimmedSearchQuery
         guard !query.isEmpty else { return false }
         let currentRemote = store.remoteSearch.query == query ? store.remoteSearch : .idle
-        return currentRemote.hasMore || mergedSearchResults.count > OfficialUISpec.Layout.sessionSearchResultLimit
+        return currentRemote.hasMore || merged.count > OfficialUISpec.Layout.sessionSearchResultLimit
     }
 
     private var matchingSessions: [SearchResult] {
-        Array(mergedSearchResults.prefix(OfficialUISpec.Layout.sessionSearchResultLimit))
+        matchingSessions(for: mergedSearchResults)
+    }
+
+    private func matchingSessions(for merged: [SearchResult]) -> [SearchResult] {
+        Array(merged.prefix(OfficialUISpec.Layout.sessionSearchResultLimit))
     }
 
     private var mergedSearchResults: [SearchResult] {
@@ -895,8 +905,7 @@ struct WorkspaceBrowserView: View {
             do {
                 try await actions.moveWorkspace(workspaceID, beforeWorkspaceID)
             } catch {
-                // RC8 retains the Host-authoritative order on rejection; a
-                // later Host frame/refresh remains the only visual authority.
+                reorderError = error.localizedDescription
             }
         }
         return true
@@ -944,13 +953,14 @@ struct WorkspaceBrowserView: View {
         case let .local(order):
             sessionOrderByAccount[active.accountKey] = order
         case let .host(sessionID, workspaceID, beforeSessionID, viewOrder):
+            let previous = sessionOrderByAccount[active.accountKey]
             sessionOrderByAccount[active.accountKey] = viewOrder
             Task {
                 do {
                     try await actions.moveSession(sessionID, workspaceID, beforeSessionID)
                 } catch {
-                    // A rejected manual reorder must not invent durable order;
-                    // the next Host refresh reconciles this local account.
+                    sessionOrderByAccount[active.accountKey] = previous
+                    reorderError = error.localizedDescription
                 }
             }
         }
@@ -1498,9 +1508,6 @@ private enum NativeSessionVisualState {
 
 private struct NativeSessionStatusDot: View {
     let state: NativeSessionVisualState
-    private let matrixCells: [(CGFloat, CGFloat)] = [
-        (0, 0), (4, 0), (8, 0), (8, 4), (8, 8), (4, 8), (0, 8), (0, 4),
-    ]
 
     @ViewBuilder
     var body: some View {
@@ -1518,7 +1525,7 @@ private struct NativeSessionStatusDot: View {
             .accessibilityLabel(state.accessibilityLabel)
         case .ongoing:
             ZStack(alignment: .topLeading) {
-                ForEach(Array(matrixCells.enumerated()), id: \.offset) { index, point in
+                ForEach(Array(NativeStateDotMetrics.matrixCells.enumerated()), id: \.offset) { index, point in
                     Rectangle()
                         .fill(OfficialUISpec.Token.businessBlue.opacity(index == 0 ? 1 : index < 4 ? 0.6 : index < 6 ? 0.35 : 0.15))
                         .frame(width: OfficialUISpec.Geometry.px2, height: OfficialUISpec.Geometry.px2)

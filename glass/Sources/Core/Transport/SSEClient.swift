@@ -214,11 +214,16 @@ actor SSEClient {
         case let .data(value): data = value
         @unknown default: return nil
         }
-        guard let frame = try? decoder.decode(RPCServerRequest.self, from: data),
-              frame.type == "server-request" else {
+        do {
+            let frame = try decoder.decode(RPCServerRequest.self, from: data)
+            guard frame.type == "server-request" else {
+                return nil
+            }
+            return frame
+        } catch {
+            fputs("[SSEClient] failed to decode frame: \(error.localizedDescription)\n", stderr)
             return nil
         }
-        return frame
     }
 
     private static func shouldExhaust(policy: SSEReconnectPolicy, retryAttempt: Int) -> Bool {

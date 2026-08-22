@@ -4,6 +4,15 @@ import SwiftUI
 @testable import GlassSpec
 #endif
 
+/// Shared 8-cell dot matrix used by every native status dot rendering. Kept in
+/// one place so session/row dots cannot silently fork their geometry.
+enum NativeStateDotMetrics {
+    static let matrixCells: [(CGFloat, CGFloat)] = [
+        (0, 0), (4, 0), (8, 0), (8, 4),
+        (8, 8), (4, 8), (0, 8), (0, 4),
+    ]
+}
+
 /// Native visual counterpart of RC8 `ui-primitives/StateDot`. It has no
 /// accessibility surface of its own; its adjacent typed status label remains
 /// the semantic control/row description.
@@ -14,11 +23,6 @@ struct NativeStateDot: View {
         case ongoing
         case error
     }
-
-    private static let matrixCells: [(CGFloat, CGFloat)] = [
-        (0, 0), (4, 0), (8, 0), (8, 4),
-        (8, 8), (4, 8), (0, 8), (0, 4),
-    ]
 
     let state: State
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -65,7 +69,7 @@ struct NativeStateDot: View {
         } else {
             TimelineView(.periodic(from: .now, by: 0.125)) { timeline in
                 let phase = Int(timeline.date.timeIntervalSinceReferenceDate * 8)
-                    .quotientAndRemainder(dividingBy: Self.matrixCells.count).remainder
+                    .quotientAndRemainder(dividingBy: NativeStateDotMetrics.matrixCells.count).remainder
                 matrix(phase: phase)
             }
         }
@@ -75,8 +79,8 @@ struct NativeStateDot: View {
         Canvas { context, size in
             let scaleX = size.width / OfficialUISpec.Geometry.px10
             let scaleY = size.height / OfficialUISpec.Geometry.px10
-            for (index, cell) in Self.matrixCells.enumerated() {
-                let lag = (phase - index + Self.matrixCells.count) % Self.matrixCells.count
+            for (index, cell) in NativeStateDotMetrics.matrixCells.enumerated() {
+                let lag = (phase - index + NativeStateDotMetrics.matrixCells.count) % NativeStateDotMetrics.matrixCells.count
                 let opacity: Double
                 switch lag {
                 case 0:

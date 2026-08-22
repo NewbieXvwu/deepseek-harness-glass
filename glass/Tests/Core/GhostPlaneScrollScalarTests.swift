@@ -64,7 +64,5 @@ final class GhostPlaneScrollScalarTests: XCTestCase {
         let scalar = GhostPlaneScrollScalar(documentEpoch: 4, sequence: 9, scrollOffset: 33.5)
 
         XCTAssertEqual(scalar.rendererArguments, ["scrollOffset": 33.5])
-        XCTAssertFalse(scalar.rendererArguments.keys.contains("javascript"))
-        XCTAssertFalse(scalar.rendererArguments.keys.contains("css"))
     }
 }

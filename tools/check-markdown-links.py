@@ -8,7 +8,10 @@ from pathlib import Path
 from urllib.parse import unquote
 
 ROOT = Path(__file__).resolve().parents[1]
-LINK_RE = re.compile(r"(?<!!)\[[^\]]*\]\(([^)]+)\)")
+# Destination allows balanced one-level parentheses (e.g. Wikipedia titles).
+LINK_RE = re.compile(r"(?<!!)\[[^\]]*\]\(([^()\s]+(?:\([^()]*\)[^()\s]*)*)\)")
+# Fenced code spans/tables are skipped: their content is not a real link.
+FENCE_RE = re.compile(r"```.*?```", re.DOTALL)
 SKIP_PREFIXES = ("http://", "https://", "mailto:", "tel:", "#")
 
 
@@ -28,6 +31,7 @@ def main() -> int:
         if any(part in {".git", ".build", ".reference", "node_modules"} for part in markdown.parts):
             continue
         text = markdown.read_text(encoding="utf-8")
+        text = FENCE_RE.sub("", text)
         for match in LINK_RE.finditer(text):
             target = local_target(match.group(1))
             if target is None:

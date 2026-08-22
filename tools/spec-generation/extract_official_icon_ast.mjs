@@ -1,24 +1,55 @@
 #!/usr/bin/env node
 import { createRequire } from 'node:module'
-import { readFileSync } from 'node:fs'
+import { readFileSync, existsSync } from 'node:fs'
 import { resolve, relative } from 'node:path'
 
-const [officialRootArgument, sourceArgument, component, fill = '#0F1115'] = process.argv.slice(2)
+const args = process.argv.slice(2)
+const isInner = args.includes('--inner')
+const nonFlagArgs = args.filter(arg => !arg.startsWith('--'))
+
+const [officialRootArgument, sourceArgument, component, fill = '#0F1115'] = nonFlagArgs
 if (!officialRootArgument || !sourceArgument || !component) {
-  throw new Error('usage: extract_official_icon_ast.mjs <official-root> <source.tsx> <component> [fill]')
+  throw new Error('usage: extract_official_icon_ast.mjs <official-root> <source.tsx> <component> [fill] [--inner]')
 }
 
 const officialRoot = resolve(officialRootArgument)
 const sourcePath = resolve(sourceArgument)
-const requireFromOfficial = createRequire(resolve(officialRoot, 'package.json'))
-const ts = requireFromOfficial('typescript')
+
+function loadTypeScript() {
+  const officialPkg = resolve(officialRoot, 'package.json')
+  if (existsSync(officialPkg)) {
+    try {
+      const requireFromOfficial = createRequire(officialPkg)
+      return requireFromOfficial('typescript')
+    } catch {
+      // Fallback to local typescript
+    }
+  }
+  const requireLocal = createRequire(import.meta.url)
+  return requireLocal('typescript')
+}
+
+const ts = loadTypeScript()
 const sourceText = readFileSync(sourcePath, 'utf8')
 const sourceFile = ts.createSourceFile(sourcePath, sourceText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
 const relativePath = relative(officialRoot, sourcePath).replaceAll('\\', '/')
 
 const declaration = findExportedComponent(component)
+const svg = singleSvgSubtree(declaration)
+
+if (isInner) {
+  const firstChild = svg.children.find(c => ts.isJsxElement(c) || ts.isJsxSelfClosingElement(c))
+  const lastChild = [...svg.children].reverse().find(c => ts.isJsxElement(c) || ts.isJsxSelfClosingElement(c))
+  if (!firstChild || !lastChild) {
+    fail('svg contains no JSX child elements', svg)
+  }
+  const start = consumeLeadingWhitespace(firstChild.getStart(sourceFile), svg.openingElement.getEnd())
+  const innerRaw = sourceText.slice(start, lastChild.getEnd())
+  process.stdout.write(innerRaw + '\n')
+  process.exit(0)
+}
+
 const size = defaultSizeFromComponent(declaration)
-const svg = singleSvgSubtree(declaration.initializer)
 const rawSvg = sourceText.slice(svg.getStart(sourceFile), svg.getEnd())
 const replacements = []
 
@@ -55,14 +86,23 @@ process.stdout.write(applyReplacements(rawSvg, replacements, svg.getStart(source
 function findExportedComponent(name) {
   let match
   for (const statement of sourceFile.statements) {
-    if (!ts.isVariableStatement(statement) || !hasExportModifier(statement)) continue
-    for (const candidate of statement.declarationList.declarations) {
-      if (!ts.isIdentifier(candidate.name) || candidate.name.text !== name) continue
-      if (!candidate.initializer || !ts.isArrowFunction(candidate.initializer)) {
-        fail(`component must be an exported arrow function`, candidate)
+    if (!hasExportModifier(statement)) continue
+    if (ts.isFunctionDeclaration(statement)) {
+      if (statement.name?.text === name) {
+        if (match) fail(`duplicate exported component ${name}`, statement)
+        match = statement
       }
-      if (match) fail(`duplicate exported component ${name}`, candidate)
-      match = candidate
+      continue
+    }
+    if (ts.isVariableStatement(statement)) {
+      for (const candidate of statement.declarationList.declarations) {
+        if (!ts.isIdentifier(candidate.name) || candidate.name.text !== name) continue
+        if (!candidate.initializer || (!ts.isArrowFunction(candidate.initializer) && !ts.isFunctionExpression(candidate.initializer))) {
+          fail(`component must be an exported function`, candidate)
+        }
+        if (match) fail(`duplicate exported component ${name}`, candidate)
+        match = candidate
+      }
     }
   }
   if (!match) throw new Error(`component not found: ${name} in ${relativePath}`)
@@ -70,7 +110,10 @@ function findExportedComponent(name) {
 }
 
 function defaultSizeFromComponent(declaration) {
-  const parameter = declaration.initializer.parameters.at(0)
+  const parameters = ts.isFunctionDeclaration(declaration)
+    ? declaration.parameters
+    : declaration.initializer.parameters
+  const parameter = parameters.at(0)
   if (!parameter || !ts.isObjectBindingPattern(parameter.name)) fail('component requires an object binding parameter', declaration)
   const size = parameter.name.elements.find(element => ts.isIdentifier(element.name) && element.name.text === 'size')
   if (!size?.initializer || !ts.isNumericLiteral(size.initializer)) fail('component size must have a numeric default', parameter)
@@ -104,7 +147,7 @@ function requireExpressionIdentifier(initializer, expected, attribute) {
 
 function consumeLeadingWhitespace(position, lowerBound) {
   let start = position
-  while (start > lowerBound && /\s/.test(sourceText[start - 1])) start -= 1
+  while (start > lowerBound && (sourceText[start - 1] === ' ' || sourceText[start - 1] === '\t')) start -= 1
   return start
 }
 

@@ -157,7 +157,7 @@ struct NativePluginCardDraft: Equatable {
     }
 }
 
-private extension JSONValue {
+extension JSONValue {
     func value(at path: [String]) -> JSONValue? {
         var current = self
         for segment in path {

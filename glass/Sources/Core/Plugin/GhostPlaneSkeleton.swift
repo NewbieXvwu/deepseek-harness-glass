@@ -174,29 +174,38 @@ struct GhostPlaneSkeleton: Equatable, Sendable {
 
     private static func validAnchorKey(_ key: String) -> Bool {
         guard !key.isEmpty, key.count <= 256 else { return false }
-        return key.unicodeScalars.allSatisfy { scalar in
-            switch scalar.value {
-            case 45, 46, 58, 95, 48...57, 65...90, 97...122: true // - . : _ ASCII alphanumerics
-            default: false
-            }
-        }
+        return key.unicodeScalars.allSatisfy(validAnchorScalar)
     }
 
     private static func elementSuffix(_ key: String) -> String {
-        key.unicodeScalars.map { scalar in
-            switch scalar.value {
-            case 45, 46, 58, 95, 48...57, 65...90, 97...122: Character(String(scalar))
-            default: "-"
-            }
-        }.reduce(into: "") { $0.append($1) }
+        var result = String()
+        result.reserveCapacity(key.count)
+        for scalar in key.unicodeScalars {
+            result.append(validAnchorScalar(scalar) ? Character(scalar) : "-")
+        }
+        return result
+    }
+
+    private static func validAnchorScalar(_ scalar: Unicode.Scalar) -> Bool {
+        switch scalar.value {
+        case 45, 46, 58, 95, 48...57, 65...90, 97...122: true // - . : _ ASCII alphanumerics
+        default: false
+        }
     }
 
     private static func escape(_ value: String) -> String {
-        value
-            .replacingOccurrences(of: "&", with: "&amp;")
-            .replacingOccurrences(of: "\"", with: "&quot;")
-            .replacingOccurrences(of: "<", with: "&lt;")
-            .replacingOccurrences(of: ">", with: "&gt;")
+        var result = String()
+        result.reserveCapacity(value.count)
+        for scalar in value.unicodeScalars {
+            switch scalar {
+            case "&": result.append("&amp;")
+            case "\"": result.append("&quot;")
+            case "<": result.append("&lt;")
+            case ">": result.append("&gt;")
+            default: result.unicodeScalars.append(scalar)
+            }
+        }
+        return result
     }
 
     private static func cssPixels(_ value: Double) -> String {

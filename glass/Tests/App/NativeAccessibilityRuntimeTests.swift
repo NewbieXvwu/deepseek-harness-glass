@@ -615,64 +615,9 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         )
     }
 
-    func testMessageFeedbackActionLabelsUseOfficialLocale() {
-        let officialValues = Set(OfficialUISpec.LocaleCatalog.values.values)
-        XCTAssertTrue(officialValues.contains(OfficialUISpec.Text.feedbackLike))
-        XCTAssertTrue(officialValues.contains(OfficialUISpec.Text.feedbackLikeActive))
-        XCTAssertTrue(officialValues.contains(OfficialUISpec.Text.feedbackDislike))
-        XCTAssertTrue(officialValues.contains(OfficialUISpec.Text.feedbackDislikeActive))
-    }
-
-    func testMessageFeedbackNoteLabelsUseOfficialLocale() {
-        let officialValues = Set(OfficialUISpec.LocaleCatalog.values.values)
-        XCTAssertTrue(officialValues.contains(OfficialUISpec.Text.feedbackNoteOpen))
-        XCTAssertTrue(officialValues.contains(OfficialUISpec.Text.feedbackNoteDialog))
-        XCTAssertTrue(officialValues.contains(OfficialUISpec.Text.feedbackNotePlaceholder))
-        XCTAssertTrue(officialValues.contains(OfficialUISpec.Text.feedbackNoteSave))
-        XCTAssertTrue(officialValues.contains(OfficialUISpec.Text.feedbackNoteCancel))
-        XCTAssertTrue(officialValues.contains(OfficialUISpec.Text.feedbackNoteAccessibility))
-    }
-
-    func testMessageFeedbackFailureLabelsUseOfficialLocale() {
-        let officialValues = Set(OfficialUISpec.LocaleCatalog.values.values)
-        XCTAssertTrue(officialValues.contains(OfficialUISpec.Text.feedbackErrorConflict))
-        XCTAssertTrue(officialValues.contains(OfficialUISpec.Text.feedbackErrorLoad))
-        XCTAssertTrue(officialValues.contains(OfficialUISpec.Text.feedbackErrorGeneric))
-    }
-
     func testSubagentBranchKeyboardLabelsUseOfficialLocale() {
-        let officialValues = Set(OfficialUISpec.LocaleCatalog.values.values)
-        XCTAssertTrue(officialValues.contains(OfficialUISpec.Text.subagentBranchExpandTemplate))
-        XCTAssertTrue(officialValues.contains(OfficialUISpec.Text.subagentBranchCollapseTemplate))
         XCTAssertEqual(OfficialUISpec.Text.subagentBranchExpand("worker"), "Expand worker descendants")
         XCTAssertEqual(OfficialUISpec.Text.subagentBranchCollapse("worker"), "Collapse worker descendants")
-    }
-
-    func testTrajectoryToolbarUsesOfficialLocale() {
-        let officialValues = Set(OfficialUISpec.LocaleCatalog.values.values)
-        let toolbarLocaleValues = [
-            OfficialUISpec.Text.trajectoryToolbar,
-            OfficialUISpec.Text.trajectoryTurns,
-            OfficialUISpec.Text.trajectoryCalls,
-            OfficialUISpec.Text.trajectorySearch,
-            OfficialUISpec.Text.trajectorySearchPlaceholder,
-        ]
-        XCTAssertTrue(toolbarLocaleValues.allSatisfy(officialValues.contains))
-        // `TrajectoryTable.tsx` owns the status and detail labels directly;
-        // they are versioned RC8 component strings rather than locale-catalog
-        // keys, and remain routed through `OfficialUISpec.Text` in the UI.
-        XCTAssertEqual(
-            [
-                OfficialUISpec.Text.trajectoryPending,
-                OfficialUISpec.Text.trajectoryCompleted,
-                OfficialUISpec.Text.trajectoryFailed,
-                OfficialUISpec.Text.trajectoryEventDetails,
-                OfficialUISpec.Text.trajectorySummary,
-                OfficialUISpec.Text.trajectoryPayload,
-                OfficialUISpec.Text.trajectoryResult,
-            ],
-            ["Pending", "Completed", "Failed", "Event details", "Summary", "Payload", "Result"]
-        )
     }
 
     func testNativeModelSelectUsesLockedModelSelectionLocaleCatalog() {

@@ -88,6 +88,7 @@ final class NativeShellPresentation: ObservableObject {
     }
 
     @Published var workspaceManagementDialog: WorkspaceManagementDialog?
+    @Published var userVisibleError: String?
 
     let workspaceStore: NativeWorkspaceStore
     let sessionStore: NativeSessionStore
@@ -587,7 +588,7 @@ final class NativeShellPresentation: ObservableObject {
                 workspaceStore.refresh(using: apis)
                 selectSession(forked.sessionId, workspaceID: workspaceID)
             } catch {
-                // Fork rejection leaves the Host projection untouched.
+                DispatchQueue.main.async { self.userVisibleError = String(describing: error) }
             }
         }
     }
@@ -602,7 +603,7 @@ final class NativeShellPresentation: ObservableObject {
                 guard !Task.isCancelled else { return }
                 workspaceStore.refresh(using: apis)
             } catch {
-                // Archive is dialog-free in the official browser; the Host owns failures.
+                DispatchQueue.main.async { self.userVisibleError = String(describing: error) }
             }
         }
     }
@@ -643,8 +644,7 @@ final class NativeShellPresentation: ObservableObject {
                 guard !Task.isCancelled else { return }
                 workspaceStore.refresh(using: apis)
             } catch {
-                // The Host owns validation of adopted directories; no local
-                // workspace state is invented when adoption is refused.
+                DispatchQueue.main.async { self.userVisibleError = String(describing: error) }
             }
         }
     }

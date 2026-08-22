@@ -3,7 +3,7 @@ import XCTest
 @testable import GlassCore
 
 final class ConversationCoreNodesTests: XCTestCase {
-    func testUserContextAssistantThinkingAndFinalTailMaterializeWithoutDuplicateRows() {
+    func testUserContextAssistantThinkingAndFinalTailMaterializeWithoutDuplicateRows() throws {
         let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
         let entries = [
             event(seq: 1, type: "turn/start", data: ["turn": .number(1)]),
@@ -31,7 +31,7 @@ final class ConversationCoreNodesTests: XCTestCase {
         XCTAssertEqual(reducer.replaceWindow(Array(entries.prefix(4)).map { ConversationEventInput(event: $0) }, hasMore: false), .immediate)
         var chat = reducer.snapshot(target: "chat")
         XCTAssertEqual(chat.map(\.kind), ["user", "assistant-step"])
-        let running = tryUnwrap(chat.last?.data as? CoreAssistantNode)
+        let running = try tryUnwrap(chat.last?.data as? CoreAssistantNode)
         XCTAssertEqual(running.status, .running)
         XCTAssertEqual(running.blocks.map(\.kind), [.reasoning])
 
@@ -39,7 +39,7 @@ final class ConversationCoreNodesTests: XCTestCase {
         XCTAssertEqual(reducer.append(.init(event: entries[5])), .immediate)
         chat = reducer.snapshot(target: "chat")
         XCTAssertEqual(chat.filter { $0.kind == "assistant-step" }.count, 1, "final assistant/message replaces the same step context rather than appending a duplicate stream tail")
-        let settled = tryUnwrap(chat.last?.data as? CoreAssistantNode)
+        let settled = try tryUnwrap(chat.last?.data as? CoreAssistantNode)
         XCTAssertEqual(settled.status, .settled)
         XCTAssertEqual(settled.messageID, "a1")
         XCTAssertEqual(settled.blocks.map(\.kind), [.text], "a final Host assistant message must replace transient reasoning rather than leak it into the settled row")
@@ -47,7 +47,7 @@ final class ConversationCoreNodesTests: XCTestCase {
         XCTAssertFalse(settled.blocks.contains { $0.text?.contains("plan") ?? false }, "transient reasoning text must not remain visible after the final message settles")
     }
 
-    func testToolRetryErrorAndCompactionNodesUseOfficialCorrelations() {
+    func testToolRetryErrorAndCompactionNodesUseOfficialCorrelations() throws {
         let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
         let entries = [
             event(seq: 10, type: "turn/start", data: ["turn": .number(2)]),
@@ -77,19 +77,19 @@ final class ConversationCoreNodesTests: XCTestCase {
         XCTAssertEqual(reducer.replaceWindow(entries.map { ConversationEventInput(event: $0) }, hasMore: true), .immediate)
         let chat = reducer.snapshot(target: "chat")
 
-        let tool = tryUnwrap(chat.first(where: { $0.kind == "tool-call" })?.data as? CoreToolCallNode)
+        let tool = try tryUnwrap(chat.first(where: { $0.kind == "tool-call" })?.data as? CoreToolCallNode)
         XCTAssertEqual(tool.status, .settled)
         XCTAssertEqual(tool.callID, "call-1")
         XCTAssertEqual(tool.resultContent.first?.text, "result")
 
-        let retry = tryUnwrap(chat.first(where: { $0.kind == "model-retry" })?.data as? CoreRetryNode)
+        let retry = try tryUnwrap(chat.first(where: { $0.kind == "model-retry" })?.data as? CoreRetryNode)
         XCTAssertEqual(retry.attempts, [.init(seq: 14, time: 14, retry: 1, state: .started, delayMilliseconds: 1_250, failureMessage: "provider busy", maximumRetries: 3, unlimited: false)])
 
-        let error = tryUnwrap(chat.first(where: { $0.kind == "turn-error" })?.data as? CoreTurnErrorNode)
+        let error = try tryUnwrap(chat.first(where: { $0.kind == "turn-error" })?.data as? CoreTurnErrorNode)
         XCTAssertEqual(error.message, "transport failed")
         XCTAssertTrue(error.hiddenByRetry, "a retry on the same turn suppresses the terminal error row")
 
-        let compaction = tryUnwrap(chat.first(where: { $0.kind == "compaction" })?.data as? CoreCompactionNode)
+        let compaction = try tryUnwrap(chat.first(where: { $0.kind == "compaction" })?.data as? CoreCompactionNode)
         XCTAssertEqual(compaction.compactionID, "compact-1")
         XCTAssertEqual(compaction.summary, "short summary")
         XCTAssertEqual(compaction.shadowedItemCount, 3)
@@ -97,7 +97,7 @@ final class ConversationCoreNodesTests: XCTestCase {
         XCTAssertEqual(compaction.seq, 19, "checkpoint stays at its landed replacement event, not at summary")
     }
 
-    func testScheduledRetryBecomesCancelledWhenHostClosesItsStep() {
+    func testScheduledRetryBecomesCancelledWhenHostClosesItsStep() throws {
         let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
         let entries = [
             event(seq: 30, type: "turn/start", data: ["turn": .number(4)]),
@@ -110,12 +110,12 @@ final class ConversationCoreNodesTests: XCTestCase {
         ]
 
         XCTAssertEqual(reducer.replaceWindow(entries.map { .init(event: $0) }, hasMore: false), .immediate)
-        let retry = tryUnwrap(reducer.snapshot(target: "chat").first(where: { $0.kind == "model-retry" })?.data as? CoreRetryNode)
+        let retry = try tryUnwrap(reducer.snapshot(target: "chat").first(where: { $0.kind == "model-retry" })?.data as? CoreRetryNode)
         XCTAssertEqual(retry.attempts.map(\.state), [.cancelled])
         XCTAssertEqual(retry.attempts.first?.delayMilliseconds, 1_000)
     }
 
-    func testTurnMaxTokensNoticeUsesClosingTurnCoordinatesAndRejectsOtherEndReasons() {
+    func testTurnMaxTokensNoticeUsesClosingTurnCoordinatesAndRejectsOtherEndReasons() throws {
         let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
         let entries = [
             event(seq: 40, type: "turn/start", data: ["turn": .number(6)]),
@@ -135,8 +135,8 @@ final class ConversationCoreNodesTests: XCTestCase {
         ]
 
         XCTAssertEqual(reducer.replaceWindow(entries.map { .init(event: $0) }, hasMore: false), .immediate)
-        let notice = tryUnwrap(reducer.snapshot(target: "chat").first(where: { $0.kind == "turn-max-tokens" }))
-        let payload = tryUnwrap(notice.data as? CoreTurnMaxTokensNode)
+        let notice = try tryUnwrap(reducer.snapshot(target: "chat").first(where: { $0.kind == "turn-max-tokens" }))
+        let payload = try tryUnwrap(notice.data as? CoreTurnMaxTokensNode)
         XCTAssertEqual(payload.turn, 6)
         XCTAssertEqual(payload.step, 3)
         XCTAssertEqual(payload.seq, 43)
@@ -145,7 +145,7 @@ final class ConversationCoreNodesTests: XCTestCase {
         XCTAssertEqual(reducer.snapshot(target: "chat").filter { $0.kind == "turn-max-tokens" }.count, 1)
     }
 
-    func testClosedStepFreezesStreamingAssistantAndRunningToolAtOfficialSyntheticAnchors() {
+    func testClosedStepFreezesStreamingAssistantAndRunningToolAtOfficialSyntheticAnchors() throws {
         let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
         let entries = [
             event(seq: 60, type: "turn/start", data: ["turn": .number(3)]),
@@ -159,15 +159,15 @@ final class ConversationCoreNodesTests: XCTestCase {
         ]
         reducer.replaceWindow(entries.map { .init(event: $0) }, hasMore: false)
         let chat = reducer.snapshot(target: "chat")
-        let assistant = tryUnwrap(chat.first(where: { $0.kind == "assistant-step" }))
-        let tool = tryUnwrap(chat.first(where: { $0.kind == "tool-call" }))
+        let assistant = try tryUnwrap(chat.first(where: { $0.kind == "assistant-step" }))
+        let tool = try tryUnwrap(chat.first(where: { $0.kind == "tool-call" }))
         XCTAssertEqual((assistant.data as? CoreAssistantNode)?.status, .interrupted)
         XCTAssertEqual((tool.data as? CoreToolCallNode)?.status, .interrupted)
-        XCTAssertEqual(tryUnwrap(assistant.anchorSeq), 63.1, accuracy: 0.0001)
-        XCTAssertEqual(tryUnwrap(tool.anchorSeq), 63.2, accuracy: 0.0001)
+        XCTAssertEqual(try tryUnwrap(assistant.anchorSeq), 63.1, accuracy: 0.0001)
+        XCTAssertEqual(try tryUnwrap(tool.anchorSeq), 63.2, accuracy: 0.0001)
     }
 
-    func testContextInjectionIsAVisibleContextNodeNotAnOrdinaryUserBubble() {
+    func testContextInjectionIsAVisibleContextNodeNotAnOrdinaryUserBubble() throws {
         let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
         let injected = event(seq: 50, type: "user/message", surface: .string("append"), data: [
             "id": .string("ctx-1"),
@@ -175,12 +175,12 @@ final class ConversationCoreNodesTests: XCTestCase {
             "source": .object(["kind": .string("plugin"), "plugin": .string("agent-instructions")])
         ])
         reducer.replaceWindow([.init(event: injected)], hasMore: false)
-        let node = tryUnwrap(reducer.snapshot(target: "chat").first?.data as? CoreUserMessageNode)
+        let node = try tryUnwrap(reducer.snapshot(target: "chat").first?.data as? CoreUserMessageNode)
         XCTAssertEqual(node.kind, .context)
         XCTAssertEqual(node.sourcePlugin, "agent-instructions")
     }
 
-    func testDurableNextStepInboxSpliceClassifiesOnlyClaimedUserMessageAsSteering() {
+    func testDurableNextStepInboxSpliceClassifiesOnlyClaimedUserMessageAsSteering() throws {
         let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
         let entries = [
             event(seq: 1, type: "agent/inbox/spliced", data: [
@@ -210,18 +210,18 @@ final class ConversationCoreNodesTests: XCTestCase {
         XCTAssertEqual(reducer.replaceWindow(entries.map { ConversationEventInput(event: $0) }, hasMore: false), .immediate)
         let chat = reducer.snapshot(target: "chat")
         XCTAssertEqual(chat.map(\.kind), ["steering", "user"])
-        XCTAssertEqual((tryUnwrap(chat.first?.data as? CoreUserMessageNode)).kind, .steering)
-        XCTAssertEqual((tryUnwrap(chat.last?.data as? CoreUserMessageNode)).kind, .user)
+        XCTAssertEqual((try tryUnwrap(chat.first?.data as? CoreUserMessageNode)).kind, .steering)
+        XCTAssertEqual((try tryUnwrap(chat.last?.data as? CoreUserMessageNode)).kind, .user)
         XCTAssertEqual(reducer.snapshot(target: "timeline").count, 0)
 
         let trajectory = reducer.snapshot(target: "trajectory")
         XCTAssertEqual(trajectory.map(\.kind), ["trajectory-input-message", "trajectory-input-message"])
         XCTAssertEqual(trajectory.map(\.anchorSeq), [3, 4])
-        XCTAssertEqual((tryUnwrap(trajectory.first?.data as? CoreUserMessageNode)).kind, .steering)
-        XCTAssertEqual((tryUnwrap(trajectory.last?.data as? CoreUserMessageNode)).kind, .user)
+        XCTAssertEqual((try tryUnwrap(trajectory.first?.data as? CoreUserMessageNode)).kind, .steering)
+        XCTAssertEqual((try tryUnwrap(trajectory.last?.data as? CoreUserMessageNode)).kind, .user)
     }
 
-    func testCoreNodeReplaySnapshotsRemainStableAfterEveryOfficialAppend() {
+    func testCoreNodeReplaySnapshotsRemainStableAfterEveryOfficialAppend() throws {
         let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
         let entries = [
             event(seq: 1, type: "turn/start", data: ["turn": .number(9)]),
@@ -280,23 +280,23 @@ final class ConversationCoreNodesTests: XCTestCase {
         XCTAssertEqual(chat.filter { $0.kind == "assistant-step" }.count, 1)
         XCTAssertEqual(chat.filter { $0.kind == "tool-call" }.count, 1)
 
-        let user = tryUnwrap(chat.first(where: { $0.kind == "user" })?.data as? CoreUserMessageNode)
+        let user = try tryUnwrap(chat.first(where: { $0.kind == "user" })?.data as? CoreUserMessageNode)
         XCTAssertEqual(user.messageID, "u-replay")
         XCTAssertEqual(user.content.first?.text, "question")
 
-        let tool = tryUnwrap(chat.first(where: { $0.kind == "tool-call" })?.data as? CoreToolCallNode)
+        let tool = try tryUnwrap(chat.first(where: { $0.kind == "tool-call" })?.data as? CoreToolCallNode)
         XCTAssertEqual(tool.status, .settled)
         XCTAssertEqual(tool.callID, "call-replay")
         XCTAssertEqual(tool.resultContent.first?.text, "contents")
 
-        let assistant = tryUnwrap(chat.first(where: { $0.kind == "assistant-step" })?.data as? CoreAssistantNode)
+        let assistant = try tryUnwrap(chat.first(where: { $0.kind == "assistant-step" })?.data as? CoreAssistantNode)
         XCTAssertEqual(assistant.status, .settled)
         XCTAssertEqual(assistant.messageID, "a-replay")
         XCTAssertEqual(assistant.blocks.first?.text, "final")
         XCTAssertEqual(reducer.rawWindow().map(\.event.seq), Array(1...9))
     }
 
-    func testWorkflowRunFoldsOfficialDurableEventsWithExactPhaseIdentityAndTerminalStatuses() {
+    func testWorkflowRunFoldsOfficialDurableEventsWithExactPhaseIdentityAndTerminalStatuses() throws {
         let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
         let entries = [
             event(seq: 100, type: "tool-workflow/run-start", data: ["runId": .string("run-1"), "name": .string("release")]),
@@ -310,7 +310,7 @@ final class ConversationCoreNodesTests: XCTestCase {
         ]
 
         XCTAssertEqual(reducer.replaceWindow(entries.map { .init(event: $0) }, hasMore: false), .immediate)
-        let workflow = tryUnwrap(reducer.snapshot(target: "chat").first(where: { $0.kind == "workflow-run" })?.data as? CoreWorkflowRunNode)
+        let workflow = try tryUnwrap(reducer.snapshot(target: "chat").first(where: { $0.kind == "workflow-run" })?.data as? CoreWorkflowRunNode)
         XCTAssertEqual(workflow.name, "release")
         XCTAssertEqual(workflow.status, .failed)
         XCTAssertEqual(workflow.phases.map(\.key), ["missing", "value:0:", "value:7:deliver"])
@@ -322,7 +322,7 @@ final class ConversationCoreNodesTests: XCTestCase {
         XCTAssertEqual(workflowPhaseKey("🚀"), "value:2:🚀", "matches JavaScript UTF-16 String.length")
     }
 
-    func testWorkflowRunRejectsMalformedUpdatesAndProjectsInterruptedAtClosedLocation() {
+    func testWorkflowRunRejectsMalformedUpdatesAndProjectsInterruptedAtClosedLocation() throws {
         let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
         let entries = [
             event(seq: 200, type: "turn/start", data: ["turn": .number(7)]),
@@ -337,14 +337,14 @@ final class ConversationCoreNodesTests: XCTestCase {
         ]
 
         for entry in entries { _ = reducer.append(.init(event: entry)) }
-        let workflow = tryUnwrap(reducer.snapshot(target: "chat").first(where: { $0.kind == "workflow-run" })?.data as? CoreWorkflowRunNode)
+        let workflow = try tryUnwrap(reducer.snapshot(target: "chat").first(where: { $0.kind == "workflow-run" })?.data as? CoreWorkflowRunNode)
         XCTAssertEqual(workflow.name, "")
         XCTAssertEqual(workflow.status, .interrupted)
         XCTAssertEqual(workflow.phases.flatMap(\.members).count, 1)
         XCTAssertEqual(workflow.phases.flatMap(\.members).first?.status, .interrupted)
     }
 
-    func testDeliverablesPublishesSuccessfulMutationPathsAsTurnDataOnly() {
+    func testDeliverablesPublishesSuccessfulMutationPathsAsTurnDataOnly() throws {
         let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
         let entries: [ConversationEventInput] = [
             .init(event: event(seq: 300, type: "turn/start", data: ["turn": .number(4)])),
@@ -376,7 +376,7 @@ final class ConversationCoreNodesTests: XCTestCase {
         ]
 
         reducer.replaceWindow(entries, hasMore: false)
-        let data = tryUnwrap(reducer.locationData(scope: .turn, turn: 4).value(for: "deliverables", as: CoreDeliverablesTurnData.self))
+        let data = try tryUnwrap(reducer.locationData(scope: .turn, turn: 4).value(for: "deliverables", as: CoreDeliverablesTurnData.self))
         XCTAssertEqual(data.paths(forClosingSequence: 303), ["out/index.html", "notes.md"])
         XCTAssertEqual(data.paths(), ["out/index.html", "notes.md", "out/app.css"])
         XCTAssertFalse(data.paths().contains("cancelled.md"))
@@ -384,7 +384,7 @@ final class ConversationCoreNodesTests: XCTestCase {
         XCTAssertNil(reducer.locationData(scope: .turn, turn: 99).value(for: "deliverables", as: CoreDeliverablesTurnData.self))
     }
 
-    func testUnknownPluginToolCardDoesNotFabricateDeliverables() {
+    func testUnknownPluginToolCardDoesNotFabricateDeliverables() throws {
         let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
         let entries: [ConversationEventInput] = [
             .init(event: event(seq: 400, type: "turn/start", data: ["turn": .number(8)])),
@@ -398,7 +398,7 @@ final class ConversationCoreNodesTests: XCTestCase {
         ]
 
         XCTAssertEqual(reducer.replaceWindow(entries, hasMore: false), .immediate)
-        let tool = tryUnwrap(reducer.snapshot(target: "chat").first(where: { $0.kind == "tool-call" })?.data as? CoreToolCallNode)
+        let tool = try tryUnwrap(reducer.snapshot(target: "chat").first(where: { $0.kind == "tool-call" })?.data as? CoreToolCallNode)
         XCTAssertEqual(tool.callID, "future-card")
         XCTAssertEqual(tool.name, "plugin_tool")
         XCTAssertEqual(tool.argumentsRaw, "{\"fixture\":true}")
@@ -427,8 +427,7 @@ final class ConversationCoreNodesTests: XCTestCase {
         .init(type: type, seq: seq, time: Double(seq), data: .object(data), surfaceOp: surface)
     }
 
-    private func tryUnwrap<T>(_ value: T?) -> T {
-        guard let value else { fatalError("Expected non-nil fixture output") }
-        return value
+    private func tryUnwrap<T>(_ value: T?, file: StaticString = #filePath, line: UInt = #line) throws -> T {
+        try XCTUnwrap(value, "Expected non-nil fixture output", file: file, line: line)
     }
 }

@@ -15,7 +15,7 @@ public enum HostPathDisplay {
         let root = home.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         guard !root.isEmpty else { return path }
         let normalizedRoot = "/" + root
-        let normalizedPath = path.hasPrefix("/") ? path : path
+        let normalizedPath = path.hasPrefix("/") ? path : "/" + path
 
         if normalizedPath.trimmingCharacters(in: CharacterSet(charactersIn: "/")) == root {
             return "~"
@@ -29,10 +29,13 @@ public enum HostPathDisplay {
     private static func isWindowsStylePath(_ value: String) -> Bool {
         guard !value.isEmpty else { return false }
         if value.hasPrefix("\\\\") { return true }
-        let scalars = Array(value.unicodeScalars)
-        return scalars.count >= 3
-            && CharacterSet.letters.contains(scalars[0])
-            && scalars[1].value == 58
-            && (scalars[2].value == 47 || scalars[2].value == 92)
+        let scalars = value.unicodeScalars
+        guard scalars.count >= 3 else { return false }
+        let first = scalars[scalars.startIndex]
+        let second = scalars[scalars.index(after: scalars.startIndex)]
+        let third = scalars[scalars.index(scalars.startIndex, offsetBy: 2)]
+        return CharacterSet.letters.contains(first)
+            && second == ":"
+            && (third == "/" || third == "\\")
     }
 }

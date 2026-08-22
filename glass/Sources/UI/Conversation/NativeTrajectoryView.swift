@@ -14,8 +14,13 @@ struct NativeTrajectoryView: View {
 
     fileprivate struct TurnRecord: Identifiable {
         let node: CoreUserMessageNode
+        let text: String
         var id: String { "turn-\(node.seq)" }
-        var text: String { node.content.compactMap(\.text).joined(separator: "\n") }
+
+        init(node: CoreUserMessageNode) {
+            self.node = node
+            self.text = node.content.compactMap(\.text).joined(separator: "\n")
+        }
     }
 
     @ObservedObject var sessionStore: NativeSessionStore

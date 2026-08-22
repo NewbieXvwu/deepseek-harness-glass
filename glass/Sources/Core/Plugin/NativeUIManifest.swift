@@ -184,10 +184,11 @@ enum NativeUIManifestVerifier {
         do {
             try validate(manifest, hostBuildID: hostBuildID, verifiedIntegrity: verifiedIntegrity)
             return .native(manifest)
-        } catch let error as NativeUIManifestValidationError {
-            return .ghostPlaneFallback(pluginID: manifest.pluginID, reason: error)
         } catch {
-            return .ghostPlaneFallback(pluginID: manifest.pluginID, reason: .integrityNotVerified)
+            // validate() is typed to throw only NativeUIManifestValidationError,
+            // so this branch cannot mask a programmer error as a plugin
+            // integrity failure.
+            return .ghostPlaneFallback(pluginID: manifest.pluginID, reason: error)
         }
     }
 
@@ -195,7 +196,7 @@ enum NativeUIManifestVerifier {
         _ manifest: NativeUIManifest,
         hostBuildID: String,
         verifiedIntegrity: NativeUIManifest.Integrity?
-    ) throws {
+    ) throws(NativeUIManifestValidationError) {
         guard manifest.manifestVersion == NativeUIManifest.currentManifestVersion else {
             throw NativeUIManifestValidationError.unsupportedManifestVersion(manifest.manifestVersion)
         }

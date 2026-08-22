@@ -4,11 +4,11 @@ import XCTest
 @testable import GlassUI
 
 final class NativeComposerDockPresentationTests: XCTestCase {
-    func testHostProjectionDocksUseFixedTodoGoalQueueStatsOrder() {
+    func testHostProjectionDocksUseFixedTodoGoalQueueStatsOrder() throws {
         XCTAssertEqual(
             NativeComposerDockPresentation.components(
                 todos: [.init(content: "Host todo", status: .pending)],
-                goal: goal(),
+                goal: try goal(),
                 queuedMessages: [queuedMessage()],
                 chatNodes: [assistantNode()],
                 locallyClearedGoalID: nil,
@@ -18,11 +18,11 @@ final class NativeComposerDockPresentationTests: XCTestCase {
         )
     }
 
-    func testEmptyOrLocallyClearedHostProjectionDoesNotCreateDockPlaceholder() {
+    func testEmptyOrLocallyClearedHostProjectionDoesNotCreateDockPlaceholder() throws {
         XCTAssertEqual(
             NativeComposerDockPresentation.components(
                 todos: [],
-                goal: goal(),
+                goal: try goal(),
                 queuedMessages: [],
                 chatNodes: [],
                 locallyClearedGoalID: "goal-1",
@@ -32,11 +32,11 @@ final class NativeComposerDockPresentationTests: XCTestCase {
         )
     }
 
-    func testPendingTakeoverHidesAllDocksIncludingStatsUntilHostResolvesInteraction() {
+    func testPendingTakeoverHidesAllDocksIncludingStatsUntilHostResolvesInteraction() throws {
         XCTAssertEqual(
             NativeComposerDockPresentation.components(
                 todos: [.init(content: "Host todo", status: .pending)],
-                goal: goal(),
+                goal: try goal(),
                 queuedMessages: [queuedMessage()],
                 chatNodes: [assistantNode()],
                 locallyClearedGoalID: nil,
@@ -46,7 +46,7 @@ final class NativeComposerDockPresentationTests: XCTestCase {
         )
     }
 
-    private func goal() -> CoreGoalProjection {
+    private func goal() throws -> CoreGoalProjection {
         guard let goal = CoreGoalProjection(projection: .object([
             "goal": .object([
                 "id": .string("goal-1"),
@@ -59,9 +59,14 @@ final class NativeComposerDockPresentationTests: XCTestCase {
             "createdAt": .number(1),
             "updatedAt": .number(1),
         ])) else {
-            fatalError("goal fixture must satisfy the Host projection contract")
+            XCTFail("goal fixture must satisfy the Host projection contract")
+            throw GoalFixtureError.invalidProjection
         }
         return goal
+    }
+
+    private enum GoalFixtureError: Error {
+        case invalidProjection
     }
 
     private func queuedMessage() -> NativeSessionStore.QueuedMessage {

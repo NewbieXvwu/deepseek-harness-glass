@@ -276,19 +276,34 @@ enum SnapshotExporter {
         // A window filter captures the actual WindowServer composition of this
         // process, including AppKit-owned sidebar/inspector material, without
         // sampling unrelated or inaccessible headless display pixels.
-        let currentProcessContent = try? await SCShareableContent.currentProcess
+        let currentProcessContent: SCShareableContent?
+        do {
+            currentProcessContent = try await SCShareableContent.currentProcess
+        } catch {
+            fputs("[Snapshot] SCShareableContent.currentProcess failed: \(error)\n", stderr)
+            currentProcessContent = nil
+        }
         let shareableWindow = currentProcessContent?.windows.first {
             $0.windowID == CGWindowID(window.windowNumber)
         }
         let compositorBitmap: NSBitmapImageRep?
-        if let shareableWindow,
-           let screenshot = try? await SCScreenshotManager.captureScreenshot(
-            contentFilter: SCContentFilter(desktopIndependentWindow: shareableWindow),
-            configuration: configuration
-           ), let composited = screenshot.sdrImage {
-            let candidate = NSBitmapImageRep(cgImage: composited)
-            candidate.size = captureSize
-            compositorBitmap = hasVisibleSDRContent(candidate) ? candidate : nil
+        if let shareableWindow {
+            do {
+                let screenshot = try await SCScreenshotManager.captureScreenshot(
+                    contentFilter: SCContentFilter(desktopIndependentWindow: shareableWindow),
+                    configuration: configuration
+                )
+                if let composited = screenshot.sdrImage {
+                    let candidate = NSBitmapImageRep(cgImage: composited)
+                    candidate.size = captureSize
+                    compositorBitmap = hasVisibleSDRContent(candidate) ? candidate : nil
+                } else {
+                    compositorBitmap = nil
+                }
+            } catch {
+                fputs("[Snapshot] SCScreenshotManager.captureScreenshot failed: \(error)\n", stderr)
+                compositorBitmap = nil
+            }
         } else {
             compositorBitmap = nil
         }
@@ -367,6 +382,7 @@ enum SnapshotExporter {
             try process.run()
             process.waitUntilExit()
         } catch {
+            fputs("[Snapshot] screencapture run failed: \(error)\n", stderr)
             return nil
         }
         guard process.terminationStatus == 0,

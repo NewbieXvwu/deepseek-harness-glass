@@ -64,11 +64,29 @@ jobs:
 
       - name: Verify visual review artifacts exist
         run: |
-          # Ensure visual review markdown files correspond to actual policy directories
-          if [[ -d "visual-review" ]]; then
-            for dir in visual-review/official-*; do
-              if [[ -d "$dir" ]]; then
-                echo "Verified visual review directory: $dir"
+          set -euo pipefail
+          if [[ ! -d "visual-review" ]]; then
+            echo "::error::visual-review directory is missing"
+            exit 1
+          fi
+          dirs=(visual-review/official-*)
+          if [[ ${#dirs[@]} -eq 0 || ! -e "${dirs[0]}" ]]; then
+            echo "::error::No visual-review/official-* directories found"
+            exit 1
+          fi
+          failed=0
+          for dir in "${dirs[@]}"; do
+            if [[ -d "$dir" ]]; then
+              artifact_count=$(find "$dir" -maxdepth 1 -type f \( -name "*.md" -o -name "*.png" -o -name "*.webp" -o -name "*.json" \) | wc -l | tr -d ' ')
+              md_or_png=$(find "$dir" -maxdepth 1 -type f \( -name "*.md" -o -name "*.png" -o -name "*.webp" \) | wc -l | tr -d ' ')
+              if [[ "$artifact_count" -eq 0 || "$md_or_png" -eq 0 ]]; then
+                echo "::error::Visual review directory '$dir' is missing required report (.md) or image (.png/.webp) artifacts"
+                failed=1
+              else
+                echo "Verified visual review directory: $dir ($artifact_count artifacts, $md_or_png reports/images)"
               fi
-            done
+            fi
+          done
+          if [[ "$failed" -ne 0 ]]; then
+            exit 1
           fi

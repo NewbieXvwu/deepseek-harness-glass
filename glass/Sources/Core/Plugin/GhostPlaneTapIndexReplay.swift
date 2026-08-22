@@ -167,9 +167,12 @@ public struct GhostPlaneTapIndexReplay: Equatable, Sendable {
 
     private static func validCustomPropertyValue(_ value: String) -> Bool {
         guard !value.isEmpty, value.count <= 256 else { return false }
-        guard !value.localizedCaseInsensitiveContains("url"),
-              !value.localizedCaseInsensitiveContains("expression"),
-              !value.localizedCaseInsensitiveContains("@import")
+        // Non-localized ASCII containment: locale-aware matching ("İ") would
+        // make this depend on the user's region. The character whitelist below
+        // remains the primary gate; these are a final block.
+        guard value.range(of: "url", options: .caseInsensitive) == nil,
+              value.range(of: "expression", options: .caseInsensitive) == nil,
+              value.range(of: "@import", options: .caseInsensitive) == nil
         else { return false }
         return value.unicodeScalars.allSatisfy { scalar in
             switch scalar.value {

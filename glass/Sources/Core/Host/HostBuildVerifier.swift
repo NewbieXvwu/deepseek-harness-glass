@@ -96,11 +96,20 @@ struct HostBuildVerifier: Sendable {
     }
 
     private func packageVersion(at url: URL) -> String? {
-        guard let data = try? Data(contentsOf: url),
-              let manifest = try? JSONDecoder().decode(PackageManifest.self, from: data) else {
+        let data: Data
+        do {
+            data = try Data(contentsOf: url)
+        } catch {
+            fputs("[HostBuildVerifier] failed to read package manifest at \(url.path): \(error.localizedDescription)\n", stderr)
             return nil
         }
-        return manifest.version
+        do {
+            let manifest = try JSONDecoder().decode(PackageManifest.self, from: data)
+            return manifest.version
+        } catch {
+            fputs("[HostBuildVerifier] failed to decode package manifest at \(url.path): \(error.localizedDescription)\n", stderr)
+            return nil
+        }
     }
 }
 

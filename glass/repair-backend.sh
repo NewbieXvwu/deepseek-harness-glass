@@ -39,15 +39,39 @@ TMP_HOME=$(mktemp -d)
 DSH_HOME="$TMP_HOME" ../node/node --expose-internals \
   "$BIN" web --port 0 > /tmp/dsh-smoke.log 2>&1 &
 BACKEND_PID=$!
-sleep 8
-if kill -0 "$BACKEND_PID" 2>/dev/null; then
-  echo "✅ 后端冒烟通过: $(grep -o 'dsh web: http://[0-9.:]*' /tmp/dsh-smoke.log | head -1)"
-  kill "$BACKEND_PID" 2>/dev/null
-else
-  echo "❌ 后端未能启动，日志:"
+
+URL=""
+for i in {1..15}; do
+  if ! kill -0 "$BACKEND_PID" 2>/dev/null; then
+    echo "❌ 后端未能启动（进程异常退出），日志:"
+    tail -15 /tmp/dsh-smoke.log
+    exit 1
+  fi
+  URL=$(grep -o 'http://127\.0\.0\.1:[0-9]*' /tmp/dsh-smoke.log | head -1 || true)
+  if [ -n "$URL" ]; then
+    break
+  fi
+  sleep 1
+done
+
+if [ -z "$URL" ]; then
+  echo "❌ 后端启动超时或未输出有效 URL，日志:"
   tail -15 /tmp/dsh-smoke.log
+  kill "$BACKEND_PID" 2>/dev/null || true
   exit 1
 fi
+
+if command -v curl >/dev/null 2>&1; then
+  if ! curl -fsS -m 5 "$URL" > /dev/null 2>&1; then
+    echo "❌ 后端 HTTP 请求探测失败 ($URL)，日志:"
+    tail -15 /tmp/dsh-smoke.log
+    kill "$BACKEND_PID" 2>/dev/null || true
+    exit 1
+  fi
+fi
+
+echo "✅ 后端冒烟通过: $URL"
+kill "$BACKEND_PID" 2>/dev/null || true
 
 cd "$ROOT"
 echo "== 完成校验，重新打包 =="

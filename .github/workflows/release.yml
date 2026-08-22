@@ -63,13 +63,38 @@ jobs:
             glass/build/backend/node_modules/@deepseek-ai/dsh/lib/bin.js web --port 0 \
             > /tmp/dsh-smoke.log 2>&1 &
           BACKEND_PID=$!
-          sleep 12
-          if kill -0 "$BACKEND_PID" 2>/dev/null; then
-            echo "backend OK: $(grep -o 'dsh web: http://[0-9.:]*' /tmp/dsh-smoke.log | head -1)"
-            kill "$BACKEND_PID"
-          else
-            echo "backend failed:"; tail -20 /tmp/dsh-smoke.log; exit 1
+
+          URL=""
+          for i in {1..15}; do
+            if ! kill -0 "$BACKEND_PID" 2>/dev/null; then
+              echo "::error::Backend process died unexpectedly"
+              tail -20 /tmp/dsh-smoke.log
+              exit 1
+            fi
+            URL=$(grep -o 'http://127\.0\.0\.1:[0-9]*' /tmp/dsh-smoke.log | head -1 || true)
+            if [[ -n "$URL" ]]; then
+              break
+            fi
+            sleep 1
+          done
+
+          if [[ -z "$URL" ]]; then
+            echo "::error::Backend failed to output valid loopback URL within timeout:"
+            tail -20 /tmp/dsh-smoke.log
+            kill "$BACKEND_PID" 2>/dev/null || true
+            exit 1
           fi
+
+          echo "Backend announced at $URL, probing health endpoint..."
+          if ! curl -fsS -m 5 "$URL" > /dev/null 2>&1; then
+            echo "::error::Health check probe to $URL failed:"
+            tail -20 /tmp/dsh-smoke.log
+            kill "$BACKEND_PID" 2>/dev/null || true
+            exit 1
+          fi
+
+          echo "backend OK: $URL"
+          kill "$BACKEND_PID" 2>/dev/null || true
 
       - name: Assemble app
         run: |

@@ -21,6 +21,7 @@ struct DSHAPIClient: Sendable {
         self.diagnostics = diagnostics
     }
 
+    // TODO(perf): avoid JSONValue round-trip on the hot path once dispatch no longer needs the tree.
     func call<Request: Encodable, Response: Decodable>(
         _ method: String,
         payload: Request,

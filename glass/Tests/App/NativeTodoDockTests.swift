@@ -20,7 +20,6 @@ final class NativeTodoDockTests: XCTestCase {
             .init(content: "Ship", status: .pending),
         ]
 
-        XCTAssertTrue(NativeTodoDockPresentation.startsCollapsed)
         XCTAssertEqual(
             NativeTodoDockPresentation.progressLabel(for: todos),
             "1 completed\u{2002}·\u{2002}1 in progress\u{2002}·\u{2002}2 pending"

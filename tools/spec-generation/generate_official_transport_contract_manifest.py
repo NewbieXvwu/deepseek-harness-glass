@@ -13,6 +13,7 @@ import argparse
 import hashlib
 import json
 import pathlib
+import re
 from typing import Any
 
 COMMIT = "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e"
@@ -38,6 +39,20 @@ def sha256(path: pathlib.Path) -> str:
     return "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def strip_comments(text: str) -> str:
+    """Strip single-line and multi-line comments from TypeScript source."""
+    return re.sub(r"//.*?$|/\*.*?\*/", "", text, flags=re.MULTILINE | re.DOTALL)
+
+
+def check_symbol_exported(clean_text: str, symbol: str) -> bool:
+    """Check if the given symbol is explicitly exported in TypeScript source.
+
+    Uses a comment-stripped export declaration check (\bexport\b ... \b<symbol>\b).
+    """
+    pattern = rf"\bexport\s+(?:const|type|interface|class|let|var|enum)\s+{re.escape(symbol)}\b"
+    return bool(re.search(pattern, clean_text))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--official-root", required=True, type=pathlib.Path)
@@ -48,7 +63,8 @@ def main() -> None:
     for contract in CONTRACTS:
         source = root / contract["source"]
         text = source.read_text(encoding="utf-8")
-        missing = [symbol for symbol in contract["symbols"] if symbol not in text]
+        clean_text = strip_comments(text)
+        missing = [symbol for symbol in contract["symbols"] if not check_symbol_exported(clean_text, symbol)]
         if missing:
             raise SystemExit(f"{contract['id']}: missing locked schema symbols {missing} in {contract['source']}")
         entry = dict(contract)

@@ -23,9 +23,14 @@ final class NativeCredentialStore: ObservableObject {
             let response = try await api.describe(refs: refs)
             guard refreshGeneration == currentGeneration else { return }
             let requested = Set(refs)
-            // A Host may return extra views for a wider request batch. Do not
-            // accidentally promote them into this card's observable state.
-            views = response.credentials.filter { requested.contains($0.key) }
+            // A Host may return extra views for a wider request batch. Only the
+            // requested refs are promoted, and previously loaded views for other
+            // refs are preserved: a narrow refresh must not wipe sibling cards.
+            var merged = views
+            for (key, view) in response.credentials where requested.contains(key) {
+                merged[key] = view
+            }
+            views = merged
         } catch {
             guard refreshGeneration == currentGeneration else { return }
             // Keep the most recent Host-safe facts; a read failure must not

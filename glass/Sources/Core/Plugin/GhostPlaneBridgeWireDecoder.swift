@@ -40,9 +40,13 @@ public enum GhostPlaneBridgeWireDecoder {
                   let rawIDs = envelope.event.attachmentIDs,
                   let x = envelope.event.x, let y = envelope.event.y, x.isFinite, y.isFinite
             else { throw Rejection.invalidEvent }
-            let parsedIDs = rawIDs.map { UUID(uuidString: $0) }
-            guard parsedIDs.allSatisfy({ $0 != nil }) else { throw Rejection.invalidEvent }
-            event = .drag(.init(phase: phase, operation: operation, attachmentIDs: parsedIDs.compactMap { $0 }, x: x, y: y))
+            var attachmentIDs: [UUID] = []
+            attachmentIDs.reserveCapacity(rawIDs.count)
+            for raw in rawIDs {
+                guard let id = UUID(uuidString: raw) else { throw Rejection.invalidEvent }
+                attachmentIDs.append(id)
+            }
+            event = .drag(.init(phase: phase, operation: operation, attachmentIDs: attachmentIDs, x: x, y: y))
         default:
             throw Rejection.unknownEventKind
         }

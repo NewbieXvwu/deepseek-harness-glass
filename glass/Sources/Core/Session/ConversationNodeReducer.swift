@@ -149,9 +149,9 @@ final class ConversationNodeReducer {
         turn: Int,
         step: Int? = nil
     ) -> ConversationLocationDataStore {
+        let prefix = "\(scope.rawValue):\(turn):\(step.map(String.init) ?? "-"):"
         var values: [String: Any] = [:]
-        for data in locationDataByKey.values where data.scope == scope
-            && data.turn == turn && data.step == step {
+        for (key, data) in locationDataByKey where key.hasPrefix(prefix) {
             values[data.key] = data.value
         }
         return .init(values: values)

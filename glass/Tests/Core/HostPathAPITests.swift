@@ -90,11 +90,9 @@ private final class HostPathURLProtocol: URLProtocol {
             var data = Data()
             stream.open()
             defer { stream.close() }
-            let bufferSize = 1024
-            let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
-            defer { buffer.deallocate() }
+            var buffer = [UInt8](repeating: 0, count: 1024)
             while stream.hasBytesAvailable {
-                let read = stream.read(buffer, maxLength: bufferSize)
+                let read = stream.read(&buffer, maxLength: buffer.count)
                 if read > 0 {
                     data.append(buffer, count: read)
                 } else {

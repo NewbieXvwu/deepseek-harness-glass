@@ -69,10 +69,24 @@ actor HostDiagnosticRecorder {
     }
 
     func recordLifecycle(_ state: HostLifecycleState, ownedPID: Int32?) {
-        lifecycle = HostLifecycleTransition(from: state, to: state, at: Date()).summary.components(separatedBy: " -> ").last ?? "unknown"
+        lifecycle = stableStateName(state)
         ownedProcessID = ownedPID
         if case .ready = state { ownership = "owned" }
         if case .idle = state { ownership = "none" }
+    }
+
+    private func stableStateName(_ state: HostLifecycleState) -> String {
+        switch state {
+        case .idle: return "idle"
+        case .probingExternal: return "probing-external"
+        case .startingOwned: return "starting-owned"
+        case .verifying: return "verifying"
+        case .recovering: return "recovering"
+        case .ready: return "ready"
+        case .unverified: return "unverified"
+        case .failed: return "failed"
+        case .stopping: return "stopping"
+        }
     }
 
     func recordSSEActivity(at date: Date = Date()) {

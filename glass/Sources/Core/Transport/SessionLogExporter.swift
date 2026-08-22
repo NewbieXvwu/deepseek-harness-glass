@@ -112,20 +112,24 @@ actor SessionLogExporter {
 
     private func suggestedFilename(from contentDisposition: String?) -> String? {
         guard let contentDisposition else { return nil }
-        let fields = contentDisposition.split(separator: ";", omittingEmptySubsequences: true).map { $0.trimmingCharacters(in: .whitespaces) }
+        let fields = contentDisposition.split(separator: ";", maxSplits: 8, omittingEmptySubsequences: true).map { $0.trimmingCharacters(in: .whitespaces) }
+        var fallbackFilename: String?
         for field in fields {
             let lower = field.lowercased()
             if lower.hasPrefix("filename*=") {
-                let value = String(field.dropFirst("filename*=".count))
+                let value = String(field.dropFirst("filename*=".count)).trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
                 let encoded = value.components(separatedBy: "''").last ?? value
-                if let decoded = encoded.removingPercentEncoding { return safeFilenameComponent(decoded) }
-            }
-            if lower.hasPrefix("filename=") {
+                if let decoded = encoded.removingPercentEncoding, !decoded.isEmpty {
+                    return safeFilenameComponent(decoded)
+                }
+            } else if lower.hasPrefix("filename=") && fallbackFilename == nil {
                 let value = String(field.dropFirst("filename=".count)).trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
-                return safeFilenameComponent(value)
+                if !value.isEmpty {
+                    fallbackFilename = safeFilenameComponent(value)
+                }
             }
         }
-        return nil
+        return fallbackFilename
     }
 
     private func safeFilenameComponent(_ value: String) -> String {

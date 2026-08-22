@@ -15,6 +15,47 @@ IMPORT_BLOCKS = {
 }
 
 
+def find_insertion_index(lines: list[str]) -> int:
+    """Find the insertion index for package imports.
+
+    Skips leading empty lines, line/block comments (//, /* ... */),
+    and compiler directive lines (#if, #elseif, #else, #endif).
+    """
+    insert_at = 0
+    in_block_comment = False
+    while insert_at < len(lines):
+        line = lines[insert_at]
+        stripped = line.strip()
+
+        if in_block_comment:
+            if "*/" in stripped:
+                in_block_comment = False
+            insert_at += 1
+            continue
+
+        if stripped == "":
+            insert_at += 1
+            continue
+
+        if stripped.startswith("/*"):
+            if "*/" not in stripped:
+                in_block_comment = True
+            insert_at += 1
+            continue
+
+        if stripped.startswith("//"):
+            insert_at += 1
+            continue
+
+        if stripped.startswith(("#if", "#elseif", "#else", "#endif")):
+            insert_at += 1
+            continue
+
+        break
+
+    return insert_at
+
+
 def main() -> None:
     changed = 0
     for layer, block in IMPORT_BLOCKS.items():
@@ -23,9 +64,7 @@ def main() -> None:
             if "DEEPSEEK_HARNESS_PACKAGE" in source:
                 continue
             lines = source.splitlines(keepends=True)
-            insert_at = 0
-            while insert_at < len(lines) and (lines[insert_at].startswith("import ") or lines[insert_at].strip() == ""):
-                insert_at += 1
+            insert_at = find_insertion_index(lines)
             lines.insert(insert_at, block)
             path.write_text("".join(lines), encoding="utf-8")
             changed += 1

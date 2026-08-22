@@ -76,8 +76,7 @@ public final class GhostPlaneWebViewHost: NSObject {
             return ghostPlane.applyTapIndex(arguments.records);
             """,
             arguments: ["records": replay.rendererPayload()],
-            in: nil,
-            in: .page
+                        contentWorld: .page
         )
     }
 
@@ -98,8 +97,7 @@ public final class GhostPlaneWebViewHost: NSObject {
             return ghostPlane.promoteModuleFactories(arguments.pluginIDs);
             """,
             arguments: ["pluginIDs": ids],
-            in: nil,
-            in: .page
+                        contentWorld: .page
         )
     }
 
@@ -120,8 +118,7 @@ public final class GhostPlaneWebViewHost: NSObject {
             return ghostPlane.applyNativeBridgeEvent(arguments.message);
             """,
             arguments: ["message": object],
-            in: nil,
-            in: .page
+                        contentWorld: .page
         )
     }
 
@@ -140,8 +137,7 @@ public final class GhostPlaneWebViewHost: NSObject {
             return ghostPlane.applyScrollOffset(arguments.scrollOffset);
             """,
             arguments: scalar.rendererArguments,
-            in: nil,
-            in: .page
+                        contentWorld: .page
         )
     }
 

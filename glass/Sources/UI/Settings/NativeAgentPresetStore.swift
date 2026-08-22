@@ -30,6 +30,7 @@ final class NativeAgentPresetStore: ObservableObject {
     /// The exact Host-returned read-only composition. It is cleared before a
     /// different roster replaces its row and is never manufactured from list data.
     @Published private(set) var detail: AgentPresetReadResponse?
+    @Published var lastOperationError: String?
 
     func refresh(using api: (any NativeAgentPresetAPI)?) async {
         guard let api else {
@@ -74,6 +75,7 @@ final class NativeAgentPresetStore: ObservableObject {
             detail = response
             return true
         } catch {
+            lastOperationError = error.localizedDescription
             return false
         }
     }
@@ -94,6 +96,7 @@ final class NativeAgentPresetStore: ObservableObject {
             revealedPaths[agentPreset] = path
             return true
         } catch {
+            lastOperationError = error.localizedDescription
             return false
         }
     }
@@ -109,6 +112,7 @@ final class NativeAgentPresetStore: ObservableObject {
             await refresh(using: api)
             return presets.contains(where: { $0.id == request.agentPreset })
         } catch {
+            lastOperationError = error.localizedDescription
             return false
         }
     }
@@ -123,13 +127,14 @@ final class NativeAgentPresetStore: ObservableObject {
             await refresh(using: api)
             return !presets.contains(where: { $0.id == agentPreset })
         } catch {
+            lastOperationError = error.localizedDescription
             return false
         }
     }
 
     /// Stages the Host-confirmed preset for the supplied session. The returned
     /// id must still be present and selectable in the current roster; otherwise
-    /// no local selection claim is made.
+    /// no local selection claim is做.
     @discardableResult
     func select(sessionID: String, agentPreset: String, using api: (any NativeAgentPresetAPI)?) async -> Bool {
         guard let api, !isSelecting else { return false }
@@ -142,6 +147,7 @@ final class NativeAgentPresetStore: ObservableObject {
             selectedPreset = response.agentPreset
             return true
         } catch {
+            lastOperationError = error.localizedDescription
             return false
         }
     }

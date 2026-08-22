@@ -6,7 +6,9 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
+import subprocess
 from pathlib import Path
 
 SOURCE_PATHS = (
@@ -17,8 +19,7 @@ SOURCE_PATHS = (
     "packages/client/ui-conversation/src/client/chat/AssistantMarkdown.tsx",
     "packages/client/modules/src/client/manifest.ts",
 )
-SLOT_RE = re.compile(r"^\s*'(?P<name>[A-Za-z][A-Za-z0-9.-]+)':\s*\{\s*kind:\s*'(?P<kind>[a-z]+)'\s*;?\s*scope:\s*'(?P<scope>[a-z-]+)'", re.MULTILINE)
-DATA_RE = re.compile(r"data-[a-z0-9-]+")
+AST_EXTRACTOR = Path(__file__).with_name("extract_ghost_plane_ast.mjs")
 
 
 def sha256(path: Path) -> str:
@@ -32,13 +33,33 @@ def read_source(root: Path, relative: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
+def node_binary() -> str:
+    configured = os.environ.get("DSH_REFERENCE_NODE") or os.environ.get("NODE")
+    if configured:
+        return configured
+    marker = Path("/home/ubuntu/reference/deepseek-harness/.reference-node-path")
+    if marker.is_file():
+        return str(Path(marker.read_text(encoding="utf-8").strip()) / "bin/node")
+    return "node"
+
+
+def extract_ast(root: Path) -> tuple[list[dict[str, str]], list[str]]:
+    process = subprocess.run(
+        [node_binary(), str(AST_EXTRACTOR), str(root)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    try:
+        data = json.loads(process.stdout)
+    except json.JSONDecodeError as error:
+        raise SystemExit(f"AST ghost plane extractor emitted invalid JSON: {process.stdout}") from error
+    return data.get("slots", []), data.get("dataSelectors", [])
+
+
 def build(root: Path, source_commit: str) -> dict[str, object]:
     sources = {relative: read_source(root, relative) for relative in SOURCE_PATHS}
-    slot_source = sources[SOURCE_PATHS[0]]
-    slots = [
-        {"name": match.group("name"), "kind": match.group("kind"), "scope": match.group("scope")}
-        for match in SLOT_RE.finditer(slot_source)
-    ]
+    slots, ast_data_selectors = extract_ast(root)
     if not slots:
         raise SystemExit("official SlotMap extraction produced no slots")
     required_slot_names = {
@@ -50,8 +71,7 @@ def build(root: Path, source_commit: str) -> dict[str, object]:
     if missing_slots:
         raise SystemExit("official SlotMap lacks required Ghost Plane seats: " + ", ".join(sorted(missing_slots)))
 
-    dom_sources = "\n".join(sources[path] for path in SOURCE_PATHS[1:5])
-    data_selectors = {f"[{attribute}]" for attribute in DATA_RE.findall(dom_sources)}
+    data_selectors = set(ast_data_selectors)
     required_data_selectors = {
         "[data-conversation-scroll]", "[data-chat-flow]", "[data-chat-anchor-key]",
         "[data-chat-flow-key]", "[data-streaming]", "[data-composer-seat]",

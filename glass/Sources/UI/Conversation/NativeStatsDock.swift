@@ -27,6 +27,7 @@ struct NativeStatsDock: View {
         .accessibilityElement(children: .combine)
     }
 
+    // 官方锁定基线仅验证 en；zh 语义由 Host locale 数据保证
     private func formatted(_ key: String, values: [String: String]) -> String {
         var text = OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: key, language: "en") ?? ""
         for (name, value) in values {

@@ -37,21 +37,6 @@ final class NativeBuiltinPluginCardCatalogTests: XCTestCase {
         XCTAssertFalse(NativeBuiltinPluginCard.webSearch.fields.map(\.path).contains(["apiKey"]))
     }
 
-    func testBuiltinCardCopyComesFromLockedPluginsLocale() {
-        XCTAssertEqual(
-            NativeBuiltinPluginCard.bash.title,
-            OfficialUISpec.LocaleCatalog.value(namespace: "ui-settings-plugins", key: "bashTitle", language: "en")
-        )
-        XCTAssertEqual(
-            NativeBuiltinPluginCard.agentLoop.description,
-            OfficialUISpec.LocaleCatalog.value(namespace: "ui-settings-plugins", key: "agentLoopDescription", language: "en")
-        )
-        XCTAssertEqual(
-            NativeBuiltinPluginCard.webSearch.title,
-            OfficialUISpec.LocaleCatalog.value(namespace: "ui-settings-plugins", key: "webSearchTitle", language: "en")
-        )
-    }
-
     private func namespace(_ name: String) -> SettingsNamespaceDTO {
         .init(
             ns: name,

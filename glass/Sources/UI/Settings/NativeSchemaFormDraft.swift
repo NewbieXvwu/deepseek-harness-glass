@@ -191,16 +191,3 @@ struct NativeSchemaFormDraft: Equatable {
         namespace.user?.containsValue(at: field.path) == true
     }
 }
-
-private extension JSONValue {
-    func value(at path: [String]) -> JSONValue? {
-        var current = self
-        for segment in path {
-            guard let next = current.objectValue?[segment] else { return nil }
-            current = next
-        }
-        return current
-    }
-
-    func containsValue(at path: [String]) -> Bool { value(at: path) != nil }
-}

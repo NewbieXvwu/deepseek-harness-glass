@@ -1,0 +1,57 @@
+{
+  "targets": [
+    {
+      "name": "GlassSpec",
+      "path": "Sources/Spec",
+      "target_dependencies": []
+    },
+    {
+      "name": "GlassPortableCore",
+      "path": "Sources/PortableCore",
+      "target_dependencies": []
+    },
+    {
+      "name": "GlassCore",
+      "path": "Sources/Core",
+      "target_dependencies": [
+        "GlassSpec"
+      ]
+    },
+    {
+      "name": "GlassUI",
+      "path": "Sources/UI",
+      "target_dependencies": [
+        "GlassCore",
+        "GlassSpec",
+        "GlassPortableCore"
+      ]
+    },
+    {
+      "name": "GlassSnapshot",
+      "path": "Sources/Snapshot",
+      "target_dependencies": [
+        "GlassCore",
+        "GlassSpec",
+        "GlassUI"
+      ]
+    },
+    {
+      "name": "GlassPluginPlane",
+      "path": "Sources/PluginPlane",
+      "target_dependencies": [
+        "GlassCore",
+        "GlassSpec"
+      ]
+    },
+    {
+      "name": "DeepSeekHarnessGlassApp",
+      "path": "Sources/App",
+      "target_dependencies": [
+        "GlassCore",
+        "GlassSpec",
+        "GlassUI",
+        "GlassSnapshot"
+      ]
+    }
+  ]
+}

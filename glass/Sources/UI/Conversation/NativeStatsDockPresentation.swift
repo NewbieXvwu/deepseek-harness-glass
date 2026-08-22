@@ -2,6 +2,11 @@
 @testable import GlassCore
 #endif
 
+private struct StepKey: Hashable {
+    let turn: Int
+    let step: Int
+}
+
 /// Read-only session stats derived exclusively from materialized assistant
 /// nodes. Missing Host usage never becomes a locally estimated token count.
 struct NativeStatsDockPresentation: Equatable {
@@ -14,7 +19,7 @@ struct NativeStatsDockPresentation: Equatable {
         let assistants = chatNodes.compactMap { $0.data as? CoreAssistantNode }
         guard !assistants.isEmpty else { return nil }
         let turns = Set(assistants.map(\.turn)).count
-        let steps = Set(assistants.map { "\($0.turn):\($0.step)" }).count
+        let steps = Set(assistants.map { StepKey(turn: $0.turn, step: $0.step) }).count
         let usages = assistants.compactMap(\.usage)
         let input = tokenTotal(named: "inputTokens", usages: usages)
         let output = tokenTotal(named: "outputTokens", usages: usages)

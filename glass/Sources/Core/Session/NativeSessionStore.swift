@@ -485,6 +485,9 @@ final class NativeSessionStore: ObservableObject {
     @Published private(set) var isSubmittingApproval = false
     @Published private(set) var isSubmittingQuestion = false
     @Published private(set) var lastError: DSHTransportError?
+    @Published var promptSubmitError: String?
+    @Published var historyLoadError: String?
+    @Published var cancelAttemptError: String?
 
     /// Per-session Host-computed projections. UI reads completed values only;
     /// reducer-owned event folding never substitutes for this store.
@@ -1524,6 +1527,7 @@ final class NativeSessionStore: ObservableObject {
                     self?.draft = ""
                     self?.pendingImages = []
                 } catch {
+                    self?.promptSubmitError = error.localizedDescription
                     // A rejected Host subagent route retains the draft for the
                     // same official retry posture as a session prompt.
                 }
@@ -1541,6 +1545,7 @@ final class NativeSessionStore: ObservableObject {
                 self?.draft = ""
                 self?.pendingImages = []
             } catch {
+                self?.promptSubmitError = error.localizedDescription
                 // The draft remains available after a rejected prompt, matching
                 // the official composer retry posture. Prompt-error presentation
                 // is added with the attachment/notice surface.
@@ -1813,23 +1818,33 @@ final class NativeSessionStore: ObservableObject {
         if let route = subagentRoute {
             guard route.mode == .continuable, let subagentContinuationAPI else { return }
             cancelTask?.cancel()
-            cancelTask = Task {
-                _ = try? await subagentContinuationAPI.interrupt(.init(
-                    parentSessionId: route.parentSessionID,
-                    childSessionId: route.childSessionID
-                ))
+            cancelTask = Task { [weak self] in
+                do {
+                    _ = try await subagentContinuationAPI.interrupt(.init(
+                        parentSessionId: route.parentSessionID,
+                        childSessionId: route.childSessionID
+                    ))
+                } catch {
+                    // 取消失败保留运行状态
+                    self?.cancelAttemptError = error.localizedDescription
+                }
             }
             return
         }
         guard let api else { return }
         cancelTask?.cancel()
-        cancelTask = Task {
-            _ = try? await api.cancel(sessionID: sessionID)
+        cancelTask = Task { [weak self] in
+            do {
+                _ = try await api.cancel(sessionID: sessionID)
+            } catch {
+                // 取消失败保留运行状态
+                self?.cancelAttemptError = error.localizedDescription
+            }
         }
     }
 
     /// Source: `sessions.schema.ts:sessionHistoryRequestSchema`. The Host owns
-    /// message-boundary paging and returns the authority for `hasMore`.
+    /// message-boundary paging and returns the authority for `hasMore`.\
     func loadOlderHistory() {
         guard hasMoreHistory,
               !isLoadingOlderHistory,
@@ -1850,6 +1865,7 @@ final class NativeSessionStore: ObservableObject {
                 if let projections = response.projections { self?.projections.seed(sessionID: sessionID, baseline: projections) }
                 self?.hasMoreHistory = response.hasMore
             } catch {
+                self?.historyLoadError = error.localizedDescription
                 // Retain the existing official transcript if a backward page
                 // fails; a templated error surface follows transport code mapping.
             }
@@ -3357,6 +3373,7 @@ final class NativeSessionStore: ObservableObject {
         return text.isEmpty ? nil : text
     }
 
+    // TODO(perf): hot path — add JSONValue: Decodable to avoid encode→decode round-trip.
     private func decode<Value: Decodable>(_ type: Value.Type, from value: JSONValue) -> Value? {
         guard let data = try? Self.jsonEncoder.encode(value) else { return nil }
         return try? Self.jsonDecoder.decode(Value.self, from: data)

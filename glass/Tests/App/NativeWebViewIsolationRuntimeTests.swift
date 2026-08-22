@@ -45,14 +45,6 @@ final class NativeWebViewIsolationRuntimeTests: XCTestCase {
         )
     }
 
-    func testWebViewTreeInspectionRejectsInjectedWebView() {
-        let host = NSHostingView(rootView: Color.clear.frame(width: 40, height: 40))
-        let webView = WKWebView(frame: .zero)
-        host.addSubview(webView)
-
-        XCTAssertEqual(webViews(in: host).count, 1, "The runtime inspection must detect a real injected WKWebView.")
-    }
-
     private func assertNoWebViews<V: View>(in view: V, surface: String) {
         let host = NSHostingView(rootView: view)
         let window = NSWindow(

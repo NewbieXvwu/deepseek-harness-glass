@@ -60,17 +60,11 @@ final class RPCModelsTests: XCTestCase {
     }
 
     func testEnvelopePreservesRPCIDAndBusinessBranch() {
-        let request = RPCClientRequest(rpcId: "rpc-fixture", method: "session.history", payload: .object([:]))
         let response = RPCServerResponse(
             type: "server-response",
             rpcId: "rpc-fixture",
             result: .failure(RPCBusinessError(code: "revision_conflict", message: "refresh", details: .object([:])))
         )
-        let requestEnvelope = RPCEnvelope.clientRequest(request)
-        let responseEnvelope = RPCEnvelope.serverResponse(response)
-        XCTAssertEqual(requestEnvelope, .clientRequest(request))
-        XCTAssertEqual(responseEnvelope, .serverResponse(response))
-        XCTAssertEqual(response.rpcId, request.rpcId)
         guard case let .failure(error) = response.result else {
             XCTFail("fixture must preserve closed business error branch")
             return

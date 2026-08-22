@@ -28,12 +28,15 @@ enum OfficialAccessibilityBaselineCatalog {
     }
 
     static let baseline: OfficialAccessibilityBaseline = {
-        guard let url = resourceBundle.url(forResource: "official-accessibility-baseline", withExtension: "json"),
-              let decoded = try? JSONDecoder().decode(OfficialAccessibilityBaseline.self, from: Data(contentsOf: url))
-        else {
-            preconditionFailure("The packaged official accessibility baseline must decode at runtime.")
+        guard let url = resourceBundle.url(forResource: "official-accessibility-baseline", withExtension: "json") else {
+            preconditionFailure("The packaged official accessibility baseline resource was not found.")
         }
-        return decoded
+        do {
+            let data = try Data(contentsOf: url)
+            return try JSONDecoder().decode(OfficialAccessibilityBaseline.self, from: data)
+        } catch {
+            preconditionFailure("The packaged official accessibility baseline must decode at runtime: \(error)")
+        }
     }()
 
     static let labelValues: [String: String] = [
@@ -57,7 +60,9 @@ enum OfficialAccessibilityBaselineCatalog {
         return values.count == path.requiredLabels.count ? values : nil
     }
 
+    private static let registeredLabels: Set<String> = Set(OfficialUISpec.LocaleCatalog.values.values)
+
     static func isRegisteredAccessibilityLabel(_ value: String) -> Bool {
-        OfficialUISpec.LocaleCatalog.values.values.contains(value)
+        registeredLabels.contains(value)
     }
 }

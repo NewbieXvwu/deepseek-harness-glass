@@ -9,6 +9,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = ROOT.parent
 SCENES = ROOT / "Sources/Spec/Fixtures/official-interaction-scenes.json"
 EXPECTED_COMMIT = "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e"
 REQUIRED_SCENES = {
@@ -41,8 +42,33 @@ def arguments() -> argparse.Namespace:
 
 
 def upstream_path(root: Path, path: str) -> None:
-    if path.startswith("apps/") and not (root / path).is_file():
-        raise SystemExit(f"registered upstream scene path does not exist: {path}")
+    parts = Path(path).parts
+    if not parts:
+        raise SystemExit(f"empty registered scene path: {path!r}")
+
+    first = parts[0]
+    if first in ("apps", "packages"):
+        target = root / path
+        if not target.is_file():
+            raise SystemExit(f"registered upstream scene path does not exist under official root: {path}")
+    elif first == "artifacts" and len(parts) >= 2 and parts[1] == "official-webui":
+        # Resolve against repo artifacts, official root artifacts, or committed visual-review/design-reference
+        if (REPO_ROOT / path).is_file():
+            return
+        if (root / path).is_file():
+            return
+        target_name = Path(path).name
+        stem = Path(path).stem
+        ext = Path(path).suffix
+        for candidate in (REPO_ROOT / "visual-review").rglob(f"*{ext}"):
+            if candidate.name == target_name or candidate.name == f"{stem}-official{ext}" or candidate.name == f"{stem}.md":
+                return
+        for candidate in (REPO_ROOT / "design-reference").rglob(f"*{ext}"):
+            if candidate.name == target_name or candidate.name == f"{stem}.webp" or candidate.name == f"{stem}.png":
+                return
+        raise SystemExit(f"registered visual artifact baseline does not exist: {path}")
+    else:
+        raise SystemExit(f"unrecognized or unsupported path root prefix for registered scene path: {path}")
 
 
 def main() -> None:

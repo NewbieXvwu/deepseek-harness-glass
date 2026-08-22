@@ -39,6 +39,7 @@ final class NativeSettingsStore: ObservableObject {
     @Published private(set) var hasDocument = false
     @Published private(set) var namespaces: [SettingsNamespaceDTO] = []
     @Published private(set) var drafts: [String: Draft] = [:]
+    @Published var lastMutationError: String?
     /// Host-derived `permission.defaultPreset` state. It is unavailable or
     /// malformed by construction when the descriptor cannot safely advertise a
     /// writable option; no UI-side preset list is invented.
@@ -135,7 +136,10 @@ final class NativeSettingsStore: ObservableObject {
         guard let api else { throw URLError(.notConnectedToInternet) }
         guard let draft = drafts[namespace],
               let current = namespaces.first(where: { $0.ns == namespace })
-        else { return }
+        else {
+            lastMutationError = "settings namespace not found: \(namespace)"
+            return
+        }
         let updated = try await api.mutate(
             namespace: namespace,
             operations: [draft.operation],
