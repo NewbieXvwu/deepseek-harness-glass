@@ -383,8 +383,12 @@ private struct NativeTerminalToolCardBody: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 if let terminalStatus {
                     Text(terminalStatus)
-                        .font(OfficialUISpec.Typography.xs13)
+                        .font(OfficialUISpec.Typography.xxs12)
                         .foregroundStyle(OfficialUISpec.Token.errorPrimary)
+                        .padding(.horizontal, OfficialUISpec.Spacing.p8)
+                        .frame(height: OfficialUISpec.Geometry.px22)
+                        .background(OfficialUISpec.Token.pillLayer2, in: Capsule())
+                        .fixedSize(horizontal: true, vertical: false)
                 }
             }
             .accessibilityLabel(status)

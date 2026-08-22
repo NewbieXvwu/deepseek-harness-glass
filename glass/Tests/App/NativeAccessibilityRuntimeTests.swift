@@ -423,6 +423,34 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         )
     }
 
+    func testTerminalStatusPillExportsSignalBeforeNonZeroExit() throws {
+        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.input", language: "en"))
+        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.output", language: "en"))
+        let invocation = NativeSessionStore.ToolInvocation(
+            id: "terminal-signal",
+            name: "bash",
+            arguments: #"{"command":"long command"}"#,
+            output: nil,
+            textOutput: nil,
+            errorName: nil,
+            errorCode: nil,
+            state: .failed,
+            sequence: 1,
+            callView: ToolEventViewDTO(for: "call", view: .object([
+                "card": .string("terminal"), "title": .string("long command"),
+            ])),
+            resultView: ToolEventViewDTO(for: "result", view: .object([
+                "card": .string("terminal"), "title": .string("long command"), "output": .string(""),
+                "exitCode": .number(7), "signal": .string("SIGTERM"),
+            ]))
+        )
+        try assertAccessibleLabels(
+            in: NativeToolDetailsBody(invocation: invocation, selectedCallID: invocation.id),
+            expected: [input, output, "long command", "signal SIGTERM"],
+            forbidden: ["exit code 7"]
+        )
+    }
+
     func testAskQuestionRowExportsOutcomeSummaryAndAbortState() throws {
         let answered = NativeSessionStore.ToolInvocation(
             id: "ask-answered",

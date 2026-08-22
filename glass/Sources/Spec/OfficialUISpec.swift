@@ -511,6 +511,8 @@ enum OfficialUISpec {
         static let base = Theme.aliasBgBase.adaptiveColor
         static let sidebar = Theme.specificSidebarFill.adaptiveColor
         static let elevated = Theme.aliasBgLayer1.adaptiveColor
+        /// Source: rc.2 `ui-primitives/Pill.module.css` static pill surface.
+        static let pillLayer2 = Theme.aliasBgLayer2.adaptiveColor
         /// Source: rc.2 `ui-primitives/ReadBlock.module.css` code surface.
         static let markdownCodeBlock = Theme.aliasMarkdownCodeBlock.adaptiveColor
         /// Source: rc.2 `ui-primitives/ReadBlock.module.css` banner surface.
