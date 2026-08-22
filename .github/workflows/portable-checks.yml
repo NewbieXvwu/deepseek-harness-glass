@@ -177,7 +177,8 @@ jobs:
           # T9.2 keeps rc.2 generic tool row projection Foundation-only so
           # malformed payload fallback and code-body extraction receive a fast
           # executable regression without resolving the AppKit target graph.
-          swiftc glass/Sources/Core/Session/NativeToolTerminalPresentation.swift \
+          swiftc glass/Sources/Core/Session/NativeTerminalANSIPresentation.swift \
+            glass/Sources/Core/Session/NativeToolTerminalPresentation.swift \
             glass/Sources/Core/Session/NativeToolResultTextPresentation.swift \
             glass/Sources/Core/Session/NativeToolReadPresentation.swift \
             glass/Sources/Core/Session/NativeToolDiffPresentation.swift \
