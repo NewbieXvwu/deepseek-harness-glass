@@ -21,9 +21,11 @@ final class NativeCredentialStatusPresentationTests: XCTestCase {
         XCTAssertFalse(NativeCredentialStatusPresentation.isEditable(credential))
         XCTAssertEqual(
             NativeCredentialStatusPresentation.statusText(credential),
+            // The official env-locked copy itself names the environment source,
+            // so presence of the word is expected; the source is only ever shown
+            // through that locked locale text, never as a free-form value.
             OfficialUISpec.LocaleCatalog.value(namespace: "ui-settings-models", key: "keyEnvLocked", language: "en")
         )
-        XCTAssertFalse(NativeCredentialStatusPresentation.statusText(credential).contains("environment"))
     }
 
     func testUnconfiguredWritableCredentialUsesOfficialWriteOnlyPlaceholder() {

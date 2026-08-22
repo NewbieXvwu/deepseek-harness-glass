@@ -3,7 +3,7 @@ import XCTest
 @testable import GlassCore
 
 final class NativeToolSearchViewAdapterTests: XCTestCase {
-    func testAdapterAdmitsMatchesAndCardRetainsTruncatedTextRecoveryOnly() {
+    func testAdapterAdmitsMatchesAndCardRetainsTruncatedTextRecoveryOnly() throws {
         let view = ToolEventViewDTO(for: "result", view: .object([
             "card": .string("search"),
             "shape": .string("matches"),

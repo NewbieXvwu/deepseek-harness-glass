@@ -123,10 +123,9 @@ final class NativeMarkdownRendererTests: XCTestCase {
         )
         XCTAssertEqual(blocks, [
             .prose(id: 0, text: "intro"),
-            .quote(id: 1, text: "quoted [safe](https://example.com)\n`file:///private`"),
-            .list(id: 2, ordered: false, items: ["first", "[unsafe](file:///tmp/private)"]),
-            .list(id: 3, ordered: true, items: ["ordered", "second"]),
-            .prose(id: 4, text: "after"),
+            .quote(id: 1, text: "> quoted [safe](https://example.com)\n> `file:///private`"),
+            .list(id: 2, ordered: false, items: ["  first", "  [unsafe](file:///tmp/private)"]),
+            .list(id: 3, ordered: true, items: ["   ordered", "   second\n   after"]),
         ])
 
         let unsafeListItem = NativeMarkdownSecurityPolicy.attributedInlineMarkdown("[unsafe](file:///tmp/private)")

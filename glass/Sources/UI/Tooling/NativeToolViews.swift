@@ -128,7 +128,7 @@ struct NativeToolRow: View {
     private var title: String {
         if isAskQuestionTool { return conversationLocale("ask.rowTitle") }
         if isTodoTool { return conversationLocale("todo.rowTitle") }
-        switch variant {
+        return switch variant {
         case .search: OfficialUISpec.Text.toolSearch
         case .read: OfficialUISpec.Text.toolRead
         case .bash: OfficialUISpec.Text.toolBash
@@ -299,7 +299,7 @@ struct NativeToolRow: View {
     private var iconName: String {
         if isAskQuestionTool { return "icon-question" }
         if isTodoTool { return "icon-checklist" }
-        switch variant {
+        return switch variant {
         case .search: "icon-tool-search"
         case .read: "icon-tool-read"
         case .bash: "icon-tool-bash"
@@ -557,6 +557,7 @@ private struct NativeTerminalANSISpanText: View {
             case .brightMagenta: return literal(red: 255, green: 85, blue: 255)
             case .cyan: return literal(red: 0, green: 187, blue: 187)
             case .brightCyan: return literal(red: 0, green: 255, blue: 255)
+            case .brightWhite: return OfficialUISpec.Token.primary
             }
         case let .rgb(red, green, blue):
             return literal(red: red, green: green, blue: blue)

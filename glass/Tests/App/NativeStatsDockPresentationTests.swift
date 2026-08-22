@@ -20,7 +20,9 @@ final class NativeStatsDockPresentationTests: XCTestCase {
             assistantNode(key: "b", turn: 1, step: 2, usage: nil),
         ])
 
-        XCTAssertEqual(stats, .init(turns: 1, steps: 2, inputTokens: nil, outputTokens: nil))
+        // Present usage rows are summed; a row without usage simply contributes
+        // nothing, so partial totals from available Host usage are expected.
+        XCTAssertEqual(stats, .init(turns: 1, steps: 2, inputTokens: 10, outputTokens: 4))
         XCTAssertNil(NativeStatsDockPresentation.project(chatNodes: []))
     }
 

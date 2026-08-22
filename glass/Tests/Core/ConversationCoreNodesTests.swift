@@ -402,7 +402,13 @@ final class ConversationCoreNodesTests: XCTestCase {
         XCTAssertEqual(tool.callID, "future-card")
         XCTAssertEqual(tool.name, "plugin_tool")
         XCTAssertEqual(tool.argumentsRaw, "{\"fixture\":true}")
-        XCTAssertNil(reducer.locationData(scope: .turn, turn: 8).value(for: "deliverables", as: CoreDeliverablesTurnData.self))
+        // The official deliverables definition publishes an empty produced set for
+        // a turn whose tools are unknown; it must not fabricate paths, and an
+        // empty table is the state-only representation of "nothing produced".
+        XCTAssertEqual(
+            reducer.locationData(scope: .turn, turn: 8).value(for: "deliverables", as: CoreDeliverablesTurnData.self),
+            CoreDeliverablesTurnData(produced: [])
+        )
     }
 
     private func toolResult(seq: Int, turn: Int, callID: String, isError: Bool = false) -> SessionEventDTO {

@@ -33,13 +33,13 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         let makeSidebar: (Bool) -> NativeSidebarView = { settingsPresented in
             NativeSidebarView(
                 workspaceStore: NativeWorkspaceStore(),
+                settingsPresented: settingsPresented,
                 collapsed: false,
                 setCollapsed: { _ in },
                 workspaceActions: WorkspaceBrowserView.Actions(),
                 workspaceSnapshotDialog: .none,
                 onNewSession: {},
-                onOpenSettings: {},
-                settingsPresented: settingsPresented
+                onOpenSettings: {}
             )
         }
         try assertAccessibilityValue(

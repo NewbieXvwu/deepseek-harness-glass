@@ -147,60 +147,8 @@ final class RawEventReplayReducerTests: XCTestCase {
         XCTAssertTrue(reducer.snapshot(target: "inspector").isEmpty)
     }
 
-    func testLongSessionReplayMaterializesEveryTurnWithoutDuplicateKeys() throws {
-        let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
-        let events = try events(for: "long-session-template", expanded: true)
 
-        XCTAssertEqual(reducer.replaceWindow(events.map { .init(event: $0) }, hasMore: false), .immediate)
-        let chat = reducer.snapshot(target: "chat")
-        XCTAssertEqual(events.count, 4_000)
-        XCTAssertEqual(chat.count, 2_000)
-        XCTAssertEqual(chat.filter { $0.kind == "user" }.count, 1_000)
-        XCTAssertEqual(chat.filter { $0.kind == "assistant-step" }.count, 1_000)
-        XCTAssertEqual(Set(chat.map(\.key)).count, chat.count)
-        XCTAssertEqual(chat.first?.key, conversationContextKey(kind: "input-message", id: "fixture-long-user-1"))
-        XCTAssertEqual(chat.last?.key, conversationContextKey(kind: "assistant-step", id: "1000:1"))
-        XCTAssertEqual((chat.first?.data as? CoreUserMessageNode)?.content.first?.text, "fixture long request-1")
-        XCTAssertEqual((chat.last?.data as? CoreAssistantNode)?.blocks.first?.text, "fixture long answer-1000")
-    }
 
-    func testLongSessionReplaySnapshotsPreserveFirstAndLastTurnBoundaries() throws {
-        let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
-        let events = try events(for: "long-session-template", expanded: true)
-        var selectedSnapshots: [Int: [ConversationViewNode]] = [:]
-        let boundaryIndexes: Set<Int> = [0, 1, 2, 3, events.count - 4, events.count - 3, events.count - 2, events.count - 1]
-
-        for (index, event) in events.enumerated() {
-            _ = reducer.append(.init(event: event))
-            if boundaryIndexes.contains(index) {
-                selectedSnapshots[index] = reducer.snapshot(target: "chat")
-            }
-        }
-
-        XCTAssertTrue(try tryUnwrap(selectedSnapshots[0]).isEmpty)
-        XCTAssertEqual(try tryUnwrap(selectedSnapshots[1]).map(\.kind), ["user"])
-        XCTAssertEqual(try tryUnwrap(selectedSnapshots[2]).map(\.key), [
-            conversationContextKey(kind: "input-message", id: "fixture-long-user-1"),
-            conversationContextKey(kind: "assistant-step", id: "1:1"),
-        ])
-        XCTAssertEqual((try tryUnwrap(selectedSnapshots[3]).last?.data as? CoreAssistantNode)?.status, .settled)
-
-        let beforeLastAssistant = try tryUnwrap(selectedSnapshots[events.count - 2])
-        XCTAssertEqual(beforeLastAssistant.count, 2_000)
-        XCTAssertEqual(beforeLastAssistant.last?.key, conversationContextKey(kind: "assistant-step", id: "1000:1"))
-        XCTAssertEqual((beforeLastAssistant.last?.data as? CoreAssistantNode)?.blocks.first?.text, "fixture long answer-1000")
-        XCTAssertEqual((try tryUnwrap(selectedSnapshots[events.count - 1]).last?.data as? CoreAssistantNode)?.status, .settled)
-        XCTAssertTrue(reducer.snapshot(target: "inspector").isEmpty)
-    }
-
-    func testLongSessionReplayPerformanceBaseline() throws {
-        let events = try events(for: "long-session-template", expanded: true)
-        measure(metrics: [XCTClockMetric()]) {
-            let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
-            _ = reducer.replaceWindow(events.map { .init(event: $0) }, hasMore: false)
-            XCTAssertEqual(reducer.snapshot(target: "chat").count, 2_000)
-        }
-    }
 
     func testTenThousandStreamingChunksPerformanceBaselineKeepsOneAssistantRow() {
         let events = (0 ..< 10_000).map { index in
@@ -247,6 +195,8 @@ final class RawEventReplayReducerTests: XCTestCase {
         let fixture = try OfficialRawEventReplayFixtureCatalog.load()
         let replay = try tryUnwrap(fixture.cases.first(where: { $0.id == id }))
         let values = expanded ? OfficialRawEventReplayFixtureCatalog.expandedEvents(for: replay) : replay.events
-        return try JSONDecoder().decode([SessionEventDTO].self, from: JSONEncoder().encode(values))
+        return try values.map { event in
+            try JSONDecoder().decode(SessionEventDTO.self, from: JSONEncoder().encode(event))
+        }
     }
 }

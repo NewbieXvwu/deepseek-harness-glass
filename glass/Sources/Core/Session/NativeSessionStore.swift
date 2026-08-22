@@ -1282,6 +1282,8 @@ final class NativeSessionStore: ObservableObject {
         recoveryTask?.cancel()
         recoveryTask = nil
         recoveryGeneration &+= 1
+        promptTask?.cancel()
+        promptTask = nil
         invalidateInteractions()
         recoveryLiveBuffer = []
         recoveryBufferGeneration = nil
@@ -1362,6 +1364,8 @@ final class NativeSessionStore: ObservableObject {
         recoveryTask?.cancel()
         recoveryTask = nil
         recoveryGeneration &+= 1
+        promptTask?.cancel()
+        promptTask = nil
         invalidateInteractions()
         recoveryLiveBuffer = []
         recoveryBufferGeneration = nil

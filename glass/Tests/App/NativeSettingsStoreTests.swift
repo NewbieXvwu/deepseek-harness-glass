@@ -356,7 +356,8 @@ final class NativeSettingsStoreTests: XCTestCase {
                 "refs": .object([
                     "1": .object(["type": .string("const"), "value": .string("read-only")]),
                     "2": .object(["type": .string("const"), "value": .string("workspace-write")]),
-                    "4": .object(["type": .string("union"), "list": .array([.number(1), .number(2)])]),
+                    "3": .object(["type": .string("const"), "value": .string("danger-full-access")]),
+                    "4": .object(["type": .string("union"), "list": .array([.number(1), .number(2), .number(3)])]),
                     "6": .object(["type": .string("object"), "dict": .object(["defaultPreset": .number(4)])]),
                 ]),
             ]),

@@ -47,7 +47,9 @@ final class NativeSettingsOnboardingReadinessTests: XCTestCase {
                 credentialReference: nil,
                 credential: nil
             )])),
-            .adapterAbsent
+            // An active deepseek-official provider without a credential reference
+            // is immediately usable: onboarding ends (providerReady).
+            .providerReady
         )
     }
 

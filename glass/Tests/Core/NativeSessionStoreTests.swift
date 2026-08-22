@@ -2401,7 +2401,9 @@ final class NativeSessionStoreTests: XCTestCase {
             "type": .string("question/requested"), "sessionId": .string(sessionID),
             "questions": .array([.object(["id": .string("q-matrix"), "question": .string("Continue?")])]),
         ])), sessionID: sessionID)
-        XCTAssertNil(store.pendingApproval)
+        // Approval and question are independent interaction channels: a newer
+        // question does not clear a pending approval.
+        XCTAssertEqual(store.pendingApproval?.rpcID, "approval-matrix")
         XCTAssertEqual(store.pendingQuestion?.rpcID, "question-matrix")
         XCTAssertEqual(store.pendingQuestion?.items.map(\.id), ["q-matrix"])
 
@@ -2414,7 +2416,7 @@ final class NativeSessionStoreTests: XCTestCase {
             "type": .string("question/resolved"), "sessionId": .string(sessionID), "questionRpcId": .string("question-matrix"),
         ])), sessionID: sessionID)
         XCTAssertNil(store.pendingQuestion)
-        XCTAssertNil(store.pendingApproval)
+        XCTAssertEqual(store.pendingApproval?.rpcID, "approval-matrix")
     }
 
     func testPendingApprovalAndQuestionClearOnlyOnMatchingHostResolution() {
@@ -2509,7 +2511,7 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual((finalNodes.first?.data as? CoreAssistantNode)?.blocks.compactMap(\.text).joined(), "settled")
     }
 
-    func testToolResultRetainsEveryContentBlockAndUsesStructuredEmptyErrorFallback() {
+    func testToolResultRetainsEveryContentBlockAndUsesStructuredEmptyErrorFallback() throws {
         let store = NativeSessionStore()
         store.loadSnapshotToolingFixture()
 

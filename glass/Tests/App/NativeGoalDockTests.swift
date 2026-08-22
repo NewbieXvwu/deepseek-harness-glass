@@ -6,9 +6,9 @@ import XCTest
 
 final class NativeGoalDockTests: XCTestCase {
     func testVisibilityHidesAbsentCompleteAndOnlyMatchingClearMarker() throws {
-        let active = goal(id: "goal-active", phase: "active")
+        let active = try goal(id: "goal-active", phase: "active")
         XCTAssertFalse(NativeGoalDockPresentation.isVisible(nil, locallyClearedGoalID: nil))
-        XCTAssertFalse(NativeGoalDockPresentation.isVisible(goal(id: "goal-done", phase: "complete"), locallyClearedGoalID: nil))
+        XCTAssertFalse(NativeGoalDockPresentation.isVisible(try goal(id: "goal-done", phase: "complete"), locallyClearedGoalID: nil))
         XCTAssertTrue(NativeGoalDockPresentation.isVisible(active, locallyClearedGoalID: nil))
         XCTAssertFalse(NativeGoalDockPresentation.isVisible(active, locallyClearedGoalID: "goal-active"))
         XCTAssertTrue(NativeGoalDockPresentation.isVisible(active, locallyClearedGoalID: "different-goal"))
