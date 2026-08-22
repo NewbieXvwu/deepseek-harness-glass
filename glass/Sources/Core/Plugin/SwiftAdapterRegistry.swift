@@ -55,21 +55,21 @@ struct SwiftAdapterRegistry: Sendable {
         .init(
             adapterID: "swift.settings.agent-loop.v1",
             pluginID: "settings.agent-loop",
-            minimumHostBuildID: "dsh-0.1.1-rc.1-official-528c682e",
+            minimumHostBuildID: "dsh-0.1.1-rc.2-official-b150a55",
             fixtureID: "official-settings-agent-loop-r1",
             renderer: .reviewedBuiltinCard
         ),
         .init(
             adapterID: "swift.settings.shell.v1",
             pluginID: "settings.shell",
-            minimumHostBuildID: "dsh-0.1.1-rc.1-official-528c682e",
+            minimumHostBuildID: "dsh-0.1.1-rc.2-official-b150a55",
             fixtureID: "official-settings-shell-r1",
             renderer: .reviewedBuiltinCard
         ),
         .init(
             adapterID: "swift.settings.web-search-deepseek.v1",
             pluginID: "settings.web-search-deepseek",
-            minimumHostBuildID: "dsh-0.1.1-rc.1-official-528c682e",
+            minimumHostBuildID: "dsh-0.1.1-rc.2-official-b150a55",
             fixtureID: "official-settings-web-search-r1",
             renderer: .reviewedBuiltinCard
         ),

@@ -2,7 +2,7 @@ import Foundation
 
 enum OfficialUISpec {
     enum Build {
-        static let sourceCommit = "528c682e061696f5a160f363f236ecbf53cbd006"
+        static let sourceCommit = "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e"
     }
 }
 

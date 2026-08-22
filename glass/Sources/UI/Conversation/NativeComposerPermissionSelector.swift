@@ -5,16 +5,15 @@ import SwiftUI
 @testable import GlassSpec
 #endif
 
-/// Native RC8 `conversation.input.access` seat. The complete session-level
+/// Native rc.2 `conversation.input.access` seat. The complete session-level
 /// `permissions` projection remains Host authority; changing a preset delegates
 /// only to the Store's `/permission <preset>` command seam and waits for the
 /// next projection push to update visible state.
 @MainActor
 struct NativeComposerPermissionSelector: View {
     @ObservedObject var sessionStore: NativeSessionStore
-
-    @State private var pendingFullAccess = false
-    @State private var acknowledgedFullAccess = false
+    @Binding var fullAccessConfirmationOpen: Bool
+    @Binding var fullAccessAcknowledged: Bool
 
     private var permission: CoreSessionPermissionSelect? { sessionStore.extensionState?.permissions }
     private var language: String { Locale.current.language.languageCode?.identifier ?? "en" }
@@ -82,18 +81,16 @@ struct NativeComposerPermissionSelector: View {
                 .padding(.trailing, OfficialUISpec.Spacing.p12)
             }
             .menuStyle(.borderlessButton)
+            .disabled(fullAccessConfirmationOpen)
             .accessibilityLabel(triggerAccessibilityLabel)
-            .popover(isPresented: $pendingFullAccess, arrowEdge: .bottom) {
-                fullAccessConfirmation
-            }
         }
     }
 
     private func choose(_ option: CoreSessionPermissionSelect.Option) {
         guard option.value != permission?.currentValue else { return }
         if option.value == PermissionPresetProjection.fullAccessPreset {
-            acknowledgedFullAccess = false
-            pendingFullAccess = true
+            fullAccessAcknowledged = false
+            fullAccessConfirmationOpen = true
         } else {
             sessionStore.selectPermissionPreset(option.value)
         }
@@ -116,23 +113,8 @@ struct NativeComposerPermissionSelector: View {
         }
     }
 
-    private var fullAccessConfirmation: some View {
-        NativeFullAccessPermissionConfirmation(
-            acknowledged: $acknowledgedFullAccess,
-            submitting: sessionStore.isSubmittingPermission,
-            language: language,
-            cancel: {
-                pendingFullAccess = false
-                acknowledgedFullAccess = false
-            },
-            enable: {
-                pendingFullAccess = false
-                sessionStore.selectPermissionPreset(PermissionPresetProjection.fullAccessPreset)
-            }
-        )
-    }
 
-    /// Product text remains in the locked RC8 `ui-conversation` locale catalog.
+    /// Product text remains in the locked rc.2 `ui-conversation` locale catalog.
     private func t(_ key: String, replacements: [String: String] = [:]) -> String {
         Self.localizedValue(key: key, language: language, replacements: replacements)
     }
@@ -154,7 +136,7 @@ struct NativeComposerPermissionSelector: View {
     }
 }
 
-/// Native RC8 confirmation content for the `danger-full-access` access preset.
+/// Native rc.2 confirmation content for the `danger-full-access` access preset.
 /// It is separate from the selector menu only to permit direct macOS AX testing;
 /// the owning selector still presents this exact view in its native popover.
 @MainActor
@@ -166,13 +148,28 @@ struct NativeFullAccessPermissionConfirmation: View {
     let enable: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p12) {
-            Text(t("access.confirm.title"))
-                .font(OfficialUISpec.Typography.baseStrong16)
-            Text(t("access.confirm.description"))
-                .font(OfficialUISpec.Typography.s14)
-                .foregroundStyle(OfficialUISpec.Token.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p16) {
+            HStack(spacing: OfficialUISpec.Spacing.p12) {
+                Text(t("access.confirm.title"))
+                    .font(OfficialUISpec.Typography.baseStrong16)
+                Spacer(minLength: OfficialUISpec.Spacing.p0)
+                Button(action: cancel) {
+                    Image(systemName: "xmark")
+                        .frame(width: OfficialUISpec.Geometry.px16, height: OfficialUISpec.Geometry.px16)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(closeLabel)
+            }
+            HStack(alignment: .top, spacing: OfficialUISpec.Spacing.p12) {
+                Image(systemName: "exclamationmark.circle")
+                    .frame(width: OfficialUISpec.Geometry.px18, height: OfficialUISpec.Geometry.px18)
+                    .foregroundStyle(OfficialUISpec.Token.errorPrimary)
+                    .accessibilityHidden(true)
+                Text(t("access.confirm.description"))
+                    .font(OfficialUISpec.Typography.s14)
+                    .foregroundStyle(OfficialUISpec.Token.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             Toggle(t("access.confirm.acknowledge"), isOn: $acknowledged)
                 .font(OfficialUISpec.Typography.s14)
             HStack(spacing: OfficialUISpec.Spacing.p8) {
@@ -184,10 +181,16 @@ struct NativeFullAccessPermissionConfirmation: View {
                     .disabled(!acknowledged || submitting)
             }
         }
-        .padding(OfficialUISpec.Spacing.p16)
-        .frame(width: OfficialUISpec.Geometry.px320)
+        .padding(OfficialUISpec.Spacing.p24)
+        .frame(width: OfficialUISpec.Geometry.px400 + OfficialUISpec.Geometry.px40)
+        .background(OfficialUISpec.Token.elevated, in: RoundedRectangle(cornerRadius: OfficialUISpec.Geometry.px18, style: .continuous))
+        .officialLevel2Shadow()
         .accessibilityElement(children: .contain)
         .accessibilityLabel(t("access.confirm.title"))
+    }
+
+    private var closeLabel: String {
+        OfficialUISpec.LocaleCatalog.value(namespace: "locale", key: "close", language: language) ?? OfficialUISpec.Text.close
     }
 
     private func t(_ key: String) -> String {

@@ -17,7 +17,7 @@ import ts from "typescript";
 
 const GENERATOR_NAME = "generate_official_locales.py";
 const GENERATOR_VERSION = "1.0.0";
-const EXPECTED_COMMIT = "528c682e061696f5a160f363f236ecbf53cbd006";
+const EXPECTED_COMMIT = "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e";
 const ONBOARDING_COPY_RELATIVE = "packages/client/ui-settings-models/src/onboarding-copy.ts";
 
 function argument(name: string): string {

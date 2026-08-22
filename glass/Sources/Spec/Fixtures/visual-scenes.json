@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "officialSourceCommit": "528c682e061696f5a160f363f236ecbf53cbd006",
+  "officialSourceCommit": "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e",
   "captureContract": {
     "logicalViewport": { "width": 1280, "height": 840 },
     "deviceScaleFactor": 1,
@@ -58,6 +58,15 @@
       "officialComponents": ["AppFrame", "ConversationRoot", "DetailsPane"],
       "nativeEntry": "NativeAppShell.PresentationMode.conversation",
       "requiredEvidence": ["source-map", "official-screenshot", "native-screenshot", "layout-rectangles", "accessibility", "rpc-fixture"],
+      "allowedDifferenceClasses": ["font-rendering", "system-glass"]
+    },
+    {
+      "id": "permission-confirmation-light",
+      "surface": "conversation.composer-full-access-confirmation",
+      "state": "workspace-write-current-full-access-confirmation-open",
+      "officialComponents": ["ConversationRoot", "InputBar", "PermissionSelect", "ConfirmDialog"],
+      "nativeEntry": "SnapshotExporter.DSH_GLASS_SNAPSHOT_MODE=permission + DSH_GLASS_SNAPSHOT_PERMISSION_CONFIRMATION=1",
+      "requiredEvidence": ["source-map", "official-screenshot", "native-screenshot", "paired-viewport", "difference-ledger", "post-fix-recapture", "layout-rectangles", "accessibility", "rpc-fixture"],
       "allowedDifferenceClasses": ["font-rendering", "system-glass"]
     },
     {

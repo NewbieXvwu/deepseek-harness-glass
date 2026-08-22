@@ -82,7 +82,7 @@ final class NativeSchemaFormDraftTests: XCTestCase {
             integrity: .init(
                 algorithm: "sha256",
                 digest: "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-                sourceCommit: "528c682e061696f5a160f363f236ecbf53cbd006"
+                sourceCommit: "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e"
             )
         )
     }

@@ -3,14 +3,14 @@ import Foundation
 
 extension OfficialUISpec {
     enum Build {
-        static let id = "dsh-0.1.1-rc.1-official-528c682e"
-        static let sourceCommit = "528c682e061696f5a160f363f236ecbf53cbd006"
-        static let uiSpecRevision = "official-528c682e-ui-spec-r1"
-        static let localeRevision = "sha256:b86f1138e77fdc6fb70277156da411cc2abe89149781fdd78bdf90583723170f"
+        static let id = "dsh-0.1.1-rc.2-official-b150a55"
+        static let sourceCommit = "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e"
+        static let uiSpecRevision = "official-b150a55-ui-spec-r1"
+        static let localeRevision = "sha256:757f092e6ab96b53f4b6b435adb6ea41b3d6b2064536f49f0ec8a86ab30eb3f9"
         static let tokenRevision = "sha256:2d1743337b8fbba4bd052e8f1ecd24e490c2b5707faf8c185bfeae78fa702989"
         static let layoutRevision = "sha256:9a5adf77d69258cf9e892a6d81f214fbdb16ca782cbafd941d95ccd4435b6b43"
         static let fixtureRevision = "sha256:872c1643d024121234a07c1e04c8b473907b75ba183a43874062fd809b818688"
-        static let generatedAt = "2026-08-21T14:21:44+08:00"
+        static let generatedAt = "2026-08-21T20:03:37+08:00"
         static let generatorVersion = "1.0.0"
 
         static func isCompatible(with hostBuildID: String) -> Bool {

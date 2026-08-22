@@ -14,7 +14,7 @@ final class PermissionPresetProjectionTests: XCTestCase {
         XCTAssertEqual(state.revision, 7)
         XCTAssertEqual(state.options, [
             .init(id: "read-only", label: "Read Only", requiresConfirmation: false),
-            .init(id: "workspace-write", label: "Workspace Write", requiresConfirmation: false),
+            .init(id: "workspace-write", label: "Workspace", requiresConfirmation: false),
             .init(id: "danger-full-access", label: "Full access", requiresConfirmation: true),
         ])
         guard case let .set(path, value)? = state.mutation(selecting: "workspace-write") else {
@@ -27,7 +27,7 @@ final class PermissionPresetProjectionTests: XCTestCase {
 
     func testDisplayNormalizesOnlyStrictASCIILowerKebabCaseWithoutRegex() {
         XCTAssertEqual(PermissionPresetProjection.display(value: "read-only", suppliedLabel: "read-only"), "Read Only")
-        XCTAssertEqual(PermissionPresetProjection.display(value: "workspace-write", suppliedLabel: "Workspace"), "Workspace Write")
+        XCTAssertEqual(PermissionPresetProjection.display(value: "workspace-write", suppliedLabel: "Workspace"), "Workspace")
         XCTAssertEqual(PermissionPresetProjection.display(value: "release-2026", suppliedLabel: "release-2026"), "Release 2026")
         XCTAssertEqual(PermissionPresetProjection.display(value: "danger-full-access", suppliedLabel: "danger-full-access"), "Full access")
 

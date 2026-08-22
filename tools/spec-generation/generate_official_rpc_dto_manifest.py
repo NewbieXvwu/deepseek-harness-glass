@@ -12,8 +12,8 @@ import hashlib
 import json
 from pathlib import Path
 
-COMMIT = "528c682e061696f5a160f363f236ecbf53cbd006"
-FIXTURE_REVISION = "official-528c682e-web-ui-r1"
+COMMIT = "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e"
+FIXTURE_REVISION = "official-b150a55-web-ui-r1"
 SCHEMA_ROOT = Path("packages/host/apiproxy/src/api")
 METHODS = [
     ("host.describe", "HostDescribeResponse", "rpc.schema.ts", "hostDescribe"),

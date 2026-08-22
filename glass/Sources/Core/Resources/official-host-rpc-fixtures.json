@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "officialSourceCommit": "528c682e061696f5a160f363f236ecbf53cbd006",
-  "fixtureRevision": "official-528c682e-web-ui-r1",
+  "officialSourceCommit": "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e",
+  "fixtureRevision": "official-b150a55-web-ui-r1",
   "endpointClass": "isolated local pinned dsh web",
   "records": [
     {

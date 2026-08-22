@@ -2,8 +2,8 @@ import Foundation
 
 enum OfficialUISpec {
     enum Build {
-        static let id = "dsh-0.1.1-rc.1-official-528c682e"
-        static let sourceCommit = "528c682e061696f5a160f363f236ecbf53cbd006"
+        static let id = "dsh-0.1.1-rc.2-official-b150a55"
+        static let sourceCommit = "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e"
         static func isCompatible(with buildID: String) -> Bool { buildID == id }
     }
 }

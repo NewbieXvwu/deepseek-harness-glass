@@ -97,20 +97,11 @@ enum PermissionPresetProjection {
         return options
     }
 
-    /// RC1 keeps product-owned labels stable even when the Host's descriptive
-    /// schema text is an older shorthand. Unknown Host options remain verbatim
-    /// (or use the conservative kebab-case fallback) rather than being guessed.
+    /// RC2 matches the official picker: `danger-full-access` always uses the
+    /// product label `Full access`; every other preset reflects the Host label,
+    /// normalizing only conventional kebab-case machine names to title case.
     static func display(value: String, suppliedLabel: String) -> String {
-        switch value {
-        case readOnlyPreset:
-            return "Read Only"
-        case workspaceWritePreset:
-            return "Workspace Write"
-        case fullAccessPreset:
-            return "Full access"
-        default:
-            break
-        }
+        if value == fullAccessPreset { return "Full access" }
         guard isASCIILowerKebabCase(suppliedLabel) else { return suppliedLabel }
         return suppliedLabel.split(separator: "-").map {
             $0.prefix(1).uppercased() + $0.dropFirst()

@@ -28,7 +28,7 @@ enum OfficialRPCFixtureCatalog {
         let fixture = try JSONDecoder().decode(Fixture.self, from: Data(contentsOf: url))
         guard fixture.schemaVersion == 1,
               fixture.officialSourceCommit == OfficialUISpec.Build.sourceCommit,
-              fixture.fixtureRevision == "official-528c682e-web-ui-r1" else {
+              fixture.fixtureRevision == "official-b150a55-web-ui-r1" else {
             throw FixtureError.incompatibleRevision
         }
         return fixture

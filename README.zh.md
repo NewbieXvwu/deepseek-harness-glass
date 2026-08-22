@@ -16,8 +16,8 @@
 
 | 项目 | 固定值 |
 |---|---|
-| 官方源码 | [`deepseek-ai/deepseek-harness@99f6f02`](https://github.com/deepseek-ai/deepseek-harness/tree/528c682e061696f5a160f363f236ecbf53cbd006) |
-| DSH 包 | `@deepseek-ai/dsh` / `@deepseek-ai/dsh-web-frontend` `0.1.1-rc.1` |
+| 官方源码 | [`deepseek-ai/deepseek-harness@b150a55`](https://github.com/deepseek-ai/deepseek-harness/tree/b150a551b8d465e31e418e1b2eaf5e79bbb7d28e) |
+| DSH 包 | `@deepseek-ai/dsh` / `@deepseek-ai/dsh-web-frontend` `0.1.1-rc.2` |
 | 运行时 | 应用内置 Node `24.19.0` |
 | 平台 | macOS 26+、Apple Silicon；构建需 Xcode 26+、Swift 6 |
 

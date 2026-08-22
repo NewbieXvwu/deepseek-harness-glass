@@ -40,8 +40,8 @@ enum OfficialTransportContractFixtureCatalog {
         let fixture = try JSONDecoder().decode(Fixture.self, from: Data(contentsOf: url))
         guard fixture.schemaVersion == 1,
               fixture.officialSourceCommit == OfficialUISpec.Build.sourceCommit,
-              fixture.contractRevision == "official-528c682e-transport-contract-r1",
-              fixture.fixtureRevision == "official-528c682e-transport-fixtures-r1"
+              fixture.contractRevision == "official-b150a55-transport-contract-r1",
+              fixture.fixtureRevision == "official-b150a55-transport-fixtures-r1"
         else {
             throw DSHTransportError.decoding("T4.6 transport contract fixture metadata does not match the locked official build")
         }

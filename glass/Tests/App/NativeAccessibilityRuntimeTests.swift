@@ -314,7 +314,11 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
 
         try assertAccessibleLabels(
             in: VStack {
-                NativeComposerPermissionSelector(sessionStore: permissionStore)
+                NativeComposerPermissionSelector(
+                    sessionStore: permissionStore,
+                    fullAccessConfirmationOpen: .constant(false),
+                    fullAccessAcknowledged: .constant(false)
+                )
                 NativeComposerModelSelector(sessionStore: modelStore)
             },
             expected: [permissionLabel, modelLabel],
@@ -346,6 +350,7 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         let acknowledge = NativeComposerPermissionSelector.localizedValue(key: "access.confirm.acknowledge", language: language)
         let cancel = NativeComposerPermissionSelector.localizedValue(key: "access.confirm.cancel", language: language)
         let enable = NativeComposerPermissionSelector.localizedValue(key: "access.confirm.enable", language: language)
+        let close = OfficialUISpec.LocaleCatalog.value(namespace: "locale", key: "close", language: language) ?? "Close"
 
         try assertAccessibleLabels(
             in: NativeFullAccessPermissionConfirmation(
@@ -355,8 +360,8 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
                 cancel: {},
                 enable: {}
             ),
-            expected: [title, acknowledge, cancel, enable],
-            expectedCounts: [acknowledge: 1, cancel: 1, enable: 1]
+            expected: [title, close, acknowledge, cancel, enable],
+            expectedCounts: [close: 1, acknowledge: 1, cancel: 1, enable: 1]
         )
     }
 
