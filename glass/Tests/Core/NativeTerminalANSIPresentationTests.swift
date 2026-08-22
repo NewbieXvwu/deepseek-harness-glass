@@ -23,14 +23,23 @@ final class NativeTerminalANSIPresentationTests: XCTestCase {
         XCTAssertFalse(output.requiresCursorReplay)
     }
 
-    func testProjectsPaletteTruecolorAndHiddenWhileRejectingCursorControlsFromVisibleText() {
-        let output = NativeTerminalANSIPresentation.parse("\u{1B}[38;5;208morange\u{1B}[48;2;1;2;3m bg\u{1B}[8m secret\u{1B}[28m!\r\u{8}\u{1B}[2K")
+    func testProjectsPaletteTruecolorAndHiddenWhileRejectingControlsFromVisibleText() {
+        let output = NativeTerminalANSIPresentation.parse("\u{1B}[38;5;208morange\u{1B}[48;2;1;2;3m bg\u{1B}[8m secret\u{1B}[28m!")
         XCTAssertEqual(output.lines[0].map(\.text), ["orange", " bg", " secret", "!"])
         XCTAssertEqual(output.lines[0][0].style?.foreground, .palette(208))
         XCTAssertEqual(output.lines[0][1].style?.background, .rgb(1, 2, 3))
         XCTAssertTrue(output.lines[0][2].style?.hidden ?? false)
         XCTAssertFalse(output.lines[0][3].style?.hidden ?? true)
-        XCTAssertTrue(output.requiresCursorReplay)
+        XCTAssertFalse(output.requiresCursorReplay)
         XCTAssertFalse(output.lines[0].map(\.text).joined().contains("\u{1B}"))
+    }
+
+    func testReplaysCarriageReturnEraseBackspaceAndStampedStyles() {
+        let output = NativeTerminalANSIPresentation.parse("100%\rOK\nloading...\rOK\u{1B}[K\nabc\u{8}Z\nA\tB\rxy\n\u{1B}[31mred bad\u{1B}[0m\u{8}\u{8}\u{8}ok")
+        XCTAssertEqual(output.lines.map { $0.map(\.text).joined() }, ["OK0%", "OK", "abZ", "xy      B", "red okd"])
+        XCTAssertTrue(output.requiresCursorReplay)
+        XCTAssertEqual(output.lines[4][0].style?.foreground, .basic(.red))
+        XCTAssertNil(output.lines[4][1].style)
+        XCTAssertEqual(output.lines[4][2].style?.foreground, .basic(.red), "unoverwritten cell keeps the state stamped when written")
     }
 }
