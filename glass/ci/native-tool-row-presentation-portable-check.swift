@@ -130,6 +130,61 @@ struct NativeToolRowPresentationPortableCheck {
         guard NativeToolResultTextPresentation.flatten(parts: [], errorName: nil, errorCode: "interrupted") == nil else {
             throw CheckFailure("partial structured error must not invent fallback prose")
         }
+
+        let read = NativeToolReadView(
+            card: "read",
+            title: "README preview",
+            path: "/workspace/README.md",
+            lines: [
+                .init(number: 5, text: "# Heading"),
+                .init(number: 6, text: "body"),
+            ],
+            totalLines: 10,
+            lang: "markdown"
+        )
+        guard let readCard = NativeReadCardPresentation.resolve(result: read, completed: true) else {
+            throw CheckFailure("complete settled read result must admit a read card")
+        }
+        try expectEqual(readCard.label, "README preview", "read replacement title must outrank path")
+        guard readCard.lines.map(\.number) == [5, 6], readCard.totalLines == 10, readCard.lang == "markdown" else {
+            throw CheckFailure("read card must retain source line numbers, total count, and language")
+        }
+        guard NativeReadCardPresentation.resolve(result: read, completed: false) == nil else {
+            throw CheckFailure("running read must remain generic without a result card")
+        }
+        guard NativeReadCardPresentation.resolve(
+            result: NativeToolReadView(card: "unknown", title: nil, path: "README.md", lines: [], totalLines: 0, lang: nil),
+            completed: true
+        ) == nil else {
+            throw CheckFailure("unknown result card must not become a read card")
+        }
+        guard NativeReadCardPresentation.resolve(
+            result: NativeToolReadView(card: "read", title: nil, path: "README.md", lines: [.init(number: 1, text: "one")], totalLines: 0, lang: nil),
+            completed: true
+        ) == nil else {
+            throw CheckFailure("read result with fewer total lines than its window must fail closed")
+        }
+        let twentyLines = (1 ... 20).map { NativeToolReadLine(number: $0, text: "line-\($0)") }
+        let chatWindow = NativeReadCardWindowPresentation.resolve(lines: twentyLines, maxLines: 8, expanded: false)
+        guard chatWindow.head.map(\.number) == [1, 2, 3, 4],
+              chatWindow.tail.map(\.number) == [17, 18, 19, 20],
+              chatWindow.hiddenCount == 12 else {
+            throw CheckFailure("chat read cap must split 8 visible lines into four head/four tail lines")
+        }
+        let detailsWindow = NativeReadCardWindowPresentation.resolve(lines: twentyLines, maxLines: 16, expanded: false)
+        guard detailsWindow.head.map(\.number) == Array(1 ... 8),
+              detailsWindow.tail.map(\.number) == Array(13 ... 20),
+              detailsWindow.hiddenCount == 4 else {
+            throw CheckFailure("details read cap must split 16 visible lines into eight head/eight tail lines")
+        }
+        let expandedRead = NativeReadCardWindowPresentation.resolve(lines: twentyLines, maxLines: 8, expanded: true)
+        guard expandedRead.head == twentyLines, expandedRead.tail.isEmpty, expandedRead.hiddenCount == 0 else {
+            throw CheckFailure("expanded read card must restore its whole source window")
+        }
+        let zeroCap = NativeReadCardWindowPresentation.resolve(lines: twentyLines, maxLines: 0, expanded: false)
+        guard zeroCap.head.isEmpty, zeroCap.tail.isEmpty, zeroCap.hiddenCount == 20 else {
+            throw CheckFailure("zero read cap must hide every line without inventing a head/tail line")
+        }
         print("native tool row presentation portable check passed")
     }
 
