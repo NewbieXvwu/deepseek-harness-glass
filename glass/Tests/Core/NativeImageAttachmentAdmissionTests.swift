@@ -56,17 +56,16 @@ final class NativeImageAttachmentAdmissionTests: XCTestCase {
         )
     }
 
-    func testAdmissionEnforcesCountMessageBytesDimensionsAndPixels() throws {
+    func testAdmissionRejectsExcessiveExistingImageCount() throws {
         let url = try writeFixture(data: onePixelPNG, suffix: ".png")
         XCTAssertEqual(
-            NativeImageAttachmentAdmission.admit(
-                url: url,
-                limits: limits(),
-                existingImageCount: 2,
-                existingImageBytes: 0
-            ),
+            NativeImageAttachmentAdmission.admit(url: url, limits: limits(), existingImageCount: 2, existingImageBytes: 0),
             .failure(.tooManyImages)
         )
+    }
+
+    func testAdmissionRejectsMessageExceedingMaxMessageImageBytes() throws {
+        let url = try writeFixture(data: onePixelPNG, suffix: ".png")
         XCTAssertEqual(
             NativeImageAttachmentAdmission.admit(
                 url: url,
@@ -76,22 +75,20 @@ final class NativeImageAttachmentAdmissionTests: XCTestCase {
             ),
             .failure(.messageTooLarge)
         )
+    }
+
+    func testAdmissionRejectsImageExceedingMaxDimension() throws {
+        let url = try writeFixture(data: onePixelPNG, suffix: ".png")
         XCTAssertEqual(
-            NativeImageAttachmentAdmission.admit(
-                url: url,
-                limits: limits(maxImageDimension: 0),
-                existingImageCount: 0,
-                existingImageBytes: 0
-            ),
+            NativeImageAttachmentAdmission.admit(url: url, limits: limits(maxImageDimension: 0), existingImageCount: 0, existingImageBytes: 0),
             .failure(.dimensionsExceeded)
         )
+    }
+
+    func testAdmissionRejectsImageExceedingMaxPixels() throws {
+        let url = try writeFixture(data: onePixelPNG, suffix: ".png")
         XCTAssertEqual(
-            NativeImageAttachmentAdmission.admit(
-                url: url,
-                limits: limits(maxImagePixels: 0),
-                existingImageCount: 0,
-                existingImageBytes: 0
-            ),
+            NativeImageAttachmentAdmission.admit(url: url, limits: limits(maxImagePixels: 0), existingImageCount: 0, existingImageBytes: 0),
             .failure(.pixelsExceeded)
         )
     }

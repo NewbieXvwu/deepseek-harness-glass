@@ -286,6 +286,8 @@ final class NativeSettingsStoreTests: XCTestCase {
 
     private func eventually(
         timeout: TimeInterval = 1,
+        file: StaticString = #filePath,
+        line: UInt = #line,
         condition: @escaping @MainActor () -> Bool
     ) async {
         let deadline = Date().addingTimeInterval(timeout)
@@ -293,7 +295,7 @@ final class NativeSettingsStoreTests: XCTestCase {
             if condition() { return }
             try? await Task.sleep(for: .milliseconds(10))
         }
-        XCTFail("condition was not met before timeout")
+        XCTFail("condition was not met before timeout", file: file, line: line)
     }
 
     private func shellNamespace(timeout: Double, outputCap: Double, revision: Int) -> SettingsNamespaceDTO {
@@ -392,6 +394,8 @@ final class NativeSettingsStoreTests: XCTestCase {
         func describe() async throws -> SettingsDescribeResponse {
             describeCount += 1
             if describeCount == 1 {
+                // Simulates a delayed stale describe response arriving after a newer request has resolved,
+                // emulating an out-of-order response to verify generation fencing.
                 try? await Task.sleep(for: .milliseconds(150))
                 return old
             }

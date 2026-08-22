@@ -645,7 +645,8 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         modelStore.loadSnapshotModelSelectionFixture()
         let permissionStore = NativeSessionStore()
         permissionStore.loadSnapshotPermissionFixture()
-        let language = Locale.current.language.languageCode?.identifier ?? "en"
+        // CI 多语种确定性
+        let language = "en"
         let modelLabel = NativeComposerModelSelector.localizedValue(
             key: "trigger.aria",
             language: language,
@@ -807,10 +808,15 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         window.contentView = host
         window.makeKeyAndOrderFront(nil)
         host.layoutSubtreeIfNeeded()
+        // 等待 SwiftUI 布局稳定，避免 flaky
         RunLoop.main.run(until: Date().addingTimeInterval(0.1))
+        defer {
+            window.contentView = nil
+            window.orderOut(nil)
+            window.close()
+        }
 
         let labels = accessibilityLabels(in: host)
-        window.orderOut(nil)
         guard !labels.isEmpty else {
             throw XCTSkip("The trusted process exposed no SwiftUI accessibility elements; run this tree assertion in the GUI accessibility-test host.")
         }
@@ -847,8 +853,13 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         window.contentView = host
         window.makeKeyAndOrderFront(nil)
         host.layoutSubtreeIfNeeded()
+        // 等待 SwiftUI 布局稳定，避免 flaky
         RunLoop.main.run(until: Date().addingTimeInterval(0.1))
-        defer { window.orderOut(nil) }
+        defer {
+            window.contentView = nil
+            window.orderOut(nil)
+            window.close()
+        }
 
         guard let element = accessibilityElements(in: host).first(where: { $0.accessibilityLabel() == label }) else {
             throw XCTSkip("The trusted process exposed no settings trigger accessibility element.")

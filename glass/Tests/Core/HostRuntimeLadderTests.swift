@@ -23,4 +23,16 @@ final class HostRuntimeLadderTests: XCTestCase {
         XCTAssertEqual(ladder.select(attach: nil, adopt: adopt, install: install), .adopt(executable: URL(fileURLWithPath: "/usr/local/bin/dsh"), access: .verified))
         XCTAssertEqual(ladder.select(attach: nil, adopt: nil, install: install), .install(access: .verified))
     }
+
+    func testUnverifiedAdoptFallsBackToReadOnlyAndAllNilCandidatesFailClosed() {
+        let unverified = HostRuntimeLadder.Candidate(kind: .adopt(executable: URL(fileURLWithPath: "/usr/local/bin/dsh")), buildID: "unverified-v1")
+        XCTAssertEqual(
+            ladder.select(attach: nil, adopt: unverified, install: nil),
+            .adopt(
+                executable: URL(fileURLWithPath: "/usr/local/bin/dsh"),
+                access: .readOnly(reason: "Adopted Host build unverified-v1 is not locked build dsh-v0.1.1-rc.2.")
+            )
+        )
+        XCTAssertNil(ladder.select(attach: nil, adopt: nil, install: nil))
+    }
 }

@@ -25,7 +25,7 @@ final class NativeWorkspaceConnectionCoordinatorTests: XCTestCase {
                 return "synthetic-session"
             }
         }
-        for _ in 0 ..< 10 { await Task.yield() }
+        try await eventually { calls == 1 }
         XCTAssertEqual(calls, 1)
 
         await gate.open()
@@ -72,7 +72,7 @@ final class NativeWorkspaceConnectionCoordinatorTests: XCTestCase {
                 return "synthetic-session"
             }
         }
-        for _ in 0 ..< 10 { await Task.yield() }
+        try await eventually { freshCalls == 1 }
         XCTAssertEqual(freshCalls, 1)
 
         await freshGate.open()
@@ -80,5 +80,19 @@ final class NativeWorkspaceConnectionCoordinatorTests: XCTestCase {
         let joinedSession = try await joined.value
         XCTAssertEqual(freshSession, "fresh-session")
         XCTAssertEqual(joinedSession, "fresh-session")
+    }
+
+    private func eventually(
+        timeoutNanoseconds: UInt64 = 1_000_000_000,
+        file: StaticString = #filePath,
+        line: UInt = #line,
+        _ predicate: @escaping @MainActor () -> Bool
+    ) async throws {
+        let start = DispatchTime.now().uptimeNanoseconds
+        while DispatchTime.now().uptimeNanoseconds - start < timeoutNanoseconds {
+            if predicate() { return }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        XCTFail("eventually predicate was not satisfied within timeout", file: file, line: line)
     }
 }

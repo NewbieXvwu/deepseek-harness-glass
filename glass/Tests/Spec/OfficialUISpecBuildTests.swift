@@ -65,7 +65,8 @@ extension OfficialUISpecBuildTests {
 
         for corePath in baseline.corePaths {
             guard let labels = OfficialAccessibilityBaselineCatalog.resolvedLabels(for: corePath.scene) else {
-                return XCTFail("baseline scene has an unresolved runtime label mapping: \(corePath.scene)")
+                XCTFail("baseline scene has an unresolved runtime label mapping: \(corePath.scene)")
+                continue
             }
             XCTAssertFalse(labels.isEmpty)
             XCTAssertTrue(labels.allSatisfy(OfficialAccessibilityBaselineCatalog.isRegisteredAccessibilityLabel))

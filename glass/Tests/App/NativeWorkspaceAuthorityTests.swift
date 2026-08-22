@@ -11,6 +11,23 @@ final class NativeWorkspaceAuthorityTests: XCTestCase {
         WorkspaceAuthorityURLProtocol.reset()
     }
 
+    override func tearDown() {
+        let tempPaths = [
+            "/tmp/t72-workspace-authority",
+            "/tmp/t72-workspace-archive-authority",
+            "/tmp/t72-workspace-create-authority",
+            "/tmp/t72-workspace-reorder-authority",
+            "/tmp/t72-session-reorder-authority",
+            "/tmp/t72-workspace-host-change",
+            "/tmp/t72-workspace-unrelated-event",
+        ]
+        for path in tempPaths {
+            try? FileManager.default.removeItem(atPath: path)
+        }
+        WorkspaceAuthorityURLProtocol.reset()
+        super.tearDown()
+    }
+
     func testSupersededDelayedHostListsCannotReviveOldWorkspaceAuthority() async throws {
         let store = NativeWorkspaceStore()
         let apis = HarnessAPIs(
@@ -34,7 +51,6 @@ final class NativeWorkspaceAuthorityTests: XCTestCase {
                 && store.snapshot.sessions.map(\.sessionId) == ["new-session"]
         }
 
-        try await Task.sleep(for: .milliseconds(350))
         XCTAssertEqual(store.phase, .ready)
         XCTAssertEqual(store.snapshot.workspaces.map(\.workspaceId), ["new-workspace"])
         XCTAssertEqual(store.snapshot.sessions.map(\.sessionId), ["new-session"])
@@ -214,7 +230,6 @@ final class NativeWorkspaceAuthorityTests: XCTestCase {
             RPCServerRequest(type: "server-request", rpcId: "ignored", method: "host/diagnostics", payload: .null),
             using: apis
         )
-        try await Task.sleep(for: .milliseconds(350))
         XCTAssertTrue(WorkspaceAuthorityURLProtocol.capturedMethods().isEmpty)
         XCTAssertEqual(store.phase, .idle)
         XCTAssertTrue(store.snapshot.workspaces.isEmpty)
@@ -226,20 +241,20 @@ final class NativeWorkspaceAuthorityTests: XCTestCase {
         return URLSession(configuration: configuration)
     }
 
-    private func waitForRequestCount(_ count: Int) async throws {
+    private func waitForRequestCount(_ count: Int, file: StaticString = #filePath, line: UInt = #line) async throws {
         for _ in 0 ..< 100 {
             if WorkspaceAuthorityURLProtocol.capturedMethods().count >= count { return }
             try await Task.sleep(for: .milliseconds(10))
         }
-        XCTFail("expected \(count) workspace authority requests")
+        XCTFail("expected \(count) workspace authority requests", file: file, line: line)
     }
 
-    private func eventually(_ predicate: @escaping @MainActor () -> Bool) async throws {
+    private func eventually(file: StaticString = #filePath, line: UInt = #line, _ predicate: @escaping @MainActor () -> Bool) async throws {
         for _ in 0 ..< 100 {
             if predicate() { return }
             try await Task.sleep(for: .milliseconds(10))
         }
-        XCTFail("newer Host workspace authority did not become visible")
+        XCTFail("newer Host workspace authority did not become visible", file: file, line: line)
     }
 
     private var verifiedBuild: SupportedHostBuildCatalog.Build {

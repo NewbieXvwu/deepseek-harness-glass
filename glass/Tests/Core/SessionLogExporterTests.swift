@@ -108,12 +108,12 @@ final class SessionLogExporterTests: XCTestCase {
         return URLSession(configuration: configuration)
     }
 
-    private func waitForRequestCount(_ expected: Int) async throws {
+    private func waitForRequestCount(_ expected: Int, file: StaticString = #filePath, line: UInt = #line) async throws {
         for _ in 0 ..< 100 {
             if ExportURLProtocol.state.observedRequests().count >= expected { return }
             try await Task.sleep(for: .milliseconds(10))
         }
-        XCTFail("download request did not reach URLProtocol")
+        XCTFail("download request did not reach URLProtocol", file: file, line: line)
     }
 
     private func temporaryDirectory() throws -> URL {
@@ -163,7 +163,10 @@ private final class ExportProtocolState: @unchecked Sendable {
 private final class ExportURLProtocol: URLProtocol {
     static let state = ExportProtocolState()
 
-    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canInit(with request: URLRequest) -> Bool {
+        guard let url = request.url else { return false }
+        return url.host == "127.0.0.1" && url.port == 9281
+    }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {

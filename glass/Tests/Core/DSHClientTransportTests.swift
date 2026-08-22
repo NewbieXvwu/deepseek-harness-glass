@@ -9,6 +9,11 @@ final class DSHClientTransportTests: XCTestCase {
         RPCTransportURLProtocol.reset()
     }
 
+    override func tearDown() {
+        RPCTransportURLProtocol.reset()
+        super.tearDown()
+    }
+
     func testOneHundredConcurrentRPCsPreservePayloadCorrelationAndUniqueRPCIDs() async throws {
         RPCTransportURLProtocol.configure(delay: 0.01, responseMode: .echo)
         let transport = DSHClientTransport(
@@ -114,12 +119,12 @@ final class DSHClientTransportTests: XCTestCase {
         return index
     }
 
-    private func waitForCarrierRequestCount(_ expected: Int) async throws {
+    private func waitForCarrierRequestCount(_ expected: Int, file: StaticString = #filePath, line: UInt = #line) async throws {
         for _ in 0 ..< 100 {
             if RPCTransportURLProtocol.capturedRequests().count >= expected { return }
             try await Task.sleep(for: .milliseconds(10))
         }
-        XCTFail("mock carrier did not receive \(expected) request(s) before timeout")
+        XCTFail("mock carrier did not receive \(expected) request(s) before timeout", file: file, line: line)
     }
 }
 

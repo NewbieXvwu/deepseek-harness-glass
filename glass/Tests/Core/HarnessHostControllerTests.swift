@@ -192,12 +192,12 @@ extension HarnessHostControllerTests {
         controller.stop()
         try await waitForIdle(controller, timeout: 8)
 
-        let transitionSummaries = controller.stateTransitions.map(\.summary)
-        XCTAssertTrue(transitionSummaries.contains("idle -> startingOwned"))
-        XCTAssertTrue(transitionSummaries.contains("startingOwned -> verifying"))
-        XCTAssertTrue(transitionSummaries.contains("verifying -> ready"))
-        XCTAssertTrue(transitionSummaries.contains("ready -> stopping"))
-        XCTAssertTrue(transitionSummaries.contains("stopping -> idle"))
+        // Lifecycle order is part of the contract: unordered containment could
+        // pass a state machine that oscillates or skips steps.
+        XCTAssertEqual(
+            controller.stateTransitions.map(\.summary),
+            ["idle -> startingOwned", "startingOwned -> verifying", "verifying -> ready", "ready -> stopping", "stopping -> idle"]
+        )
         XCTAssertTrue(controller.recentLogLines.contains(where: { $0.contains("[host] transition") }))
 
         let probing = HostLifecyclePresentation.make(state: .probingExternal(URL(string: "http://127.0.0.1:43123")!))

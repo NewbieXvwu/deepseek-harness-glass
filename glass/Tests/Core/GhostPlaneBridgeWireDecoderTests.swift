@@ -15,8 +15,14 @@ final class GhostPlaneBridgeWireDecoderTests: XCTestCase {
     }
 
     func testRejectsUnknownWireAndInvalidDrag() {
-        XCTAssertThrowsError(try GhostPlaneBridgeWireDecoder.decode(Data("{".utf8)))
-        XCTAssertThrowsError(try GhostPlaneBridgeWireDecoder.decode(Data("{\"documentEpoch\":1,\"sequence\":1,\"direction\":\"bad\",\"event\":{\"kind\":\"keyboard\"}}".utf8)))
-        XCTAssertThrowsError(try GhostPlaneBridgeWireDecoder.decode(Data("{\"documentEpoch\":1,\"sequence\":1,\"direction\":\"planeToNative\",\"event\":{\"kind\":\"drag\",\"dragPhase\":\"drop\",\"operation\":\"copy\",\"attachmentIDs\":[\"bad\"],\"x\":0,\"y\":0}}".utf8)))
+        XCTAssertThrowsError(try GhostPlaneBridgeWireDecoder.decode(Data("{".utf8))) {
+            XCTAssertEqual($0 as? GhostPlaneBridgeWireDecoder.Rejection, .malformed)
+        }
+        XCTAssertThrowsError(try GhostPlaneBridgeWireDecoder.decode(Data("{\"documentEpoch\":1,\"sequence\":1,\"direction\":\"bad\",\"event\":{\"kind\":\"keyboard\"}}".utf8))) {
+            XCTAssertEqual($0 as? GhostPlaneBridgeWireDecoder.Rejection, .unknownDirection)
+        }
+        XCTAssertThrowsError(try GhostPlaneBridgeWireDecoder.decode(Data("{\"documentEpoch\":1,\"sequence\":1,\"direction\":\"planeToNative\",\"event\":{\"kind\":\"drag\",\"dragPhase\":\"drop\",\"operation\":\"copy\",\"attachmentIDs\":[\"bad\"],\"x\":0,\"y\":0}}".utf8))) {
+            XCTAssertEqual($0 as? GhostPlaneBridgeWireDecoder.Rejection, .invalidEvent)
+        }
     }
 }
