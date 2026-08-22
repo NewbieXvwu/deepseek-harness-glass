@@ -29,8 +29,10 @@ final class NativeWorkspaceConnectionCoordinatorTests: XCTestCase {
         XCTAssertEqual(calls, 1)
 
         await gate.open()
-        XCTAssertEqual(try await first.value, "host-session-a")
-        XCTAssertEqual(try await second.value, "host-session-a")
+        let firstSession = try await first.value
+        let secondSession = try await second.value
+        XCTAssertEqual(firstSession, "host-session-a")
+        XCTAssertEqual(secondSession, "host-session-a")
         XCTAssertEqual(calls, 1)
     }
 
@@ -74,7 +76,9 @@ final class NativeWorkspaceConnectionCoordinatorTests: XCTestCase {
         XCTAssertEqual(freshCalls, 1)
 
         await freshGate.open()
-        XCTAssertEqual(try await fresh.value, "fresh-session")
-        XCTAssertEqual(try await joined.value, "fresh-session")
+        let freshSession = try await fresh.value
+        let joinedSession = try await joined.value
+        XCTAssertEqual(freshSession, "fresh-session")
+        XCTAssertEqual(joinedSession, "fresh-session")
     }
 }

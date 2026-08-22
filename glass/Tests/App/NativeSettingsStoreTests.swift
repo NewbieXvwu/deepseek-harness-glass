@@ -84,7 +84,8 @@ final class NativeSettingsStoreTests: XCTestCase {
 
         store.load(using: api)
         await eventually { store.namespaces.first?.revision == 12 }
-        XCTAssertTrue(try await store.savePluginCardDraft(draft, using: api))
+        let saved = try await store.savePluginCardDraft(draft, using: api)
+        XCTAssertTrue(saved)
 
         XCTAssertEqual(api.expectedRevisions, [Optional(12)])
         XCTAssertEqual(api.mutations, [[
@@ -95,7 +96,8 @@ final class NativeSettingsStoreTests: XCTestCase {
 
         var invalid = NativePluginCardDraft(namespace: accepted, fields: [timeout])
         invalid.stage("soon", for: timeout)
-        XCTAssertFalse(try await store.savePluginCardDraft(invalid, using: api))
+        let invalidSaveAccepted = try await store.savePluginCardDraft(invalid, using: api)
+        XCTAssertFalse(invalidSaveAccepted)
         XCTAssertEqual(api.expectedRevisions, [Optional(12)])
     }
 
@@ -127,12 +129,13 @@ final class NativeSettingsStoreTests: XCTestCase {
             existingModels: NativeDiscoveredModelSelection.models(in: initial, providerPath: [])
         )
         XCTAssertEqual(initiallySelected, ["fresh"])
-        XCTAssertTrue(try await store.adoptDiscoveredModels(
+        let adoptedModels = try await store.adoptDiscoveredModels(
             candidates,
             selectedIDs: initiallySelected.union(["untrusted-id"]),
             for: provider,
             using: api
-        ))
+        )
+        XCTAssertTrue(adoptedModels)
 
         XCTAssertEqual(api.expectedRevisions, [Optional(31)])
         XCTAssertEqual(api.mutations, [[.set(path: ["models"], value: .array([existing, adopted]))]])

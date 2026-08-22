@@ -38,10 +38,12 @@ final class NativeCredentialStoreTests: XCTestCase {
         let api = CredentialAPI(views: ["SEARCH_KEY": .init(configured: false, source: nil, writable: true)])
         let store = NativeCredentialStore()
 
-        XCTAssertTrue(await store.set(reference: "SEARCH_KEY", value: "test-secret", using: api))
+        let setAccepted = await store.set(reference: "SEARCH_KEY", value: "test-secret", using: api)
+        XCTAssertTrue(setAccepted)
         XCTAssertEqual(store.view(for: "SEARCH_KEY")?.configured, true)
         XCTAssertEqual(api.setReferences, ["SEARCH_KEY"])
-        XCTAssertTrue(await store.unset(reference: "SEARCH_KEY", using: api))
+        let unsetAccepted = await store.unset(reference: "SEARCH_KEY", using: api)
+        XCTAssertTrue(unsetAccepted)
         XCTAssertEqual(store.view(for: "SEARCH_KEY")?.configured, false)
         XCTAssertEqual(api.unsetReferences, ["SEARCH_KEY"])
         XCTAssertEqual(api.describeRequests, [["SEARCH_KEY"], ["SEARCH_KEY"]])
@@ -51,8 +53,10 @@ final class NativeCredentialStoreTests: XCTestCase {
         let api = CredentialAPI(views: ["SEARCH_KEY": .init(configured: false, source: nil, writable: true)], rejectSet: true)
         let store = NativeCredentialStore()
 
-        XCTAssertFalse(await store.set(reference: "SEARCH_KEY", value: "", using: api))
-        XCTAssertFalse(await store.set(reference: "SEARCH_KEY", value: "test-secret", using: api))
+        let blankSetAccepted = await store.set(reference: "SEARCH_KEY", value: "", using: api)
+        XCTAssertFalse(blankSetAccepted)
+        let rejectedSetAccepted = await store.set(reference: "SEARCH_KEY", value: "test-secret", using: api)
+        XCTAssertFalse(rejectedSetAccepted)
         XCTAssertNil(store.view(for: "SEARCH_KEY"))
         XCTAssertTrue(api.setReferences.isEmpty)
     }
