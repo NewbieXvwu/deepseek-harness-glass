@@ -29,6 +29,31 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         )
     }
 
+    func testSettingsTriggerExportsExpandedState() throws {
+        let makeSidebar: (Bool) -> NativeSidebarView = { settingsPresented in
+            NativeSidebarView(
+                workspaceStore: NativeWorkspaceStore(),
+                collapsed: false,
+                setCollapsed: { _ in },
+                workspaceActions: WorkspaceBrowserView.Actions(),
+                workspaceSnapshotDialog: .none,
+                onNewSession: {},
+                onOpenSettings: {},
+                settingsPresented: settingsPresented
+            )
+        }
+        try assertAccessibilityExpanded(
+            in: makeSidebar(false),
+            label: OfficialUISpec.Text.settings,
+            expected: false
+        )
+        try assertAccessibilityExpanded(
+            in: makeSidebar(true),
+            label: OfficialUISpec.Text.settings,
+            expected: true
+        )
+    }
+
     func testExpandedSidebarExportsStaticShellControlsAndWorkspaceSettingsSeats() throws {
         try assertAccessibleLabels(
             in: NativeSidebarView(
@@ -725,12 +750,39 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         }
     }
 
-    private func accessibilityLabels(in element: any NSAccessibilityProtocol) -> [String] {
-        let ownLabel = element.accessibilityLabel().map { [$0] } ?? []
-        let childLabels = (element.accessibilityChildren() ?? []).flatMap { child -> [String] in
-            guard let child = child as? any NSAccessibilityProtocol else { return [] }
-            return accessibilityLabels(in: child)
+    private func assertAccessibilityExpanded<V: View>(
+        in view: V,
+        label: String,
+        expected: Bool
+    ) throws {
+        guard AXIsProcessTrusted() else {
+            throw XCTSkip("Accessibility trust is unavailable for this XCTest process; run expanded-state assertion in the GUI accessibility-test host.")
         }
-        return ownLabel + childLabels
+        let host = NSHostingView(rootView: view)
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 360, height: 720),
+            styleMask: [.titled],
+            backing: .buffered,
+            defer: false
+        )
+        window.contentView = host
+        window.makeKeyAndOrderFront(nil)
+        host.layoutSubtreeIfNeeded()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.1))
+        defer { window.orderOut(nil) }
+
+        guard let element = accessibilityElements(in: host).first(where: { $0.accessibilityLabel() == label }) else {
+            throw XCTSkip("The trusted process exposed no settings trigger accessibility element.")
+        }
+        XCTAssertEqual(element.accessibilityExpanded(), expected)
+    }
+
+    private func accessibilityLabels(in element: any NSAccessibilityProtocol) -> [String] {
+        accessibilityElements(in: element).compactMap { $0.accessibilityLabel() }
+    }
+
+    private func accessibilityElements(in element: any NSAccessibilityProtocol) -> [any NSAccessibilityProtocol] {
+        let children = (element.accessibilityChildren() ?? []).compactMap { $0 as? any NSAccessibilityProtocol }
+        return [element] + children.flatMap(accessibilityElements(in:))
     }
 }

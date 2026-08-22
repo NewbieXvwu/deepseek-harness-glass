@@ -875,6 +875,7 @@ final class NativeShellController: NativeSplitViewController {
         NativeSidebarView(
             workspaceStore: presentation.workspaceStore,
             hostHome: presentation.hostDescription?.home,
+            settingsPresented: presentation.settingsPresented,
             collapsed: collapsed,
             setCollapsed: { presentation.setSidebarCollapsed($0) },
             workspaceActions: WorkspaceBrowserView.Actions(

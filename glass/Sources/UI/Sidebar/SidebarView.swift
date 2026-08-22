@@ -8,6 +8,8 @@ struct NativeSidebarView: View {
     let workspaceStore: NativeWorkspaceStore
     /// Source: RC8 `host.describe.home`; absent until the verified Host answers.
     let hostHome: String?
+    /// Native equivalent of the official settings trigger's `aria-expanded`.
+    let settingsPresented: Bool
     let collapsed: Bool
     let setCollapsed: (Bool) -> Void
     let workspaceActions: WorkspaceBrowserView.Actions
@@ -18,6 +20,7 @@ struct NativeSidebarView: View {
     init(
         workspaceStore: NativeWorkspaceStore,
         hostHome: String? = nil,
+        settingsPresented: Bool = false,
         collapsed: Bool,
         setCollapsed: @escaping (Bool) -> Void,
         workspaceActions: WorkspaceBrowserView.Actions,
@@ -27,6 +30,7 @@ struct NativeSidebarView: View {
     ) {
         self.workspaceStore = workspaceStore
         self.hostHome = hostHome
+        self.settingsPresented = settingsPresented
         self.collapsed = collapsed
         self.setCollapsed = setCollapsed
         self.workspaceActions = workspaceActions
@@ -171,6 +175,7 @@ struct NativeSidebarView: View {
         }
         .buttonStyle(OfficialSidebarRowButtonStyle())
         .accessibilityLabel(OfficialUISpec.Text.settings)
+        .accessibilityExpanded(settingsPresented)
         .padding(.leading, collapsed ? OfficialUISpec.Spacing.p0 : OfficialUISpec.Layout.sidebarNativeExpandedFooterLeadingAdjustment)
         .padding(.bottom, OfficialUISpec.Spacing.p4)
     }
