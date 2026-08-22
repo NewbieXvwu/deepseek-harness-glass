@@ -212,6 +212,38 @@ struct NativeToolRowPresentationPortableCheck {
               diffRows.files == 2 else {
             throw CheckFailure("diff rows must preserve source terminator, interior blank, same-path gap, and distinct-file totals")
         }
+
+        let searchView = NativeToolSearchView(
+            title: "Grep preview",
+            truncated: true,
+            total: 9,
+            shape: .matches([.init(path: "src/main.swift", matches: [.init(lineNumber: 7, line: "needle")])])
+        )
+        guard let searchCard = NativeSearchCardPresentation.resolve(
+            result: searchView,
+            completed: true,
+            textRecovery: "Full output stored at /tmp/search"
+        ), searchCard.recovery == "Full output stored at /tmp/search", searchCard.shownCount == 1, searchCard.fileCount == 1 else {
+            throw CheckFailure("truncated settled search must retain typed matches and text-only recovery")
+        }
+        guard NativeSearchCardPresentation.resolve(result: searchView, completed: false, textRecovery: "recovery") == nil else {
+            throw CheckFailure("running search must remain generic because search cards are result-side only")
+        }
+        let uncappedSearch = NativeToolSearchView(title: nil, truncated: false, total: 1, shape: .paths(["README.md"]))
+        guard NativeSearchCardPresentation.resolve(result: uncappedSearch, completed: true, textRecovery: "must hide")?.recovery == nil else {
+            throw CheckFailure("uncapped search must omit recovery text")
+        }
+        let searchRows = NativeSearchRowsPresentation.resolve(shape: .matches([
+            .init(path: "a.swift", matches: [.init(lineNumber: 1, line: "a1")]),
+            .init(path: "b.swift", matches: [.init(lineNumber: 2, line: "b2"), .init(lineNumber: 3, line: "b3")]),
+        ])).rows
+        let searchWindow = NativeSearchWindowPresentation.resolve(rows: searchRows, maxLines: 3, expanded: false)
+        guard searchWindow.head.map(\.text) == ["a.swift", "a1"],
+              searchWindow.tailHeader?.text == "b.swift",
+              searchWindow.tail.isEmpty,
+              searchWindow.hiddenCount == 2 else {
+            throw CheckFailure("search tail must restore its owning file header without exceeding cap")
+        }
         print("native tool row presentation portable check passed")
     }
 

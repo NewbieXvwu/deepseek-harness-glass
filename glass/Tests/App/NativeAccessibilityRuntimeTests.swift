@@ -170,6 +170,7 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
             name: "custom_tool",
             arguments: "{}",
             output: "result",
+            textOutput: "result",
             errorName: nil,
             errorCode: nil,
             state: .completed,
@@ -201,6 +202,7 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
             name: "read",
             arguments: #"{"file_path":"README.md"}"#,
             output: "generic output must be replaced only by an admitted card",
+            textOutput: "generic output must be replaced only by an admitted card",
             errorName: nil,
             errorCode: nil,
             state: .completed,
@@ -242,6 +244,7 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
             name: "edit",
             arguments: #"{"path":"draft.txt"}"#,
             output: "generic output must not leak into admitted diff",
+            textOutput: "generic output must not leak into admitted diff",
             errorName: nil,
             errorCode: nil,
             state: .completed,
@@ -274,12 +277,57 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         )
     }
 
+    func testTypedSearchDetailsExportsSummaryRecoveryAndMatches() throws {
+        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.input", language: "en"))
+        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.output", language: "en"))
+        let invocation = NativeSessionStore.ToolInvocation(
+            id: "search-details",
+            name: "grep",
+            arguments: #"{"pattern":"needle"}"#,
+            output: "generic result must not become recovery",
+            textOutput: "Full result stored at /tmp/grep.txt",
+            errorName: nil,
+            errorCode: nil,
+            state: .completed,
+            sequence: 1,
+            callView: nil,
+            resultView: ToolEventViewDTO(for: "result", view: .object([
+                "card": .string("search"),
+                "shape": .string("matches"),
+                "truncated": .bool(true),
+                "total": .number(20),
+                "files": .array([.object([
+                    "path": .string("src/main.swift"),
+                    "matches": .array([
+                        .object(["lineNumber": .number(12), "line": .string("let needle = true")]),
+                        .object(["lineNumber": .number(18), "line": .string("use(needle)")]),
+                    ]),
+                ])]),
+            ]))
+        )
+        try assertAccessibleLabels(
+            in: NativeToolDetailsBody(invocation: invocation, selectedCallID: invocation.id),
+            expected: [
+                input,
+                output,
+                "显示 2 / 共 20 处匹配 · 1 个文件",
+                OfficialUISpec.Text.copy,
+                "src/main.swift",
+                "let needle = true",
+                "use(needle)",
+                "Full result stored at /tmp/grep.txt",
+            ],
+            forbidden: ["generic result must not become recovery"]
+        )
+    }
+
     func testFileToolPathAccessibilityFollowsVerifiedCapability() throws {
         let invocation = NativeSessionStore.ToolInvocation(
             id: "write-path",
             name: "write",
             arguments: #"{"file_path":"src/main.swift","content":"let value = 1"}"#,
             output: nil,
+            textOutput: nil,
             errorName: nil,
             errorCode: nil,
             state: .completed,

@@ -333,6 +333,10 @@ final class NativeSessionStore: ObservableObject {
         let name: String
         let arguments: String
         var output: String?
+        /// Text-only result flatten used by rc.2 search-card recovery when a
+        /// typed search result is truncated. Unlike `output`, it never includes
+        /// non-text pretty JSON or an error fallback.
+        var textOutput: String?
         /// Structured result error is retained for the rc.2 `resultText` empty
         /// fallback (`name: code`); it is not synthesized from transport state.
         var errorName: String?
@@ -2517,6 +2521,7 @@ final class NativeSessionStore: ObservableObject {
             name: name,
             arguments: arguments,
             output: nil,
+            textOutput: nil,
             errorName: nil,
             errorCode: nil,
             state: .running,
@@ -2549,8 +2554,10 @@ final class NativeSessionStore: ObservableObject {
         let errorName = error?["name"]?.stringValue
         let errorCode = error?["code"]?.stringValue
         let output = resultText(in: message, errorName: errorName, errorCode: errorCode)
+        let textOutput = textResult(in: message)
         guard let index = toolInvocations.firstIndex(where: { $0.id == callID }) else { return }
         toolInvocations[index].output = output
+        toolInvocations[index].textOutput = textOutput
         toolInvocations[index].errorName = errorName
         toolInvocations[index].errorCode = errorCode
         toolInvocations[index].state = errorCode == "interrupted" ? .stopped : (errorCode == nil ? .completed : .failed)
@@ -2917,6 +2924,7 @@ final class NativeSessionStore: ObservableObject {
                 name: "read",
                 arguments: "{\"path\":\"README.md\"}",
                 output: "# Project instructions",
+                textOutput: "# Project instructions",
                 errorName: nil,
                 errorCode: nil,
                 state: .completed,
@@ -2929,6 +2937,7 @@ final class NativeSessionStore: ObservableObject {
                 name: "bash",
                 arguments: "pwd",
                 output: nil,
+                textOutput: nil,
                 errorName: nil,
                 errorCode: nil,
                 state: .running,
@@ -3068,6 +3077,7 @@ final class NativeSessionStore: ObservableObject {
                 name: "write",
                 arguments: "{\"file_path\":\"\(path)\",\"content\":\"content of \(path)\"}",
                 output: nil,
+                textOutput: nil,
                 errorName: nil,
                 errorCode: nil,
                 state: .completed,
@@ -3321,6 +3331,19 @@ final class NativeSessionStore: ObservableObject {
             errorName: errorName,
             errorCode: errorCode
         )
+    }
+
+    /// Search-card recovery mirrors `flattenContent`: only valid text blocks
+    /// participate, in original order; an empty joined value is absent.
+    private func textResult(in message: [String: JSONValue]) -> String? {
+        let text = (message["content"]?.arrayValue ?? []).compactMap { block -> String? in
+            guard let object = block.objectValue,
+                  object["type"]?.stringValue == "text",
+                  let value = object["text"]?.stringValue
+            else { return nil }
+            return value
+        }.joined(separator: "\n")
+        return text.isEmpty ? nil : text
     }
 
     /// Source: `sessions.schema.ts:contentBlockSchema`; the native transcript

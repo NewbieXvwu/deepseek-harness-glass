@@ -2583,6 +2583,7 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertTrue(mixed.output?.contains("\"type\"") == true)
         XCTAssertTrue(mixed.output?.contains("\"reasoning\"") == true)
         XCTAssertTrue(mixed.output?.hasSuffix("\nthird") == true)
+        XCTAssertEqual(mixed.textOutput, "first\nthird")
         XCTAssertNil(mixed.errorName)
         XCTAssertNil(mixed.errorCode)
 
@@ -2611,6 +2612,7 @@ final class NativeSessionStoreTests: XCTestCase {
 
         let empty = tryUnwrap(store.toolInvocations.first(where: { $0.id == "result-text-empty-error" }))
         XCTAssertEqual(empty.output, "ToolError: interrupted")
+        XCTAssertNil(empty.textOutput)
         XCTAssertEqual(empty.errorName, "ToolError")
         XCTAssertEqual(empty.errorCode, "interrupted")
         XCTAssertEqual(empty.state, .stopped)

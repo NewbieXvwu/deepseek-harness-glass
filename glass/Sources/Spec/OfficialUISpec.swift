@@ -463,6 +463,13 @@ enum OfficialUISpec {
         static let diffExpandAccessibilityTemplate = "展开其余 {n} 行差异"
         static let diffCollapseAccessibility = "收起差异"
         static let diffFooterTemplate = "└ +{added} -{removed} · {files} file{suffix}"
+        // Source: rc.2 ui-primitives/SearchBlock.tsx literal chrome.
+        static let searchPathsSummaryTemplate = "{count} 个路径"
+        static let searchMatchesSummaryTemplate = "{count} 处匹配 · {files} 个文件"
+        static let searchTruncatedCountTemplate = "显示 {shown} / 共 {total}"
+        static let searchEmpty = "无结果"
+        static let searchExpandAccessibilityTemplate = "展开其余 {n} 行结果"
+        static let searchCollapseAccessibility = "收起结果"
         static let toolSummarySeparator = "·"
         static let approvalWaiting = "Waiting for approval"
         static let approvalDetailsAccessibility = "Approval details"

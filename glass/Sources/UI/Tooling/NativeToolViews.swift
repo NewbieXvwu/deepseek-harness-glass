@@ -77,6 +77,8 @@ struct NativeToolRow: View {
                     NativeDiffToolCardBody(presentation: diff, maxLines: 8)
                 } else if let read {
                     NativeReadToolCardBody(presentation: read, maxLines: 8)
+                } else if let search {
+                    NativeSearchToolCardBody(presentation: search, maxLines: 8)
                 } else {
                     let body = NativeToolRowPresentation.body(toolName: invocation.name, arguments: invocation.arguments)
                     VStack(alignment: .leading, spacing: 8) {
@@ -162,6 +164,14 @@ struct NativeToolRow: View {
             call: invocation.callView?.nativeDiffView,
             result: invocation.resultView?.nativeDiffView,
             settled: state != .running
+        )
+    }
+
+    private var search: NativeSearchCardPresentation? {
+        NativeSearchCardPresentation.resolve(
+            result: invocation.resultView?.nativeSearchView,
+            completed: state != .running,
+            textRecovery: invocation.textOutput
         )
     }
 
@@ -576,6 +586,195 @@ private struct NativeDiffToolCardBody: View {
     }
 }
 
+/// Native SearchBlock counterpart for an admitted result-side `card:'search'`.
+/// Core validates its shape and provides text-only truncation recovery; this view
+/// owns only capped/collapsed/copy interaction state.
+private struct NativeSearchToolCardBody: View {
+    let presentation: NativeSearchCardPresentation
+    let maxLines: Int
+
+    @State private var expanded = false
+    @State private var collapsedFileIndices: Set<Int> = []
+    @State private var copied = false
+
+    private var rows: [NativeSearchRow] {
+        NativeSearchRowsPresentation.resolve(shape: presentation.shape, collapsedFileIndices: collapsedFileIndices).rows
+    }
+
+    private var window: NativeSearchWindowPresentation {
+        NativeSearchWindowPresentation.resolve(rows: rows, maxLines: maxLines, expanded: expanded)
+    }
+
+    private var isEmpty: Bool { rows.isEmpty }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p6) {
+            VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p0) {
+                HStack(spacing: OfficialUISpec.Spacing.p12) {
+                    Text(summary)
+                        .font(OfficialUISpec.Typography.xs13)
+                        .foregroundStyle(OfficialUISpec.Token.secondary)
+                        .lineLimit(1)
+                    Spacer(minLength: 0)
+                    if !isEmpty {
+                        Button(action: copySearch) {
+                            Text(copied ? OfficialUISpec.Text.copied : OfficialUISpec.Text.copy)
+                                .font(OfficialUISpec.Typography.xs13)
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(OfficialUISpec.Token.secondary)
+                        .accessibilityLabel(copied ? OfficialUISpec.Text.copied : OfficialUISpec.Text.copy)
+                    }
+                }
+                .padding(.horizontal, OfficialUISpec.Spacing.p14)
+                .padding(.vertical, OfficialUISpec.Spacing.p9)
+                .background(OfficialUISpec.Token.markdownCodeBlockBanner)
+
+                if isEmpty {
+                    Text(OfficialUISpec.Text.searchEmpty)
+                        .font(OfficialUISpec.Typography.codeBlock13)
+                        .foregroundStyle(OfficialUISpec.Token.caption)
+                        .padding(.horizontal, OfficialUISpec.Spacing.p14)
+                        .padding(.vertical, OfficialUISpec.Spacing.p12)
+                } else {
+                    ScrollView(.horizontal, showsIndicators: true) {
+                        VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p0) {
+                            searchRows(window.head)
+                            if window.hiddenCount > 0 {
+                                Button(action: { expanded.toggle() }) {
+                                    Text(expanded ? OfficialUISpec.Text.readCollapse : readExpandLabel)
+                                        .font(OfficialUISpec.Typography.codeBlock13)
+                                        .foregroundStyle(OfficialUISpec.Token.caption)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                }
+                                .buttonStyle(.plain)
+                                .padding(.horizontal, OfficialUISpec.Spacing.p14)
+                                .accessibilityLabel(expanded ? OfficialUISpec.Text.searchCollapseAccessibility : searchExpandAccessibilityLabel)
+                                .accessibilityValue(expanded ? "true" : "false")
+                            }
+                            if let header = window.tailHeader { searchRow(header) }
+                            searchRows(window.tail)
+                        }
+                        .padding(.top, OfficialUISpec.Spacing.p8)
+                        .padding(.bottom, OfficialUISpec.Spacing.p12)
+                    }
+                }
+            }
+            .background(OfficialUISpec.Token.markdownCodeBlock, in: RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r12, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r12, style: .continuous))
+
+            if let recovery = presentation.recovery, !recovery.isEmpty {
+                Text(recovery)
+                    .font(OfficialUISpec.Typography.xs13)
+                    .foregroundStyle(OfficialUISpec.Token.caption)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func searchRows(_ source: [NativeSearchRow]) -> some View {
+        ForEach(Array(source.enumerated()), id: \.offset) { _, row in
+            searchRow(row)
+        }
+    }
+
+    @ViewBuilder
+    private func searchRow(_ row: NativeSearchRow) -> some View {
+        switch row.kind {
+        case .path:
+            Text(row.text)
+                .font(OfficialUISpec.Typography.codeBlock13)
+                .foregroundStyle(OfficialUISpec.Token.primary)
+                .fixedSize(horizontal: true, vertical: false)
+                .padding(.leading, OfficialUISpec.Spacing.p14)
+                .frame(minHeight: OfficialUISpec.Geometry.px22, alignment: .leading)
+        case .match:
+            HStack(alignment: .firstTextBaseline, spacing: OfficialUISpec.Spacing.p0) {
+                Text("\(number(row.lineNumber ?? 0)): ")
+                    .foregroundStyle(OfficialUISpec.Token.caption)
+                Text(row.text)
+                    .foregroundStyle(OfficialUISpec.Token.primary)
+            }
+            .font(OfficialUISpec.Typography.codeBlock13)
+            .fixedSize(horizontal: true, vertical: false)
+            .padding(.leading, OfficialUISpec.Spacing.p14)
+            .frame(minHeight: OfficialUISpec.Geometry.px22, alignment: .leading)
+        case .file:
+            Button(action: { toggleFile(row.fileIndex) }) {
+                HStack(alignment: .firstTextBaseline, spacing: OfficialUISpec.Spacing.p8) {
+                    Text(row.text)
+                        .font(OfficialUISpec.Typography.codeBlock13.weight(.semibold))
+                        .foregroundStyle(OfficialUISpec.Token.primary)
+                    Text(String(row.matchCount ?? 0))
+                        .font(OfficialUISpec.Typography.codeBlock13)
+                        .foregroundStyle(OfficialUISpec.Token.caption)
+                }
+                .fixedSize(horizontal: true, vertical: false)
+                .frame(maxWidth: .infinity, minHeight: OfficialUISpec.Geometry.px22, alignment: .leading)
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, OfficialUISpec.Spacing.p14)
+            .accessibilityValue(row.collapsed ? "false" : "true")
+        }
+    }
+
+    private var summary: String {
+        let count = presentation.truncated
+            ? OfficialUISpec.Text.searchTruncatedCountTemplate
+                .replacingOccurrences(of: "{shown}", with: String(presentation.shownCount))
+                .replacingOccurrences(of: "{total}", with: number(presentation.total))
+            : String(presentation.shownCount)
+        switch presentation.shape {
+        case .paths:
+            return OfficialUISpec.Text.searchPathsSummaryTemplate.replacingOccurrences(of: "{count}", with: count)
+        case .matches:
+            return OfficialUISpec.Text.searchMatchesSummaryTemplate
+                .replacingOccurrences(of: "{count}", with: count)
+                .replacingOccurrences(of: "{files}", with: String(presentation.fileCount))
+        }
+    }
+
+    private var readExpandLabel: String {
+        OfficialUISpec.Text.readExpandTemplate.replacingOccurrences(of: "{n}", with: String(window.hiddenCount))
+    }
+
+    private var searchExpandAccessibilityLabel: String {
+        OfficialUISpec.Text.searchExpandAccessibilityTemplate.replacingOccurrences(of: "{n}", with: String(window.hiddenCount))
+    }
+
+    private func number(_ value: Double) -> String {
+        value.rounded(.towardZero) == value ? String(Int(value)) : String(value)
+    }
+
+    private func toggleFile(_ index: Int?) {
+        guard let index else { return }
+        if collapsedFileIndices.contains(index) {
+            collapsedFileIndices.remove(index)
+        } else {
+            collapsedFileIndices.insert(index)
+        }
+    }
+
+    private func copySearch() {
+        let source: String
+        switch presentation.shape {
+        case let .paths(paths):
+            source = paths.joined(separator: "\n")
+        case let .matches(files):
+            source = files.map { file in
+                ([file.path] + file.matches.map { "\(number($0.lineNumber)): \($0.line)" }).joined(separator: "\n")
+            }.joined(separator: "\n\n")
+        }
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        guard pasteboard.setString(source, forType: .string) else { return }
+        copied = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { copied = false }
+    }
+}
+
 /// Native generic details fallback. It is intentionally text/JSON only until a
 /// separately approved native adapter can claim a specific Host `view.card`.
 struct NativeToolDetailsBody: View {
@@ -611,6 +810,9 @@ struct NativeToolDetailsBody: View {
                                 .id(invocation.id)
                         } else if let diff = diffPresentation(for: invocation) {
                             NativeDiffToolCardBody(presentation: diff, maxLines: 16)
+                                .id(invocation.id)
+                        } else if let search = searchPresentation(for: invocation) {
+                            NativeSearchToolCardBody(presentation: search, maxLines: 16)
                                 .id(invocation.id)
                         } else if invocation.state == .running {
                             Text(OfficialUISpec.Text.toolDetailsRunning)
@@ -655,6 +857,14 @@ struct NativeToolDetailsBody: View {
             call: invocation.callView?.nativeDiffView,
             result: invocation.resultView?.nativeDiffView,
             settled: invocation.state != .running
+        )
+    }
+
+    private func searchPresentation(for invocation: NativeSessionStore.ToolInvocation) -> NativeSearchCardPresentation? {
+        NativeSearchCardPresentation.resolve(
+            result: invocation.resultView?.nativeSearchView,
+            completed: invocation.state != .running,
+            textRecovery: invocation.textOutput
         )
     }
 
