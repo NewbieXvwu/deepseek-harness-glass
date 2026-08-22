@@ -26,15 +26,23 @@
 
 | 优先级 | 原生迁移域 | 锁定官方源码包/关键入口 | 主要 Host/API 合同 | 计划阶段 |
 | --- | --- | --- | --- | --- |
-| P0 | 会话根、聊天历史、消息树、流式增量、推理与分支尾部 | `ui-conversation/src/client`：`ConversationRoot`、chat stores、input machine、消息/推理/队列相关组件及 locale | `session.history`、订阅、发送、取消、session events/projections | A |
-| P0 | 完整 composer、模型/agent/plan 入口与提交策略 | `ui-conversation` 的 `InputBar`/submission/input matrix；`ui-input-trigger`、`ui-model-selection`、`ui-agent-preset`、`ui-plan` | session create/send、model/preset/plan 相关 settings/projections | B |
+| P0 | 会话根、聊天历史、消息树、流式增量、推理与分支尾部 | `ui-conversation/src/client`：`ConversationRoot`、chat stores、input machine、消息/推理/队列相关组件及 locale |
+`session.
+history`、订阅、发送、取消、session events/projections | A |
+| P0 | 完整 composer、模型/agent/plan 入口与提交策略 | `ui-conversation` 的 `InputBar`/submission/input matrix；
+`ui-input-trigger`、`ui-model-selection`、`ui-agent-preset`、`ui-plan` | session create/send、model/preset/plan 相关 settings/projections | B |
 | P0 | 附件、拖放、粘贴和文件上限 | `ui-attachment` 与 conversation attachment surfaces | attachment RPC、image limits、上传/删除事件 | B |
 | P0 | 工具调用卡、批准、结果、详情联动 | `ui-tool`、`ui-conversation` tool/trajectory surfaces | tool event view、批准/拒绝/取消、session events | C |
-| P1 | 交付物、轨迹、目标、技能、subagent、workflow run | `ui-deliverables`、`ui-trajectory`、`ui-goal`、`ui-skill`、`ui-subagent`、`ui-workflow-run` | 各插件/Host projection、tool/session event views | C |
-| P1 | 用户问题、计划审阅、消息反馈与权限预设 | `ui-user-questions`、`ui-message-feedback`、`ui-permission-presets` | questions/plan/feedback/permission RPC 与事件 | C |
-| P1 | 工作区/会话完整管理 | `ui-workspace` rows/tree/locales/CSS | `workspace.create/rename/delete/insertBefore/archiveSession`、`session.rename/fork` | D |
+| P1 | 交付物、轨迹、目标、技能、subagent、workflow run | `ui-deliverables`、`ui-trajectory`、`ui-goal`、`ui-skill`、`ui-subagent`、`ui-workflow-run` |
+各插件/Host projection、tool/session event views | C |
+| P1 | 用户问题、计划审阅、消息反馈与权限预设 | `ui-user-questions`、`ui-message-feedback`、`ui-permission-presets` | questions/plan/feedback/permission RPC 与事件
+| C |
+| P1 | 工作区/会话完整管理 | `ui-workspace` rows/tree/locales/CSS | `workspace.create/rename/delete/insertBefore/archiveSession`、`session.
+rename/fork` | D |
 | P1 | 原生目录浏览与打开路径 | `ui-directory-picker-browse`、`ui-directory-picker-native` | directory picker/open path Host capability | D/F |
-| P1 | 设置根、通用设置、模型、插件、插件库存 | `ui-settings`、`ui-settings-general`、`ui-settings-models`、`ui-settings-plugins`、`ui-settings-plugin-inventory` | `settings.describe`、settings update/validate、plugin manifest | E |
+| P1 | 设置根、通用设置、模型、插件、插件库存 | `ui-settings`、`ui-settings-general`、`ui-settings-models`、`ui-settings-plugins`、`ui-settings-plugin-inventory`
+| `settings.
+describe`、settings update/validate、plugin manifest | E |
 | P2 | 命令弹窗和全局命令 | `ui-commands/PopupSelectView` | command registry 与官方 action 路由 | F |
 | P2 | 窗口偏好、键盘、主题与恢复 | `ui-layout`、`ui-sidebar`、`ui-theme`、`ui-commands` | 本地 UI 偏好与 Host session 选择 | F |
 
@@ -42,7 +50,9 @@
 
 1. **文本和图标来源。** 可见文本只能通过官方 locale 常量；图标只能通过受控官方 SVG。每个新增键、图标、尺寸与状态均登记到 `official-ui-catalog.json`。
 2. **业务状态来源。** SwiftUI Store 只处理瞬态显示/选择状态。所有 durable 状态和服务端操作必须由 `DSHAPIClient`、官方 RPC schema 与 SSE event schema 支撑。
-3. **WebView 边界与插件兼容。** 红区（核心主界面与官方设置界面，即官方内容渲染权）不得使用 WebView；绿区（登记制的插件平面 target，Ghost Plane）是唯一允许 WKWebView 之处。第三方插件以 Ghost Plane 运行时全兼容（未修改的 client 原样挂载），原生 Manifest/Adapter 为可选精品快车道；绿区内交互必须经原生桥保证键盘可达性、VoiceOver 与 TCC 权限语义。详见 [PLUGIN_COMPATIBILITY_PROPOSAL.md](PLUGIN_COMPATIBILITY_PROPOSAL.md)。
+3. **WebView 边界与插件兼容。** 红区（核心主界面与官方设置界面，即官方内容渲染权）不得使用 WebView；绿区（登记制的插件平面 target，Ghost Plane）是唯一允许 WKWebView 之处。
+   第三方插件以 Ghost Plane 运行时全兼容（未修改的 client 原样挂载），原生 Manifest/Adapter 为可选精品快车道；绿区内交互必须经原生桥保证键盘可达性、VoiceOver 与 TCC 权限语义。
+   详见 [PLUGIN_COMPATIBILITY_PROPOSAL.md](PLUGIN_COMPATIBILITY_PROPOSAL.md)。
 4. **视觉验证。** 每个域都需以官方同尺寸截图对照原生 macOS 26 snapshot；默认覆盖 1280×840、1024px 临界宽度、rail、light/dark、空态、选中、运行和失败状态。
 5. **无障碍与控制层。** 所有图标按钮有官方可访问性键；键盘焦点顺序必须可测。Liquid Glass 仅在导航/控制层，不得覆盖会话、工具输出、表单或代码内容。
 

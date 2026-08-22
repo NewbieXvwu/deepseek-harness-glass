@@ -6,7 +6,10 @@
 
 ## 一、结论与当前基线
 
-本计划以**持续工作直至 `TODO.md` 中 78 个编号任务全部达到可审计完成状态**为目标，而不是以“应用可启动”或“局部截图近似”为完成标准。当前本地工作树位于 `/home/ubuntu/work/deepseek-harness-glass`，官方参考源码位于 `/home/ubuntu/work/deepseek-harness-reference`；二者均已克隆。环境与安装事实记录于 `notes/environment-setup.md`。官方参考版本与项目锁定的 Host、协议和视觉规格版本一致，因此可以直接用于逐项追溯源码、生成 fixture 和复核 UI 行为。[1] [2] [3]
+本计划以**持续工作直至 `TODO.
+md` 中 78 个编号任务全部达到可审计完成状态**为目标，而不是以“应用可启动”或“局部截图近似”为完成标准。
+当前本地工作树位于 `/home/ubuntu/work/deepseek-harness-glass`，官方参考源码位于 `/home/ubuntu/work/deepseek-harness-reference`；
+二者均已克隆。环境与安装事实记录于 `notes/environment-setup.md`。官方参考版本与项目锁定的 Host、协议和视觉规格版本一致，因此可以直接用于逐项追溯源码、生成 fixture 和复核 UI 行为。[1] [2] [3]
 
 | 指标 | 当前值 | 计划含义 |
 |---|---:|---|
@@ -20,7 +23,9 @@
 
 ## 二、不可改变的工作约束
 
-所有后续工作遵循项目已定义的 D0–D5。也就是说，业务数据始终由已验证 DeepSeek Harness Host 经类型化 loopback RPC/WebSocket 提供；SwiftUI/AppKit 仅承载原生视图与瞬态显示状态；未验证 Host 不得伪装为可写入的兼容目标；第三方插件的 WebView 只能作为单独审计后的最小化例外。[3]
+所有后续工作遵循项目已定义的 D0–D5。
+也就是说，业务数据始终由已验证 DeepSeek Harness Host 经类型化 loopback RPC/WebSocket 提供；
+SwiftUI/AppKit 仅承载原生视图与瞬态显示状态；未验证 Host 不得伪装为可写入的兼容目标；第三方插件的 WebView 只能作为单独审计后的最小化例外。[3]
 
 | 约束 | 持续执行规则 | 验证方式 |
 |---|---|---|
@@ -32,7 +37,10 @@
 
 ## 三、持续节奏与统一交付闭环
 
-后续不按“页面数量”推进，而按小而可回归的任务闭环推进。每一项编号任务使用一个独立主题分支或一组单一目的提交；每次变更均从官方源码阅读开始，以本地单元/契约测试、macOS 26 持续集成、官方/原生视觉配对和 TODO 证据写回结束。Linux 环境不能替代 Xcode 26/macOS 26 的真实原生渲染验证，因此 macOS 26 CI 成功及其工件审阅是 UI 任务的硬门禁。[3] [4]
+后续不按“页面数量”推进，而按小而可回归的任务闭环推进。
+每一项编号任务使用一个独立主题分支或一组单一目的提交；
+每次变更均从官方源码阅读开始，以本地单元/契约测试、macOS 26 持续集成、官方/原生视觉配对和 TODO 证据写回结束。
+Linux 环境不能替代 Xcode 26/macOS 26 的真实原生渲染验证，因此 macOS 26 CI 成功及其工件审阅是 UI 任务的硬门禁。[3] [4]
 
 | 每个任务的固定循环 | 必须产出 | 不满足时的处理 |
 |---|---|---|
@@ -45,44 +53,73 @@
 
 ## 四、阶段 0：同步、基线复核与证据债关闭
 
-第一阶段不扩展产品表面，而是关闭 T6.2、T6.4、T6.5 已有实现的**证据债**。当前任务清单明确指出这三项已有代码和成功 CI，但没有完整的官方来源、逐 append replay、当前 HEAD 的人工审阅或合理的 Core-only 视觉边界，因此不应继续向 T6.6 及下游 UI 扩张。[3]
+第一阶段不扩展产品表面，而是关闭 T6.
+2、T6.4、T6.5 已有实现的**证据债**。当前任务清单明确指出这三项已有代码和成功 CI，但没有完整的官方来源、逐 append replay、当前 HEAD 的人工审阅或合理的 Core-only 视觉边界，因此不应继续向 T6.6 及下游 UI 扩张。[3]
 
 | 顺序 | 任务 | 必做工作 | 完成门槛 |
 |---:|---|---|---|
-| 0.1 | 基线重放 | 记录 `git status`、当前 commit、固定 Host/spec revision；运行仓库列出的规格、模块、原生 WebView 禁止、视觉策略与 Host 支持矩阵门禁。 | 所有本地可运行门禁通过；无法在 Linux 运行的 macOS 验证明确转交 CI。 |
-| 0.2 | T6.2 `SessionHistoryPager` | 把官方 history/tail/`beforeSeq` 来源写入任务证据；补齐/核对分页、乱序、重复、compaction、live gap 的离线 fixture；明确该任务是 Core-only，或在 ChatView 基础实现后制作同状态分页视觉配对。 | `SessionHistoryPagerTests`、来源映射、当前 revision 的 CI 与人工边界记录均完成。 |
-| 0.3 | T6.4 `ConversationNode` | 对照官方 `packages/client/runtime/src/client/contract/conversation.ts`，建立逐 append 的 `match → start/update → publication → buildViewNode` replay snapshot；证明 renderer 不接触 raw wire event。 | 每个生命周期边界有官方输入、Swift snapshot、未知事件安全处理和人工复核。 |
-| 0.4 | T6.5 初始核心 nodes | 为 user/context、assistant streaming/final、thinking、tool/result、retry/error、compaction 与 interrupted anchor 建立可审计逐帧 fixture；复核当前 HEAD 截图与逻辑排序。 | 当前 HEAD 的 macOS 26 run、官方/原生配对、逐 append 节点快照、人工审阅和 TODO 链接完整。 |
+| 0.1 | 基线重放 | 记录 `git status`、当前 commit、固定 Host/spec revision；运行仓库列出的规格、模块、原生 WebView 禁止、视觉策略与 Host 支持矩阵门禁。 | 所有本地可运行门禁通过；
+无法在 Linux 运行的 macOS 验证明确转交 CI。
+|
+| 0.2 | T6.2 `SessionHistoryPager` | 把官方 history/tail/`beforeSeq` 来源写入任务证据；补齐/核对分页、乱序、重复、compaction、live gap 的离线 fixture；明确该任务是 Core-only，
+或在 ChatView 基础实现后制作同状态分页视觉配对。
+| `SessionHistoryPagerTests`、来源映射、当前 revision 的 CI 与人工边界记录均完成。 |
+| 0.3 | T6.4 `ConversationNode` | 对照官方 `packages/client/runtime/src/client/contract/conversation.ts`，
+建立逐 append 的 `match → start/update → publication → buildViewNode` replay snapshot；
+证明 renderer 不接触 raw wire event。 | 每个生命周期边界有官方输入、Swift snapshot、未知事件安全处理和人工复核。 |
+| 0.4 | T6.
+5 初始核心 nodes | 为 user/context、assistant streaming/final、thinking、tool/result、retry/error、compaction 与 interrupted anchor 建立可审计逐帧 fixture；
+复核当前 HEAD 截图与逻辑排序。
+| 当前 HEAD 的 macOS 26 run、官方/原生配对、逐 append 节点快照、人工审阅和 TODO 链接完整。 |
 | 0.5 | 文档同步 | 仅在 0.2–0.4 全部闭环后勾选 T6.2/T6.4/T6.5，并更新唯一续跑入口。 | 三项均有可复现命令、工件路径、CI run、源映射和明确的视觉范围。 |
 
 ## 五、阶段 1：完成可靠的事件到会话恢复层
 
-在阶段 0 完成后，先完成 T6.6 与 T6.7。这一阶段建立全部下游聊天、工具、审批、问题、队列、交付物和详情视图共同依赖的事件语义，避免 UI 先行而后被真实重连/补历史行为推翻。官方会话合同定义了 turn/step、节点稳定 key、target 与 publication 语义；原生 reducer 必须保持这一模型，而不是退化为无结构的消息数组。[2] [3]
+在阶段 0 完成后，先完成 T6.
+6 与 T6.
+7。
+这一阶段建立全部下游聊天、工具、审批、问题、队列、交付物和详情视图共同依赖的事件语义，避免 UI 先行而后被真实重连/补历史行为推翻。
+官方会话合同定义了 turn/step、节点稳定 key、target 与 publication 语义；原生 reducer 必须保持这一模型，而不是退化为无结构的消息数组。[2] [3]
 
 | 顺序 | TODO | 实施范围 | 验收输出 |
 |---:|---|---|---|
-| 1.1 | T6.6 扩展 nodes | 以 node type 分批实现 todo、goal、queue/steering、approval、question、workflow、subagent、trajectory、deliverables、feedback、model/permission 与 jobs。 | 每类均有官方来源、正常/失败/取消/缺插件 fixture、Core renderer snapshot 与安全 fallback。 |
-| 1.2 | T12.1 原始事件管线（提前建设） | 从官方 e2e/test fixture 或审计录制会话提取脱敏 JSON，提供离线 replay。 | fixture 无秘密、私人路径或未授权用户内容，并覆盖 happy/error/reconnect/concurrency/long/unknown。 |
-| 1.3 | T12.2 reducer snapshots（提前建设） | 每次 raw event append 后记录 node、turn/step、projection、queue 与 pending interaction。 | 支持 node 类型清单与负面 fixture 可追踪；未知 event 不崩溃。 |
+| 1.1 | T6.
+6 扩展 nodes | 以 node type 分批实现
+todo、goal、queue/steering、approval、question、workflow、subagent、trajectory、deliverables、feedback、model/permission 与 jobs。
+| 每类均有官方来源、正常/失败/取消/缺插件 fixture、Core renderer snapshot 与安全 fallback。 |
+| 1.2 | T12.1 原始事件管线（提前建设） | 从官方 e2e/test fixture 或审计录制会话提取脱敏 JSON，提供离线 replay。 | fixture 无秘密、私人路径或未授权用户内容，
+并覆盖 happy/error/reconnect/concurrency/long/unknown。
+|
+| 1.3 | T12.2 reducer snapshots（提前建设） | 每次 raw event append 后记录 node、turn/step、projection、queue 与 pending interaction。
+| 支持 node 类型清单与负面 fixture 可追踪；未知 event 不崩溃。
+|
 | 1.4 | T6.7 reconnect/replay | 实现断流、Host 重启、cold-to-live 时的 authoritative history、projection 和 session status 重放。 | 任一断点重连结果与连续执行参考快照相同。 |
-| 1.5 | T12.3 transport chaos（提前建设） | 注入迟到 response、重复/乱序 frame、HTTP timeout、SSE 中断、Host restart、settings conflict 和 cancel race。 | 最终收敛，无重复消息/授权、无无限 reconnect、无错误回滚。 |
+| 1.5 | T12.3 transport chaos（提前建设） | 注入迟到 response、重复/乱序 frame、HTTP timeout、SSE 中断、Host restart、settings conflict 和 cancel race。 | 最终收敛，
+无重复消息/授权、无无限 reconnect、无错误回滚。
+|
 
 阶段 1 完成后，M2 的协议可信条件才真正具有端到端意义。此时应重新运行 Host smoke、DTO/contract gate、重连测试与全部 reducer replay；若任何 replay 差异存在，优先修复 Core，不进入复杂视图开发。[3]
 
 ## 六、阶段 2：侧栏、工作区与会话选择完整化
 
-此阶段完成 T7.1、T7.2 与 T7.4，并重新回归已勾选的 T7.3。后者在依赖 T7.2 的前提下已具有独立搜索/行操作证据，但工作区浏览器基础完成后仍需复测，确保搜索不依赖私有索引，且 archive/ungrouped/reorder/空会话复用没有破坏现有场景。[3]
+此阶段完成 T7.
+1、T7.2 与 T7.4，并重新回归已勾选的 T7.3。后者在依赖 T7.2 的前提下已具有独立搜索/行操作证据，但工作区浏览器基础完成后仍需复测，确保搜索不依赖私有索引，且 archive/ungrouped/reorder/空会话复用没有破坏现有场景。[3]
 
 | 顺序 | TODO | 工作重点 | 必须覆盖的官方/原生状态 |
 |---:|---|---|---|
-| 2.1 | T7.1 静态 sidebar | Wordmark、New Session、workspace/settings seat、滚动区和固定底部区域全部由 `OfficialUISpec` 驱动。 | 无 workspace、有 workspace、焦点、禁用与 screen-reader label。 |
-| 2.2 | T7.2 browser | workspace list/create/reorder、archive、ungrouped、session list、selected/running/blank 与空 session reuse。 | Host change frame 驱动的实时更新、键盘操作和恢复选择。 |
+| 2.1 | T7.1 静态 sidebar | Wordmark、New Session、workspace/settings seat、滚动区和固定底部区域全部由 `OfficialUISpec` 驱动。
+| 无 workspace、有 workspace、焦点、禁用与 screen-reader label。
+|
+| 2.2 | T7.2 browser | workspace list/create/reorder、archive、ungrouped、session list、selected/running/blank 与空 session reuse。
+| Host change frame 驱动的实时更新、键盘操作和恢复选择。
+|
 | 2.3 | T7.4 rail | wide ↔ 56 px rail、1024/1023 临界值、官方 motion 和 Reduce Motion 降级。 | 临界 viewport、手动切换、焦点不进入隐藏控件、details 自动关闭。 |
 | 2.4 | 视觉收敛 | 把 `sidebar-rail-narrow-light` 从契约/存在性提升到完整配对，关闭现有 welcome 的可见 composer/几何差异。 | `enforce` 阈值、人工 ARIA/几何/高幅度 diff 分类记录。 |
 
 ## 七、阶段 3：会话主界面与 Composer 的零 WebView 闭环
 
-阶段 3 按 T8.1 至 T8.7 的编号推进。实现参考主要来自官方 `ui-conversation` 中的 `ChatView`、节点 seat、composer submission contract 和输入状态机；不以静态 mock 替代实际 Host/RPC/SSE 回写。[2] [5]
+阶段 3 按 T8.
+1 至 T8.7 的编号推进。实现参考主要来自官方 `ui-conversation` 中的 `ChatView`、节点 seat、composer submission contract 和输入状态机；不以静态 mock 替代实际 Host/RPC/SSE 回写。[2] [5]
 
 | 顺序 | TODO | 交付边界 | 必须验收的风险点 |
 |---:|---|---|---|
@@ -94,16 +131,21 @@
 | 3.6 | T8.6 model/permission | model、reasoning、context、permission 和高风险确认。 | 无模型时的官方阻止文案；解锁、选择、确认与回写一致。 |
 | 3.7 | T8.7 docks | queue/todo/goal/stats 的 projection/API 真源、顺序、折叠和无障碍。 | 多 dock 溢出、隐藏规则、滚动与 label 和官方一致。 |
 
-每完成一个子任务，都应为对应 `official-interaction-scenes.json` 场景补齐官方 fixture、原生自动化、视觉工件和人工审阅。完整 Composer 闭环完成前，不进入复杂工具与设置页面；这是项目 M3 禁止“先堆页面、后补会话状态”的明确要求。[3] [4]
+每完成一个子任务，都应为对应 `official-interaction-scenes.
+json` 场景补齐官方 fixture、原生自动化、视觉工件和人工审阅。完整 Composer 闭环完成前，不进入复杂工具与设置页面；这是项目 M3 禁止“先堆页面、后补会话状态”的明确要求。[3] [4]
 
 ## 八、阶段 4：工具、审批、问题、轨迹与详情
 
-工具层按由通用到专用的路径完成 T9.1 至 T9.6。所有未知 tool 首先拥有安全、可复制且不丢失 raw result 的 generic renderer，再逐步以真实官方 fixture 扩展专用 renderer；这能避免插件缺失或新工具类型导致会话信息沉默消失。[3]
+工具层按由通用到专用的路径完成 T9.
+1 至 T9.6。所有未知 tool 首先拥有安全、可复制且不丢失 raw result 的 generic renderer，再逐步以真实官方 fixture 扩展专用 renderer；这能避免插件缺失或新工具类型导致会话信息沉默消失。[3]
 
 | 顺序 | TODO | 实施与证据要求 |
 |---:|---|---|
 | 4.1 | T9.1 generic tool renderer | 参数摘要、状态、结果、错误、折叠和原始 fallback；安全 display/复制测试。 |
-| 4.2 | T9.2 常用工具 | bash/terminal、read、search、file mutation/diff、todo、web、ask-question、workflow、图像/附件分别有官方 fixture、loading/error/cancel/long output 与性能用例。 |
+| 4.2 | T9.
+2 常用工具 | bash/terminal、read、search、file mutation/diff、todo、web、ask-question、workflow、图像/附件分别有官方 fixture、loading/error/cancel/long output
+与性能用例。
+|
 | 4.3 | T9.3 approval/question takeover | 使用 Composer takeover 而不是私有弹窗；一次性提交、重连去重、danger/default focus 测试。 |
 | 4.4 | T9.4 thinking/retry/compaction | 默认折叠、摘要、倒计时、可见性、checkpoint 与 summary 边界；保证不泄露 chain-of-thought。 |
 | 4.5 | T9.5 complex nodes | trajectory/subagent/workflow/deliverables 的最小数据合同、独立视图或安全 fallback。 |
@@ -111,16 +153,61 @@
 
 ## 九、阶段 5：官方设置、凭据、模型与插件兼容
 
-设置工作首先完成 T10.1–T10.6，随后才进入 T11.1–T11.7。官方 settings 具有 namespace、schema、revision、secret redaction 和写入合同，因此 Store、draft 与 revision fence 先于各页面；第三方插件先有 Manifest、适配器、兼容矩阵与安全隔离，才允许研究受限 Web fallback。[3] [6]
+设置工作首先完成 T10.
+1–T10.
+6，随后才进入 T11.
+1–T11.
+7。
+官方 settings 具有 namespace、schema、revision、secret redaction 和写入合同，因此 Store、draft 与 revision fence 先于各页面；
+第三方插件先有 Manifest、适配器、兼容矩阵与安全隔离，才允许研究受限 Web fallback。[3] [6]
 
 | 顺序 | TODO | 最小可发布定义 |
 |---:|---|---|
-| 5.1 | T10.1–T10.2 | Settings Root 和 `NativeSettingsStore`；描述缓存、dirty/invalid、discard、remote invalidation、reconnect refresh 与 revision conflict。 |
+| 5.1 | T10.1–T10.2 | Settings Root 和 `NativeSettingsStore`；
+描述缓存、dirty/invalid、discard、remote invalidation、reconnect refresh 与 revision conflict。
+|
 | 5.2 | T10.3–T10.4 | General、主题、Models、Credentials；secret 永不进入 UI dump、日志、截图、错误或 readback。 |
 | 5.3 | T11.1–T11.3 | `NativeUIManifest` schema/完整性验证、`NativeSchemaForm` 与 `SwiftAdapterRegistry`；未知字段只报 unsupported，绝不执行代码或猜测 UI。 |
 | 5.4 | T10.5–T10.6 | bash/agent-loop/web-search 原生卡片、Agent Presets 与 Plugin Inventory；所有危险动作保持官方语义与确认策略。 |
 | 5.5 | T11.4 | 对每个检测插件记录支持层级、Host 范围、原生方案、fallback 许可和原因。 |
-| 5.6 | T11.5–T11.7 | 仅在兼容矩阵批准后完成登记制 `GlassPluginPlane` host、single-card 可嵌入性实验和零核心 WebView 不变量。资源与 boot graph admission 已实施；native skeleton host 已强制插入固定 CSP（无 head HTML fail-closed，connect/frame/worker/form 等均禁止）；response-side Core gate 已将 exact request/final URL、2xx status 和 path-bound MIME allowlist 绑定，并拒绝 redirect、MIME confusion 与 SVG；官方任意 `tapIndex` callback 已收缩为 graph `(pluginID, revision)` 绑定、仅允许 token/data/class 的 Core replay plan，并已仅在 native skeleton did-finish 后通过参数化 WebKit 调用应用且由 document 二次验证。已建立 scroll scalar 的 epoch/sequence fence、skeleton 内部 transform layer 与参数化 host 调用；PluginPlane 还具备 NSScrollView bounds observation + active-screen cadence coalescing bridge，尚待挂入 concrete transcript/CVDisplayLink/ProMotion runtime 证据；GP-4 也已建立 keyboard/image paste/selection/drag typed event 合同、有界 echo fence 及 strict JSON wire decoder（固定 DTO 后才进入 fence），并已将 decoder/fence 接入唯一 WebKit fixed message handler（仅 typed callback 可达 native）；native event 也已由同一 fence 以固定 JSON DTO 参数化送至 bootstrap receiver。document-start 已建立 `__ModuleLoader__` queue facade 作为唯一 factory registration 入口；native activation permit 已可使 exact queued identity 单向 promotion 至 live factory table（不调用 factory、不传 exports/services）；native `GhostPlaneModuleActivationGate` 还将未来 factory activation 绑定至 admitted graph 精确 `(pluginID, revision)` arrival、non-static dependency arrival 与一次性 opaque permit，且不保存任何 JS/factory/exports；`GhostPlaneTypedInjectionGate` 仅将 permit 转为 manifest-declared 且 native availability-checked 的有限 service-name grant，不传送 service object/callback；`GhostPlaneSlotRegistry` 现只接受固定 skeleton slot 的 typed placement（plugin/cell identity、稳定顺序、显式 disposal），绝不接受 component、JS、HTML 或 factory。GP-5 PermissionBroker 已提供首调 grant/deny 记忆与 revoke state，PluginPlane 已有唯一的 capability-specific NSAlert 首调 presenter，并已具备只在该 broker grant 后请求系统 TCC 的 notification adapter，以及 read/write 分离、plain-text-only 的 clipboard adapter、逐 URL native-confirm 的 external-navigation adapter，以及 native-only file-picker/opaque attachment-admission boundary、broker-first native download save-panel boundary、NWPathMonitor online/offline scalar projection、NSWindow visibility scalar projection，GP-6 已建立 shared/isolated profile routing policy、竞争 stdio/TUI 的 typed 拒绝，以及与 remote settings schema 隔离并持久化于 app-local defaults 的 profile preference codec/store，且 General Settings 已有 local-only isolated-profile toggle；GP-7 static installation scanner 仅识别完整 app resources layout 并产出未信任候选；diagnostics-only loopback discovery 也只返回严格 127.0.0.1 host.describe responder，且 Host controller 仅将 responder 交由 read-only external probe；二者均必须 catalog-verify 后才可 Attach/Adopt。`GhostPlaneWebViewHost` 已将 response gate 接到真实 main-frame WebKit response metadata（request/final identity、HTTP 2xx、MIME）；下一步以 macOS host 回归覆盖 CSP/response adapters，并将 native arrival gate 接到受限 WebKit bundle observation、补齐 bundle observation、actual factory/Cordis materialization、placement 到审阅 native renderer 的连接、受审计的 typed injection bridge、绿色区路由、真实 transcript NSScrollView 挂接/CVDisplayLink/ProMotion 验证、AppKit keyboard router、synthetic KeyboardEvent construction、draft/selection/drag adapters 以及 剩余 native capability adapters、notification/clipboard/external/file-picker/download/network/visibility typed capability dispatch、Settings permission-revoke UI、runtime mounting、marketplace observation 与 catalog-verified Host controller plan execution、授权证据。所有外站、file URL、未知 scheme、popup 与全局 session UI 必须被拒绝。 |
+| 5.6 | T11.5–T11.7 | 仅在兼容矩阵批准后完成登记制 `GlassPluginPlane` host、single-card 可嵌入性实验和零核心 WebView 不变量。资源与 boot graph admission 已实施；
+native skeleton host 已强制插入固定 CSP（无 head HTML fail-closed，
+connect/frame/worker/form 等均禁止）；response-side Core gate 已将 exact request/final URL、2xx status 和 path-bound MIME allowlist 绑定，
+并拒绝 redirect、MIME confusion 与 SVG；
+官方任意 `tapIndex` callback 已收缩为 graph `(pluginID, revision)` 绑定、仅允许 token/data/class 的 Core replay plan，
+并已仅在 native skeleton did-finish 后通过参数化 WebKit 调用应用且由 document 二次验证。
+已建立 scroll scalar 的 epoch/sequence fence、skeleton 内部 transform layer 与参数化 host 调用；
+PluginPlane 还具备 NSScrollView bounds observation + active-screen cadence coalescing bridge，
+尚待挂入 concrete transcript/CVDisplayLink/ProMotion runtime 证据；
+GP-4 也已建立 keyboard/image paste/selection/drag typed event 合同、有界 echo fence 及 strict JSON wire decoder（固定 DTO 后才进入 fence），
+并已将 decoder/fence 接入唯一 WebKit fixed message handler（仅 typed callback 可达 native）；
+native event 也已由同一 fence 以固定 JSON DTO 参数化送至 bootstrap receiver。
+document-start 已建立 `__ModuleLoader__` queue facade 作为唯一 factory registration 入口；
+native activation permit 已可使 exact queued identity 单向 promotion 至 live factory table（不调用 factory、不传 exports/services）；
+native `GhostPlaneModuleActivationGate` 还将未来 factory activation 绑定至 admitted graph 精确 `(pluginID,
+revision)` arrival、non-static dependency arrival 与一次性 opaque permit，且不保存任何 JS/factory/exports；
+`GhostPlaneTypedInjectionGate` 仅将 permit 转为 manifest-declared 且 native availability-checked 的有限 service-name grant，
+不传送 service object/callback；
+`GhostPlaneSlotRegistry` 现只接受固定 skeleton slot 的 typed placement（plugin/cell identity、稳定顺序、显式 disposal），绝不接受 component、JS、HTML 或 factory。
+GP-5 PermissionBroker 已提供首调 grant/deny 记忆与 revoke state，
+PluginPlane 已有唯一的 capability-specific NSAlert 首调 presenter，并已具备只在该 broker grant 后请求系统 TCC 的 notification adapter，
+以及 read/write 分离、plain-text-only 的 clipboard adapter、逐 URL native-confirm 的 external-navigation adapter，
+以及 native-only file-picker/opaque attachment-admission boundary、broker-first native download save-panel boundary、NWPathMonitor
+online/offline scalar projection、NSWindow visibility scalar projection，
+GP-6 已建立 shared/isolated profile routing policy、竞争 stdio/TUI 的 typed 拒绝，
+以及与 remote settings schema 隔离并持久化于 app-local defaults 的 profile preference codec/store，
+且 General Settings 已有 local-only isolated-profile toggle；GP-7 static installation scanner 仅识别完整 app resources layout 并产出未信任候选；
+diagnostics-only loopback discovery 也只返回严格 127.0.0.1 host.
+describe responder，且 Host controller 仅将 responder 交由 read-only external probe；二者均必须 catalog-verify 后才可 Attach/Adopt。
+`GhostPlaneWebViewHost` 已将 response gate 接到真实 main-frame WebKit response metadata（request/final identity、HTTP 2xx、MIME）；
+下一步以 macOS host 回归覆盖 CSP/response adapters，
+并将 native arrival gate 接到受限 WebKit bundle observation、补齐 bundle observation、actual factory/Cordis materialization、placement 到审阅 native
+renderer 的连接、受审计的 typed injection bridge、绿色区路由、真实 transcript NSScrollView 挂接/CVDisplayLink/ProMotion 验证、AppKit keyboard router、synthetic
+KeyboardEvent construction、draft/selection/drag adapters 以及 剩余 native capability
+adapters、notification/clipboard/external/file-picker/download/network/visibility typed capability dispatch、Settings permission-revoke
+UI、runtime mounting、marketplace observation 与 catalog-verified Host controller plan execution、授权证据。
+所有外站、file URL、未知 scheme、popup 与全局 session UI 必须被拒绝。
+|
 
 ## 十、阶段 6：全量回归、性能、安全与发布治理
 
@@ -138,7 +225,9 @@
 
 ## 十一、视觉验证与场景收敛计划
 
-每个 UI 任务都不是在“出现截图”时完成。所有官方截图必须由锁定源码的真实 `apps/web` composition 与 Playwright 获取；原生截图必须来自 macOS 26 编译的应用。每个场景附件必须同时含 Official PNG/DOM-ARIA-geometry JSON、Native PNG、diff/三栏对照、机器报告和人工分类记录。[4]
+每个 UI 任务都不是在“出现截图”时完成。
+所有官方截图必须由锁定源码的真实 `apps/web` composition 与 Playwright 获取；
+原生截图必须来自 macOS 26 编译的应用。每个场景附件必须同时含 Official PNG/DOM-ARIA-geometry JSON、Native PNG、diff/三栏对照、机器报告和人工分类记录。[4]
 
 | 场景状态 | 执行政策 | 可否勾选 UI TODO |
 |---|---|---|
@@ -147,11 +236,14 @@
 | 审核候选 | 将残余仅限于已记录掩膜中的系统材质或低振幅字体抗锯齿。 | 仅可进入 `enforce` 评审。 |
 | 严格验收 | `enforce` 下 `materiallyChangedRatio ≤ 0.008`、平均通道差 `≤ 1.15`、精确变化比例 `≤ 0.20`，且人工审阅已逐项分类。 | 是，前提是非视觉测试也全通过。 |
 
-当前 `welcome-no-workspace-light` 不满足这些默认严格上限，且已记录 hero 垂直偏移、composer 描边/几何及禁用提交 token 等内容层差异。因此，阶段 2 和阶段 3 应持续以此场景作为首个严格收敛目标；无头 runner 中 system sidebar/inspector 材质无法可靠合成的例外不得扩大到 composer、文本、布局、焦点或交互差异。[3] [4]
+当前 `welcome-no-workspace-light` 不满足这些默认严格上限，且已记录 hero 垂直偏移、composer 描边/几何及禁用提交 token 等内容层差异。
+因此，阶段 2 和阶段 3 应持续以此场景作为首个严格收敛目标；无头 runner 中 system sidebar/inspector 材质无法可靠合成的例外不得扩大到 composer、文本、布局、焦点或交互差异。[3] [4]
 
 ## 十二、每次提交、PR 与跨会话交接规则
 
-每个 PR 必须只覆盖一个紧密的 TODO 闭环或一组不可分割的合同/fixture/实现变更。PR 描述中应写明 Task ID、影响的 Host build/spec revision、官方路径、测试命令、macOS CI run、视觉场景状态、风险与回滚方案。提交后立即把事实写回 `TODO.md` 的“当前进度”章节；不能以口头总结、未提交笔记或已过期的父提交 CI 替代交接材料。[3]
+每个 PR 必须只覆盖一个紧密的 TODO 闭环或一组不可分割的合同/fixture/实现变更。
+PR 描述中应写明 Task ID、影响的 Host build/spec revision、官方路径、测试命令、macOS CI run、视觉场景状态、风险与回滚方案。
+提交后立即把事实写回 `TODO.md` 的“当前进度”章节；不能以口头总结、未提交笔记或已过期的父提交 CI 替代交接材料。[3]
 
 | PR 类型 | 强制附件/检查 |
 |---|---|
@@ -165,9 +257,14 @@
 
 ## 十三、停止条件与最终完成判定
 
-持续执行在且仅在以下条件同时满足时结束：45 项未完成 TODO 全部被其自身的完成定义支持并正式勾选；所有 D0–D5 成立；全部 required visual scene 已 `enforce` 并通过阈值及人工审阅；macOS 26 上的单元、契约、Host、UI、无障碍、性能与安全门禁全部成功；固定 Host 构建可追溯、签名公证已完成且 Release 审计无未关闭 blocker。[3] [4]
+持续执行在且仅在以下条件同时满足时结束：45 项未完成 TODO 全部被其自身的完成定义支持并正式勾选；
+所有 D0–D5 成立；
+全部 required visual scene 已 `enforce` 并通过阈值及人工审阅；
+macOS 26 上的单元、契约、Host、UI、无障碍、性能与安全门禁全部成功；固定 Host 构建可追溯、签名公证已完成且 Release 审计无未关闭 blocker。[3] [4]
 
-若官方 Host、协议或 WebUI 在工作期间发生升级，不直接跟随 `master`。先中止新功能交付，按 T13.3 的升级序列重新锁定官方 commit，生成和审阅 OfficialUISpec，更新 DTO/fixture，运行契约、reducer、golden、无障碍和性能门禁，并在支持矩阵提交后才恢复主线实施。这避免开发者预览版的破坏性变化被无声带入原生客户端。[2] [3]
+若官方 Host、协议或 WebUI 在工作期间发生升级，不直接跟随 `master`。
+先中止新功能交付，按 T13.
+3 的升级序列重新锁定官方 commit，生成和审阅 OfficialUISpec，更新 DTO/fixture，运行契约、reducer、golden、无障碍和性能门禁，并在支持矩阵提交后才恢复主线实施。这避免开发者预览版的破坏性变化被无声带入原生客户端。[2] [3]
 
 ## References
 
@@ -175,5 +272,7 @@
 [2]: https://github.com/deepseek-ai/deepseek-harness/tree/528c682e061696f5a160f363f236ecbf53cbd006 "DeepSeek Harness 官方锁定源码"
 [3]: https://github.com/NewbieXvwu/deepseek-harness-glass/blob/main/TODO.md "项目 TODO、依赖与验收定义"
 [4]: https://github.com/NewbieXvwu/deepseek-harness-glass/blob/main/docs/VISUAL_REPLICATION_TEST_PLAN.md "官方 WebUI 严格复刻视觉测试计划"
-[5]: https://github.com/deepseek-ai/deepseek-harness/tree/528c682e061696f5a160f363f236ecbf53cbd006/packages/client/ui-conversation "官方 conversation UI 源码入口"
-[6]: https://github.com/deepseek-ai/deepseek-harness/tree/528c682e061696f5a160f363f236ecbf53cbd006/packages/client/ui-settings-plugins "官方插件设置机制"
+[5]: https://github.
+com/deepseek-ai/deepseek-harness/tree/528c682e061696f5a160f363f236ecbf53cbd006/packages/client/ui-conversation "官方 conversation UI 源码入口"
+[6]: https://github.
+com/deepseek-ai/deepseek-harness/tree/528c682e061696f5a160f363f236ecbf53cbd006/packages/client/ui-settings-plugins "官方插件设置机制"

@@ -28,6 +28,7 @@
 
 ## 工件归档和结论
 
-取得完成 run 后，将以下内容复制至该目录并将本模板替换为实际审阅记录：原生 PNG、原生 ARIA JSON、official/native diff PNG、comparison report JSON，以及每项差异的分类。分类只能是 **native defect**、**已记录系统材质/字体栅格化例外** 或 **无实质差异**；任何未分类差异均阻止勾选 T6.6。
+取得完成 run 后，将以下内容复制至该目录并将本模板替换为实际审阅记录：原生 PNG、原生 ARIA JSON、official/native diff PNG、comparison report JSON，以及每项差异的分类。
+分类只能是 **native defect**、**已记录系统材质/字体栅格化例外** 或 **无实质差异**；任何未分类差异均阻止勾选 T6.6。
 
 若当前 run 失败，记录失败测试或编译信息、最小修复和新的 SHA；不得将失败工件作为 paired visual evidence。

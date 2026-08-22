@@ -10,6 +10,21 @@
 | Screenshot inputs | `artifacts/official-webui/welcome-no-workspace-light.png`; `artifacts/native-shell/welcome-light.png` |
 | Diff output | `artifacts/visual-diff/welcome-no-workspace-light-comparison.png` and JSON report uploaded by the run |
 
-The native welcome scene remains structurally aligned with the locked official baseline: the sidebar navigation column, no-sessions workspace state, centered **Into the Unknown** empty-workspace prompt, workspace/mode controls, and wide disabled composer all retain their established geometry and hierarchy. The comparison composite shows the known platform-rendering differences reported under the project visual policy, but no new T6.3-visible layout or styling regression.
+The native welcome scene remains structurally aligned with the locked official baseline: the sidebar navigation column,
+no-sessions workspace state, centered **Into the Unknown** empty-workspace prompt, workspace/mode controls,
+and wide disabled composer all retain their established geometry and hierarchy.
 
-The implementation change is Core-only: `SessionProjectionStore` accepts only higher-sequence Host values, is seeded from history-tail projections, drops stale missing keys at the baseline cutoff, truncates nondurable rows after reconnect, and is isolated by session ID. macOS CI executed `SessionProjectionStoreTests` in addition to the complete native build, snapshot, and official screenshot-comparison chain.
+
+The comparison composite shows the known platform-rendering differences reported under the project visual policy, but no new T6.
+3-visible layout or styling regression.
+
+The implementation change is Core-only: `SessionProjectionStore` accepts only higher-sequence Host values,
+is seeded from history-tail projections, drops stale missing keys at the baseline cutoff, truncates nondurable rows after reconnect,
+and is isolated by session ID.
+
+
+macOS CI executed `SessionProjectionStoreTests` in addition to the complete native build, snapshot,
+and official screenshot-comparison chain.
+
+
+

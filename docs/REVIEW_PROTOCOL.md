@@ -25,7 +25,9 @@
 
 ## 偏差处置
 
-偏差只能分类为 `source-missing`、`text`、`asset`、`geometry`、`state`、`system-glass` 或 `font-rendering`。前五类须修复；后两类只有在来源、几何、平台设置与辅助功能证据完整时才能被批准。禁止通过新增产品文案、系统图标或未经来源支持的装饰来掩盖偏差。
+偏差只能分类为 `source-missing`、`text`、`asset`、`geometry`、`state`、`system-glass` 或 `font-rendering`。
+前五类须修复；后两类只有在来源、几何、平台设置与辅助功能证据完整时才能被批准。禁止通过新增产品文案、系统图标或未经来源支持的装饰来掩盖偏差。
+
 
 ## 测试工程第一性原理与反形式主义铁律 (Anti-Theater Quality Principles)
 

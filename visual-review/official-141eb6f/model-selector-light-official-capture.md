@@ -16,9 +16,18 @@
 
 > 该文件是**官方侧的可复现基线**，不是原生实现已通过视觉验收的声明。T6.6 只能在同一场景的 macOS 原生截图、差异图、报告及人工审阅均存在后勾选。
 
-官方闭合状态展示为全宽空会话 composer：左侧为 workspace 与 mode control，随后为输入文本区；底部控制行按 Commands、Access mode、Model、disabled Send 顺序排列。模型触发器在输入栏右侧，显示 **DeepSeek-V4-Flash** 与下拉箭头。ARIA snapshot 同时固定其精确无障碍名称、邻近 `Access mode, current: Workspace Write` 控件和 disabled `Send message`，因此 native 配对审查必须检查**真实默认模型文案、闭合 trigger 的空间位置与读取顺序**，而非只比对像素。
+官方闭合状态展示为全宽空会话 composer：左侧为 workspace 与 mode control，随后为输入文本区；
+底部控制行按 Commands、Access mode、Model、disabled Send 顺序排列。
+模型触发器在输入栏右侧，显示 **DeepSeek-V4-Flash** 与下拉箭头。
+ARIA snapshot 同时固定其精确无障碍名称、邻近 `Access mode, current: Workspace Write` 控件和 disabled `Send message`，
+因此 native 配对审查必须检查**真实默认模型文案、闭合 trigger 的空间位置与读取顺序**，而非只比对像素。
 
-本地采集使用与 `native-ui.yml` 相同的锁定RC8 build/Playwright流程，并在缺失Playwright Chromium后安装该锁定版本的浏览器二进制后重新运行。首次尝试未启动浏览器便因本机可执行文件缺失退出，未产生或采纳任何基线；重试后采集成功并写入本目录。原始临时输出仍位于未跟踪的 `artifacts/official-webui-local/`，本目录的PNG、JSON与本记录构成应提交的可追溯证据。
+
+
+
+本地采集使用与 `native-ui.
+yml` 相同的锁定RC8 build/Playwright流程，并在缺失Playwright Chromium后安装该锁定版本的浏览器二进制后重新运行。
+首次尝试未启动浏览器便因本机可执行文件缺失退出，未产生或采纳任何基线；重试后采集成功并写入本目录。原始临时输出仍位于未跟踪的 `artifacts/official-webui-local/`，本目录的PNG、JSON与本记录构成应提交的可追溯证据。
 
 ## 待配对的原生证据
 

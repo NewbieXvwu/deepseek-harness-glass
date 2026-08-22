@@ -12,15 +12,28 @@ python3 glass/ci/test-package-target-graph.py
 gh run list --repo NewbieXvwu/deepseek-harness-glass --limit 10
 ```
 
-官方基线固定为 `deepseek-ai/deepseek-harness@b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`（`dsh-v0.1.1-rc.2`）；支持的 Host 记录在 `glass/Sources/Spec/SupportedHostBuilds.json`。一切以锁定源码为准，官方仓库的当前内容和个人记忆都不算数。
+官方基线固定为 `deepseek-ai/deepseek-harness@b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`（`dsh-v0.1.1-rc.2`）；
+支持的 Host 记录在 `glass/Sources/Spec/SupportedHostBuilds.json`。一切以锁定源码为准，官方仓库的当前内容和个人记忆都不算数。
+
+
 
 在 Linux 环境中可以用本地官方 WebUI 做参考验证；macOS 原生 GUI 的权威截图与无障碍证据来自 `macos-26` GitHub Actions。
 
 ## 2. WebKit 边界
 
-核心应用的 sidebar、conversation、details、settings 等原生表面不得在运行态 `NSView` tree 中装载 `WKWebView`，也不得以 Web/DOM/CSS 注入替代核心交互。D0 由 `NativeWebViewIsolationRuntimeTests` 在 macOS XCTest 中实际装载核心 SwiftUI 表面、递归检查其 `NSView` tree，并以注入真实 `WKWebView` 的反例证明探测器可证伪；不得以对项目 Swift 源码的关键词扫描取代该运行态证据。
+核心应用的 sidebar、conversation、details、settings 等原生表面不得在运行态 `NSView` tree 中装载 `WKWebView`，也不得以 Web/DOM/CSS 注入替代核心交互。
+D0 由 `NativeWebViewIsolationRuntimeTests` 在 macOS XCTest 中实际装载核心 SwiftUI 表面、递归检查其 `NSView` tree，并以注入真实 `WKWebView` 的反例证明探测器可证伪；
+不得以对项目 Swift 源码的关键词扫描取代该运行态证据。
 
-第三方插件的 Web 兼容由独立编译的插件平面 target 承载（Ghost Plane 幽灵平面：透明共享 Web 平面 + 骨架 DOM + 事件桥，详见 [docs/PLUGIN_COMPATIBILITY_PROPOSAL.md](docs/PLUGIN_COMPATIBILITY_PROPOSAL.md)）。WebView 边界为三层白名单：红区（官方内容渲染——会话正文、侧栏列表、设置表单、工作区树）禁 Web；绿区（登记制的插件平面 target）允许 WKWebView 且固定锚点平面必须单一共享；绿区内一切交互必须经原生桥保证键盘可达性、VoiceOver 与 TCC 权限语义。红区断言沿用 loopback same-origin 与既有运行态隔离测试。
+
+
+第三方插件的 Web 兼容由独立编译的插件平面 target 承载（Ghost Plane 幽灵平面：透明共享 Web 平面 + 骨架 DOM + 事件桥，详见 [docs/PLUGIN_COMPATIBILITY_PROPOSAL.
+md](docs/PLUGIN_COMPATIBILITY_PROPOSAL.md)）。
+
+WebView 边界为三层白名单：红区（官方内容渲染——会话正文、侧栏列表、设置表单、工作区树）禁 Web；绿区（登记制的插件平面 target）允许 WKWebView 且固定锚点平面必须单一共享；
+绿区内一切交互必须经原生桥保证键盘可达性、VoiceOver 与 TCC 权限语义。红区断言沿用 loopback same-origin 与既有运行态隔离测试。
+
+
 
 ## 3. 官方来源到实现的闭环
 
@@ -76,7 +89,10 @@ TODO 条目是原子完成单元：
 
 ## 7. Host 升级与发布
 
-Host payload 升级顺序：锁定新官方 commit → 生成和审阅 `OfficialUISpec` → 更新 DTO → 契约回归 → reducer 回归 → 官方/原生 golden → 无障碍与性能 → 更新 `SupportedHostBuilds.json` → 当前 SHA CI 成功。
+Host payload 升级顺序：锁定新官方 commit → 生成和审阅 `OfficialUISpec` → 更新 DTO → 契约回归 → reducer 回归 → 官方/原生 golden → 无障碍与性能 → 更新 `SupportedHostBuilds.
+json` → 当前 SHA CI 成功。
+
+
 
 正式发布还需要 clean environment 构建、Build Manifest、Developer ID 签名、Hardened Runtime、公证和 stapling。
 

@@ -1,6 +1,8 @@
 # RC8 Deliverables light：官方侧捕获记录
 
-> **状态：official-only evidence。** 本记录固定 `deepseek-ai/deepseek-harness@141eb6fef83422698aef7a981029e843e8161534` 的真实WebUI表面；它不构成原生视觉验收，也不允许勾选T6.6。
+> **状态：official-only evidence。** 本记录固定 `deepseek-ai/deepseek-harness@141eb6fef83422698aef7a981029e843e8161534` 的真实WebUI表面；它不构成原生视觉验收，也不允许勾选T6.
+> 6。
+> 
 
 | 项目 | 锁定值 |
 |---|---|
@@ -14,7 +16,8 @@
 | PNG SHA-256 | `67f24de6aa6b1143068b133cd344bd82df8d16f50333db6a6c2b18914777f3be` |
 | ARIA JSON SHA-256 | `6c293f5b8791a440c7f700d81f705169b24b9dac8e34d485c58ff0e7df5ba533` |
 
-官方侧运行了锁定上游 [`produced-files.e2e.ts`][1] 的同一十写入事件语义；项目capture harness仅负责将这一已结算真实session扩展为可归档的PNG与body ARIA元数据。`vitest`场景通过，且metadata中`consoleWarnings`和`pageErrors`均为空。
+官方侧运行了锁定上游 [`produced-files.
+e2e.ts`][1] 的同一十写入事件语义；项目capture harness仅负责将这一已结算真实session扩展为可归档的PNG与body ARIA元数据。`vitest`场景通过，且metadata中`consoleWarnings`和`pageErrors`均为空。
 
 | 人工视觉复核 | 观察结论 |
 |---|---|
@@ -24,7 +27,8 @@
 | Folder action | `Show in folder`在同一grid第二行、chip lane起始列，ARIA为同名button；它依赖记录的loopback `canOpenPath=true`状态。 |
 | 可访问性 | ARIA记录有`Open 关于我.md`、`Open index.html`、`Show in folder`；完整路径作为open label参数而不是只暴露basename。 |
 
-下一步必须从当前SHA的macOS-26工件下载同视口原生`deliverables-light.png`、comparison PNG及report JSON，再按`visual-validation-policy.json`将差异逐项分类。此场景当前仍为`report-only`。
+下一步必须从当前SHA的macOS-26工件下载同视口原生`deliverables-light.
+png`、comparison PNG及report JSON，再按`visual-validation-policy.json`将差异逐项分类。此场景当前仍为`report-only`。
 
 ## 复现命令
 
@@ -38,6 +42,12 @@ DSH_REFERENCE_SCREENSHOT_DIR=/tmp/official-deliverables-capture \
 
 ## References
 
-[1]: https://github.com/deepseek-ai/deepseek-harness/blob/141eb6fef83422698aef7a981029e843e8161534/apps/web/tests/produced-files.e2e.ts "RC8 produced-files end-to-end scenario"
-[2]: https://github.com/deepseek-ai/deepseek-harness/blob/141eb6fef83422698aef7a981029e843e8161534/packages/client/ui-deliverables/src/client/ProducedFiles.tsx "RC8 ProducedFiles renderer"
-[3]: https://github.com/deepseek-ai/deepseek-harness/blob/141eb6fef83422698aef7a981029e843e8161534/packages/client/ui-deliverables/src/client/ProducedFiles.module.css "RC8 ProducedFiles layout"
+[1]: https://github.
+com/deepseek-ai/deepseek-harness/blob/141eb6fef83422698aef7a981029e843e8161534/apps/web/tests/produced-files.
+e2e.ts "RC8 produced-files end-to-end scenario"
+[2]: https://github.
+com/deepseek-ai/deepseek-harness/blob/141eb6fef83422698aef7a981029e843e8161534/packages/client/ui-deliverables/src/client/ProducedFiles.
+tsx "RC8 ProducedFiles renderer"
+[3]: https://github.
+com/deepseek-ai/deepseek-harness/blob/141eb6fef83422698aef7a981029e843e8161534/packages/client/ui-deliverables/src/client/ProducedFiles.
+module.css "RC8 ProducedFiles layout"
