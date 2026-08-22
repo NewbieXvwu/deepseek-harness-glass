@@ -27,8 +27,14 @@
 
 > 允许惯性时短暂一帧拖影属于提案允许的视觉瑕疵；**功能错位不属于**。在真实 `NSScrollView` → host 调用接入、120Hz 抓帧、锚点与插件跨服务运行证据完成前，GP-3 不得勾选。
 
+## Swift 6 严格并发析构依据（2026-08-22）
+
+macOS-26 `native-ui` run `32545688375` 显示普通 `deinit` 在 `@MainActor` class 中仍是 nonisolated，不能读取 `NSObjectProtocol` 或 `Timer` 等 non-Sendable stored state。依据 Swift Evolution **SE-0371 — Isolated synchronous deinit**，全局 actor 隔离类可使用 `isolated deinit`，让析构 body、isolated stored properties 的销毁及对象释放在相应 actor executor 上执行。因此 `GhostPlaneScrollViewBridge` 的 observer 注销和 timer invalidation 使用 `isolated deinit`：它只修复资源释放的隔离边界，不更改 scroll offset、source sequence 或 document epoch 的 authority 语义。
+
 ## References
 
 [1]: https://github.com/deepseek-ai/deepseek-harness/blob/528c682e061696f5a160f363f236ecbf53cbd006/packages/client/ui-conversation/src/client/chat/ChatView.tsx "Official ChatView scroll-position and follow behavior"
 
 [2]: ../docs/PLUGIN_COMPATIBILITY_PROPOSAL.md "Ghost Plane proposal: one document and scrollOffset scalar"
+
+[3]: https://github.com/swiftlang/swift-evolution/blob/main/proposals/0371-isolated-synchronous-deinit.md "SE-0371: Isolated synchronous deinit"
