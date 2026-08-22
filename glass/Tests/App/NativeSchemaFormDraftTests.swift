@@ -1,4 +1,6 @@
 @testable import GlassCore
+import XCTest
+
 @testable import GlassUI
 
 final class NativeSchemaFormDraftTests: XCTestCase {

@@ -47,17 +47,21 @@ final class NativeComposerDockPresentationTests: XCTestCase {
     }
 
     private func goal() -> CoreGoalProjection {
-        .init(
-            id: "goal-1",
-            revision: 1,
-            objective: "Host goal",
-            phase: .active,
-            blockedReason: nil,
-            maxGoalRounds: 3,
-            roundsStarted: 0,
-            createdAt: 1,
-            updatedAt: 1
-        )
+        guard let goal = CoreGoalProjection(projection: .object([
+            "goal": .object([
+                "id": .string("goal-1"),
+                "revision": .number(1),
+                "objective": .string("Host goal"),
+                "phase": .string("active"),
+                "maxGoalRounds": .number(3),
+            ]),
+            "roundsStarted": .number(0),
+            "createdAt": .number(1),
+            "updatedAt": .number(1),
+        ])) else {
+            fatalError("goal fixture must satisfy the Host projection contract")
+        }
+        return goal
     }
 
     private func queuedMessage() -> NativeSessionStore.QueuedMessage {
