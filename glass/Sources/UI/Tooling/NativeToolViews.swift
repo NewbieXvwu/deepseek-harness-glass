@@ -196,7 +196,7 @@ struct NativeToolRow: View {
 
     private var stateDescription: String {
         if terminal?.failed == true { return OfficialUISpec.Text.toolFailed }
-        switch state {
+        return switch state {
         case .running: OfficialUISpec.Text.toolRunning
         case .completed: ""
         case .failed: OfficialUISpec.Text.toolFailed
