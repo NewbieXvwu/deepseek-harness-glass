@@ -244,6 +244,24 @@ struct NativeToolRowPresentationPortableCheck {
               searchWindow.hiddenCount == 2 else {
             throw CheckFailure("search tail must restore its owning file header without exceeding cap")
         }
+
+        let webSearch = NativeToolWebView(kind: .search(
+            answer: "A sourced answer",
+            sources: [.init(url: "https://example.com/article", title: "Example", snippet: "excerpt", publishedAt: "2026-08-22")],
+            truncated: true
+        ))
+        guard NativeWebCardPresentation.resolve(result: webSearch, completed: true) != nil,
+              NativeWebCardPresentation.resolve(result: webSearch, completed: false) == nil else {
+            throw CheckFailure("web cards must be result-side only")
+        }
+        let safeWeb = NativeSafeWebLink.resolve(url: "https://example.com/article", title: nil)
+        guard safeWeb.label == "example.com", safeWeb.destination?.absoluteString == "https://example.com/article" else {
+            throw CheckFailure("http(s) web source must retain its safe external destination and hostname label")
+        }
+        let unsafeWeb = NativeSafeWebLink.resolve(url: "javascript:alert(1)", title: nil)
+        guard unsafeWeb.destination == nil, unsafeWeb.label == "javascript:alert(1)" else {
+            throw CheckFailure("non-http web source must remain an inert raw-text label")
+        }
         print("native tool row presentation portable check passed")
     }
 

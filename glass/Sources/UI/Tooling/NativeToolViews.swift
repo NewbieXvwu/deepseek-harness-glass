@@ -79,6 +79,8 @@ struct NativeToolRow: View {
                     NativeReadToolCardBody(presentation: read, maxLines: 8)
                 } else if let search {
                     NativeSearchToolCardBody(presentation: search, maxLines: 8)
+                } else if let web {
+                    NativeWebToolCardBody(presentation: web)
                 } else {
                     let body = NativeToolRowPresentation.body(toolName: invocation.name, arguments: invocation.arguments)
                     VStack(alignment: .leading, spacing: 8) {
@@ -172,6 +174,13 @@ struct NativeToolRow: View {
             result: invocation.resultView?.nativeSearchView,
             completed: state != .running,
             textRecovery: invocation.textOutput
+        )
+    }
+
+    private var web: NativeWebCardPresentation? {
+        NativeWebCardPresentation.resolve(
+            result: invocation.resultView?.nativeWebView,
+            completed: state != .running
         )
     }
 
@@ -775,6 +784,121 @@ private struct NativeSearchToolCardBody: View {
     }
 }
 
+/// Native WebBlock counterpart. Links are constructed only from the Foundation
+/// `NativeSafeWebLink` decision and answers reuse the existing native Markdown
+/// security boundary; this card never hosts HTML or WebView content.
+private struct NativeWebToolCardBody: View {
+    let presentation: NativeWebCardPresentation
+
+    var body: some View {
+        Group {
+            switch presentation.kind {
+            case let .search(answer, sources, truncated):
+                searchBody(answer: answer, sources: sources, truncated: truncated)
+            case let .fetch(url, statusCode, truncated):
+                fetchBody(url: url, statusCode: statusCode, truncated: truncated)
+            }
+        }
+        .padding(.vertical, OfficialUISpec.Spacing.p12)
+        .padding(.horizontal, OfficialUISpec.Spacing.p14)
+        .background(OfficialUISpec.Token.markdownCodeBlock, in: RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r12, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r12, style: .continuous))
+    }
+
+    @ViewBuilder
+    private func searchBody(answer: String?, sources: [NativeToolWebSource], truncated: Bool) -> some View {
+        let empty = (answer == nil || answer?.isEmpty == true) && sources.isEmpty
+        VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p8) {
+            if let answer, !answer.isEmpty {
+                NativeMarkdownText(markdown: answer, streaming: false)
+            }
+            if empty {
+                Text(OfficialUISpec.Text.webEmpty)
+                    .font(OfficialUISpec.Typography.xs13)
+                    .foregroundStyle(OfficialUISpec.Token.secondary)
+            } else if !sources.isEmpty {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p10) {
+                        ForEach(Array(sources.enumerated()), id: \.offset) { index, source in
+                            sourceRow(source, ordinal: index + 1)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(maxHeight: OfficialUISpec.Geometry.px320)
+            }
+            if truncated {
+                Text(OfficialUISpec.Text.webSourcesTruncated)
+                    .font(OfficialUISpec.Typography.xs13)
+                    .foregroundStyle(OfficialUISpec.Token.caption)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func sourceRow(_ source: NativeToolWebSource, ordinal: Int) -> some View {
+        let link = NativeSafeWebLink.resolve(url: source.url, title: source.title)
+        HStack(alignment: .top, spacing: OfficialUISpec.Spacing.p8) {
+            Text("\(ordinal).")
+                .font(OfficialUISpec.Typography.s14)
+                .foregroundStyle(OfficialUISpec.Token.primary)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p2) {
+                nativeWebLink(link, font: OfficialUISpec.Typography.s14)
+                if let snippet = source.snippet, !snippet.isEmpty {
+                    Text(snippet)
+                        .font(OfficialUISpec.Typography.xs13)
+                        .foregroundStyle(OfficialUISpec.Token.secondary)
+                        .textSelection(.enabled)
+                }
+                if let publishedAt = source.publishedAt, !publishedAt.isEmpty {
+                    Text(publishedAt)
+                        .font(OfficialUISpec.Typography.xs13)
+                        .foregroundStyle(OfficialUISpec.Token.caption)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private func fetchBody(url: String, statusCode: Double, truncated: Bool) -> some View {
+        let link = NativeSafeWebLink.resolve(url: url, title: url)
+        VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p6) {
+            nativeWebLink(link, font: OfficialUISpec.Typography.codeBlock13)
+            HStack(alignment: .firstTextBaseline, spacing: OfficialUISpec.Spacing.p12) {
+                Text(OfficialUISpec.Text.webHTTPTemplate.replacingOccurrences(of: "{status}", with: number(statusCode)))
+                    .font(OfficialUISpec.Typography.xs13)
+                    .foregroundStyle(OfficialUISpec.Token.secondary)
+                if truncated {
+                    Text(OfficialUISpec.Text.webContentTruncated)
+                        .font(OfficialUISpec.Typography.xs13)
+                        .foregroundStyle(OfficialUISpec.Token.caption)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func nativeWebLink(_ link: NativeSafeWebLink, font: Font) -> some View {
+        if let destination = link.destination {
+            Link(link.label, destination: destination)
+                .font(font)
+                .foregroundStyle(OfficialUISpec.Token.businessBlue)
+                .textSelection(.enabled)
+        } else {
+            Text(link.label)
+                .font(font)
+                .foregroundStyle(OfficialUISpec.Token.businessBlue)
+                .textSelection(.enabled)
+        }
+    }
+
+    private func number(_ value: Double) -> String {
+        value.rounded(.towardZero) == value ? String(Int(value)) : String(value)
+    }
+}
+
 /// Native generic details fallback. It is intentionally text/JSON only until a
 /// separately approved native adapter can claim a specific Host `view.card`.
 struct NativeToolDetailsBody: View {
@@ -813,6 +937,9 @@ struct NativeToolDetailsBody: View {
                                 .id(invocation.id)
                         } else if let search = searchPresentation(for: invocation) {
                             NativeSearchToolCardBody(presentation: search, maxLines: 16)
+                                .id(invocation.id)
+                        } else if let web = webPresentation(for: invocation) {
+                            NativeWebToolCardBody(presentation: web)
                                 .id(invocation.id)
                         } else if invocation.state == .running {
                             Text(OfficialUISpec.Text.toolDetailsRunning)
@@ -865,6 +992,13 @@ struct NativeToolDetailsBody: View {
             result: invocation.resultView?.nativeSearchView,
             completed: invocation.state != .running,
             textRecovery: invocation.textOutput
+        )
+    }
+
+    private func webPresentation(for invocation: NativeSessionStore.ToolInvocation) -> NativeWebCardPresentation? {
+        NativeWebCardPresentation.resolve(
+            result: invocation.resultView?.nativeWebView,
+            completed: invocation.state != .running
         )
     }
 

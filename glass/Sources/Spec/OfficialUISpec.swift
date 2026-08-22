@@ -470,6 +470,11 @@ enum OfficialUISpec {
         static let searchEmpty = "无结果"
         static let searchExpandAccessibilityTemplate = "展开其余 {n} 行结果"
         static let searchCollapseAccessibility = "收起结果"
+        // Source: rc.2 ui-primitives/WebBlock.tsx literal chrome.
+        static let webEmpty = "未找到结果"
+        static let webSourcesTruncated = "来源列表已截断"
+        static let webContentTruncated = "内容已截断"
+        static let webHTTPTemplate = "HTTP {status}"
         static let toolSummarySeparator = "·"
         static let approvalWaiting = "Waiting for approval"
         static let approvalDetailsAccessibility = "Approval details"

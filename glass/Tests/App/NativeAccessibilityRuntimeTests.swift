@@ -321,6 +321,44 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         )
     }
 
+    func testTypedWebDetailsExportsSafeSourceAndTruncation() throws {
+        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.input", language: "en"))
+        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.output", language: "en"))
+        let invocation = NativeSessionStore.ToolInvocation(
+            id: "web-details",
+            name: "web_search",
+            arguments: #"{"query":"DeepSeek"}"#,
+            output: "generic web output must not leak",
+            textOutput: "generic web output must not leak",
+            errorName: nil,
+            errorCode: nil,
+            state: .completed,
+            sequence: 1,
+            callView: nil,
+            resultView: ToolEventViewDTO(for: "result", view: .object([
+                "card": .string("web"), "kind": .string("search"), "truncated": .bool(true),
+                "answer": .string("A sourced answer"),
+                "sources": .array([.object([
+                    "url": .string("https://example.com/article"), "title": .string("Example article"),
+                    "snippet": .string("source excerpt"), "publishedAt": .string("2026-08-22"),
+                ])]),
+            ]))
+        )
+        try assertAccessibleLabels(
+            in: NativeToolDetailsBody(invocation: invocation, selectedCallID: invocation.id),
+            expected: [
+                input,
+                output,
+                "A sourced answer",
+                "Example article",
+                "source excerpt",
+                "2026-08-22",
+                OfficialUISpec.Text.webSourcesTruncated,
+            ],
+            forbidden: ["generic web output must not leak"]
+        )
+    }
+
     func testFileToolPathAccessibilityFollowsVerifiedCapability() throws {
         let invocation = NativeSessionStore.ToolInvocation(
             id: "write-path",

@@ -182,6 +182,7 @@ jobs:
             glass/Sources/Core/Session/NativeToolReadPresentation.swift \
             glass/Sources/Core/Session/NativeToolDiffPresentation.swift \
             glass/Sources/Core/Session/NativeToolSearchPresentation.swift \
+            glass/Sources/Core/Session/NativeToolWebPresentation.swift \
             glass/Sources/UI/Tooling/NativeToolRowPresentation.swift \
             glass/ci/native-tool-row-presentation-portable-check.swift \
             -o /tmp/native-tool-row-presentation-portable-check
