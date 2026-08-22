@@ -423,6 +423,57 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         )
     }
 
+    func testAskQuestionRowExportsOutcomeSummaryAndAbortState() throws {
+        let answered = NativeSessionStore.ToolInvocation(
+            id: "ask-answered",
+            name: "ask_user_question",
+            arguments: #"{"questions":[]}"#,
+            output: #"{"answers":[{"selected":["A"]},{"custom":"why"},{"selected":[]},{"custom":""}]}"#,
+            textOutput: #"{"answers":[{"selected":["A"]},{"custom":"why"},{"selected":[]},{"custom":""}]}"#,
+            errorName: nil,
+            errorCode: nil,
+            state: .completed,
+            sequence: 1,
+            callView: nil,
+            resultView: nil
+        )
+        let aborted = NativeSessionStore.ToolInvocation(
+            id: "ask-aborted",
+            name: "ask_user_question",
+            arguments: #"{"questions":[]}"#,
+            output: nil,
+            textOutput: nil,
+            errorName: "Interrupted",
+            errorCode: "ASK_ABORTED",
+            state: .failed,
+            sequence: 2,
+            callView: nil,
+            resultView: nil
+        )
+        try assertAccessibleLabels(
+            in: NativeToolRow(
+                invocation: answered,
+                selected: false,
+                openKnownProjectPath: { _ in },
+                canOpenProjectPath: false,
+                inspect: {}
+            ),
+            expected: ["Ask question", "2/4 answered"],
+            forbidden: [OfficialUISpec.Text.toolCall]
+        )
+        try assertAccessibilityValue(
+            in: NativeToolRow(
+                invocation: aborted,
+                selected: false,
+                openKnownProjectPath: { _ in },
+                canOpenProjectPath: false,
+                inspect: {}
+            ),
+            label: "Ask question interrupted",
+            expected: OfficialUISpec.Text.toolStopped
+        )
+    }
+
     func testTodoWriteRowExportsOfficialSummaryAndParallelSuffix() throws {
         let invocation = NativeSessionStore.ToolInvocation(
             id: "todo-row",

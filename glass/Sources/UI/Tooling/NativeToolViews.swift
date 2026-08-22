@@ -126,6 +126,7 @@ struct NativeToolRow: View {
     }
 
     private var title: String {
+        if isAskQuestionTool { return conversationLocale("ask.rowTitle") }
         if isTodoTool { return conversationLocale("todo.rowTitle") }
         switch variant {
         case .search: OfficialUISpec.Text.toolSearch
@@ -139,6 +140,7 @@ struct NativeToolRow: View {
     }
 
     private var summary: String {
+        if let askQuestion { return askQuestionSummary(askQuestion) }
         if let todo { return todoSummary(todo) }
         return NativeToolRowModel.summary(
             toolName: invocation.name,
@@ -149,6 +151,37 @@ struct NativeToolRow: View {
     }
 
     private var isTodoTool: Bool { invocation.name == "todo_write" }
+    private var isAskQuestionTool: Bool { invocation.name == "ask_user_question" }
+
+    private var askQuestion: NativeToolAskQuestionPresentation? {
+        NativeToolAskQuestionPresentation.resolve(
+            toolName: invocation.name,
+            isRunning: state == .running,
+            isCompleted: state == .completed,
+            errorCode: invocation.errorCode,
+            textOutput: invocation.textOutput
+        )
+    }
+
+    private func askQuestionSummary(_ presentation: NativeToolAskQuestionPresentation) -> String {
+        switch presentation.summary {
+        case .waiting: return conversationLocale("ask.waiting")
+        case .cancelled: return conversationLocale("ask.cancelled")
+        case .interrupted: return conversationLocale("ask.interrupted")
+        case let .answered(answered, total):
+            return conversationLocale(
+                "ask.answered",
+                replacing: ["answered": String(answered), "total": String(total)]
+            )
+        case .generic:
+            return NativeToolRowModel.summary(
+                toolName: invocation.name,
+                arguments: invocation.arguments,
+                isGeneric: variant == .others,
+                separator: OfficialUISpec.Text.toolSummarySeparator
+            )
+        }
+    }
 
     private var todo: NativeToolTodoSummary? {
         NativeToolTodoPresentation.resolve(toolName: invocation.name, arguments: invocation.arguments)
@@ -223,13 +256,17 @@ struct NativeToolRow: View {
 
     private var state: NativeSessionStore.ToolInvocation.State { invocation.state }
 
+    private var effectiveState: NativeSessionStore.ToolInvocation.State {
+        askQuestion?.forcesStoppedState == true ? .stopped : state
+    }
+
     private var rowFailed: Bool {
-        state == .failed || terminal?.failed == true
+        effectiveState == .failed || terminal?.failed == true
     }
 
     private var stateDescription: String {
         if terminal?.failed == true { return OfficialUISpec.Text.toolFailed }
-        return switch state {
+        return switch effectiveState {
         case .running: OfficialUISpec.Text.toolRunning
         case .completed: ""
         case .failed: OfficialUISpec.Text.toolFailed
@@ -242,7 +279,7 @@ struct NativeToolRow: View {
         if rowFailed {
             Circle().fill(OfficialUISpec.Token.errorPrimary).frame(width: OfficialUISpec.Geometry.px8, height: OfficialUISpec.Geometry.px8)
         } else {
-            switch state {
+            switch effectiveState {
             case .running:
                 ProgressView().controlSize(.mini)
             case .failed:
@@ -260,6 +297,7 @@ struct NativeToolRow: View {
     }
 
     private var iconName: String {
+        if isAskQuestionTool { return "icon-question" }
         if isTodoTool { return "icon-checklist" }
         switch variant {
         case .search: "icon-tool-search"

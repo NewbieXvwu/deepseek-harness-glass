@@ -200,6 +200,12 @@ jobs:
             glass/ci/native-tool-todo-presentation-portable-check.swift \
             -o /tmp/native-tool-todo-presentation-portable-check
           /tmp/native-tool-todo-presentation-portable-check
+          # T9.2 ask_user_question remains a keyed historical tool row; test
+          # verdict precedence and answer summary separate from T9.3 takeover.
+          swiftc glass/Sources/Core/Session/NativeToolAskQuestionPresentation.swift \
+            glass/ci/native-tool-ask-question-presentation-portable-check.swift \
+            -o /tmp/native-tool-ask-question-presentation-portable-check
+          /tmp/native-tool-ask-question-presentation-portable-check
           # T10.1 section ledger is Foundation-only; execute stable order and
           # first-active/unregister/empty fallback outside the macOS UI graph.
           swiftc glass/Sources/Core/Settings/NativeSettingsSectionLedger.swift \
