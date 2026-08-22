@@ -18,7 +18,7 @@ final class OfficialRawEventReplayFixtureCatalogTests: XCTestCase {
         for replay in fixture.cases {
             XCTAssertFalse(replay.events.isEmpty, "\(replay.id) must be replayable offline")
             for event in replay.events {
-                let object = tryUnwrap(event.objectValue)
+                let object = try tryUnwrap(event.objectValue)
                 XCTAssertNotNil(object["seq"]?.numberValue, "\(replay.id) event requires a deterministic sequence")
                 XCTAssertNotNil(object["time"]?.numberValue, "\(replay.id) event requires a deterministic timestamp")
                 XCTAssertFalse(object["type"]?.stringValue?.isEmpty ?? true, "\(replay.id) event requires an official type")
@@ -28,7 +28,7 @@ final class OfficialRawEventReplayFixtureCatalogTests: XCTestCase {
 
     func testLongSessionTemplateExpandsIntoContinuousUniqueReplayEvents() throws {
         let fixture = try OfficialRawEventReplayFixtureCatalog.load()
-        let replay = tryUnwrap(fixture.cases.first(where: { $0.id == "long-session-template" }))
+        let replay = try tryUnwrap(fixture.cases.first(where: { $0.id == "long-session-template" }))
         let events = OfficialRawEventReplayFixtureCatalog.expandedEvents(for: replay)
         let objects = try events.map { try tryUnwrap($0.objectValue) }
         let sequences = try objects.map { try tryUnwrap($0["seq"]?.numberValue) }
