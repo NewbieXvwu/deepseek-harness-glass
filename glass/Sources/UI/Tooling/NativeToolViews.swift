@@ -338,7 +338,7 @@ private struct NativeTerminalToolCardBody: View {
     let maxLines: Int?
 
     @State private var expanded = false
-    @State private var copied = false
+    @State private var copyFeedback: NativeClipboardCopyFeedback.State = .idle
 
     private var outputPresentation: NativeTerminalOutputPresentation? {
         NativeTerminalOutputPresentation.resolve(output: presentation.output)
@@ -355,6 +355,8 @@ private struct NativeTerminalToolCardBody: View {
             expanded: expanded
         )
     }
+
+    private var copied: Bool { copyFeedback == .copied }
 
     var body: some View {
         VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p8) {
@@ -448,12 +450,19 @@ private struct NativeTerminalToolCardBody: View {
     }
 
     private func copyOutput() {
-        guard let rawOutput = outputPresentation?.rawOutput else { return }
+        guard NativeClipboardCopyFeedback.acceptsActivation(state: copyFeedback),
+              let rawOutput = outputPresentation?.rawOutput
+        else { return }
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        guard pasteboard.setString(rawOutput, forType: .string) else { return }
-        copied = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { copied = false }
+        copyFeedback = NativeClipboardCopyFeedback.resolveWrite(
+            state: copyFeedback,
+            accepted: pasteboard.setString(rawOutput, forType: .string)
+        )
+        guard copied else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            copyFeedback = NativeClipboardCopyFeedback.resolveExpiry(state: copyFeedback)
+        }
     }
 
     private var commandLines: [String] {

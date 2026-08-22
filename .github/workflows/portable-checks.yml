@@ -194,6 +194,12 @@ jobs:
             glass/ci/native-terminal-ansi-presentation-portable-check.swift \
             -o /tmp/native-terminal-ansi-presentation-portable-check
           /tmp/native-terminal-ansi-presentation-portable-check
+          # T9.2 terminal copy feedback only enters copied after an accepted
+          # write; refused or repeated activations retain the current state.
+          swiftc glass/Sources/Core/Session/NativeClipboardCopyFeedback.swift \
+            glass/ci/native-clipboard-copy-feedback-portable-check.swift \
+            -o /tmp/native-clipboard-copy-feedback-portable-check
+          /tmp/native-clipboard-copy-feedback-portable-check
           # T9.2 todo_write is a keyed renderer; verify its strict argument
           # admission and plan summary separately from the SwiftUI row chrome.
           swiftc glass/Sources/Core/Session/NativeToolTodoPresentation.swift \
