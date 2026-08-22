@@ -33,7 +33,7 @@ public final class GhostPlaneVisibilityStatusAdapter {
         }
     }
 
-    deinit { observers.forEach { center.removeObserver($0) } }
+    isolated deinit { observers.forEach { center.removeObserver($0) } }
 
     public func refresh() {
         guard let window else { update(false); return }

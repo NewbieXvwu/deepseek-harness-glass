@@ -32,7 +32,7 @@ public final class GhostPlaneScrollViewBridge {
         captureNativeOffset()
     }
 
-    deinit {
+    isolated deinit {
         if let observer { NotificationCenter.default.removeObserver(observer) }
         displayTimer?.invalidate()
     }
