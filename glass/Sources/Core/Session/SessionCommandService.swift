@@ -54,7 +54,7 @@ struct SessionCommandService: Sendable {
         _ = try await controller.updateQueue(sessionID: sessionID, itemID: itemID, action: action)
     }
 
-    func selectModel(sessionID: String, selection: RemoteModelSelection) async throws {
-        _ = try await controller.selectModel(sessionID: sessionID, selection: selection)
+    func selectModel(sessionID: String, selection: RemoteModelSelection) async throws -> RemoteModelSelection {
+        try await controller.selectModel(sessionID: sessionID, selection: selection).selected
     }
 }
