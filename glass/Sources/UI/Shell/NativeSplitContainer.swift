@@ -111,6 +111,7 @@ final class NativeShellPresentation: ObservableObject {
     private var controllers: HarnessControllers?
     private var workspaceRuntime: WorkspaceRuntime?
     private var eventRuntime: RemoteEventRuntime?
+    private var sessionControlRuntime: SessionControlRuntime?
     private var remoteGeneration: RemoteConnectionGeneration?
     private var selectedToolObservation: AnyCancellable?
     private var observedEndpoint: URL?
@@ -212,18 +213,26 @@ final class NativeShellPresentation: ObservableObject {
         // new authoritative Remote generation.
         let previousWorkspaceRuntime = workspaceRuntime
         let previousEventRuntime = eventRuntime
+        let previousControlRuntime = sessionControlRuntime
         Task {
             await previousWorkspaceRuntime?.stop()
             await previousEventRuntime?.close()
+            await previousControlRuntime?.invalidate()
         }
 
         let controllers = HarnessControllers(remote: connection.context.remote)
         let workspaceRuntime = WorkspaceRuntime(controller: controllers.workspaces)
         let eventRuntime = RemoteEventRuntime(channel: connection.context.events, sessions: controllers.sessions)
+        let sessionControlRuntime = SessionControlRuntime(
+            controller: controllers.sessions,
+            generation: connection.context.events.generation
+        )
         self.controllers = controllers
         self.workspaceRuntime = workspaceRuntime
         self.eventRuntime = eventRuntime
+        self.sessionControlRuntime = sessionControlRuntime
         remoteGeneration = connection.context.events.generation
+        sessionStore.bindControlRuntime(sessionControlRuntime)
 
         // Domains not migrated to Remote yet keep using the old typed facades,
         // but they share the authenticated ephemeral cookie session. Build
@@ -319,14 +328,17 @@ final class NativeShellPresentation: ObservableObject {
         blankConnectionCoordinator.cancelAll()
         let previousWorkspaceRuntime = workspaceRuntime
         let previousEventRuntime = eventRuntime
+        let previousControlRuntime = sessionControlRuntime
         Task {
             await previousWorkspaceRuntime?.stop()
             await previousEventRuntime?.close()
+            await previousControlRuntime?.invalidate()
         }
         apis = nil
         controllers = nil
         workspaceRuntime = nil
         eventRuntime = nil
+        sessionControlRuntime = nil
         remoteGeneration = nil
         observedEndpoint = nil
         hostDescription = nil

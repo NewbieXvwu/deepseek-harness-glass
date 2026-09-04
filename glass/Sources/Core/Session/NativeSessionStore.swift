@@ -363,9 +363,9 @@ final class NativeSessionStore: ObservableObject {
         let id: String
         let messageID: String
         let placement: Placement
-        let role: String
+        let role: String?
         let content: [JSONValue]
-        let source: JSONValue
+        let source: JSONValue?
         let preview: String
         let text: String?
     }
@@ -512,6 +512,9 @@ final class NativeSessionStore: ObservableObject {
 
     private var historyTask: Task<Void, Never>?
     private var sessionRuntime: SessionRuntime?
+    private var sessionControlRuntime: SessionControlRuntime?
+    private var controlTask: Task<Void, Never>?
+    private var controlBindingGeneration: UInt = 0
     private var promptTask: Task<Void, Never>?
     private var cancelTask: Task<Void, Never>?
     private var olderHistoryTask: Task<Void, Never>?
@@ -599,6 +602,42 @@ final class NativeSessionStore: ObservableObject {
             .locationData(scope: .turn, turn: assistant.turn)
             .value(for: "deliverables", as: CoreDeliverablesTurnData.self)?
             .paths(forClosingSequence: assistant.seq) ?? []
+    }
+
+    func bindControlRuntime(_ runtime: SessionControlRuntime?) {
+        controlTask?.cancel()
+        controlTask = nil
+        sessionControlRuntime = runtime
+        controlBindingGeneration &+= 1
+        let generation = controlBindingGeneration
+        guard let runtime else {
+            queuedMessages = []
+            backgroundJobs = []
+            return
+        }
+        controlTask = Task { [weak self] in
+            do {
+                let opening = try await runtime.open()
+                guard !Task.isCancelled, self?.controlBindingGeneration == generation else { return }
+                self?.installRemoteControl(opening)
+                let snapshots = await runtime.snapshots()
+                for await snapshot in snapshots {
+                    guard !Task.isCancelled, self?.controlBindingGeneration == generation else { return }
+                    guard let snapshot else {
+                        self?.queuedMessages = []
+                        self?.backgroundJobs = []
+                        continue
+                    }
+                    self?.installRemoteControl(snapshot)
+                }
+            } catch is CancellationError {
+                return
+            } catch {
+                guard !Task.isCancelled, self?.controlBindingGeneration == generation else { return }
+                self?.queuedMessages = []
+                self?.backgroundJobs = []
+            }
+        }
     }
 
     /// Core-internal test seam for queue mutation fencing. Production receives
@@ -1172,6 +1211,17 @@ final class NativeSessionStore: ObservableObject {
         self.activeSessionCWD = sessionCWD
         self.endpoint = endpoint
         activeSessionID = sessionID
+        if let sessionControlRuntime {
+            let controlGeneration = controlBindingGeneration
+            Task { [weak self] in
+                guard let snapshot = await sessionControlRuntime.currentSnapshot(),
+                      !Task.isCancelled,
+                      self?.controlBindingGeneration == controlGeneration,
+                      self?.activeSessionID == sessionID
+                else { return }
+                self?.installRemoteControl(snapshot)
+            }
+        }
         if subagentRoute?.childSessionID != sessionID { subagentRoute = nil }
         refreshMessageFeedback()
         let restoredResident = restoreResidentState(for: sessionID)
@@ -1384,6 +1434,7 @@ final class NativeSessionStore: ObservableObject {
     }
 
     func disconnect() {
+        bindControlRuntime(nil)
         historyTask?.cancel()
         historyTask = nil
         let previousSessionRuntime = sessionRuntime
@@ -2217,6 +2268,59 @@ final class NativeSessionStore: ObservableObject {
                 // user-facing transport error policy; stale recovery errors do
                 // not replace a selected resident transcript.
             }
+        }
+    }
+
+    private func installRemoteControl(_ snapshot: SessionControlSnapshot) {
+        guard let sessionID = activeSessionID else {
+            queuedMessages = []
+            backgroundJobs = []
+            return
+        }
+        queuedMessages = (snapshot.queues[sessionID] ?? []).map { item in
+            let content = item.message.content.map(\.conversationJSONValue)
+            let texts = content.map { contentText($0) }
+            let allText = texts.allSatisfy(\.isText)
+            let flat = texts.map(\.value).joined(separator: " ")
+                .split(whereSeparator: { $0.isWhitespace })
+                .joined(separator: " ")
+            let preview = String(flat.prefix(200)) + (flat.count > 200 ? "…" : "")
+            let placement: QueuedMessage.Placement = switch item.placement {
+            case .queued: .queued
+            case .steering: .steering
+            case .context: .context
+            }
+            return QueuedMessage(
+                id: item.id,
+                messageID: item.message.id,
+                placement: placement,
+                role: nil,
+                content: content,
+                source: nil,
+                preview: preview,
+                text: allText ? content.compactMap { $0.objectValue?["text"]?.stringValue }.joined() : nil
+            )
+        }
+        backgroundJobs = (snapshot.jobs[sessionID] ?? []).map { job in
+            let status: BackgroundJob.Status = switch job.status {
+            case .running: .running
+            case .stopping: .stopping
+            case .completed: .completed
+            case .killed: .killed
+            case .failed: .failed
+            }
+            return BackgroundJob(
+                id: job.id,
+                kind: job.kind,
+                label: job.label,
+                status: status,
+                detail: job.detail,
+                startedAt: Int(job.startedAt),
+                finishedAt: job.finishedAt.map(Int.init)
+            )
+        }
+        if let baseline = snapshot.projections[sessionID] {
+            projections.seed(sessionID: sessionID, remoteBaseline: baseline)
         }
     }
 
