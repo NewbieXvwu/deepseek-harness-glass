@@ -883,7 +883,7 @@ HarnessHostProcess
   - 依赖：CUT0.2。
   - 验收：任何“为了未知版本再试一次旧 API”的代码设计都被拒绝；正常的 transport reconnect 不属于协议 fallback。
 
-- [ ] **CUT0.4：建立 rc.1 source-of-truth 清单。** 对 `packages/client/connection`、`packages/api/gateway`、`packages/api/session-controller`、`packages/api/workspace-controller`、Settings/Credentials/LLM controllers、Tool presentation、Conversation/UI Chat、Plugin graph/bundle、locale/theme/layout 建立精确路径、commit、输入 SHA 和职责说明。
+- [ ] **CUT0.4：建立 rc.1 source-of-truth 清单。** 对 `packages/client/connection`、`packages/api/gateway`、`packages/api/session-controller`、`packages/api/workspace-controller`、Settings/Credentials/LLM controllers、Tool presentation、Conversation/UI Chat、Plugin graph/bundle、locale/theme/layout 建立精确路径、基线 commit 和职责说明。
   - 依赖：CUT0.1。
   - 验收：每一个后续 DTO、状态机、UI task 都能回链到该清单，禁止以 rc.2 注释或历史 notes 作为新实现依据。
 
@@ -897,13 +897,13 @@ HarnessHostProcess
 
 ### 16.2 CUT1：重建 Official Spec 与 rc.1 fixtures
 
-- [ ] **CUT1.1：重生成 `OfficialUISpec.Build`。** 以 rc.1 commit 为唯一 source commit，重新计算 locale/token/layout/fixture revisions、generator input hashes、build ID 和 generated metadata。
+- [ ] **CUT1.1：重生成 `OfficialUISpec.Build`。** 以 rc.1 commit 为唯一 source commit，重新计算 locale/token/layout/fixture revisions、build ID 和 generated metadata。
   - 依赖：CUT0.4。
   - 验收：current spec 不再引用 rc.2 source commit 或历史 revision。
 
 - [ ] **CUT1.2：重生成 locale、theme、layout 和官方资产。** 从 rc.1 TypeScript/TSX/CSS AST fresh-extract 所有可见文本、主题 token、布局常量、SVG/图标；不得因输出“看起来相同”而跳过生成。
   - 依赖：CUT1.1。
-  - 验收：新增/删除 key、token、asset 均有 drift 记录并绑定 source hash。
+  - 验收：新增/删除 key、token、asset 均能由 fresh generation 的 drift 直接定位到来源路径。
 
 - [ ] **CUT1.3：重做 Remote contract manifest。** 放弃旧 APIProxy/RPC envelope manifest，按 rc.1 Gateway/Remote namespace 建模 unary procedure、stream procedure、输入、输出、closed error union 与非 JSON route。
   - 依赖：CUT0.4。

@@ -99,6 +99,10 @@ final class NativeWorkspaceStore: ObservableObject {
     private var searchTask: Task<Void, Never>?
     private var eventTask: Task<Void, Never>?
     private var eventRefreshTask: Task<Void, Never>?
+    private var remoteWorkspaceTask: Task<Void, Never>?
+    private var remoteCatalogTask: Task<Void, Never>?
+    private var remoteWorkspaceState: WorkspaceRuntimeState?
+    private var remoteCatalogState: RemoteSessionCatalogSnapshot?
 
     /// Source: `events.schema.ts:hostFrameSchema`. A single list reload folds
     /// batches of related host increments into the host-authoritative snapshot.
@@ -133,6 +137,72 @@ final class NativeWorkspaceStore: ObservableObject {
         searchTask?.cancel()
         eventTask?.cancel()
         eventRefreshTask?.cancel()
+        remoteWorkspaceTask?.cancel()
+        remoteCatalogTask?.cancel()
+    }
+
+    func bind(
+        workspaceRuntime: WorkspaceRuntime,
+        eventRuntime: RemoteEventRuntime,
+        generation: RemoteConnectionGeneration
+    ) {
+        refreshTask?.cancel()
+        stopObservingHostEvents()
+        remoteWorkspaceTask?.cancel()
+        remoteCatalogTask?.cancel()
+        remoteWorkspaceState = nil
+        remoteCatalogState = nil
+        phase = .loading
+
+        remoteWorkspaceTask = Task { [weak self] in
+            do {
+                try await workspaceRuntime.start(generation: generation)
+                let snapshots = await workspaceRuntime.snapshots()
+                for await state in snapshots {
+                    guard !Task.isCancelled else { return }
+                    self?.remoteWorkspaceState = state
+                    self?.publishRemoteBrowserState()
+                }
+            } catch {
+                guard !Task.isCancelled else { return }
+                self?.phase = .failed(error.localizedDescription)
+            }
+        }
+
+        remoteCatalogTask = Task { [weak self] in
+            do {
+                _ = try await eventRuntime.open()
+                let snapshots = await eventRuntime.catalogs()
+                for await state in snapshots {
+                    guard !Task.isCancelled else { return }
+                    self?.remoteCatalogState = state
+                    if state == nil {
+                        self?.phase = .loading
+                    } else {
+                        self?.publishRemoteBrowserState()
+                    }
+                }
+            } catch {
+                guard !Task.isCancelled else { return }
+                self?.phase = .failed(error.localizedDescription)
+            }
+        }
+    }
+
+    private func publishRemoteBrowserState() {
+        guard let workspaceState = remoteWorkspaceState,
+              let catalogState = remoteCatalogState,
+              workspaceState.generation == catalogState.generation
+        else { return }
+        let old = snapshot
+        snapshot = Snapshot(
+            workspaces: workspaceState.items.map(WorkspaceSummaryDTO.init(remote:)),
+            sessions: catalogState.items.map(SessionSummaryDTO.init(remote:)),
+            archivedSessionIDs: Set(workspaceState.archivedSessionIDs),
+            selectedSessionID: old.selectedSessionID,
+            selectedWorkspaceID: old.selectedWorkspaceID
+        )
+        phase = .ready
     }
 
     func refresh(using apis: HarnessAPIs) {
@@ -207,6 +277,12 @@ final class NativeWorkspaceStore: ObservableObject {
         snapshot = .empty
         searchTask?.cancel()
         searchTask = nil
+        remoteWorkspaceTask?.cancel()
+        remoteWorkspaceTask = nil
+        remoteCatalogTask?.cancel()
+        remoteCatalogTask = nil
+        remoteWorkspaceState = nil
+        remoteCatalogState = nil
         searchQuery = ""
         remoteSearch = .idle
     }
@@ -240,6 +316,41 @@ final class NativeWorkspaceStore: ObservableObject {
                 )
             } catch {
                 guard !Task.isCancelled, self?.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines) == normalized else { return }
+                self?.remoteSearch = RemoteSearch(query: normalized, status: .failed, items: [], hasMore: false)
+            }
+        }
+    }
+
+    func search(query: String, using controller: SessionController?) {
+        let normalized = Self.sanitizeSearchQuery(query).trimmingCharacters(in: .whitespacesAndNewlines)
+        searchTask?.cancel()
+        guard !normalized.isEmpty else {
+            remoteSearch = .idle
+            return
+        }
+        remoteSearch = RemoteSearch(query: normalized, status: .loading, items: [], hasMore: false)
+        guard let controller else {
+            remoteSearch = RemoteSearch(query: normalized, status: .failed, items: [], hasMore: false)
+            return
+        }
+        searchTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(250))
+            guard !Task.isCancelled else { return }
+            do {
+                let response = try await controller.search(query: normalized)
+                guard !Task.isCancelled,
+                      self?.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines) == normalized
+                else { return }
+                self?.remoteSearch = RemoteSearch(
+                    query: normalized,
+                    status: .ready,
+                    items: response.items.map(SessionSearchItemDTO.init(remote:)),
+                    hasMore: response.hasMore
+                )
+            } catch {
+                guard !Task.isCancelled,
+                      self?.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines) == normalized
+                else { return }
                 self?.remoteSearch = RemoteSearch(query: normalized, status: .failed, items: [], hasMore: false)
             }
         }

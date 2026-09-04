@@ -366,7 +366,7 @@ private struct AssistantStepDefinition: ConversationNodeDefinition {
         case "step/start":
             guard let turn = event.data.coreInteger(named: "turn"), let step = event.data.coreInteger(named: "step") else { return nil }
             return .init(id: "\(turn):\(step)", role: .start)
-        case "assistant/chunk":
+        case "assistant/chunk", "chunkrow/text-chunks", "chunkrow/reasoning-chunks", "chunkrow/tool-call-chunks":
             guard let turn = event.data.coreInteger(named: "turn"), let step = event.data.coreInteger(named: "step") else { return nil }
             return .init(id: "\(turn):\(step)", role: .update)
         case "assistant/message":
@@ -410,6 +410,8 @@ private struct AssistantStepDefinition: ConversationNodeDefinition {
             state.usage = match.event.data.value(named: "usage")
         case "assistant/chunk":
             apply(chunkEvent: match.event, into: &state)
+        case "chunkrow/text-chunks", "chunkrow/reasoning-chunks", "chunkrow/tool-call-chunks":
+            apply(chunkRunEvent: match.event, into: &state)
         default:
             break
         }
@@ -417,6 +419,7 @@ private struct AssistantStepDefinition: ConversationNodeDefinition {
     }
 
     func publication(for match: ConversationMatch) -> ConversationPublication {
+        if match.event.type.hasPrefix("chunkrow/") { return .animationFrame }
         guard match.event.type == "assistant/chunk" else {
             return match.event.type == "step/start" ? .none : .immediate
         }
@@ -471,6 +474,80 @@ private struct AssistantStepDefinition: ConversationNodeDefinition {
             state.usage = chunk.value(named: "usage")
         default:
             break
+        }
+    }
+
+    private func apply(chunkRunEvent event: SessionEventDTO, into state: inout State) {
+        guard let data = event.data.objectValue,
+              let index = data["index"]?.numberValue.map(Int.init)
+        else { return }
+        let deltas = data["dt"]?.arrayValue?.compactMap(\.numberValue) ?? []
+
+        switch event.type {
+        case "chunkrow/text-chunks", "chunkrow/reasoning-chunks":
+            let fragments = data["texts"]?.arrayValue?.compactMap(\.stringValue) ?? []
+            let previous = state.blocks[index]
+            let priorText = previous?.text ?? ""
+            let kind: ConversationContentBlock.Kind = event.type == "chunkrow/text-chunks" ? .text : .reasoning
+            state.blocks[index] = .init(
+                kind: kind,
+                text: priorText + fragments.joined(),
+                callID: nil,
+                name: nil,
+                argumentsRaw: nil,
+                raw: event.data
+            )
+            markChunkRunBoundaries(
+                event: event,
+                fragments: fragments,
+                deltas: deltas,
+                visibleFromStart: !priorText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                canBecomeVisible: true,
+                state: &state
+            )
+        case "chunkrow/tool-call-chunks":
+            let fragments = data["args"]?.arrayValue?.compactMap(\.stringValue) ?? []
+            let previous = state.blocks[index]
+            state.blocks[index] = .init(
+                kind: .toolCall,
+                text: nil,
+                callID: previous?.callID ?? data["id"]?.stringValue,
+                name: data["name"]?.stringValue ?? previous?.name,
+                argumentsRaw: (previous?.argumentsRaw ?? "") + fragments.joined(),
+                raw: event.data
+            )
+            markChunkRunBoundaries(
+                event: event,
+                fragments: fragments,
+                deltas: deltas,
+                visibleFromStart: false,
+                canBecomeVisible: false,
+                state: &state
+            )
+        default:
+            return
+        }
+    }
+
+    private func markChunkRunBoundaries(
+        event: SessionEventDTO,
+        fragments: [String],
+        deltas: [Double],
+        visibleFromStart: Bool,
+        canBecomeVisible: Bool,
+        state: inout State
+    ) {
+        var time = event.time
+        for (offset, fragment) in fragments.enumerated() {
+            if state.firstTokenTime == nil && !fragment.isEmpty {
+                state.firstTokenTime = time
+            }
+            if canBecomeVisible && state.firstVisibleSeq == nil
+                && (visibleFromStart || !fragment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) {
+                state.firstVisibleSeq = event.seq + offset
+                state.firstVisibleTime = time
+            }
+            if offset < deltas.count { time += deltas[offset] }
         }
     }
 

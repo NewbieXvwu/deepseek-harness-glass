@@ -15,18 +15,11 @@ enum HostBuildTrust: Equatable, Sendable {
         return nil
     }
 
-    var permitsWrites: Bool {
-        switch self {
-        case .verified: return true
-        case let .unverified(_, developerWriteOverride): return developerWriteOverride
-        }
-    }
-
     var diagnosticSummary: String {
         switch self {
         case let .verified(build): return "verified \(build.id)"
         case let .unverified(reason, developerWriteOverride):
-            return developerWriteOverride ? "unverified override enabled: \(reason)" : "unverified write-protected: \(reason)"
+            return developerWriteOverride ? "best-effort override noted: \(reason)" : "best-effort: \(reason)"
         }
     }
 }
@@ -41,10 +34,9 @@ struct HostRPCAccessPolicy: Equatable, Sendable {
         trust: .unverified(reason: "No Host build verification has completed.", developerWriteOverride: false)
     )
 
-    func permits(method: String) -> Bool {
-        if trust.permitsWrites { return true }
-        // `host.describe` is the sole pre-trust request: it is needed to expose
-        // diagnosis but has no mutation semantics.
-        return method == "host.describe"
+    func permits(method _: String) -> Bool {
+        // Compatibility classification is diagnostic only. Every Host uses the
+        // same current protocol graph; unsupported methods fail at the Host.
+        true
     }
 }

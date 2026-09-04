@@ -108,6 +108,9 @@ final class NativeShellPresentation: ObservableObject {
     /// Optional capture-only locale for Jobs; production uses the system locale.
     let jobsSnapshotLanguageCode: String?
     private var apis: HarnessAPIs?
+    private var controllers: HarnessControllers?
+    private var workspaceRuntime: WorkspaceRuntime?
+    private var eventRuntime: RemoteEventRuntime?
     private var selectedToolObservation: AnyCancellable?
     private var observedEndpoint: URL?
     /// Source: RC8 `WorkspaceRuntime.connecting`. Concurrent New Session
@@ -203,50 +206,59 @@ final class NativeShellPresentation: ObservableObject {
     /// the pinned bundled Host. The browser obtains its truth from list RPCs
     /// and the official Host SSE stream, never from a web surface.
     func connectVerifiedHost(_ connection: HostConnection) {
-        if observedEndpoint == connection.endpoint {
-            // A Host process can recover on the same loopback endpoint. RC8
-            // resyncs every resident session on this new ready generation;
-            // treating endpoint equality as a no-op leaves stale history and
-            // pending waits attached to the prior Host process.
-            sessionStore.resyncActiveSession()
-            return
+        // A ready HostConnection is generation-scoped even when the loopback
+        // endpoint is reused. Tear down the previous streams before binding the
+        // new authoritative Remote generation.
+        let previousWorkspaceRuntime = workspaceRuntime
+        let previousEventRuntime = eventRuntime
+        Task {
+            await previousWorkspaceRuntime?.stop()
+            await previousEventRuntime?.close()
         }
-        // Preserve the user-selected session across an owned Host restart. The
-        // new port means all old HTTP/WebSocket carriers are invalid; reopen()
-        // creates only fresh typed facades and uses the Host's official
-        // read-only cold-resume path before observing the new mux endpoint.
-        let selectedSessionID = sessionStore.selectedSessionID
-        newSessionGeneration &+= 1
-        blankConnectionCoordinator.cancelAll()
-        workspaceStore.stopObservingHostEvents()
+
+        let controllers = HarnessControllers(remote: connection.context.remote)
+        let workspaceRuntime = WorkspaceRuntime(controller: controllers.workspaces)
+        let eventRuntime = RemoteEventRuntime(channel: connection.context.events, sessions: controllers.sessions)
+        self.controllers = controllers
+        self.workspaceRuntime = workspaceRuntime
+        self.eventRuntime = eventRuntime
+
+        // Domains not migrated to Remote yet keep using the old typed facades,
+        // but they share the authenticated ephemeral cookie session. Build
+        // compatibility remains diagnostic-only.
+        let legacyTrust: HostBuildTrust
+        switch connection.compatibility {
+        case .verified:
+            legacyTrust = .verified(connection.build)
+        case let .bestEffort(reason):
+            legacyTrust = .unverified(reason: reason, developerWriteOverride: false)
+        }
         let apis = HarnessAPIs(
             baseURL: connection.endpoint,
-            accessPolicy: HostRPCAccessPolicy(trust: .verified(connection.build)),
-            diagnostics: connection.diagnostics
+            accessPolicy: HostRPCAccessPolicy(trust: legacyTrust),
+            diagnostics: connection.diagnostics,
+            session: connection.context.authenticatedHost.urlSession
         )
         self.apis = apis
         observedEndpoint = connection.endpoint
-        Task { [weak self] in
-            do {
-                let description = try await apis.host.describe()
-                guard !Task.isCancelled, self?.observedEndpoint == connection.endpoint else { return }
-                self?.hostDescription = description
-            } catch {
-                // The endpoint has passed its transport-level verification. A
-                // later description refresh is permitted; absence only disables
-                // display abbreviation and never invents a local home path.
-                guard self?.observedEndpoint == connection.endpoint else { return }
-                self?.hostDescription = nil
-            }
-        }
-        workspaceStore.refresh(using: apis)
+
+        workspaceStore.bind(
+            workspaceRuntime: workspaceRuntime,
+            eventRuntime: eventRuntime,
+            generation: connection.context.events.generation
+        )
+
         Task { [weak self] in await self?.agentPresetStore.refresh(using: apis.agentPresets) }
         if settingsPresented {
             settingsStore.load(using: apis.settings)
             Task { [weak self] in await self?.modelDirectoryStore.refresh(using: apis.llm) }
         }
-        workspaceStore.observeHostEvents(at: connection.endpoint, using: apis, diagnostics: connection.diagnostics)
-        if let selectedSessionID {
+
+        // The conversation store remains on its transitional facade until its
+        // journal/control binding is migrated in the next cut. The facade uses
+        // the authenticated cookie session above, so no unauthenticated parallel
+        // client is created.
+        if let selectedSessionID = sessionStore.selectedSessionID {
             sessionStore.open(
                 sessionID: selectedSessionID,
                 using: apis.sessions,
@@ -298,7 +310,16 @@ final class NativeShellPresentation: ObservableObject {
     func disconnectHost() {
         newSessionGeneration &+= 1
         blankConnectionCoordinator.cancelAll()
+        let previousWorkspaceRuntime = workspaceRuntime
+        let previousEventRuntime = eventRuntime
+        Task {
+            await previousWorkspaceRuntime?.stop()
+            await previousEventRuntime?.close()
+        }
         apis = nil
+        controllers = nil
+        workspaceRuntime = nil
+        eventRuntime = nil
         observedEndpoint = nil
         hostDescription = nil
         workspaceStore.detachHost()

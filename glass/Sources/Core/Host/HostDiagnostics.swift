@@ -52,13 +52,21 @@ actor HostDiagnosticRecorder {
         self.dshHome = dshHome
     }
 
-    func recordVerified(build: SupportedHostBuildCatalog.Build, endpoint: URL, pid: Int32?) {
+    func recordConnected(
+        build: SupportedHostBuildCatalog.Build,
+        compatibility: HostCompatibility,
+        endpoint: URL,
+        pid: Int32?
+    ) {
         hostBuildID = build.id
         port = endpoint.port
         ownedProcessID = pid
         ownership = "owned"
         protocolFixtureRevision = build.protocolFixtureRevision
-        pluginCompatibility = "pinned-compatible"
+        switch compatibility {
+        case .verified: pluginCompatibility = "verified"
+        case let .bestEffort(reason): pluginCompatibility = "best-effort: \(HostLogRedactor.redact(reason))"
+        }
         lifecycle = "ready"
     }
 

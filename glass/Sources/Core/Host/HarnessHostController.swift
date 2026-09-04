@@ -92,6 +92,9 @@ final class HarnessHostController: ObservableObject {
             appendLog("[host] unverified write-protected: \(reason)")
             Task { [diagnostics] in await diagnostics.recordUnverified(reason: reason) }
             return
+        case let .bestEffort(build, reason):
+            appendLog("[host] best-effort build: \(reason)")
+            launch(build: build, compatibility: .bestEffort(reason: reason))
         case let .unsupported(reason):
             state = .failed(HostFailure(
                 kind: .invalidBundledBaseline,
@@ -113,7 +116,7 @@ final class HarnessHostController: ObservableObject {
                 ))
                 return
             }
-            launch(build: build)
+            launch(build: build, compatibility: .verified)
         }
     }
 
@@ -215,7 +218,7 @@ final class HarnessHostController: ObservableObject {
         }
     }
 
-    private func launch(build: SupportedHostBuildCatalog.Build) {
+    private func launch(build: SupportedHostBuildCatalog.Build, compatibility: HostCompatibility) {
         guard fileManager.isExecutableFile(atPath: runtime.nodeExecutable.path) else {
             state = .failed(HostFailure(
                 kind: .missingNodeRuntime,
@@ -265,7 +268,7 @@ final class HarnessHostController: ObservableObject {
             let data = handle.availableData
             guard !data.isEmpty else { return }
             let text = String(decoding: data, as: UTF8.self)
-            Task { @MainActor [weak self] in self?.consumeHostOutput(text, build: build) }
+            Task { @MainActor [weak self] in self?.consumeHostOutput(text, build: build, compatibility: compatibility) }
         }
         process.terminationHandler = { [weak self] terminated in
             Task { @MainActor [weak self] in self?.handleTermination(terminated) }
@@ -288,7 +291,7 @@ final class HarnessHostController: ObservableObject {
         }
     }
 
-    private func consumeHostOutput(_ text: String, build: SupportedHostBuildCatalog.Build) {
+    private func consumeHostOutput(_ text: String, build: SupportedHostBuildCatalog.Build, compatibility: HostCompatibility) {
         appendLog(text)
         let previousUTF16Length = (announcedOutput as NSString).length
         announcedOutput += text
@@ -307,11 +310,25 @@ if announcedOutput.count > 32_768 {
             ? 0
             : max(0, previousUTF16Length - Self.announcementRescanLookbackUTF16)
         guard case .startingOwned = state,
-              let endpoint = Self.announcedEndpoint(in: announcedOutput, fromUTF16Offset: searchStart) else { return }
+              let launchURL = Self.announcedEndpoint(in: announcedOutput, fromUTF16Offset: searchStart) else { return }
+        let descriptor: HostLaunchDescriptor
+        do {
+            descriptor = try HostLaunchDescriptor(url: launchURL)
+        } catch {
+            state = .failed(HostFailure(
+                kind: .verificationFailed,
+                message: "DeepSeek Harness Host announced an invalid rc.1 launch URL.",
+                exitStatus: nil,
+                logPath: runtime.logFile.path
+            ))
+            terminateAfterVerificationFailure()
+            return
+        }
+        announcedOutput = ""
         startupTimeoutTask?.cancel()
         startupTimeoutTask = nil
-        state = .verifying(endpoint)
-        verify(endpoint: endpoint, build: build)
+        state = .verifying(descriptor.cleanBaseURL)
+        verify(descriptor: descriptor, build: build, compatibility: compatibility)
     }
 
     /// Parses only the bounded append window selected by `consumeHostOutput`.
@@ -336,29 +353,52 @@ if announcedOutput.count > 32_768 {
         return endpoint
     }
 
-    private func verify(endpoint: URL, build: SupportedHostBuildCatalog.Build) {
+    private func verify(
+        descriptor: HostLaunchDescriptor,
+        build: SupportedHostBuildCatalog.Build,
+        compatibility: HostCompatibility
+    ) {
         verificationTask?.cancel()
         verificationTask = Task { [weak self] in
             do {
-                let transport = DSHClientTransport(
-                    baseURL: endpoint,
-                    accessPolicy: HostRPCAccessPolicy(trust: .verified(build))
-                )
-                let response = try await transport.call(method: "host.describe", payload: .object([:]))
-                guard case .success = response.result else {
-                    throw DSHTransportError.decoding("host.describe returned a business error")
+                let authenticatedHost = try await HostAuthBootstrap.authenticate(descriptor)
+                let remote = RemoteConnection(authenticatedHost: authenticatedHost)
+                let events = try await remote.connectEvents()
+                guard !Task.isCancelled else {
+                    await remote.closeStreams()
+                    return
                 }
-                guard !Task.isCancelled else { return }
-                guard let self else { return }
-                await self.diagnostics.recordVerified(build: build, endpoint: endpoint, pid: self.process?.processIdentifier)
-                self.state = .ready(HostConnection(endpoint: endpoint, build: build, startedAt: Date(), diagnostics: self.diagnostics))
-                self.appendLog("[host] verified endpoint=\(endpoint.absoluteString) build=\(build.id)")
+                guard let self else {
+                    await remote.closeStreams()
+                    return
+                }
+                let endpoint = authenticatedHost.baseURL
+                await self.diagnostics.recordConnected(
+                    build: build,
+                    compatibility: compatibility,
+                    endpoint: endpoint,
+                    pid: self.process?.processIdentifier
+                )
+                let context = HostConnectionContext(
+                    authenticatedHost: authenticatedHost,
+                    remote: remote,
+                    events: events
+                )
+                self.state = .ready(HostConnection(
+                    endpoint: endpoint,
+                    build: build,
+                    compatibility: compatibility,
+                    context: context,
+                    startedAt: Date(),
+                    diagnostics: self.diagnostics
+                ))
+                self.appendLog("[host] remote ready endpoint=\(endpoint.absoluteString) build=\(build.id)")
             } catch {
                 guard !Task.isCancelled else { return }
                 if let self { await self.diagnostics.recordRPCError(error) }
                 self?.state = .failed(HostFailure(
                     kind: .verificationFailed,
-                    message: "DeepSeek Harness Host started but could not complete host.describe verification: \(error.localizedDescription)",
+                    message: "DeepSeek Harness Host started but could not authenticate or establish Remote readiness: \(error.localizedDescription)",
                     exitStatus: nil,
                     logPath: self?.runtime.logFile.path ?? ""
                 ))
@@ -434,13 +474,32 @@ if announcedOutput.count > 32_768 {
     }
 
     private func appendLog(_ text: String) {
-        let normalized = text.trimmingCharacters(in: .newlines)
+        let normalized = Self.redactSecrets(in: text.trimmingCharacters(in: .newlines))
         guard !normalized.isEmpty else { return }
         recentLogLines.append(contentsOf: normalized.split(separator: "\n").map(String.init))
         if recentLogLines.count > 200 { recentLogLines.removeFirst(recentLogLines.count - 200) }
         let line = "\(Self.logTimestampFormatter.string(from: Date())) \(normalized)\n"
         guard let data = line.data(using: .utf8) else { return }
         writeLog(data)
+    }
+
+    static func redactSecrets(in text: String) -> String {
+        var value = text.replacingOccurrences(
+            of: #"(?i)([?&]token=)[^&\s]+"#,
+            with: "$1<redacted>",
+            options: .regularExpression
+        )
+        value = value.replacingOccurrences(
+            of: #"(?i)(authorization:\s*bearer\s+)[^\s]+"#,
+            with: "$1<redacted>",
+            options: .regularExpression
+        )
+        value = value.replacingOccurrences(
+            of: #"(?i)(cookie:\s*)[^\r\n]+"#,
+            with: "$1<redacted>",
+            options: .regularExpression
+        )
+        return value
     }
 
     /// Shared timestamp formatter. `appendLog` runs on the main actor only, so a
