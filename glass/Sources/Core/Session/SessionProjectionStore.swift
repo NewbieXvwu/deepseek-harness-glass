@@ -51,6 +51,24 @@ final class SessionProjectionStore: ObservableObject {
         rowsBySession[sessionID] = rows
     }
 
+    /// Seed the rc.1 Remote projection cut without routing it through legacy DTOs.
+    func seed(sessionID: String, remoteBaseline: RemoteSessionProjectionBaseline) {
+        for (key, value) in remoteBaseline.values {
+            apply(
+                sessionID: sessionID,
+                key: key,
+                value: value.conversationJSONValue,
+                seq: remoteBaseline.asOfSeq.rawValue
+            )
+        }
+        guard var rows = rowsBySession[sessionID] else { return }
+        for (key, row) in rows
+        where remoteBaseline.values[key] == nil && row.seq <= remoteBaseline.asOfSeq.rawValue {
+            rows.removeValue(forKey: key)
+        }
+        rowsBySession[sessionID] = rows
+    }
+
     /// Drop transient values beyond a reconnect's durable Host watermark.
     func truncate(sessionID: String, after lastSeq: Int) {
         guard var rows = rowsBySession[sessionID] else { return }
