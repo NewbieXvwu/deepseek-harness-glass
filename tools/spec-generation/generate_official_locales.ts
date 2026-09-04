@@ -17,8 +17,7 @@ import ts from "typescript";
 
 const GENERATOR_NAME = "generate_official_locales.py";
 const GENERATOR_VERSION = "1.0.0";
-const EXPECTED_COMMIT = "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e";
-const ONBOARDING_COPY_RELATIVE = "packages/client/ui-settings-models/src/onboarding-copy.ts";
+const EXPECTED_COMMIT = "a66e4702047846cdaa10c66c9d3df3951f5ea70d";
 
 function argument(name: string): string {
   const index = process.argv.indexOf(name);
@@ -184,69 +183,10 @@ function unwrappedObjectLiteral(expression: ts.Expression | undefined): ts.Objec
   return current !== undefined && ts.isObjectLiteralExpression(current) ? current : undefined;
 }
 
-/** WELCOME_NOTICE_COPY en/zh facts from the pinned onboarding copy module. */
-function onboardingCopyConstants(root: string): Map<string, string> {
-  const path = join(root, ONBOARDING_COPY_RELATIVE);
-  const sourceText = readFileSync(path, "utf8");
-  const sourceFile = ts.createSourceFile(path, sourceText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
-  const constants = new Map<string, string>();
-  ts.forEachChild(sourceFile, (node) => {
-    if (!ts.isVariableStatement(node)) return;
-    for (const declaration of node.declarationList.declarations) {
-      if (!ts.isIdentifier(declaration.name) || declaration.name.text !== "WELCOME_NOTICE_COPY") continue;
-      const notice = unwrappedObjectLiteral(declaration.initializer);
-      if (notice === undefined) continue;
-      for (const languageProperty of notice.properties) {
-        if (!ts.isPropertyAssignment(languageProperty)) continue;
-        const language = propertyKey(languageProperty);
-        if (language !== "en" && language !== "zh") continue;
-        const languageObject = unwrappedObjectLiteral(languageProperty.initializer);
-        if (languageObject === undefined) continue;
-        for (const field of languageObject.properties) {
-          if (!ts.isPropertyAssignment(field)) continue;
-          const fieldName = propertyKey(field);
-          if (!fieldName || !["title", "body", "continueLabel"].includes(fieldName)) continue;
-          constants.set(
-            `WELCOME_NOTICE_COPY.${language}.${fieldName}`,
-            evalString(field.initializer, constants, sourceText, path)
-          );
-        }
-      }
-    }
-  });
-  for (const language of ["en", "zh"]) {
-    for (const field of ["title", "body", "continueLabel"]) {
-      if (!constants.has(`WELCOME_NOTICE_COPY.${language}.${field}`)) {
-        throw new Error(`missing WELCOME_NOTICE_COPY.${language}.${field} in ${path}`);
-      }
-    }
-  }
-  return constants;
-}
-
-/** Whether a file references the onboarding copy constant at all. */
-function referencesOnboardingCopy(sourceFile: ts.SourceFile): boolean {
-  let referenced = false;
-  ts.forEachChild(sourceFile, function visit(node) {
-    if (referenced) return;
-    if (ts.isIdentifier(node) && node.text === "WELCOME_NOTICE_COPY") {
-      referenced = true;
-      return;
-    }
-    ts.forEachChild(node, visit);
-  });
-  return referenced;
-}
-
-function parseFile(file: LocaleFile, onboardingConstants: Map<string, string>, commit: string): LocaleEntry[] {
+function parseFile(file: LocaleFile, commit: string): LocaleEntry[] {
   const sourceText = readFileSync(file.path, "utf8");
   const sourceFile = ts.createSourceFile(file.path, sourceText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
-  const constants = new Map(onboardingConstants);
-  if (!referencesOnboardingCopy(sourceFile)) {
-    // Only files that import the onboarding copy may resolve it; others stay
-    // module-local so an accidental reference still fails as unresolved.
-    constants.clear();
-  }
+  const constants = new Map<string, string>();
   const entries: LocaleEntry[] = [];
   const lineOf = (node: ts.Node) => sourceFile.getLineAndCharacterOfPosition(node.getStart()).line + 1;
 
@@ -370,10 +310,9 @@ function main(): void {
   const commit = git(root, "rev-parse", "HEAD");
   if (commit !== EXPECTED_COMMIT) throw new Error(`official root must be ${EXPECTED_COMMIT}, got ${commit}`);
 
-  const onboardingConstants = onboardingCopyConstants(root);
   const files = localeFiles(root);
   const entries: LocaleEntry[] = [];
-  for (const file of files) entries.push(...parseFile(file, onboardingConstants, commit));
+  for (const file of files) entries.push(...parseFile(file, commit));
   if (entries.length === 0) throw new Error("no locale entries found");
   const compareCodePoints = (left: string, right: string): number =>
     left < right ? -1 : left > right ? 1 : 0;
@@ -404,10 +343,7 @@ function main(): void {
   }
 
   const localeRevision = revision(entries);
-  const sourceInput = sourceInputRevision(
-    root,
-    [...files.map((file) => file.path), join(root, ONBOARDING_COPY_RELATIVE)].sort()
-  );
+  const sourceInput = sourceInputRevision(root, files.map((file) => file.path));
   const metadata = {
     schemaVersion: 1,
     sourceCommit: commit,

@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY_ROOT = ROOT.parent
 CATALOG = ROOT / "Sources/Spec/Fixtures/official-column-layout-fixtures.json"
 GENERATOR = REPOSITORY_ROOT / "tools/spec-generation/generate_official_column_layout_fixtures.ts"
-EXPECTED_COMMIT = "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e"
+EXPECTED_COMMIT = "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
 EXPECTED_SOURCE = "packages/client/ui-layout/src/client/columns.ts"
 EXPECTED_SHA256 = "c2f002126fc671aeaad058eae310d265f7b1f9b77223686c0fe4619cda4e71e2"
 

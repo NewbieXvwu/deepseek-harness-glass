@@ -16,7 +16,7 @@ REPOSITORY_ROOT = ROOT.parent
 CATALOG = ROOT / "Sources/Spec/Tokens/official-theme-tokens.json"
 SPEC_BUILD = ROOT / "Sources/Spec/OfficialUISpec/official-ui-spec-build.json"
 GENERATOR = REPOSITORY_ROOT / "tools/spec-generation/generate_official_theme_tokens.py"
-EXPECTED_COMMIT = "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e"
+EXPECTED_COMMIT = "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
 EXPECTED_SOURCE = "packages/client/ui-theme/src/styles/design-platform.css"
 
 

@@ -15,7 +15,7 @@ from pathlib import Path
 GENERATOR_NAME = "generate_official_locales.py"
 # Kept stable because it is stamped into the reproducible generated artifacts.
 GENERATOR_VERSION = "1.0.0"
-EXPECTED_COMMIT = "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e"
+EXPECTED_COMMIT = "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
 AST_EXTRACTOR = Path(__file__).with_name("extract_official_locales_ast.mjs")
 
 
@@ -39,12 +39,7 @@ def locale_files(root: Path) -> list[Path]:
 
 
 def locale_source_files(root: Path) -> list[Path]:
-    paths = set(locale_files(root))
-    paths.add(root / "packages/client/ui-settings-models/src/onboarding-copy.ts")
-    missing = [path for path in paths if not path.is_file()]
-    if missing:
-        raise ValueError("missing locale source input(s): " + ", ".join(map(str, missing)))
-    return sorted(paths)
+    return locale_files(root)
 
 
 def source_input_revision(root: Path) -> str:

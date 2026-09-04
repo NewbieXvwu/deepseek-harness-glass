@@ -36,7 +36,7 @@ struct OfficialColorToken: Hashable, Sendable {
 
 extension OfficialUISpec {
     enum Theme {
-        static let sourceCommit = "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e"
+        static let sourceCommit = "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
         static let revision = "sha256:7fbb81d2b7879c75c9fb6a9a5ec15435df9f916036fa925a70ca197a78bee42c"
         static let sourceInputRevision = "sha256:2d1743337b8fbba4bd052e8f1ecd24e490c2b5707faf8c185bfeae78fa702989"
         static let colorTokens: [String: OfficialColorToken] = [

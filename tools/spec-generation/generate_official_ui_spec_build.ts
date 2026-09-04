@@ -79,7 +79,6 @@ function sourcePaths(root: string): Record<string, string[]> {
     ...glob(root, "packages/client/**/src/client/locale.ts"),
     ...glob(root, "packages/client/locale/src/locales/*.ts"),
   ]);
-  locale.add(join(root, "packages/client/ui-settings-models/src/onboarding-copy.ts"));
   const groups: Record<string, string[]> = {
     locale: [...locale].sort(),
     token: [join(root, "packages/client/ui-theme/src/styles/design-platform.css")],

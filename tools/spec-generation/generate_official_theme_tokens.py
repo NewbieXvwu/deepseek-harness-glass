@@ -14,7 +14,7 @@ from pathlib import Path
 
 GENERATOR_NAME = "generate_official_theme_tokens.py"
 GENERATOR_VERSION = "1.0.0"
-EXPECTED_COMMIT = "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e"
+EXPECTED_COMMIT = "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
 THEME_PATH = Path("packages/client/ui-theme/src/styles/design-platform.css")
 DECLARATION = re.compile(r"^\s*(--dsw-[\w-]+)\s*:\s*([^;]+);\s*$")
 VAR = re.compile(r"var\((--dsw-[\w-]+)\)")
