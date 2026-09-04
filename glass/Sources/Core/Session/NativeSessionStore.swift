@@ -511,6 +511,7 @@ final class NativeSessionStore: ObservableObject {
     }
 
     private var historyTask: Task<Void, Never>?
+    private var sessionRuntime: SessionRuntime?
     private var promptTask: Task<Void, Never>?
     private var cancelTask: Task<Void, Never>?
     private var olderHistoryTask: Task<Void, Never>?
@@ -1091,11 +1092,15 @@ final class NativeSessionStore: ObservableObject {
         subagentCatalogAPI: (any NativeSubagentCatalogAPI)? = nil,
         subagentContinuationAPI: (any NativeSubagentContinuationAPI)? = nil,
         messageFeedbackAPI: (any NativeMessageFeedbackAPI)? = nil,
-        sessionCWD: String? = nil
+        sessionCWD: String? = nil,
+        sessionRuntime: SessionRuntime? = nil
     ) {
         guard activeSessionID != sessionID || self.endpoint != endpoint else { return }
         let selectedSubagentRoute = subagentRoute?.childSessionID == sessionID ? subagentRoute : nil
         preserveActiveState()
+        let previousSessionRuntime = self.sessionRuntime
+        self.sessionRuntime = sessionRuntime
+        Task { await previousSessionRuntime?.close() }
         historyTask?.cancel()
         olderHistoryTask?.cancel()
         promptTask?.cancel()
@@ -1215,6 +1220,27 @@ final class NativeSessionStore: ObservableObject {
                 else { return }
                 self?.modelDirectory = .init(response: models)
                 self?.modelDirectoryStatus = .ready
+                if let sessionRuntime {
+                    let opening = try await sessionRuntime.open()
+                    guard !Task.isCancelled,
+                          self?.recoveryGeneration == authorityGeneration,
+                          self?.activeSessionID == sessionID,
+                          self?.endpoint == endpoint
+                    else { return }
+                    self?.installRemoteJournal(opening, sessionID: sessionID)
+                    self?.phase = .ready(sessionID: sessionID)
+                    let snapshots = await sessionRuntime.snapshots()
+                    for await snapshot in snapshots {
+                        guard !Task.isCancelled,
+                              self?.recoveryGeneration == authorityGeneration,
+                              self?.activeSessionID == sessionID,
+                              self?.endpoint == endpoint
+                        else { return }
+                        self?.installRemoteJournal(snapshot, sessionID: sessionID)
+                    }
+                    return
+                }
+
                 let response = try await api.history(sessionID: sessionID, beforeSeq: nil, maxMessages: nil)
                 guard !Task.isCancelled,
                       self?.recoveryGeneration == authorityGeneration,
@@ -1275,6 +1301,9 @@ final class NativeSessionStore: ObservableObject {
         preserveActiveState()
         historyTask?.cancel()
         historyTask = nil
+        let previousSessionRuntime = sessionRuntime
+        sessionRuntime = nil
+        Task { await previousSessionRuntime?.close() }
         olderHistoryTask?.cancel()
         olderHistoryTask = nil
         streamTask?.cancel()
@@ -1357,6 +1386,9 @@ final class NativeSessionStore: ObservableObject {
     func disconnect() {
         historyTask?.cancel()
         historyTask = nil
+        let previousSessionRuntime = sessionRuntime
+        sessionRuntime = nil
+        Task { await previousSessionRuntime?.close() }
         olderHistoryTask?.cancel()
         olderHistoryTask = nil
         streamTask?.cancel()
@@ -1862,6 +1894,13 @@ final class NativeSessionStore: ObservableObject {
         olderHistoryTask = Task { [weak self] in
             defer { self?.isLoadingOlderHistory = false }
             do {
+                if let sessionRuntime = self?.sessionRuntime {
+                    if let snapshot = try await sessionRuntime.loadOlder() {
+                        guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
+                        self?.installRemoteJournal(snapshot, sessionID: sessionID)
+                    }
+                    return
+                }
                 let response = try await api.history(sessionID: sessionID, beforeSeq: beforeSeq, maxMessages: nil)
                 guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
                 self?.prependConversationWindow(response.events.map(ConversationEventInput.init(entry:)), hasMore: response.hasMore)
@@ -1964,6 +2003,20 @@ final class NativeSessionStore: ObservableObject {
         for entry in entries.sorted(by: { $0.event.seq < $1.event.seq }) {
             apply(event: entry.event, view: entry.view)
         }
+    }
+
+    private func installRemoteJournal(_ snapshot: SessionJournalSnapshot, sessionID: String) {
+        let inputs = snapshot.records.map(ConversationEventInput.init(remoteRecord:))
+        replaceConversationWindow(inputs, hasMore: snapshot.hasMore)
+        items = []
+        toolInvocations = []
+        appliedSequences = []
+        for record in snapshot.records {
+            let input = ConversationEventInput(remoteRecord: record)
+            apply(event: input.event)
+        }
+        projections.seed(sessionID: sessionID, remoteBaseline: snapshot.projections)
+        hasMoreHistory = snapshot.hasMore
     }
 
     /// Source: `events.ts:MuxFrame` uses frame.method as the event discriminant

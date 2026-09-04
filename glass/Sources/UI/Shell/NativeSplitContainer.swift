@@ -111,6 +111,7 @@ final class NativeShellPresentation: ObservableObject {
     private var controllers: HarnessControllers?
     private var workspaceRuntime: WorkspaceRuntime?
     private var eventRuntime: RemoteEventRuntime?
+    private var remoteGeneration: RemoteConnectionGeneration?
     private var selectedToolObservation: AnyCancellable?
     private var observedEndpoint: URL?
     /// Source: RC8 `WorkspaceRuntime.connecting`. Concurrent New Session
@@ -222,6 +223,7 @@ final class NativeShellPresentation: ObservableObject {
         self.controllers = controllers
         self.workspaceRuntime = workspaceRuntime
         self.eventRuntime = eventRuntime
+        remoteGeneration = connection.context.events.generation
 
         // Domains not migrated to Remote yet keep using the old typed facades,
         // but they share the authenticated ephemeral cookie session. Build
@@ -268,7 +270,12 @@ final class NativeShellPresentation: ObservableObject {
                 subagentCatalogAPI: apis.subagents,
                 subagentContinuationAPI: apis.subagents,
                 messageFeedbackAPI: apis.feedback,
-                sessionCWD: sessionCWD(for: selectedSessionID)
+                sessionCWD: sessionCWD(for: selectedSessionID),
+                sessionRuntime: SessionRuntime(
+                    controller: controllers.sessions,
+                    generation: connection.context.events.generation,
+                    address: .session(sessionID: selectedSessionID)
+                )
             )
         }
     }
@@ -320,6 +327,7 @@ final class NativeShellPresentation: ObservableObject {
         controllers = nil
         workspaceRuntime = nil
         eventRuntime = nil
+        remoteGeneration = nil
         observedEndpoint = nil
         hostDescription = nil
         workspaceStore.detachHost()
@@ -466,6 +474,16 @@ final class NativeShellPresentation: ObservableObject {
         let didSwitchSession = sessionStore.selectedSessionID != sessionID
         workspaceStore.select(sessionID: sessionID, workspaceID: workspaceID)
         if let apis, let observedEndpoint {
+            let runtime: SessionRuntime?
+            if let controllers, let remoteGeneration {
+                runtime = SessionRuntime(
+                    controller: controllers.sessions,
+                    generation: remoteGeneration,
+                    address: .session(sessionID: sessionID)
+                )
+            } else {
+                runtime = nil
+            }
             sessionStore.open(
                 sessionID: sessionID,
                 using: apis.sessions,
@@ -475,7 +493,8 @@ final class NativeShellPresentation: ObservableObject {
                 subagentCatalogAPI: apis.subagents,
                 subagentContinuationAPI: apis.subagents,
                 messageFeedbackAPI: apis.feedback,
-                sessionCWD: sessionCWD(for: sessionID)
+                sessionCWD: sessionCWD(for: sessionID),
+                sessionRuntime: runtime
             )
         }
         mode = .conversation
