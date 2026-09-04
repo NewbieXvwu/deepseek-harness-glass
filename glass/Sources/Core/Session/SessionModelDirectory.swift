@@ -107,6 +107,19 @@ struct CoreSessionModelDirectory: Equatable {
         )
     }
 
+    func applying(_ selected: RemoteModelSelection) -> CoreSessionModelDirectory {
+        .init(
+            current: .init(
+                provider: selected.provider,
+                model: selected.model,
+                reasoningEffort: selected.reasoningEffort
+            ),
+            routable: true,
+            groups: groups,
+            failures: failures
+        )
+    }
+
     private init(
         current: Selection,
         routable: Bool,
