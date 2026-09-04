@@ -46,9 +46,9 @@ Progress is tracked task by task in [TODO.md](TODO.md); the working rules are in
 
 | Item | Value |
 |---|---|
-| Official source | [`deepseek-ai/deepseek-harness@b150a55`](https://github.
-com/deepseek-ai/deepseek-harness/tree/b150a551b8d465e31e418e1b2eaf5e79bbb7d28e) |
-| DSH packages | `@deepseek-ai/dsh` / `@deepseek-ai/dsh-web-frontend` `0.1.1-rc.2` |
+| Official source | [`deepseek-ai/deepseek-harness@a66e470`](https://github.
+com/deepseek-ai/deepseek-harness/tree/a66e4702047846cdaa10c66c9d3df3951f5ea70d) |
+| DSH packages | `@deepseek-ai/dsh` / `@deepseek-ai/dsh-web-frontend` `0.1.2-rc.1` |
 | Runtime | Node `24.19.0`, bundled with the app |
 | Platform | macOS 26+, Apple Silicon; Xcode 26+ and Swift 6 to build |
 

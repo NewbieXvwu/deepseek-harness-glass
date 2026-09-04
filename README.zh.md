@@ -27,9 +27,9 @@ md](docs/PLUGIN_COMPATIBILITY_PROPOSAL.md)。
 
 | 项目 | 固定值 |
 |---|---|
-| 官方源码 | [`deepseek-ai/deepseek-harness@b150a55`](https://github.
-com/deepseek-ai/deepseek-harness/tree/b150a551b8d465e31e418e1b2eaf5e79bbb7d28e) |
-| DSH 包 | `@deepseek-ai/dsh` / `@deepseek-ai/dsh-web-frontend` `0.1.1-rc.2` |
+| 官方源码 | [`deepseek-ai/deepseek-harness@a66e470`](https://github.
+com/deepseek-ai/deepseek-harness/tree/a66e4702047846cdaa10c66c9d3df3951f5ea70d) |
+| DSH 包 | `@deepseek-ai/dsh` / `@deepseek-ai/dsh-web-frontend` `0.1.2-rc.1` |
 | 运行时 | 应用内置 Node `24.19.0` |
 | 平台 | macOS 26+、Apple Silicon；构建需 Xcode 26+、Swift 6 |
 

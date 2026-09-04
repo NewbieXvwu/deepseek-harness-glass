@@ -22,7 +22,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  OFFICIAL_COMMIT: b150a551b8d465e31e418e1b2eaf5e79bbb7d28e
+  OFFICIAL_COMMIT: a66e4702047846cdaa10c66c9d3df3951f5ea70d
   DSH_NODE_VERSION: 24.19.0
 
 jobs:

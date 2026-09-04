@@ -12,7 +12,7 @@ python3 glass/ci/test-package-target-graph.py
 gh run list --repo NewbieXvwu/deepseek-harness-glass --limit 10
 ```
 
-官方基线固定为 `deepseek-ai/deepseek-harness@b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`（`dsh-v0.1.1-rc.2`）；
+官方基线固定为 `deepseek-ai/deepseek-harness@a66e4702047846cdaa10c66c9d3df3951f5ea70d`（`dsh-v0.1.2-rc.1`）；
 支持的 Host 记录在 `glass/Sources/Spec/SupportedHostBuilds.json`。一切以锁定源码为准，官方仓库的当前内容和个人记忆都不算数。
 
 

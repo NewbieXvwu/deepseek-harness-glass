@@ -3,14 +3,14 @@ import Foundation
 
 extension OfficialUISpec {
     enum Build {
-        static let id = "dsh-0.1.1-rc.2-official-b150a55"
-        static let sourceCommit = "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e"
-        static let uiSpecRevision = "official-b150a55-ui-spec-r1"
-        static let localeRevision = "sha256:757f092e6ab96b53f4b6b435adb6ea41b3d6b2064536f49f0ec8a86ab30eb3f9"
+        static let id = "dsh-0.1.2-rc.1-official-a66e470"
+        static let sourceCommit = "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
+        static let uiSpecRevision = "official-a66e470-ui-spec-r1"
+        static let localeRevision = "sha256:6be1b78c905343c720e1ceaa1be3dbee3f2c12c1f8c73d8f2c4a501875a2a6c1"
         static let tokenRevision = "sha256:2d1743337b8fbba4bd052e8f1ecd24e490c2b5707faf8c185bfeae78fa702989"
-        static let layoutRevision = "sha256:9a5adf77d69258cf9e892a6d81f214fbdb16ca782cbafd941d95ccd4435b6b43"
-        static let fixtureRevision = "sha256:872c1643d024121234a07c1e04c8b473907b75ba183a43874062fd809b818688"
-        static let generatedAt = "2026-08-21T20:03:37+08:00"
+        static let layoutRevision = "sha256:72f84bb2d2f8f0e01ca7d791c9f2da1aaef2f7a1e70f239c8be402baa17410c2"
+        static let fixtureRevision = "sha256:88d34ec5caba97af890bb90b50ca17b8a8bda199fc364abfc72519028b4db597"
+        static let generatedAt = "2026-09-03T02:27:19+08:00"
         static let generatorVersion = "1.0.0"
 
         static func isCompatible(with hostBuildID: String) -> Bool {

@@ -13,9 +13,9 @@ import { resolve, relative, dirname, join } from "node:path";
 
 const GENERATOR_NAME = "generate_official_ui_spec_build.py";
 const GENERATOR_VERSION = "1.0.0";
-const EXPECTED_COMMIT = "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e";
-const HOST_BUILD_ID = "dsh-0.1.1-rc.2-official-b150a55";
-const UI_SPEC_REVISION = "official-b150a55-ui-spec-r1";
+const EXPECTED_COMMIT = "a66e4702047846cdaa10c66c9d3df3951f5ea70d";
+const HOST_BUILD_ID = "dsh-0.1.2-rc.1-official-a66e470";
+const UI_SPEC_REVISION = "official-a66e470-ui-spec-r1";
 
 function argument(name: string): string {
   const index = process.argv.indexOf(name);
@@ -87,7 +87,7 @@ function sourcePaths(root: string): Record<string, string[]> {
       join(root, "packages/client/ui-layout/src/client/columns.ts"),
       join(root, "packages/client/ui-conversation/src/client/skeleton/ConversationRoot.module.css"),
       join(root, "packages/client/ui-conversation/src/client/skeleton/InputBar.module.css"),
-      join(root, "packages/client/ui-workspace/src/client/WorkspaceBrowser.module.css"),
+      join(root, "packages/client/ui-workspace/src/client/rows/WorkspaceBrowser.module.css"),
     ],
     fixture: [
       join(root, "apps/web/tests/remote-welcome.e2e.ts"),

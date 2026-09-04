@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e",
-  "hostBuildId": "dsh-0.1.1-rc.2-official-b150a55",
-  "uiSpecRevision": "official-b150a55-ui-spec-r1",
-  "localeRevision": "sha256:757f092e6ab96b53f4b6b435adb6ea41b3d6b2064536f49f0ec8a86ab30eb3f9",
+  "sourceCommit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d",
+  "hostBuildId": "dsh-0.1.2-rc.1-official-a66e470",
+  "uiSpecRevision": "official-a66e470-ui-spec-r1",
+  "localeRevision": "sha256:6be1b78c905343c720e1ceaa1be3dbee3f2c12c1f8c73d8f2c4a501875a2a6c1",
   "tokenRevision": "sha256:2d1743337b8fbba4bd052e8f1ecd24e490c2b5707faf8c185bfeae78fa702989",
-  "layoutRevision": "sha256:9a5adf77d69258cf9e892a6d81f214fbdb16ca782cbafd941d95ccd4435b6b43",
-  "fixtureRevision": "sha256:872c1643d024121234a07c1e04c8b473907b75ba183a43874062fd809b818688",
-  "generatedAt": "2026-08-21T20:03:37+08:00",
+  "layoutRevision": "sha256:72f84bb2d2f8f0e01ca7d791c9f2da1aaef2f7a1e70f239c8be402baa17410c2",
+  "fixtureRevision": "sha256:88d34ec5caba97af890bb90b50ca17b8a8bda199fc364abfc72519028b4db597",
+  "generatedAt": "2026-09-03T02:27:19+08:00",
   "generator": {
     "name": "generate_official_ui_spec_build.py",
     "version": "1.0.0"
@@ -15,32 +15,32 @@
   "inputs": [
     {
       "path": "apps/web/tests/remote-welcome.e2e.ts",
-      "sha256": "a427777424943f8cf93a8012c1cf10216f565296d401914a3239a198f0734f0a",
+      "sha256": "dc8fd41a4a056b992ca6e8cbcece4e55dea6632c3b2e6c7a5532b1427fe30018",
       "lines": 61,
       "kind": "fixture"
     },
     {
       "path": "apps/web/tests/support.ts",
-      "sha256": "1948e6833bb2f3c05ff3a72281dcc539b8db8ef673d9440edd5b46d9ea4f962b",
-      "lines": 137,
+      "sha256": "af2ee3c535edaf7d8c1bb703f6258246dfe7c458440e8c606b558270c9861584",
+      "lines": 199,
       "kind": "fixture"
     },
     {
       "path": "packages/client/connection/src/client/fixture.ts",
-      "sha256": "325dd969f16c70fddb358dd7c0f0279bfe18e660ae9e16225cbb4c0dab968a2f",
-      "lines": 3287,
+      "sha256": "157c7d62bb8fb66b6f9a79cd2ca8cd78b396f58549944b0506d47fb692936220",
+      "lines": 3629,
       "kind": "fixture"
     },
     {
       "path": "packages/client/ui-conversation/src/client/skeleton/ConversationRoot.module.css",
-      "sha256": "eadea066eb2dc1eb3276ca26a9902b6bc0ac46fdc47819a0b1b9870b01aa3971",
-      "lines": 371,
+      "sha256": "eb3b3a304eb8cd1197f93ccc94f588e197e8c37d87fc689d74a5694c56c8840f",
+      "lines": 453,
       "kind": "layout"
     },
     {
       "path": "packages/client/ui-conversation/src/client/skeleton/InputBar.module.css",
-      "sha256": "5aa87ea48556405bd81c342410aff2b2bc6bc9d1f5e5a3b739e8c321d5b09c51",
-      "lines": 474,
+      "sha256": "553d79c85f15ae39be7e2d3050f3b77abb53a2141841731102a90ba6cee372e5",
+      "lines": 361,
       "kind": "layout"
     },
     {
@@ -50,15 +50,15 @@
       "kind": "layout"
     },
     {
-      "path": "packages/client/ui-workspace/src/client/WorkspaceBrowser.module.css",
-      "sha256": "a09fdf87dab5c03454cb3967dfd968e8894b021eb50b6220345f24553b8981e2",
-      "lines": 507,
+      "path": "packages/client/ui-workspace/src/client/rows/WorkspaceBrowser.module.css",
+      "sha256": "1aca37fb6c3409d638ea5dad4627b43f89056dae2a18d24dc487154a665a078d",
+      "lines": 506,
       "kind": "layout"
     },
     {
       "path": "packages/client/locale/src/locales/en.ts",
-      "sha256": "034d139f9031c3b740e550678145819dc5e5b3a3b5fd4fe11d22d80bca27a66c",
-      "lines": 30,
+      "sha256": "34380f1aafbc3e532ac1a7bb58a1803c200a480e99790f8e5d5b4bedac6b080b",
+      "lines": 45,
       "kind": "locale"
     },
     {
@@ -75,14 +75,26 @@
     },
     {
       "path": "packages/client/locale/src/locales/zh.ts",
-      "sha256": "3ec52ff64fae264aaf68db4913cea027306137352e75f159ea31ebb7709bd85b",
-      "lines": 31,
+      "sha256": "c910dd7fbe96b618954a6f5ff34a0dc11eb7280e5ea6322fcc27e2e09026b859",
+      "lines": 46,
       "kind": "locale"
     },
     {
       "path": "packages/client/ui-agent-preset/src/client/locales.ts",
-      "sha256": "56145693220877c82209e9b69cfd25f9f3b6a42b4c895652b69d652aed1504ad",
-      "lines": 193,
+      "sha256": "2cc8e159c32b5753b38f234cef7760d4a2517edd09c8c4bfdfc17d6a918b08c6",
+      "lines": 145,
+      "kind": "locale"
+    },
+    {
+      "path": "packages/client/ui-approval/src/client/locales.ts",
+      "sha256": "983009bc6bd08adc823d1c032f412a222818613e7cdce69eba323e7503170e2e",
+      "lines": 23,
+      "kind": "locale"
+    },
+    {
+      "path": "packages/client/ui-chat/src/client/locale.ts",
+      "sha256": "6a4b78eec3eda6b555aa27800688c9a0623e26f37b9b23dedaff7db9b6b75838",
+      "lines": 236,
       "kind": "locale"
     },
     {
@@ -93,8 +105,8 @@
     },
     {
       "path": "packages/client/ui-conversation/src/client/locales.ts",
-      "sha256": "513cdd457f22c5e44dbf253bb244e43c74c888c10ca25a8c3bf14e189aca661d",
-      "lines": 361,
+      "sha256": "d8ef78baa657a216d2302cab21e10af028de8e8727fdb4ac595a78b3bbd36954",
+      "lines": 308,
       "kind": "locale"
     },
     {
@@ -105,14 +117,14 @@
     },
     {
       "path": "packages/client/ui-goal/src/client/locales.ts",
-      "sha256": "eb81eb9f58fa8b4fa6f5ca2ac443fd9c08f1e17c1c8ee861240bcca47674367c",
+      "sha256": "9e0fa57d6a12ed2d5e247efb3859d5b5864e7a275da52dd555fc23faee1a7763",
       "lines": 35,
       "kind": "locale"
     },
     {
       "path": "packages/client/ui-input-trigger/src/client/locales.ts",
-      "sha256": "f3426cdb85add6b967e72aea4341c48ff9f066cef24b70b111ca2b76c67ac189",
-      "lines": 27,
+      "sha256": "fccd76f228379009c9f8620420b8c1b19a9f060eb48fbbb4426130fc4db21441",
+      "lines": 35,
       "kind": "locale"
     },
     {
@@ -129,56 +141,62 @@
     },
     {
       "path": "packages/client/ui-model-selection/src/client/locales.ts",
-      "sha256": "ed1b559244fe66cabb3f1b47a88cd9eebf2e38c3dc1640cf42cbdfa71ffcd590",
-      "lines": 55,
+      "sha256": "7a1d4357236226c5b0a1e64d237c46c68acd20c5b8137e882bbcc25d3a023f57",
+      "lines": 57,
       "kind": "locale"
     },
     {
       "path": "packages/client/ui-permission-presets/src/client/locales.ts",
-      "sha256": "7ecaf0e24163dee251724e6647256d54e6e4cedef2e8f656c8df82f6551e5db1",
-      "lines": 52,
+      "sha256": "05c65640de1f300f8de0951ca7cf24ba2798a31ad40046d2ddd7bf0cd880ecfb",
+      "lines": 64,
       "kind": "locale"
     },
     {
       "path": "packages/client/ui-plan/src/client/locales.ts",
-      "sha256": "8d89f21984f11651fc505abb820bdb5ac5195c2fcbcd46e22c65119d82d44341",
-      "lines": 21,
-      "kind": "locale"
-    },
-    {
-      "path": "packages/client/ui-reference/src/client/locales.ts",
-      "sha256": "af49d90f09513ba8ec8fc6482d1c5586d7e6bd2a0213ab205391e5623963cf6b",
-      "lines": 37,
-      "kind": "locale"
-    },
-    {
-      "path": "packages/client/ui-settings-general/src/client/locales.ts",
-      "sha256": "36364af8ca7c8bcb7ebfccf79684392d6496641785931c2e45ebbf080d362e61",
+      "sha256": "e6bacec478628b757ba81c85d8fb68341607377d1bcf1e74f98ae6029c036e73",
       "lines": 25,
       "kind": "locale"
     },
     {
+      "path": "packages/client/ui-reference/src/client/locales.ts",
+      "sha256": "4838bbb573cc10a3e15079accd9ad8643990c784a0e45b90ce9d1b59947decfc",
+      "lines": 51,
+      "kind": "locale"
+    },
+    {
+      "path": "packages/client/ui-schedule/src/client/locales.ts",
+      "sha256": "c68f7c85b4900a4e13c7ab694a5f085695e07abb3fe34aeb5b126e59f6511171",
+      "lines": 52,
+      "kind": "locale"
+    },
+    {
+      "path": "packages/client/ui-settings-general/src/client/locales.ts",
+      "sha256": "5a7df0d4b2781abb3da89d0f674073982cc936e85a01a2b3c3951a98d6dec6f0",
+      "lines": 37,
+      "kind": "locale"
+    },
+    {
       "path": "packages/client/ui-settings-models/src/client/locales.ts",
-      "sha256": "0d9cb7a868308c658bf8c218ce57af9cb036c1b87a17d47bb14701c13b2eed24",
-      "lines": 205,
+      "sha256": "eed0115492e120231abb4bb8b184ecdae0034fea9f851363fbfd314115063807",
+      "lines": 211,
       "kind": "locale"
     },
     {
       "path": "packages/client/ui-settings-models/src/onboarding-copy.ts",
-      "sha256": "a717695df811a9e84aa568868e3f73bf787ec919c12f7c240e3459a413807ed3",
-      "lines": 26,
+      "sha256": "af575f4cd847bcde7443dc050d01da13a4475ede79b828630f9224d27506e3ba",
+      "lines": 12,
       "kind": "locale"
     },
     {
       "path": "packages/client/ui-settings-plugin-inventory/src/client/locales.ts",
-      "sha256": "3e70ec95f3144f462fe172fc20fd2c4b3ba7c1b36358c7d05948fa448bee47e2",
-      "lines": 49,
+      "sha256": "5c8ac7c733767c8cdd03fb7fbaf810161ffe6b6a1a6081c0fa6c2cd3db4b9150",
+      "lines": 85,
       "kind": "locale"
     },
     {
       "path": "packages/client/ui-settings-plugins/src/client/locales.ts",
-      "sha256": "cde57390ed83eb666d57b7dcb93fd655a20a862da8e098889cf2938442d876e5",
-      "lines": 96,
+      "sha256": "d2bd43f26e9e842adbcc529f85fd8176611a4ab35303de752654d9bd3d613107",
+      "lines": 132,
       "kind": "locale"
     },
     {
@@ -189,20 +207,20 @@
     },
     {
       "path": "packages/client/ui-skill/src/client/locales.ts",
-      "sha256": "208f9393d1b9af701c3d6f319fd110050a9a537f377a27aa8306563aeb0ff1aa",
-      "lines": 26,
+      "sha256": "b0c08d25547b35b66f1f428d693bd5a5bcab6955b475367d2ff083e134dd81c5",
+      "lines": 30,
       "kind": "locale"
     },
     {
       "path": "packages/client/ui-subagent/src/client/locales.ts",
-      "sha256": "7deb8ba2b2914129884f379c235128b56115e91d8e7353d52a006992b534e283",
-      "lines": 84,
+      "sha256": "1e19d586d094282a9931f9994278598ecb70029c7c2216e4c6bf9cc6a56b8994",
+      "lines": 90,
       "kind": "locale"
     },
     {
       "path": "packages/client/ui-theme/src/client/locales.ts",
-      "sha256": "0a3f1bcbc38cffea63930c9d9f8907ecaa0a4e79a9ef6452adfbb24c7e481047",
-      "lines": 21,
+      "sha256": "351c074ed67b98e4085883fadbec61cf542d3ec13291afbd4d03a209866b7426",
+      "lines": 31,
       "kind": "locale"
     },
     {
@@ -213,8 +231,8 @@
     },
     {
       "path": "packages/client/ui-trajectory/src/client/locales.ts",
-      "sha256": "af3cf3a1a41ac06da0f263c34f32bee5ff372342d472b2a42028d8760ae4024c",
-      "lines": 65,
+      "sha256": "a74a271167a40149fa7b821bf7daefdc7a2147ccaf8e2e83153d05c750a81791",
+      "lines": 375,
       "kind": "locale"
     },
     {
@@ -231,8 +249,8 @@
     },
     {
       "path": "packages/client/ui-workspace/src/client/locales.ts",
-      "sha256": "23d1866da00497c4ee7534f80759a9e390eabb1e7823deb64d6bcdb9ee9e141b",
-      "lines": 141,
+      "sha256": "7ce611e8e1bc38af6cd643a405bf093f6e6bfd85692c399a8af04ebc01bb3798",
+      "lines": 143,
       "kind": "locale"
     },
     {

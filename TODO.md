@@ -873,6 +873,7 @@ HarnessHostProcess
 - [ ] **CUT0.1：将 `dsh-v0.1.2-rc.1` 设为唯一 verified baseline。** 更新 `SupportedHostBuilds.json`、Host build metadata、bundled payload lock、Node/payload manifest 和 app build manifest，使唯一 verified 条目精确指向 `a66e4702047846cdaa10c66c9d3df3951f5ea70d`。
   - 依赖：无。
   - 验收：项目不再宣称 rc.2 已验证；bundled payload、OfficialUISpec 与 verified build 三者 SHA 一致。
+  - 进度：唯一 Supported Host 候选、生产 Host verifier、三条官方源码工作流、双语 README/贡献指南与生成式 `OfficialUISpec.Build` 已统一到 `a66e4702047846cdaa10c66c9d3df3951f5ea70d`。bundled `@deepseek-ai/dsh` / `dsh-web-frontend` 锁文件已按 npm 发布的 `0.1.2-rc.1` 完整重建，Node 继续使用满足上游约束的 `24.19.0`。候选保持 `planned`，因为 Host upgrade gate 已确认 locale 与 raw-event fixture 仍属于 rc.2；完成 CUT1 对应重生成及当前提交 macOS 权威验证后才可改为 `verified` 并勾选。
 
 - [ ] **CUT0.2：重新定义 Host compatibility classification。** 将版本状态收敛为 `verified` 与 `bestEffort`：exact build/SHA 为 `verified`；非 exact build 在成功完成当前认证和 Remote handshake 后为 `bestEffort`。删除旧“unknown = 默认写保护 / 需要 developer override”语义。
   - 依赖：CUT0.1。
