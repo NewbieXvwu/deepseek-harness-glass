@@ -513,6 +513,7 @@ final class NativeSessionStore: ObservableObject {
     private var historyTask: Task<Void, Never>?
     private var sessionRuntime: SessionRuntime?
     private var sessionControlRuntime: SessionControlRuntime?
+    private var sessionCommandService: SessionCommandService?
     private var controlTask: Task<Void, Never>?
     private var controlBindingGeneration: UInt = 0
     private var promptTask: Task<Void, Never>?
@@ -602,6 +603,10 @@ final class NativeSessionStore: ObservableObject {
             .locationData(scope: .turn, turn: assistant.turn)
             .value(for: "deliverables", as: CoreDeliverablesTurnData.self)?
             .paths(forClosingSequence: assistant.seq) ?? []
+    }
+
+    func bindCommandService(_ service: SessionCommandService?) {
+        sessionCommandService = service
     }
 
     func bindControlRuntime(_ runtime: SessionControlRuntime?) {
@@ -1434,6 +1439,7 @@ final class NativeSessionStore: ObservableObject {
     }
 
     func disconnect() {
+        bindCommandService(nil)
         bindControlRuntime(nil)
         historyTask?.cancel()
         historyTask = nil
@@ -1621,14 +1627,26 @@ final class NativeSessionStore: ObservableObject {
             }
             return
         }
-        guard let api else { return }
+        guard sessionCommandService != nil || api != nil else { return }
         isSubmittingPrompt = true
         promptTask?.cancel()
+        let commandService = sessionCommandService
+        let legacyAPI = api
         promptTask = Task { [weak self] in
             defer { self?.isSubmittingPrompt = false }
             do {
-                let response = try await api.prompt(sessionID: sessionID, content: content, mode: .queue)
-                guard !Task.isCancelled, response.accepted, self?.activeSessionID == sessionID else { return }
+                if let commandService {
+                    _ = try await commandService.prompt(
+                        sessionID: sessionID,
+                        mode: .queue,
+                        content: content.map(\.remotePromptContentPart),
+                        clientTimeZone: TimeZone.current.identifier
+                    )
+                } else if let legacyAPI {
+                    let response = try await legacyAPI.prompt(sessionID: sessionID, content: content, mode: .queue)
+                    guard response.accepted else { return }
+                }
+                guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
                 self?.draft = ""
                 self?.pendingImages = []
             } catch {
@@ -1697,13 +1715,15 @@ final class NativeSessionStore: ObservableObject {
     /// Host-confirmed `selected` value and does not edit provider catalog facts.
     func selectModel(provider: String, model: String, reasoningEffort: String?) {
         guard !isSelectingModel,
-              let api,
+              sessionCommandService != nil || api != nil,
               let sessionID = activeSessionID,
               let directory = modelDirectory,
               directory.routable,
               directory.contains(provider: provider, model: model, reasoningEffort: reasoningEffort)
         else { return }
 
+        let commandService = sessionCommandService
+        let legacyAPI = api
         modelSelectionTask?.cancel()
         modelDirectoryGeneration &+= 1
         modelSelectionGeneration &+= 1
@@ -1722,19 +1742,39 @@ final class NativeSessionStore: ObservableObject {
                 }
             }
             do {
-                let response = try await api.selectModel(.init(
-                    sessionId: sessionID,
+                let remoteSelection = RemoteModelSelection(
                     provider: provider,
                     model: model,
                     reasoningEffort: reasoningEffort
-                ))
-                guard !Task.isCancelled,
-                      self?.activeSessionID == sessionID,
-                      self?.recoveryGeneration == currentRecoveryGeneration,
-                      self?.modelDirectoryGeneration == directoryGeneration,
-                      self?.modelSelectionGeneration == mutationGeneration
-                else { return }
-                self?.modelDirectory = self?.modelDirectory?.applying(response.selected)
+                )
+                if let commandService {
+                    let selected = try await commandService.selectModel(
+                        sessionID: sessionID,
+                        selection: remoteSelection
+                    )
+                    guard !Task.isCancelled,
+                          self?.activeSessionID == sessionID,
+                          self?.recoveryGeneration == currentRecoveryGeneration,
+                          self?.modelDirectoryGeneration == directoryGeneration,
+                          self?.modelSelectionGeneration == mutationGeneration
+                    else { return }
+                    self?.modelDirectory = self?.modelDirectory?.applying(selected)
+                } else {
+                    guard let legacyAPI else { return }
+                    let response = try await legacyAPI.selectModel(.init(
+                        sessionId: sessionID,
+                        provider: provider,
+                        model: model,
+                        reasoningEffort: reasoningEffort
+                    ))
+                    guard !Task.isCancelled,
+                          self?.activeSessionID == sessionID,
+                          self?.recoveryGeneration == currentRecoveryGeneration,
+                          self?.modelDirectoryGeneration == directoryGeneration,
+                          self?.modelSelectionGeneration == mutationGeneration
+                    else { return }
+                    self?.modelDirectory = self?.modelDirectory?.applying(response.selected)
+                }
                 self?.modelDirectoryStatus = .ready
             } catch {
                 guard !Task.isCancelled,
@@ -1790,7 +1830,7 @@ final class NativeSessionStore: ObservableObject {
     /// snapshot retires or replaces them.
     func updateQueuedMessage(itemID: String, action: SessionQueueAction) {
         guard updatingQueueItemID == nil,
-              let api,
+              sessionCommandService != nil || api != nil,
               let sessionID = activeSessionID,
               queuedMessages.contains(where: { $0.id == itemID && $0.placement == .queued })
         else { return }
@@ -1798,6 +1838,8 @@ final class NativeSessionStore: ObservableObject {
         queueActionFailure = nil
         queueActionCompletion = nil
         queueUpdateTask?.cancel()
+        let commandService = sessionCommandService
+        let legacyAPI = api
         queueUpdateTask = Task { [weak self] in
             defer {
                 if !Task.isCancelled,
@@ -1807,9 +1849,19 @@ final class NativeSessionStore: ObservableObject {
                 }
             }
             do {
-                let response = try await api.updateQueue(.init(sessionId: sessionID, itemId: itemID, action: action))
-                guard response.accepted,
-                      !Task.isCancelled,
+                if let commandService {
+                    try await commandService.updateQueue(
+                        sessionID: sessionID,
+                        itemID: itemID,
+                        action: action.remoteQueueAction
+                    )
+                } else if let legacyAPI {
+                    let response = try await legacyAPI.updateQueue(
+                        .init(sessionId: sessionID, itemId: itemID, action: action)
+                    )
+                    guard response.accepted else { return }
+                }
+                guard !Task.isCancelled,
                       self?.activeSessionID == sessionID,
                       self?.queuedMessages.contains(where: { $0.id == itemID && $0.placement == .queued }) == true
                 else { return }
@@ -1918,11 +1970,17 @@ final class NativeSessionStore: ObservableObject {
             }
             return
         }
-        guard let api else { return }
+        guard sessionCommandService != nil || api != nil else { return }
         cancelTask?.cancel()
+        let commandService = sessionCommandService
+        let legacyAPI = api
         cancelTask = Task { [weak self] in
             do {
-                _ = try await api.cancel(sessionID: sessionID)
+                if let commandService {
+                    try await commandService.cancel(sessionID: sessionID)
+                } else if let legacyAPI {
+                    _ = try await legacyAPI.cancel(sessionID: sessionID)
+                }
             } catch {
                 // 取消失败保留运行状态
                 self?.cancelAttemptError = error.localizedDescription
@@ -3541,7 +3599,41 @@ final class NativeSessionStore: ObservableObject {
     }
 }
 
+private extension SessionPromptContent {
+    var remotePromptContentPart: RemotePromptContentPart {
+        switch self {
+        case let .text(text):
+            return .text(text)
+        case let .image(mediaType, data, name):
+            return .image(mediaType: mediaType, data: data, name: name)
+        }
+    }
+
+    var remoteJSONValue: RemoteJSONValue {
+        switch self {
+        case let .text(text):
+            return .object(["type": .string("text"), "text": .string(text)])
+        case let .image(mediaType, data, name):
+            var object: [String: RemoteJSONValue] = [
+                "type": .string("image"),
+                "mediaType": .string(mediaType),
+                "data": .string(data),
+            ]
+            if let name { object["name"] = .string(name) }
+            return .object(object)
+        }
+    }
+}
+
 private extension SessionQueueAction {
+    var remoteQueueAction: RemoteQueueAction {
+        switch self {
+        case let .edit(content): .edit(content: content.map(\.remoteJSONValue))
+        case .remove: .remove
+        case .steer: .steer
+        }
+    }
+
     var failureKind: NativeSessionStore.QueueActionFailure.Kind {
         switch self {
         case .edit: .edit
