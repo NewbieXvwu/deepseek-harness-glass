@@ -130,8 +130,10 @@ enum RemoteSessionFollowFrame: Codable, Sendable, Equatable {
 }
 
 struct RemoteSessionQueuedItem: Codable, Sendable, Equatable, Identifiable {
+    enum Placement: String, Codable, Sendable { case queued, steering, context }
+
     let id: String
-    let placement: String
+    let placement: Placement
     let rpcId: SessionRequestID?
     let message: Message
 
@@ -142,10 +144,12 @@ struct RemoteSessionQueuedItem: Codable, Sendable, Equatable, Identifiable {
 }
 
 struct RemoteSessionJob: Codable, Sendable, Equatable, Identifiable {
+    enum Status: String, Codable, Sendable { case running, stopping, completed, killed, failed }
+
     let id: String
     let kind: String
     let label: String
-    let status: String
+    let status: Status
     let detail: String?
     let startedAt: Int64
     let finishedAt: Int64?
