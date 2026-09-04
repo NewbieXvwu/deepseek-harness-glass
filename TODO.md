@@ -793,7 +793,7 @@ T6.6扩展nodes、T6.7 reconnect/replay、完整Settings Root/schema form/Genera
 
 本节是当前版本迁移的权威增量计划。它不抹除前文任何历史完成事实；涉及协议、Host 认证、Session ingest、Workspace follow、Settings/Models、Conversation/ui-chat、Tool presentation、Ghost Plane 或官方视觉/AX source 的旧 `[x]`，只有在本节对应 CUT 任务完成后才获得 rc.1 当前认证。
 
-#### 16.0 新完成定义与架构不变量
+### 16.0 新完成定义与架构不变量
 
 | 编号 | 完成定义 | 可验证事实 |
 |---|---|---|
@@ -809,7 +809,7 @@ T6.6扩展nodes、T6.7 reconnect/replay、完整Settings Root/schema form/Genera
 | N9 | Plugin Plane 使用 rc.1 module graph/combo bundle。 | 不存在旧单插件 `client.js` fallback loader；Ghost Plane 只接受 rc.1 module/slot/bundle contract。 |
 | N10 | UI 重新认证。 | 任何从 rc.2 继承的可见页面都必须经过 rc.1 同状态来源审计、视觉配对、键盘和 AX 复核后才算完成。 |
 
-#### 0.1 目标架构
+#### 16.0.1 目标架构
 
 ```text
 SwiftUI / AppKit Feature
@@ -848,7 +848,7 @@ HostAuthBootstrap
 HarnessHostProcess
 ```
 
-#### 0.2 当前组件处置表
+#### 16.0.2 当前组件处置表
 
 | 当前组件/概念 | 处置 | rc.1 最终形态 |
 |---|---|---|
@@ -868,7 +868,7 @@ HarnessHostProcess
 | 旧单插件 Web bundle loader | 删除 | rc.1 module graph + combo bundle resolver |
 | rc.2 runtime fixtures/spec | 从当前执行面删除 | rc.1 exact-SHA fixtures/spec |
 
-#### 16.1 CUT0：锁定迁移边界与上游来源
+### 16.1 CUT0：锁定迁移边界与上游来源
 
 - [ ] **CUT0.1：将 `dsh-v0.1.2-rc.1` 设为唯一 verified baseline。** 更新 `SupportedHostBuilds.json`、Host build metadata、bundled payload lock、Node/payload manifest 和 app build manifest，使唯一 verified 条目精确指向 `a66e4702047846cdaa10c66c9d3df3951f5ea70d`。
   - 依赖：无。
@@ -894,7 +894,7 @@ HarnessHostProcess
   - 依赖：CUT0.2。
   - 验收：需要回滚时回滚 Git commit/发行版本，而不是在当前二进制里切换旧 runtime。
 
-#### 16.2 CUT1：重建 Official Spec 与 rc.1 fixtures
+### 16.2 CUT1：重建 Official Spec 与 rc.1 fixtures
 
 - [ ] **CUT1.1：重生成 `OfficialUISpec.Build`。** 以 rc.1 commit 为唯一 source commit，重新计算 locale/token/layout/fixture revisions、generator input hashes、build ID 和 generated metadata。
   - 依赖：CUT0.4。
@@ -932,7 +932,7 @@ HarnessHostProcess
   - 依赖：CUT0.4。
   - 验收：不保留旧单插件 bundle URL 作为 fallback contract。
 
-#### 16.3 CUT2：Host Launch → Authenticate → Classify → Ready
+### 16.3 CUT2：Host Launch → Authenticate → Classify → Ready
 
 - [ ] **CUT2.1：将 Host 启动输出解析从 endpoint 升级为 `HostLaunchDescriptor`。** 解析 rc.1 `dsh web:` 输出里的完整 process-token URL，校验 scheme、loopback authority、port、root path 和 token query；token 不拆散到多个长期状态字段。
   - 依赖：CUT0.1。
@@ -970,7 +970,7 @@ HarnessHostProcess
   - 依赖：CUT2.4、CUT3.6。
   - 验收：诊断可区分 verified 与 Best-effort，但不泄露认证材料。
 
-#### 16.4 CUT3：从零实现 `RemoteConnection`
+### 16.4 CUT3：从零实现 `RemoteConnection`
 
 - [ ] **CUT3.1：删除 `DSHClientTransport` 的演化路径并新建 `Core/Remote`。** 不从旧 transport 继承 public API；建立 `RemoteConnection.swift`、`RemoteMuxConnection.swift`、`RemoteProcedure.swift`、`RemoteStreamProcedure.swift`、`RemoteError.swift`、`RemoteConnectionGeneration.swift`、`RemoteTrace.swift`、`RemoteWireModels.swift`。
   - 依赖：CUT1.3。
@@ -1012,7 +1012,7 @@ HarnessHostProcess
   - 依赖：CUT2.3、CUT1.3。
   - 验收：download 认证、取消、文件落盘和脱敏保持原有安全属性。
 
-#### 16.5 CUT4：Typed Controllers 与 composition root
+### 16.5 CUT4：Typed Controllers 与 composition root
 
 - [ ] **CUT4.1：将 `HarnessAPIs` 重构为 `HarnessControllers`。** 保留“Feature 不认识 wire”的原则，但所有实现改为依赖 `RemoteConnection`，不依赖 `DSHAPIClient`。
   - 依赖：CUT3.4、CUT3.5。
@@ -1038,7 +1038,7 @@ HarnessHostProcess
   - 依赖：CUT4.2–CUT4.5。
   - 验收：测试 fake 缺 required API 时编译期暴露，而不是运行时才发现。
 
-#### 16.6 CUT5：重建 Session Runtime
+### 16.6 CUT5：重建 Session Runtime
 
 - [ ] **CUT5.1：定义 Session 基础强类型。** 至少建立 `SessionSeq`、`SessionLogOffset`（若当前 rc.1 contract需要）、`ConnectionGeneration`、`SessionRequestID`、`SessionAddress`；禁止在 journal merge API 中混用裸 `Int`。
   - 依赖：CUT4.2。
@@ -1088,7 +1088,7 @@ HarnessHostProcess
   - 依赖：CUT5.3–CUT5.11。
   - 验收：新 Session Runtime 不引用旧类型。
 
-#### 16.7 CUT6：Projection Engine 与薄 `NativeSessionStore`
+### 16.7 CUT6：Projection Engine 与薄 `NativeSessionStore`
 
 - [ ] **CUT6.1：建立 `SessionProjectionEngine`。** 输入只接受 `SessionJournalState` + `SessionControlState`，输出 Conversation、Tool、Approval、Question、Queue、Jobs、running/model 等 Host-authoritative projections。
   - 依赖：CUT5.7。
@@ -1118,7 +1118,7 @@ HarnessHostProcess
   - 依赖：CUT6.6。
   - 验收：断线/重连/切 Session 的 local-vs-remote 测试覆盖完整。
 
-#### 16.8 CUT7：Workspace Runtime
+### 16.8 CUT7：Workspace Runtime
 
 - [ ] **CUT7.1：实现 `WorkspaceRuntime`。** 打开 `workspace.follow`，opening baseline 原子替换当前 Workspace state，后续只接受 `upsert`、`remove`、`order`、`archived` closed union。
   - 依赖：CUT4.3、CUT1.7。
@@ -1136,7 +1136,7 @@ HarnessHostProcess
   - 依赖：CUT7.1–CUT7.3。
   - 验收：Workspace UI 与 Remote 完全隔离。
 
-#### 16.9 CUT8：Settings、Credentials、Models 与 Onboarding
+### 16.9 CUT8：Settings、Credentials、Models 与 Onboarding
 
 - [ ] **CUT8.1：将 Settings 迁到 rc.1 controller。** 保留 draft/revision fence 的领域设计，但 describe/mutate、schema、resolved/base/user values 与 invalidation 来源重新绑定 rc.1 contract。
   - 依赖：CUT4.4、CUT1.3。
@@ -1162,7 +1162,7 @@ HarnessHostProcess
   - 依赖：CUT1.8、CUT8.1–CUT8.5。
   - 验收：rc.2 的 17 项 SettingsRoot 测试只能作为历史参考，不能直接证明 rc.1 parity。
 
-#### 16.10 CUT9：Conversation / ui-chat 重新映射
+### 16.10 CUT9：Conversation / ui-chat 重新映射
 
 - [ ] **CUT9.1：重做 Conversation source map。** 明确 rc.1 `ui-conversation` 与独立 `ui-chat` 的职责、slot ownership、node assembler 与 visible renderer 来源；更新所有相关 `OfficialUISpec`/source ledger。
   - 依赖：CUT1.2、CUT1.8。
@@ -1192,7 +1192,7 @@ HarnessHostProcess
   - 依赖：CUT5.8、CUT8.3、CUT1.8。
   - 验收：Composer 不持有 Remote client；Send intent 进入 `SessionCommandService`。
 
-#### 16.11 CUT10：Tool UI 全面 raw-event 化
+### 16.11 CUT10：Tool UI 全面 raw-event 化
 
 - [ ] **CUT10.1：删除旧 presenter-view carrier。** 从 DTO、Session model、fixture、tests、renderer admission 中删除 `ToolEventViewDTO`、`view`、`callView`、`resultView`。
   - 依赖：CUT6.3。
@@ -1218,7 +1218,7 @@ HarnessHostProcess
   - 依赖：CUT10.1。
   - 验收：第一方常用工具覆盖达到 rc.1 官方 client 的可见功能面。
 
-#### 16.12 CUT11：Ghost Plane rc.1 重构
+### 16.12 CUT11：Ghost Plane rc.1 重构
 
 - [ ] **CUT11.1：重建 `PluginModuleGraph`。** 以 rc.1 system baseline、enabled plugin client modules、dependency ordering、runtime conflict resolution 为唯一 module graph；旧 graph schema 删除。
   - 依赖：CUT1.9。
@@ -1256,7 +1256,7 @@ HarnessHostProcess
   - 依赖：CUT11.1、CUT11.2。
   - 验收：至少一个 catalog-verified 第三方插件走完整 Ghost Plane zero-modification path。
 
-#### 16.13 CUT12：目录与 ownership 清理
+### 16.13 CUT12：目录与 ownership 清理
 
 - [ ] **CUT12.1：删除 `Core/Transport` 目录并完成 `Core/Remote` ownership。** HTTP/WebSocket 只作为 Remote 的私有 carrier 细节；上层模块名和 public API 不再围绕 transport组织。
   - 依赖：CUT3.1–CUT3.9、CUT5.12。
@@ -1278,7 +1278,7 @@ HarnessHostProcess
   - 依赖：CUT12.1–CUT12.4、CUT11。
   - 验收：删除不是注释/Deprecated/unused留存，而是真正从 production target 消失。
 
-#### 16.14 CUT13：测试与正确性验证
+### 16.14 CUT13：测试与正确性验证
 
 - [ ] **CUT13.1：Remote unary contract tests。** 对 authenticated exact rc.1 Host 验证成功、business error、HTTP/auth failure、decode failure、cancel、timeout、并发 correlation。
   - 依赖：CUT3.4、CUT1.4。
@@ -1319,7 +1319,7 @@ HarnessHostProcess
 - [ ] **CUT13.13：安全复核。** launch token/cookie、secret、downloads、plugin permissions、external navigation、temp files、diagnostics、Best-effort Host 文案均重新审计。
   - 依赖：CUT2、CUT8、CUT11。
 
-#### 16.15 CUT14：rc.1 UI 全量重新认证
+### 16.15 CUT14：rc.1 UI 全量重新认证
 
 - [ ] **CUT14.1：Shell / Window / Sidebar / Columns。** 重新生成 rc.1 official/native light+dark evidence；即使代码未变化，也必须确认上游 layout/token 未漂移。
 - [ ] **CUT14.2：Workspace / Session browser。** search、rename、delete、fork、archive、order、narrow rail、keyboard focus 全部重新配对。
@@ -1331,7 +1331,7 @@ HarnessHostProcess
   - 共通依赖：对应 CUT8–CUT11 功能完成、CUT1.8 scene catalog ready。
   - 共通验收：同状态、同视口、同主题、同辅助功能条件；历史 rc.2 配对只能作为回归参考，不算完成证据。
 
-#### 16.16 CUT15：最终 clean cut 与发布边界
+### 16.16 CUT15：最终 clean cut 与发布边界
 
 - [ ] **CUT15.1：切换 App composition root。** App 启动只创建新 Host auth → Remote → Controllers → Runtimes → Stores 链；旧 transport/session composition从入口完全移除。
   - 依赖：CUT2–CUT12。
@@ -1351,7 +1351,7 @@ HarnessHostProcess
 - [ ] **CUT15.6：合并迁移分支。** 合并时 `main` 不经历双协议 release；历史版本通过 Git tag/release回滚，不通过当前二进制的兼容层回滚。
   - 依赖：CUT15.1–CUT15.5。
 
-#### 16.17 迁移后继续推进的产品任务
+### 16.17 迁移后继续推进的产品任务
 
 下列工作不是“迁移税”，但在 rc.1 clean cut 完成后继续作为产品完成面推进；其旧 rc.2 代码可复用多少必须逐项经 rc.1 重新认证。
 
@@ -1362,7 +1362,7 @@ HarnessHostProcess
 - [ ] **POST5：完成 Golden visual / full keyboard / VoiceOver / stress / security 发布门槛。** 继续关闭历史 TODO 中尚未完成的 T12.4–T12.7 类质量工作，但证据全部基于 rc.1。
 - [ ] **POST6：发布基础设施与 notarization。** 延续原签名、公证、更新、release workflow 工作，但产品支持声明遵循 CUT15.4。
 
-#### 16.18 推荐实施顺序
+### 16.18 推荐实施顺序
 
 ```text
 CUT0  边界/来源
@@ -1396,7 +1396,7 @@ CUT15 single cutover
 POST  remaining product parity
 ```
 
-#### 迁移期间最重要的禁止事项
+#### 16.18.1 迁移期间最重要的禁止事项
 
 1. 不为了“先跑起来”保留 `session.history + events.mux` 胶水层。
 2. 不在 `RemoteConnection` 中理解 SessionSeq、queue/jobs、Workspace rows 或 Tool UI。
