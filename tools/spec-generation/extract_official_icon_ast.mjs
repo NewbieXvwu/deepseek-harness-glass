@@ -44,8 +44,14 @@ if (isInner) {
     fail('svg contains no JSX child elements', svg)
   }
   const start = consumeLeadingWhitespace(firstChild.getStart(sourceFile), svg.openingElement.getEnd())
+  const replacements = []
+  visitSvg(svg, node => {
+    if (!ts.isJsxAttribute(node) || !ts.isJsxExpression(node.initializer) || !ts.isIdentifier(node.initializer.expression)) return
+    const value = topLevelStringConstant(node.initializer.expression.text)
+    if (value !== undefined) replacements.push(replace(node, `${node.name.text}="${escapeXmlAttribute(value)}"`))
+  })
   const innerRaw = sourceText.slice(start, lastChild.getEnd())
-  process.stdout.write(innerRaw + '\n')
+  process.stdout.write(applyReplacements(innerRaw, replacements, start) + '\n')
   process.exit(0)
 }
 
@@ -120,6 +126,18 @@ function defaultSizeFromComponent(declaration) {
   return size.initializer.text
 }
 
+function topLevelStringConstant(name) {
+  for (const statement of sourceFile.statements) {
+    if (!ts.isVariableStatement(statement)) continue
+    for (const declaration of statement.declarationList.declarations) {
+      if (!ts.isIdentifier(declaration.name) || declaration.name.text !== name) continue
+      if (ts.isStringLiteral(declaration.initializer) || ts.isNoSubstitutionTemplateLiteral(declaration.initializer)) {
+        return declaration.initializer.text
+      }
+    }
+  }
+}
+
 function singleSvgSubtree(root) {
   const matches = []
   const visit = node => {
@@ -173,6 +191,10 @@ function applyReplacements(svgText, replacements, offset) {
 
 function kebab(name) {
   return name.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)
+}
+
+function escapeXmlAttribute(value) {
+  return value.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;')
 }
 
 function hasExportModifier(node) {
