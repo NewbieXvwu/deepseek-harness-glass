@@ -9,7 +9,7 @@ final class OfficialRawEventReplayFixtureCatalogTests: XCTestCase {
 
         XCTAssertEqual(fixture.officialSourceCommit, OfficialUISpec.Build.sourceCommit)
         XCTAssertEqual(fixture.source.commit, OfficialUISpec.Build.sourceCommit)
-        XCTAssertEqual(fixture.source.path, "packages/client/runtime/tests/event-script.client.ts")
+        XCTAssertEqual(fixture.source.path, "packages/api/session-controller/tests/event-script.client.ts")
         XCTAssertEqual(Set(fixture.cases.map(\.category)), [
             "happy-path", "error", "reconnect", "concurrent", "long-session", "unknown-node",
         ])

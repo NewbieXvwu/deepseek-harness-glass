@@ -59,9 +59,9 @@ enum OfficialRawEventReplayFixtureCatalog {
         ]
         guard fixture.schemaVersion == 1,
               fixture.officialSourceCommit == OfficialUISpec.Build.sourceCommit,
-              fixture.fixtureRevision == "official-b150a55-raw-event-replay-r1",
+              fixture.fixtureRevision == "official-a66e470-raw-event-replay-r1",
               fixture.source.commit == OfficialUISpec.Build.sourceCommit,
-              fixture.source.path == "packages/client/runtime/tests/event-script.client.ts",
+              fixture.source.path == "packages/api/session-controller/tests/event-script.client.ts",
               Set(fixture.cases.map(\.category)).isSuperset(of: requiredCategories),
               Set(fixture.cases.map(\.id)).count == fixture.cases.count,
               fixture.cases.allSatisfy({ !$0.events.isEmpty }),
