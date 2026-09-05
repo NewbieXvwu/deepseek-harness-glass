@@ -19,6 +19,7 @@ protocol NativeSettingsAPI: Sendable {
 }
 
 extension SettingsAPI: NativeSettingsAPI {}
+extension SettingsController: NativeSettingsAPI {}
 
 /// Host-authoritative settings projection. Secret values never enter this store:
 /// `settings.describe` returns only redacted values plus write-only slot state.

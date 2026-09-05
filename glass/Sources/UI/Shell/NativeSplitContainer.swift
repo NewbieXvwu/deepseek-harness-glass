@@ -277,7 +277,7 @@ final class NativeShellPresentation: ObservableObject {
 
         Task { [weak self] in await self?.agentPresetStore.refresh(using: apis.agentPresets) }
         if settingsPresented {
-            settingsStore.load(using: apis.settings)
+            settingsStore.load(using: controllers.settings)
             Task { [weak self] in await self?.modelDirectoryStore.refresh(using: apis.llm) }
         }
 
@@ -366,7 +366,7 @@ final class NativeShellPresentation: ObservableObject {
 
     func openSettings() {
         settingsPresented = true
-        settingsStore.load(using: apis?.settings)
+        settingsStore.load(using: controllers?.settings)
         Task { [weak self] in await self?.modelDirectoryStore.refresh(using: self?.apis?.llm) }
         Task { [weak self] in await self?.agentPresetStore.refresh(using: self?.apis?.agentPresets) }
     }
