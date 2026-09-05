@@ -173,7 +173,22 @@ struct RemoteConnection: Sendable {
                 pair.continuation.finish(throwing: error)
             }
         }
-        return .init(generation: generation, ready: ready, events: pair.stream)
+        let clientID = ready.clientId
+        return .init(
+            generation: generation,
+            ready: ready,
+            events: pair.stream,
+            replyHandler: { [self] eventID, outcome in
+                try await callNoValue(
+                    endpoint: "$events/result",
+                    arguments: RemoteEventResultArguments(
+                        clientId: clientID,
+                        eventId: eventID,
+                        outcome: outcome
+                    )
+                )
+            }
+        )
     }
 
     func closeStreams() async {

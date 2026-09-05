@@ -67,10 +67,70 @@ enum RemoteEventDownlinkFrame: Codable, Sendable, Equatable {
     }
 }
 
+struct RemoteEventRejection: Codable, Sendable, Equatable {
+    let name: String
+    let message: String
+    let code: String?
+    let details: RemoteJSONValue?
+
+    init(name: String, message: String, code: String? = nil, details: RemoteJSONValue? = nil) {
+        self.name = name
+        self.message = message
+        self.code = code
+        self.details = details
+    }
+}
+
+enum RemoteEventReplyOutcome: Encodable, Sendable, Equatable {
+    case next
+    case result(RemoteJSONValue?)
+    case rejected(RemoteEventRejection)
+
+    private enum CodingKeys: String, CodingKey { case kind, value, error }
+    private enum Kind: String, Encodable { case next, result, rejected }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case .next:
+            try container.encode(Kind.next, forKey: .kind)
+        case let .result(value):
+            try container.encode(Kind.result, forKey: .kind)
+            try container.encodeIfPresent(value, forKey: .value)
+        case let .rejected(error):
+            try container.encode(Kind.rejected, forKey: .kind)
+            try container.encode(error, forKey: .error)
+        }
+    }
+}
+
+struct RemoteEventResultArguments: Encodable, Sendable, Equatable {
+    let clientId: String
+    let eventId: String
+    let outcome: RemoteEventReplyOutcome
+}
+
 struct RemoteEventChannel: Sendable {
     let generation: RemoteConnectionGeneration
     let ready: RemoteEventReady
     let events: AsyncThrowingStream<RemoteEventDownlinkFrame, Error>
+    private let replyHandler: @Sendable (String, RemoteEventReplyOutcome) async throws -> Void
+
+    init(
+        generation: RemoteConnectionGeneration,
+        ready: RemoteEventReady,
+        events: AsyncThrowingStream<RemoteEventDownlinkFrame, Error>,
+        replyHandler: @escaping @Sendable (String, RemoteEventReplyOutcome) async throws -> Void
+    ) {
+        self.generation = generation
+        self.ready = ready
+        self.events = events
+        self.replyHandler = replyHandler
+    }
+
+    func reply(eventID: String, outcome: RemoteEventReplyOutcome) async throws {
+        try await replyHandler(eventID, outcome)
+    }
 }
 
 actor RemoteGenerationCounter {
