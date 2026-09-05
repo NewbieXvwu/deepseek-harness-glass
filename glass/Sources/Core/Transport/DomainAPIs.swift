@@ -35,25 +35,6 @@ struct HarnessAPIs: Sendable {
     }
 }
 
-/// Typed RC8 subagent domain. A catalog is Host authority and is never
-/// reconstructed from ordinary session summaries.
-struct SubagentsAPI: Sendable {
-    private let client: DSHAPIClient
-    init(client: DSHAPIClient) { self.client = client }
-
-    func list(parentSessionID: String) async throws -> SubagentListResponse {
-        try await client.subagentList(parentSessionID: parentSessionID)
-    }
-
-    func prompt(_ request: SubagentPromptRequest) async throws -> SubagentPromptResponse {
-        try await client.subagentPrompt(request)
-    }
-
-    func interrupt(_ request: SubagentInterruptRequest) async throws -> SubagentInterruptResponse {
-        try await client.subagentInterrupt(request)
-    }
-}
-
 /// Typed RC8 `messageFeedback` Remote namespace. Business failures remain
 /// result payloads rather than being collapsed into transport failures.
 struct MessageFeedbackAPI: Sendable {
