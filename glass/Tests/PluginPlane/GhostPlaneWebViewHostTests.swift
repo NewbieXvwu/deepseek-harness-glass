@@ -101,6 +101,26 @@ final class GhostPlaneWebViewHostTests: XCTestCase {
         ) as? [String: Any]
         XCTAssertEqual(scrollResult?["transform"] as? String, "translate3d(0px, -42.5px, 0px)")
         XCTAssertEqual(scrollResult?["offset"] as? String, "42.5")
+
+        try await host.applyScrollOffset(.init(documentEpoch: 1, sequence: 2, scrollOffset: 80))
+        try await host.applyScrollOffset(.init(documentEpoch: 1, sequence: 1, scrollOffset: 12))
+        host.beginDocument(epoch: 2)
+        try await host.applyScrollOffset(.init(documentEpoch: 2, sequence: 1, scrollOffset: 21))
+        try await host.applyScrollOffset(.init(documentEpoch: 1, sequence: 99, scrollOffset: 999))
+        let fenced = try await host.webView.callAsyncJavaScript(
+            """
+            const content = document.getElementById('ghost-scroll-content');
+            return {
+              transform: content.style.transform,
+              epoch: content.dataset.ghostScrollEpoch,
+              sequence: content.dataset.ghostScrollSequence,
+            };
+            """,
+            arguments: [:], contentWorld: .page
+        ) as? [String: Any]
+        XCTAssertEqual(fenced?["transform"] as? String, "translate3d(0px, -21px, 0px)")
+        XCTAssertEqual(fenced?["epoch"] as? String, "2")
+        XCTAssertEqual(fenced?["sequence"] as? String, "1")
     }
 
     func testNativePermitPromotesExactQueuedFactoriesWithoutInvokingThem() async throws {
@@ -120,7 +140,7 @@ final class GhostPlaneWebViewHostTests: XCTestCase {
         _ = try await host.webView.callAsyncJavaScript(
             """
             window.__ModuleLoader__.load({
-              id: 'dsh-review-loop/client',
+              id: 'dsh-review-loop',
               factory: () => { throw new Error('factory must not run during promotion'); },
             });
             return window.__ModuleLoader__.mode;

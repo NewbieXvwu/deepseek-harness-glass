@@ -24,6 +24,7 @@ public final class GhostPlaneWebViewHost: NSObject {
     /// than treating the final endpoint as a fresh capability.
     private var pendingMainFrameRequestURL: URL?
     private var eventFence = GhostPlaneEventBridgeFence(documentEpoch: 1)
+    private var documentEpoch: UInt64 = 1
     /// Optional native sink receives only wire-decoded, fence-admitted plane events.
     /// It never receives raw WKScriptMessage bodies or page objects.
     public var onPlaneEvent: ((GhostPlaneBridgeEvent) -> Void)?
@@ -101,6 +102,16 @@ public final class GhostPlaneWebViewHost: NSObject {
         )
     }
 
+
+    /// Rebinds every bridge fence to a new native document generation. Old
+    /// asynchronous scroll/event work may still complete, but the page-side
+    /// epoch fence will reject it after this transition.
+    public func beginDocument(epoch: UInt64) {
+        guard epoch > 0 else { return }
+        documentEpoch = epoch
+        eventFence = GhostPlaneEventBridgeFence(documentEpoch: epoch)
+    }
+
     /// Emits a Core-fenced native event as a fixed JSON DTO. The document can
     /// observe it only after bootstrap validation; this method never serializes
     /// AppKit/WebKit objects or injects executable JavaScript source.
@@ -134,7 +145,9 @@ public final class GhostPlaneWebViewHost: NSObject {
             if (ghostPlane === undefined || typeof ghostPlane.applyScrollOffset !== 'function') {
               throw new Error('Ghost Plane scroll bootstrap is unavailable');
             }
-            return ghostPlane.applyScrollOffset(arguments.scrollOffset);
+            return ghostPlane.applyScrollOffset(
+              arguments.documentEpoch, arguments.sequence, arguments.scrollOffset
+            );
             """,
             arguments: scalar.rendererArguments,
                         contentWorld: .page
@@ -259,14 +272,27 @@ public final class GhostPlaneWebViewHost: NSObject {
             }
             return true;
           };
-          const applyScrollOffset = (scrollOffset) => {
-            if (typeof scrollOffset !== 'number' || !Number.isFinite(scrollOffset)) {
-              throw new Error('Ghost Plane scroll offset was rejected');
+          let scrollEpoch = 0;
+          let scrollSequence = 0;
+          const applyScrollOffset = (documentEpoch, sequence, scrollOffset) => {
+            if (!Number.isSafeInteger(documentEpoch) || documentEpoch < 1
+                || !Number.isSafeInteger(sequence) || sequence < 1
+                || typeof scrollOffset !== 'number' || !Number.isFinite(scrollOffset)) {
+              throw new Error('Ghost Plane scroll sample was rejected');
             }
+            if (documentEpoch < scrollEpoch) return false;
+            if (documentEpoch > scrollEpoch) {
+              scrollEpoch = documentEpoch;
+              scrollSequence = 0;
+            }
+            if (sequence <= scrollSequence) return false;
             const content = document.getElementById('ghost-scroll-content');
             if (content === null) throw new Error('Ghost Plane scroll content is absent');
+            scrollSequence = sequence;
             content.style.transform = `translate3d(0, ${-scrollOffset}px, 0)`;
             content.style.setProperty('--ghost-scroll-offset', String(scrollOffset));
+            content.dataset.ghostScrollEpoch = String(documentEpoch);
+            content.dataset.ghostScrollSequence = String(sequence);
             return true;
           };
           const applyNativeBridgeEvent = (message) => {
