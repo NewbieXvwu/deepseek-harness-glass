@@ -57,8 +57,8 @@ protocol NativeSubagentContinuationAPI: Sendable {
     func interrupt(_ request: SubagentInterruptRequest) async throws -> SubagentInterruptResponse
 }
 
-/// Read-only phase of the RC8 feedback controller. Items are always supplied by
-/// the Host list response; mutations are added only behind the same typed seam.
+/// Legacy feedback seam retained for focused store tests. Production list and
+/// mutations run through the typed `MessageFeedbackController`.
 @MainActor
 protocol NativeMessageFeedbackAPI: Sendable {
     func list(sessionID: String) async throws -> MessageFeedbackListResponse
@@ -77,8 +77,6 @@ extension NativeMessageFeedbackAPI {
         throw DSHTransportError.invalidEndpoint
     }
 }
-
-extension MessageFeedbackAPI: NativeMessageFeedbackAPI {}
 
 private extension RemoteMessageFeedbackItem {
     var legacyPresentationDTO: MessageFeedbackItemDTO {
