@@ -144,7 +144,7 @@ public final class GhostPlaneWebViewHost: NSObject {
     private func allow(_ url: URL?) -> Bool {
         guard let url else { return false }
         switch policy.decision(for: url) {
-        case .allowSkeletonDocument, .allowPluginResource:
+        case .allowSkeletonDocument, .allowPluginResource, .allowPluginCombo:
             return true
         case .deny:
             return false
@@ -164,15 +164,15 @@ public final class GhostPlaneWebViewHost: NSObject {
             let mode = { value: 'queue' };
             const pendingQueue = [];
             const factories = new Map();
+            const validPackageID = (id) => typeof id === 'string' && id.length > 0 && id.length <= 128
+              && (/^[A-Za-z0-9._-]+$/.test(id) || /^@[A-Za-z0-9._-]+\\/[A-Za-z0-9._-]+$/.test(id));
             const validRegistration = (registration) => registration !== null
               && typeof registration === 'object'
-              && typeof registration.id === 'string' && registration.id.length > 0
-              && registration.id.length <= 128
-              && /^[A-Za-z0-9._-]+(?:\\/client)?$/.test(registration.id)
+              && validPackageID(registration.id)
               && typeof registration.factory === 'function';
             const load = (registration) => {
               if (!validRegistration(registration)) throw new Error('Ghost Plane module registration was rejected');
-              const id = registration.id.endsWith('/client') ? registration.id.slice(0, -'/client'.length) : registration.id;
+              const id = registration.id;
               if (mode.value === 'queue') {
                 pendingQueue.push(Object.freeze({ id, factory: registration.factory }));
                 return;
@@ -183,7 +183,7 @@ public final class GhostPlaneWebViewHost: NSObject {
             const promote = (pluginIDs) => {
               if (mode.value !== 'queue') throw new Error('Ghost Plane module loader is already live');
               if (!Array.isArray(pluginIDs) || pluginIDs.length === 0 || new Set(pluginIDs).size !== pluginIDs.length
-                  || !pluginIDs.every(id => typeof id === 'string' && /^[A-Za-z0-9._-]+$/.test(id))) {
+                  || !pluginIDs.every(validPackageID)) {
                 throw new Error('Ghost Plane native module permits were rejected');
               }
               const permitted = new Set(pluginIDs);
@@ -341,7 +341,7 @@ extension GhostPlaneWebViewHost: WKNavigationDelegate {
             statusCode: http.statusCode,
             mimeType: navigationResponse.response.mimeType
         ) {
-        case .allowSkeletonDocument, .allowPluginResource:
+        case .allowSkeletonDocument, .allowPluginResource, .allowPluginCombo:
             decisionHandler(.allow)
         case .deny:
             skeletonReady = false

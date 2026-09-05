@@ -229,7 +229,7 @@ final class GhostPlaneWebViewHostTests: XCTestCase {
     private func admittedManifest() throws -> GhostPlaneModuleManifest {
         let policy = try policy()
         let data = Data("""
-        {"rev":"graph-r1","entries":[{"id":"dsh-review-loop","url":"http://127.0.0.1:7342/plugins/dsh-review-loop/client.js?rev=r1","rev":"r1","inject":[],"immediately":true,"external":[]}]}
+        {"rev":"graph-r1","entries":[{"id":"dsh-review-loop","url":"http://127.0.0.1:7342/plugins/??dsh-review-loop/client.js&rev=r1","rev":"r1","inject":[],"immediately":true,"external":[]}],"batches":[{"phase":"application","url":"http://127.0.0.1:7342/plugins/??dsh-review-loop/client.js&rev=batch-r1","rev":"batch-r1","entries":["dsh-review-loop"]}]}
         """.utf8)
         switch GhostPlaneModuleManifest.admit(data: data, policy: policy, staticModuleSpecifiers: []) {
         case .admitted(let value): return value
