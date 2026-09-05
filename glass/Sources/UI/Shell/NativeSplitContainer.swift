@@ -288,7 +288,6 @@ final class NativeShellPresentation: ObservableObject {
         if let selectedSessionID = sessionStore.selectedSessionID {
             sessionStore.open(
                 sessionID: selectedSessionID,
-                using: apis.sessions,
                 endpoint: connection.endpoint,
                 sessionCWD: sessionCWD(for: selectedSessionID),
                 sessionRuntime: SessionRuntime(
@@ -510,7 +509,6 @@ final class NativeShellPresentation: ObservableObject {
             }
             sessionStore.open(
                 sessionID: sessionID,
-                using: apis.sessions,
                 endpoint: observedEndpoint,
                 sessionCWD: sessionCWD(for: sessionID),
                 sessionRuntime: runtime
