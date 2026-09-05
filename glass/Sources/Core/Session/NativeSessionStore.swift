@@ -1782,7 +1782,7 @@ final class NativeSessionStore: ObservableObject {
                     reasoningEffort: reasoningEffort
                 )
                 if let commandService {
-                    let selected = try await commandService.selectModel(
+                    _ = try await commandService.selectModel(
                         sessionID: sessionID,
                         selection: remoteSelection
                     )
@@ -1792,7 +1792,9 @@ final class NativeSessionStore: ObservableObject {
                           self?.modelDirectoryGeneration == directoryGeneration,
                           self?.modelSelectionGeneration == mutationGeneration
                     else { return }
-                    self?.modelDirectory = self?.modelDirectory?.applying(selected)
+                    // rc.1 publishes the effective selection through the
+                    // durable `model/selection` projection. Keep the prior
+                    // projection visible until that authoritative row arrives.
                 } else {
                     guard let legacyAPI else { return }
                     let response = try await legacyAPI.selectModel(.init(
