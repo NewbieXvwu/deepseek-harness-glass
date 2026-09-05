@@ -668,6 +668,9 @@ final class NativeSessionStore: ObservableObject {
     func bindEventRuntime(_ runtime: RemoteEventRuntime?) {
         remoteInteractionTask?.cancel()
         remoteInteractionTask = nil
+        invalidateInteractions()
+        pendingApproval = nil
+        pendingQuestion = nil
         remoteEventRuntime = runtime
         remoteInteractionBindingGeneration &+= 1
         let generation = remoteInteractionBindingGeneration
@@ -2721,43 +2724,60 @@ final class NativeSessionStore: ObservableObject {
         invalidateQuestionSubmission()
     }
 
-    /// Source: `PendingApproval.answer`; a panel remains mounted until the Host
-    /// broadcasts `approval/resolved`, even after an accepted carrier receipt.
+    /// Answer the current rc.1 approval waterfall. The legacy facade remains
+    /// only as a fallback while the old transport is still compiled.
     func answerApproval(allowOnce: Bool) {
         guard let approval = pendingApproval,
-              let api,
-              let approvalID = approval.approvalID,
+              remoteEventRuntime != nil || (api != nil && approval.approvalID != nil),
               !isSubmittingApproval
         else { return }
         isSubmittingApproval = true
-        let outcome: ApprovalOutcome = allowOnce ? .allowedOnce : .rejected
         let generation = interactionGeneration
+        let eventRuntime = remoteEventRuntime
+        let legacyAPI = api
         approvalSubmissionTask = Task { [weak self] in
             do {
-                let receipt = try await api.answerApproval(
-                    rpcID: approval.rpcID,
-                    sessionID: approval.sessionID,
-                    approvalID: approvalID,
-                    outcome: outcome
-                )
+                if let eventRuntime {
+                    try await eventRuntime.reply(
+                        eventID: approval.eventID,
+                        outcome: .result(.string(allowOnce ? "allowed-once" : "rejected"))
+                    )
+                } else if let legacyAPI, let approvalID = approval.approvalID {
+                    let receipt = try await legacyAPI.answerApproval(
+                        rpcID: approval.eventID,
+                        sessionID: approval.sessionID,
+                        approvalID: approvalID,
+                        outcome: allowOnce ? .allowedOnce : .rejected
+                    )
+                    guard receipt.accepted else {
+                        guard !Task.isCancelled,
+                              let self,
+                              self.interactionGeneration == generation,
+                              self.pendingApproval?.eventID == approval.eventID
+                        else { return }
+                        self.approvalSubmissionTask = nil
+                        self.isSubmittingApproval = false
+                        return
+                    }
+                } else {
+                    return
+                }
+
                 guard !Task.isCancelled,
                       let self,
                       self.interactionGeneration == generation,
-                      let current = self.pendingApproval,
-                      current.rpcID == approval.rpcID,
-                      current.sessionID == approval.sessionID,
-                      current.approvalID == approval.approvalID
+                      self.pendingApproval?.eventID == approval.eventID,
+                      self.pendingApproval?.sessionID == approval.sessionID
                 else { return }
+                self.pendingApproval = nil
                 self.approvalSubmissionTask = nil
-                if !receipt.accepted { self.isSubmittingApproval = false }
+                self.isSubmittingApproval = false
             } catch {
                 guard !Task.isCancelled,
                       let self,
                       self.interactionGeneration == generation,
-                      let current = self.pendingApproval,
-                      current.rpcID == approval.rpcID,
-                      current.sessionID == approval.sessionID,
-                      current.approvalID == approval.approvalID
+                      self.pendingApproval?.eventID == approval.eventID,
+                      self.pendingApproval?.sessionID == approval.sessionID
                 else { return }
                 self.approvalSubmissionTask = nil
                 self.isSubmittingApproval = false
@@ -2765,36 +2785,70 @@ final class NativeSessionStore: ObservableObject {
         }
     }
 
-    /// Source: `PendingQuestion.answer`; all items in the non-empty Host batch
-    /// are returned together in the approved `QuestionAnswer` value shape.
+    /// Return all answers in the rc.1 `user-questions/request` result shape.
     func answerQuestion(_ answers: [QuestionAnswer]) {
         guard let question = pendingQuestion,
-              let api,
+              remoteEventRuntime != nil || api != nil,
               !isSubmittingQuestion,
               answers.count == question.items.count
         else { return }
         isSubmittingQuestion = true
-        let responseAnswers = answers.map { QuestionAnswerResponse(id: $0.id, selected: $0.selected, custom: $0.custom) }
         let generation = interactionGeneration
+        let eventRuntime = remoteEventRuntime
+        let legacyAPI = api
         questionSubmissionTask = Task { [weak self] in
             do {
-                let receipt = try await api.answerQuestion(rpcID: question.rpcID, sessionID: question.sessionID, answers: responseAnswers)
+                if let eventRuntime {
+                    let values: [RemoteJSONValue] = answers.map { answer in
+                        var object: [String: RemoteJSONValue] = [
+                            "id": .string(answer.id),
+                            "selected": .array(answer.selected.map(RemoteJSONValue.string))
+                        ]
+                        if let custom = answer.custom { object["custom"] = .string(custom) }
+                        return .object(object)
+                    }
+                    try await eventRuntime.reply(
+                        eventID: question.eventID,
+                        outcome: .result(.object(["answers": .array(values)]))
+                    )
+                } else if let legacyAPI {
+                    let responseAnswers = answers.map {
+                        QuestionAnswerResponse(id: $0.id, selected: $0.selected, custom: $0.custom)
+                    }
+                    let receipt = try await legacyAPI.answerQuestion(
+                        rpcID: question.eventID,
+                        sessionID: question.sessionID,
+                        answers: responseAnswers
+                    )
+                    guard receipt.accepted else {
+                        guard !Task.isCancelled,
+                              let self,
+                              self.interactionGeneration == generation,
+                              self.pendingQuestion?.eventID == question.eventID
+                        else { return }
+                        self.questionSubmissionTask = nil
+                        self.isSubmittingQuestion = false
+                        return
+                    }
+                } else {
+                    return
+                }
+
                 guard !Task.isCancelled,
                       let self,
                       self.interactionGeneration == generation,
-                      let current = self.pendingQuestion,
-                      current.rpcID == question.rpcID,
-                      current.sessionID == question.sessionID
+                      self.pendingQuestion?.eventID == question.eventID,
+                      self.pendingQuestion?.sessionID == question.sessionID
                 else { return }
+                self.pendingQuestion = nil
                 self.questionSubmissionTask = nil
-                if !receipt.accepted { self.isSubmittingQuestion = false }
+                self.isSubmittingQuestion = false
             } catch {
                 guard !Task.isCancelled,
                       let self,
                       self.interactionGeneration == generation,
-                      let current = self.pendingQuestion,
-                      current.rpcID == question.rpcID,
-                      current.sessionID == question.sessionID
+                      self.pendingQuestion?.eventID == question.eventID,
+                      self.pendingQuestion?.sessionID == question.sessionID
                 else { return }
                 self.questionSubmissionTask = nil
                 self.isSubmittingQuestion = false
@@ -2802,34 +2856,58 @@ final class NativeSessionStore: ObservableObject {
         }
     }
 
-    /// Source: `PendingQuestion.cancel`; cancellation is a failure result, not
-    /// an invented success outcome, and is resolved by the Host broadcast.
+    /// Reject the rc.1 question waterfall with the official cancellation error.
     func cancelQuestion() {
         guard let question = pendingQuestion,
-              let api,
+              remoteEventRuntime != nil || api != nil,
               !isSubmittingQuestion
         else { return }
         isSubmittingQuestion = true
         let generation = interactionGeneration
+        let eventRuntime = remoteEventRuntime
+        let legacyAPI = api
         questionSubmissionTask = Task { [weak self] in
             do {
-                let receipt = try await api.cancelQuestion(rpcID: question.rpcID)
+                if let eventRuntime {
+                    try await eventRuntime.reply(
+                        eventID: question.eventID,
+                        outcome: .rejected(.init(
+                            name: "UserQuestionError",
+                            message: "the user cancelled ask_user_question",
+                            code: "ASK_CANCELLED"
+                        ))
+                    )
+                } else if let legacyAPI {
+                    let receipt = try await legacyAPI.cancelQuestion(rpcID: question.eventID)
+                    guard receipt.accepted else {
+                        guard !Task.isCancelled,
+                              let self,
+                              self.interactionGeneration == generation,
+                              self.pendingQuestion?.eventID == question.eventID
+                        else { return }
+                        self.questionSubmissionTask = nil
+                        self.isSubmittingQuestion = false
+                        return
+                    }
+                } else {
+                    return
+                }
+
                 guard !Task.isCancelled,
                       let self,
                       self.interactionGeneration == generation,
-                      let current = self.pendingQuestion,
-                      current.rpcID == question.rpcID,
-                      current.sessionID == question.sessionID
+                      self.pendingQuestion?.eventID == question.eventID,
+                      self.pendingQuestion?.sessionID == question.sessionID
                 else { return }
+                self.pendingQuestion = nil
                 self.questionSubmissionTask = nil
-                if !receipt.accepted { self.isSubmittingQuestion = false }
+                self.isSubmittingQuestion = false
             } catch {
                 guard !Task.isCancelled,
                       let self,
                       self.interactionGeneration == generation,
-                      let current = self.pendingQuestion,
-                      current.rpcID == question.rpcID,
-                      current.sessionID == question.sessionID
+                      self.pendingQuestion?.eventID == question.eventID,
+                      self.pendingQuestion?.sessionID == question.sessionID
                 else { return }
                 self.questionSubmissionTask = nil
                 self.isSubmittingQuestion = false
