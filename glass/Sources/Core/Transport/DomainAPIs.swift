@@ -272,19 +272,6 @@ struct DownloadsAPI: Sendable {
     }
 }
 
-struct HostAPI: Sendable {
-    private let client: DSHAPIClient
-    init(client: DSHAPIClient) { self.client = client }
-
-    func describe() async throws -> HostDescribeResponse { try await client.hostDescribe() }
-
-    /// The Host owns the actual filesystem/desktop action. Consumers receive
-    /// only this typed intent and never a local file URL opener.
-    func openPath(_ path: String) async throws -> HostOpenPathResponse {
-        try await client.hostOpenPath(path: path)
-    }
-}
-
 // MARK: - ServerRequest response DTOs
 
 enum ApprovalOutcome: String, Codable, Sendable { case allowedOnce = "allowed-once"; case rejected }
