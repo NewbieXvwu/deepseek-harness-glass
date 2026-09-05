@@ -1,0 +1,49 @@
+name: maintenance export
+
+on:
+  push:
+    branches:
+      - gpt-continue-todo-20260905
+    paths:
+      - .github/workflows/maintenance-export.yml
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup-and-export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Remove obsolete branches
+        run: |
+          set -euo pipefail
+          for branch in \
+            'agent/rc1-todo-completion-20260905' \
+            'docs/plugin-compatibility-proposal' \
+            'migration/dsh-0.1.2-rc.1' \
+            'tmp-export-405ccf4' \
+            'tmp-push'
+          do
+            git push origin --delete "$branch" || true
+          done
+
+      - name: Export current development line
+        run: |
+          set -euo pipefail
+          git bundle create deepseek-harness-glass.bundle gpt-continue-todo-20260905
+          git rev-parse HEAD > deepseek-harness-glass.HEAD.txt
+          git archive --format=tar.gz --output=deepseek-harness-glass.tar.gz HEAD
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deepseek-harness-glass-current
+          path: |
+            deepseek-harness-glass.bundle
+            deepseek-harness-glass.HEAD.txt
+            deepseek-harness-glass.tar.gz
+          if-no-files-found: error
+          retention-days: 1
