@@ -595,10 +595,8 @@ final class NativeShellPresentation: ObservableObject {
 
     /// Source: `workspace.schema.ts:workspaceRenameRequestSchema`.
     func renameWorkspace(_ workspaceID: String, title: String) async throws {
-        guard let apis else { throw URLError(.notConnectedToInternet) }
-        _ = try await apis.workspaces.rename(workspaceID: workspaceID, title: title)
-        guard !Task.isCancelled else { return }
-        workspaceStore.refresh(using: apis)
+        guard let workspaceRuntime else { throw URLError(.notConnectedToInternet) }
+        _ = try await workspaceRuntime.rename(workspaceID: workspaceID, title: title)
     }
 
     /// Source: `workspace.schema.ts:workspaceDeleteRequestSchema`.

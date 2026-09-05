@@ -61,6 +61,14 @@ actor WorkspaceRuntime {
 
     func current() -> WorkspaceRuntimeState? { state }
 
+    func rename(workspaceID: String, title: String) async throws -> RemoteWorkspaceValue {
+        let value = try await controller.rename(workspaceID: workspaceID, title: title)
+        if let generation = activeGeneration {
+            try apply(.upsert(value.workspace), generation: generation)
+        }
+        return value
+    }
+
     func snapshots() -> AsyncStream<WorkspaceRuntimeState> {
         let id = UUID()
         let pair = AsyncStream<WorkspaceRuntimeState>.makeStream()
