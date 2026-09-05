@@ -101,6 +101,29 @@ private extension RemoteMessageFeedbackItem {
     }
 }
 
+private extension MessageFeedbackRatingDTO {
+    var remoteMessageFeedbackRating: RemoteMessageFeedbackRating {
+        self == .positive ? .positive : .negative
+    }
+}
+
+private extension RemoteMessageFeedbackFailure {
+    var stableCode: String {
+        switch self {
+        case .sessionNotFound: "session-not-found"
+        case .targetNotFound: "target-not-found"
+        case .versionConflict: "version-conflict"
+        case .noteBlank: "note-blank"
+        case .noteTooLarge: "note-too-large"
+        }
+    }
+
+    var currentLegacyPresentationDTO: MessageFeedbackItemDTO? {
+        guard case let .versionConflict(current) = self else { return nil }
+        return current?.legacyPresentationDTO
+    }
+}
+
 /// Typed desktop-action boundary for settled Markdown file mentions. The Host
 /// keeps both path opening authority and loopback/build-trust enforcement.
 @MainActor
@@ -999,9 +1022,11 @@ final class NativeSessionStore: ObservableObject {
     }
 
     private func enqueueMessageFeedbackMutation(_ action: MessageFeedbackAction) {
-        guard let api = messageFeedbackAPI, let sessionID = activeSessionID else { return }
+        guard messageFeedbackController != nil || messageFeedbackAPI != nil, let sessionID = activeSessionID else { return }
         let generation = messageFeedbackSessionGeneration
         let actionMessageID = action.messageID
+        let controller = messageFeedbackController
+        let legacyAPI = messageFeedbackAPI
         messageFeedbackMutationGeneration &+= 1
         let mutationGeneration = messageFeedbackMutationGeneration
         let previous = messageFeedbackMutationTask
@@ -1032,53 +1057,135 @@ final class NativeSessionStore: ObservableObject {
                 return
             }
 
-            let messageID: String
-            let observed: MessageFeedbackItemDTO?
-            switch action {
-            case let .toggle(id, _), let .rate(id, _, _), let .clear(id):
-                messageID = id
-                observed = self?.messageFeedbackItems[id]
-            }
+            let messageID = action.messageID
+            let observed = self?.messageFeedbackItems[messageID]
             do {
-                switch action {
-                case let .toggle(_, rating):
-                    if observed?.rating == rating, let observed {
-                        let response = try await api.delete(.init(sessionId: sessionID, messageId: messageID, ifVersion: observed.version))
-                        self?.applyMessageFeedbackDelete(response, messageID: messageID, generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration)
-                    } else {
-                        let response = try await api.put(.init(
+                if let controller {
+                    switch action {
+                    case let .toggle(_, rating):
+                        if observed?.rating == rating, let observed {
+                            let result = try await controller.delete(.init(
+                                sessionId: sessionID,
+                                messageId: messageID,
+                                ifVersion: .init(rawValue: observed.version)
+                            ))
+                            self?.applyRemoteMessageFeedbackDelete(result, messageID: messageID, generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration)
+                        } else {
+                            let result = try await controller.put(.init(
+                                sessionId: sessionID,
+                                messageId: messageID,
+                                rating: rating.remoteMessageFeedbackRating,
+                                note: observed?.note,
+                                ifVersion: observed.map { .init(rawValue: $0.version) }
+                            ))
+                            self?.applyRemoteMessageFeedbackPut(result, messageID: messageID, generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration)
+                        }
+                    case let .rate(_, rating, note):
+                        guard let observed else {
+                            self?.settleMessageFeedbackMutation(generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration, failureCode: nil)
+                            return
+                        }
+                        let result = try await controller.put(.init(
+                            sessionId: sessionID,
+                            messageId: messageID,
+                            rating: rating.remoteMessageFeedbackRating,
+                            note: note,
+                            ifVersion: .init(rawValue: observed.version)
+                        ))
+                        self?.applyRemoteMessageFeedbackPut(result, messageID: messageID, generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration)
+                    case .clear:
+                        guard let observed else {
+                            self?.settleMessageFeedbackMutation(generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration, failureCode: nil)
+                            return
+                        }
+                        let result = try await controller.delete(.init(
+                            sessionId: sessionID,
+                            messageId: messageID,
+                            ifVersion: .init(rawValue: observed.version)
+                        ))
+                        self?.applyRemoteMessageFeedbackDelete(result, messageID: messageID, generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration)
+                    }
+                } else if let legacyAPI {
+                    switch action {
+                    case let .toggle(_, rating):
+                        if observed?.rating == rating, let observed {
+                            let response = try await legacyAPI.delete(.init(sessionId: sessionID, messageId: messageID, ifVersion: observed.version))
+                            self?.applyMessageFeedbackDelete(response, messageID: messageID, generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration)
+                        } else {
+                            let response = try await legacyAPI.put(.init(
+                                sessionId: sessionID,
+                                messageId: messageID,
+                                rating: rating,
+                                note: observed?.note,
+                                ifVersion: observed?.version
+                            ))
+                            self?.applyMessageFeedbackPut(response, messageID: messageID, generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration)
+                        }
+                    case let .rate(_, rating, note):
+                        guard let observed else {
+                            self?.settleMessageFeedbackMutation(generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration, failureCode: nil)
+                            return
+                        }
+                        let response = try await legacyAPI.put(.init(
                             sessionId: sessionID,
                             messageId: messageID,
                             rating: rating,
-                            note: observed?.note,
-                            ifVersion: observed?.version
+                            note: note,
+                            ifVersion: observed.version
                         ))
                         self?.applyMessageFeedbackPut(response, messageID: messageID, generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration)
+                    case .clear:
+                        guard let observed else {
+                            self?.settleMessageFeedbackMutation(generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration, failureCode: nil)
+                            return
+                        }
+                        let response = try await legacyAPI.delete(.init(sessionId: sessionID, messageId: messageID, ifVersion: observed.version))
+                        self?.applyMessageFeedbackDelete(response, messageID: messageID, generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration)
                     }
-                case let .rate(_, rating, note):
-                    guard let observed else {
-                        self?.settleMessageFeedbackMutation(generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration, failureCode: nil)
-                        return
-                    }
-                    let response = try await api.put(.init(
-                        sessionId: sessionID,
-                        messageId: messageID,
-                        rating: rating,
-                        note: note,
-                        ifVersion: observed.version
-                    ))
-                    self?.applyMessageFeedbackPut(response, messageID: messageID, generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration)
-                case .clear:
-                    guard let observed else {
-                        self?.settleMessageFeedbackMutation(generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration, failureCode: nil)
-                        return
-                    }
-                    let response = try await api.delete(.init(sessionId: sessionID, messageId: messageID, ifVersion: observed.version))
-                    self?.applyMessageFeedbackDelete(response, messageID: messageID, generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration)
                 }
             } catch {
                 self?.settleMessageFeedbackMutation(generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration, failureCode: "transport")
             }
+        }
+    }
+
+    private func applyRemoteMessageFeedbackPut(
+        _ result: RemoteMessageFeedbackPutResult,
+        messageID: String,
+        generation: UInt,
+        sessionID: String,
+        mutationGeneration: UInt
+    ) {
+        guard messageFeedbackSessionGeneration == generation, activeSessionID == sessionID else { return }
+        switch result {
+        case let .success(item):
+            messageFeedbackItems[messageID] = item.legacyPresentationDTO
+            settleMessageFeedbackMutation(generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration, failureCode: nil)
+        case let .rejected(error):
+            if case .versionConflict = error {
+                commitMessageFeedbackCurrent(error.currentLegacyPresentationDTO, messageID: messageID)
+            }
+            settleMessageFeedbackMutation(generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration, failureCode: error.stableCode)
+        }
+    }
+
+    private func applyRemoteMessageFeedbackDelete(
+        _ result: RemoteMessageFeedbackDeleteResult,
+        messageID: String,
+        generation: UInt,
+        sessionID: String,
+        mutationGeneration: UInt
+    ) {
+        guard messageFeedbackSessionGeneration == generation, activeSessionID == sessionID else { return }
+        switch result {
+        case .success:
+            messageFeedbackItems[messageID] = nil
+            settleMessageFeedbackMutation(generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration, failureCode: nil)
+        case let .rejected(error):
+            if case .versionConflict = error {
+                commitMessageFeedbackCurrent(error.currentLegacyPresentationDTO, messageID: messageID)
+            }
+            settleMessageFeedbackMutation(generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration, failureCode: error.stableCode)
         }
     }
 
@@ -1108,7 +1215,7 @@ final class NativeSessionStore: ObservableObject {
         sessionID: String,
         mutationGeneration: UInt
     ) {
-        guard recoveryGeneration == generation, activeSessionID == sessionID else { return }
+        guard messageFeedbackSessionGeneration == generation, activeSessionID == sessionID else { return }
         if response.ok, response.value?.absent == true {
             messageFeedbackItems[messageID] = nil
             settleMessageFeedbackMutation(generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration, failureCode: nil)
