@@ -884,7 +884,7 @@ final class NativeSessionStore: ObservableObject {
     /// state, so this Store treats its keyed complete Host snapshots as the only
     /// durable observation set; it never derives descriptors from summaries.
     private func resyncSubagentCatalogsAfterRecovery() {
-        guard let rootSessionID = activeSessionID, subagentCatalogAPI != nil else { return }
+        guard let rootSessionID = activeSessionID, subagentController != nil || subagentCatalogAPI != nil else { return }
         let selectedAddressParent = subagentRoute?.childSessionID == rootSessionID
             ? subagentRoute?.parentSessionID
             : nil
@@ -1115,7 +1115,9 @@ final class NativeSessionStore: ObservableObject {
     /// fenced by the same selected-root generation; no summary-derived child
     /// may be inserted while a catalog request is pending or failed.
     func refreshSubagentCatalog(parentSessionID: String) {
-        guard let api = subagentCatalogAPI, let rootSessionID = activeSessionID else { return }
+        guard subagentController != nil || subagentCatalogAPI != nil, let rootSessionID = activeSessionID else { return }
+        let controller = subagentController
+        let legacyAPI = subagentCatalogAPI
         subagentCatalogTasks[parentSessionID]?.cancel()
         let generation = recoveryGeneration
         failedSubagentCatalogIDs.remove(parentSessionID)
@@ -1130,7 +1132,14 @@ final class NativeSessionStore: ObservableObject {
                 }
             }
             do {
-                let catalog = try await api.list(parentSessionID: parentSessionID)
+                let catalog: SubagentListResponse
+                if let controller {
+                    catalog = try await controller.list(parentSessionID: parentSessionID).legacyCatalog
+                } else if let legacyAPI {
+                    catalog = try await legacyAPI.list(parentSessionID: parentSessionID)
+                } else {
+                    return
+                }
                 guard !Task.isCancelled,
                       self?.recoveryGeneration == generation,
                       self?.activeSessionID == rootSessionID
@@ -3952,5 +3961,38 @@ private extension SessionQueueAction {
         case .remove: .remove
         case .steer: .steer
         }
+    }
+}
+
+
+private extension RemoteSubagentCatalog {
+    var legacyCatalog: SubagentListResponse {
+        .init(
+            entries: entries.map { entry in
+                switch entry {
+                case let .child(child):
+                    return .init(
+                        kind: "child",
+                        id: child.id,
+                        activity: child.activity.rawValue,
+                        hasChildren: child.hasChildren,
+                        mode: child.mode.rawValue,
+                        label: child.label,
+                        reason: nil
+                    )
+                case let .diagnostic(diagnostic):
+                    return .init(
+                        kind: "diagnostic",
+                        id: diagnostic.id,
+                        activity: nil,
+                        hasChildren: nil,
+                        mode: nil,
+                        label: nil,
+                        reason: diagnostic.reason.rawValue
+                    )
+                }
+            },
+            parentAvailable: parentAvailable
+        )
     }
 }
