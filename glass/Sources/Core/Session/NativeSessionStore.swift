@@ -403,22 +403,53 @@ final class NativeSessionStore: ObservableObject {
         let name: String
         let arguments: String
         var output: String?
-        /// Text-only result flatten used by rc.2 search-card recovery when a
-        /// typed search result is truncated. Unlike `output`, it never includes
-        /// non-text pretty JSON or an error fallback.
+        /// Text-only flatten of the rc.1 inner `tool-result.content` array.
         var textOutput: String?
-        /// Structured result error is retained for the rc.2 `resultText` empty
-        /// fallback (`name: code`); it is not synthesized from transport state.
+        /// Structured error is retained for generic fallback and stopped state.
         var errorName: String?
         var errorCode: String?
         var state: State
         let sequence: Int
-        /// The Host presents call and settled-result sides independently. They
-        /// cannot share one field: a terminal result needs both views, while a
-        /// terminal call followed by a generic result must take the raw generic
-        /// fallback rather than inherit the earlier terminal card.
-        var callView: ToolEventViewDTO?
-        var resultView: ToolEventViewDTO?
+        /// Raw rc.1 facts consumed by native card projectors. `resultContent` is
+        /// the inner content of the durable `tool-result` wrapper; metadata is
+        /// the top-level `tool/result.data.meta` value.
+        var resultContent: [JSONValue]?
+        var resultMeta: JSONValue?
+        var resultIsError: Bool?
+        var parentCallID: String?
+        var sessionCWD: String?
+
+        init(
+            id: String,
+            name: String,
+            arguments: String,
+            output: String?,
+            textOutput: String?,
+            errorName: String?,
+            errorCode: String?,
+            state: State,
+            sequence: Int,
+            resultContent: [JSONValue]? = nil,
+            resultMeta: JSONValue? = nil,
+            resultIsError: Bool? = nil,
+            parentCallID: String? = nil,
+            sessionCWD: String? = nil
+        ) {
+            self.id = id
+            self.name = name
+            self.arguments = arguments
+            self.output = output
+            self.textOutput = textOutput
+            self.errorName = errorName
+            self.errorCode = errorCode
+            self.state = state
+            self.sequence = sequence
+            self.resultContent = resultContent
+            self.resultMeta = resultMeta
+            self.resultIsError = resultIsError
+            self.parentCallID = parentCallID
+            self.sessionCWD = sessionCWD
+        }
     }
 
     /// Host `session/queue` whole-snapshot row. It is transient and therefore
@@ -2552,7 +2583,7 @@ final class NativeSessionStore: ObservableObject {
 
     private func applyHistory(_ entries: [SessionHistoryEntryDTO]) {
         for entry in entries.sorted(by: { $0.event.seq < $1.event.seq }) {
-            apply(event: entry.event, view: entry.view)
+            apply(event: entry.event)
         }
     }
 
@@ -2592,9 +2623,8 @@ final class NativeSessionStore: ObservableObject {
             guard let eventValue = object["event"],
                   let event = decode(SessionEventDTO.self, from: eventValue)
             else { return }
-            let view = object["view"].flatMap { decode(ToolEventViewDTO.self, from: $0) }
             if recoveryBufferGeneration != nil {
-                bufferRecoveryLiveEvent(event, view: view)
+                bufferRecoveryLiveEvent(event)
                 return
             }
             // Source: RC8 `Session.acceptLiveEvent`: only an open authority
@@ -2602,12 +2632,12 @@ final class NativeSessionStore: ObservableObject {
             // a later history baseline instead of manufacturing a partial log.
             guard case .ready(sessionID: sessionID) = phase else { return }
             guard !liveEventRequiresAuthorityRecovery(event) else {
-                bufferRecoveryLiveEvent(event, view: view)
+                bufferRecoveryLiveEvent(event)
                 requestAuthorityRecovery(sessionID: sessionID, reason: .eventGap)
                 return
             }
-            appendConversationEvent(.init(event: event, view: view))
-            apply(event: event, view: view)
+            appendConversationEvent(.init(event: event))
+            apply(event: event)
         case "session/subscribed":
             applySubscription(object, sessionID: sessionID)
         case "session/projection":
@@ -2680,8 +2710,8 @@ final class NativeSessionStore: ObservableObject {
         return true
     }
 
-    private func bufferRecoveryLiveEvent(_ event: SessionEventDTO, view: ToolEventViewDTO?) {
-        recoveryLiveBuffer.append(.init(event: event, view: view))
+    private func bufferRecoveryLiveEvent(_ event: SessionEventDTO) {
+        recoveryLiveBuffer.append(.init(event: event))
     }
 
     /// RC8 `installWindow` stitches the buffered live tail only after the Host
@@ -2697,7 +2727,7 @@ final class NativeSessionStore: ObservableObject {
             let tail = conversationReducer.rawWindow().map(\.event.seq).max()
             guard tail == nil || entry.event.seq > tail! else { continue }
             appendConversationEvent(.init(entry: entry))
-            apply(event: entry.event, view: entry.view)
+            apply(event: entry.event)
         }
     }
 
@@ -3189,7 +3219,7 @@ final class NativeSessionStore: ObservableObject {
         }
     }
 
-    private func apply(event: SessionEventDTO, view: ToolEventViewDTO? = nil) {
+    private func apply(event: SessionEventDTO) {
         if event.type != "assistant/chunk" {
             guard appliedSequences.insert(event.seq).inserted else { return }
         }
@@ -3228,12 +3258,9 @@ final class NativeSessionStore: ObservableObject {
             isRunning = true
             applyAssistantChunk(event)
         case "tool/call":
-            // The `for` discriminator is part of the official ToolEventView
-            // contract. A mismatched or unknown target receives no specialized
-            // renderer and safely retains the generic arguments/output path.
-            applyToolCall(event, view: view?.for == "call" ? view : nil)
+            applyToolCall(event)
         case "tool/result":
-            applyToolResult(event, view: view?.for == "result" ? view : nil)
+            applyToolResult(event)
         case "turn/end":
             isRunning = false
             settleStreaming()
@@ -3270,7 +3297,7 @@ final class NativeSessionStore: ObservableObject {
         }
     }
 
-    private func applyToolCall(_ event: SessionEventDTO, view: ToolEventViewDTO?) {
+    private func applyToolCall(_ event: SessionEventDTO) {
         guard let data = event.data.objectValue,
               let callID = data["callId"]?.stringValue,
               let name = data["name"]?.stringValue,
@@ -3287,8 +3314,8 @@ final class NativeSessionStore: ObservableObject {
             errorCode: nil,
             state: .running,
             sequence: event.seq,
-            callView: view,
-            resultView: nil
+            parentCallID: data["parentCallId"]?.stringValue,
+            sessionCWD: activeSessionCWD
         )
         // Sorted-insert by sequence; keeps the timeline merge linear and avoids
         // re-sorting the whole array on every tool call.
@@ -3305,7 +3332,7 @@ final class NativeSessionStore: ObservableObject {
         toolInvocations.insert(invocation, at: lower)
     }
 
-    private func applyToolResult(_ event: SessionEventDTO, view: ToolEventViewDTO?) {
+    private func applyToolResult(_ event: SessionEventDTO) {
         guard let data = event.data.objectValue,
               let message = data["message"]?.objectValue,
               let source = message["source"]?.objectValue,
@@ -3314,15 +3341,20 @@ final class NativeSessionStore: ObservableObject {
         let error = data["error"]?.objectValue
         let errorName = error?["name"]?.stringValue
         let errorCode = error?["code"]?.stringValue
-        let output = resultText(in: message, errorName: errorName, errorCode: errorCode)
-        let textOutput = textResult(in: message)
+        let wrapper = toolResultWrapper(in: message, callID: callID)
+        let content = wrapper?.content ?? []
+        let isError = wrapper?.isError ?? (errorCode != nil)
+        let output = resultText(in: content, errorName: errorName, errorCode: errorCode)
+        let textOutput = textResult(in: content)
         guard let index = toolInvocations.firstIndex(where: { $0.id == callID }) else { return }
         toolInvocations[index].output = output
         toolInvocations[index].textOutput = textOutput
         toolInvocations[index].errorName = errorName
         toolInvocations[index].errorCode = errorCode
-        toolInvocations[index].state = errorCode == "interrupted" ? .stopped : (errorCode == nil ? .completed : .failed)
-        toolInvocations[index].resultView = view ?? toolInvocations[index].resultView
+        toolInvocations[index].resultContent = content
+        toolInvocations[index].resultMeta = data["meta"]
+        toolInvocations[index].resultIsError = isError
+        toolInvocations[index].state = errorCode == "interrupted" ? .stopped : (isError ? .failed : .completed)
     }
 
     func selectToolCall(_ callID: String?) {
@@ -3690,8 +3722,6 @@ final class NativeSessionStore: ObservableObject {
                 errorCode: nil,
                 state: .completed,
                 sequence: 102,
-                callView: nil,
-                resultView: nil
             ),
             ToolInvocation(
                 id: "snapshot-bash",
@@ -3703,8 +3733,6 @@ final class NativeSessionStore: ObservableObject {
                 errorCode: nil,
                 state: .running,
                 sequence: 103,
-                callView: nil,
-                resultView: nil
             )
         ]
         queuedMessages = []
@@ -3742,24 +3770,18 @@ final class NativeSessionStore: ObservableObject {
             let callSequence = 303 + index * 2
             let arguments = "{\"file_path\":\"\(path)\",\"content\":\"content of \(path)\"}"
             return [
-                ConversationEventInput(
-                    event: SessionEventDTO(
-                        type: "tool/call",
-                        seq: callSequence,
-                        time: Double(callSequence),
-                        data: .object([
-                            "turn": .number(1),
-                            "callId": .string(callID),
-                            "name": .string("write"),
-                            "arguments": .string(arguments),
-                        ]),
-                        surfaceOp: .string("append")
-                    ),
-                    view: ToolEventViewDTO(for: "call", view: .object([
-                        "card": .string("diff"),
-                        "locations": .array([.object(["path": .string(path)])]),
-                    ]))
-                ),
+                ConversationEventInput(event: SessionEventDTO(
+                    type: "tool/call",
+                    seq: callSequence,
+                    time: Double(callSequence),
+                    data: .object([
+                        "turn": .number(1),
+                        "callId": .string(callID),
+                        "name": .string("write"),
+                        "arguments": .string(arguments),
+                    ]),
+                    surfaceOp: .string("append")
+                )),
                 ConversationEventInput(event: SessionEventDTO(
                     type: "tool/result",
                     seq: callSequence + 1,
@@ -3843,8 +3865,6 @@ final class NativeSessionStore: ObservableObject {
                 errorCode: nil,
                 state: .completed,
                 sequence: 303 + index * 2,
-                callView: nil,
-                resultView: nil
             )
         }
         queuedMessages = []
@@ -4065,16 +4085,32 @@ final class NativeSessionStore: ObservableObject {
         lhs.sequence < rhs.sequence || (lhs.sequence == rhs.sequence && lhs.id < rhs.id)
     }
 
-    /// Mirrors rc.2 `resultText`: each text content block stays verbatim, every
-    /// non-text block is rendered as its own pretty JSON object, and parts retain
-    /// their original order with one newline between them. An empty result uses
-    /// only a Host-provided `name: code` error fallback.
+    private struct ToolResultWrapper {
+        let content: [JSONValue]
+        let isError: Bool
+    }
+
+    /// rc.1 durable tool results are one `tool-result` wrapper inside the user
+    /// message. The wrapper, not the outer message, owns result content/error.
+    private func toolResultWrapper(in message: [String: JSONValue], callID: String) -> ToolResultWrapper? {
+        guard let values = message["content"]?.arrayValue, values.count == 1,
+              let wrapper = values[0].objectValue,
+              wrapper["type"]?.stringValue == "tool-result",
+              wrapper["toolCallId"]?.stringValue == callID,
+              let content = wrapper["content"]?.arrayValue
+        else { return nil }
+        if wrapper["isError"] != nil && wrapper["isError"]?.boolValue == nil { return nil }
+        return .init(content: content, isError: wrapper["isError"]?.boolValue ?? false)
+    }
+
+    /// rc.1 generic result text flattens the inner tool-result content. Text is
+    /// verbatim; non-text blocks retain their JSON shape for the generic card.
     private func resultText(
-        in message: [String: JSONValue],
+        in content: [JSONValue],
         errorName: String?,
         errorCode: String?
     ) -> String? {
-        let parts = (message["content"]?.arrayValue ?? []).compactMap { block -> String? in
+        let parts = content.compactMap { block -> String? in
             if let object = block.objectValue,
                object["type"]?.stringValue == "text",
                let text = object["text"]?.stringValue {
@@ -4094,10 +4130,8 @@ final class NativeSessionStore: ObservableObject {
         )
     }
 
-    /// Search-card recovery mirrors `flattenContent`: only valid text blocks
-    /// participate, in original order; an empty joined value is absent.
-    private func textResult(in message: [String: JSONValue]) -> String? {
-        let text = (message["content"]?.arrayValue ?? []).compactMap { block -> String? in
+    private func textResult(in content: [JSONValue]) -> String? {
+        let text = content.compactMap { block -> String? in
             guard let object = block.objectValue,
                   object["type"]?.stringValue == "text",
                   let value = object["text"]?.stringValue

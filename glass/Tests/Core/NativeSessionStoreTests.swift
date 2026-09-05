@@ -2980,7 +2980,7 @@ final class NativeSessionStoreTests: XCTestCase {
                     "source": .object(["kind": .string("user")]),
                 ]),
                 surfaceOp: .string("append"), sourceEventSeqs: nil, ignorable: nil
-            ), view: nil)
+            ))
         }
     }
 
@@ -3067,7 +3067,7 @@ final class NativeSessionStoreTests: XCTestCase {
                 surfaceOp: .string("append"),
                 sourceEventSeqs: nil,
                 ignorable: nil
-            ), view: nil)
+            ))
         }
     }
 
@@ -3108,7 +3108,7 @@ final class NativeSessionStoreTests: XCTestCase {
                 surfaceOp: .string("append"),
                 sourceEventSeqs: nil,
                 ignorable: nil
-            ), view: nil)
+            ))
         }
     }
 
@@ -3164,7 +3164,7 @@ final class NativeSessionStoreTests: XCTestCase {
                 surfaceOp: .string("append"),
                 sourceEventSeqs: nil,
                 ignorable: nil
-            ), view: nil)
+            ))
         }
     }
 
@@ -3219,7 +3219,7 @@ final class NativeSessionStoreTests: XCTestCase {
                 surfaceOp: .string("append"),
                 sourceEventSeqs: nil,
                 ignorable: nil
-            ), view: nil)
+            ))
         }
     }
 
@@ -3394,7 +3394,7 @@ final class NativeSessionStoreTests: XCTestCase {
                 surfaceOp: .string("append"),
                 sourceEventSeqs: nil,
                 ignorable: nil
-            ), view: nil)
+            ))
         }
     }
 
@@ -3421,7 +3421,7 @@ final class NativeSessionStoreTests: XCTestCase {
                 surfaceOp: .string("append"),
                 sourceEventSeqs: nil,
                 ignorable: nil
-            ), view: nil)], hasMore: false, projections: nil)
+            ))], hasMore: false, projections: nil)
         }
 
         func models(sessionID _: String) async throws -> SessionModelsResponse {
@@ -3479,7 +3479,7 @@ final class NativeSessionStoreTests: XCTestCase {
                 surfaceOp: .string("append"),
                 sourceEventSeqs: nil,
                 ignorable: nil
-            ), view: nil)
+            ))
         }
     }
 
@@ -3536,7 +3536,7 @@ final class NativeSessionStoreTests: XCTestCase {
                 surfaceOp: .string("append"),
                 sourceEventSeqs: nil,
                 ignorable: nil
-            ), view: nil)
+            ))
         }
     }
 
@@ -3591,7 +3591,7 @@ final class NativeSessionStoreTests: XCTestCase {
                 surfaceOp: .string("append"),
                 sourceEventSeqs: nil,
                 ignorable: nil
-            ), view: nil)
+            ))
         }
     }
 
@@ -3654,7 +3654,7 @@ final class NativeSessionStoreTests: XCTestCase {
                 surfaceOp: .string("append"),
                 sourceEventSeqs: nil,
                 ignorable: nil
-            ), view: nil)
+            ))
         }
     }
 
@@ -3741,7 +3741,7 @@ final class NativeSessionStoreTests: XCTestCase {
                     "source": .object(["kind": .string("user")]),
                 ]),
                 surfaceOp: .string("append"), sourceEventSeqs: nil, ignorable: nil
-            ), view: nil)], hasMore: false, projections: nil)
+            ))], hasMore: false, projections: nil)
         }
 
         func models(sessionID _: String) async throws -> SessionModelsResponse {

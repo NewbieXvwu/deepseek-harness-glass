@@ -266,7 +266,6 @@ struct SessionHistoryResponse: Decodable, Sendable {
 /// Source: `sessions.schema.ts:historyEntrySchema`.
 struct SessionHistoryEntryDTO: Decodable, Sendable {
     let event: SessionEventDTO
-    let view: ToolEventViewDTO?
 }
 
 /// Source: `sessions.schema.ts:sessionEventSchema`.
@@ -302,12 +301,6 @@ struct SessionEventDTO: Decodable, Sendable, Identifiable {
     }
 
     var id: Int { seq }
-}
-
-/// Source: `events.ts:ToolEventView` (merge-extensible presentation carrier).
-struct ToolEventViewDTO: Decodable, Sendable {
-    let `for`: String
-    let view: JSONValue
 }
 
 /// Source: `events.schema.ts:session/subscribed`. The stream's durable-history

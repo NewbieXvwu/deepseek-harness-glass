@@ -64,8 +64,6 @@ struct CoreToolCallNode {
     let resultContent: [ConversationContentBlock]
     let isError: Bool
     let errorCode: String?
-    let callView: JSONValue?
-    let resultView: JSONValue?
 }
 
 struct CoreRetryAttempt: Equatable {
@@ -584,7 +582,6 @@ private struct ToolDefinition: ConversationNodeDefinition {
         let turn: Int
         let step: Int
         let callTime: Double
-        let callView: JSONValue?
         var result: Result?
         struct Result {
             let seq: Int
@@ -592,7 +589,6 @@ private struct ToolDefinition: ConversationNodeDefinition {
             let content: [ConversationContentBlock]
             let isError: Bool
             let errorCode: String?
-            let resultView: JSONValue?
         }
     }
 
@@ -611,7 +607,7 @@ private struct ToolDefinition: ConversationNodeDefinition {
     func start(context _: ConversationNodeContext<State>, match: ConversationMatch, reader _: any ConversationContextReader) -> State {
         let data = match.event.data
         guard let callID = data.string(named: "callId"), let name = data.string(named: "name") else { preconditionFailure("tool-call requires callId/name") }
-        return .init(callID: callID, name: name, argumentsRaw: data.string(named: "arguments") ?? "", turn: data.coreInteger(named: "turn") ?? 0, step: data.coreInteger(named: "step") ?? 0, callTime: match.event.time, callView: match.view?.for == "call" ? match.view?.view : nil, result: nil)
+        return .init(callID: callID, name: name, argumentsRaw: data.string(named: "arguments") ?? "", turn: data.coreInteger(named: "turn") ?? 0, step: data.coreInteger(named: "step") ?? 0, callTime: match.event.time, result: nil)
     }
 
     func update(context: ConversationNodeContext<State>, match: ConversationMatch) -> State {
@@ -621,7 +617,7 @@ private struct ToolDefinition: ConversationNodeDefinition {
         let message = data.object(named: "message")
         let result = message?.content(named: "content") ?? []
         let error = data.object(named: "error")
-        state.result = .init(seq: match.event.seq, time: match.event.time, content: result, isError: result.contains { $0.raw.objectValue?["isError"]?.boolValue == true } || error != nil, errorCode: error?.string(named: "code"), resultView: match.view?.for == "result" ? match.view?.view : nil)
+        state.result = .init(seq: match.event.seq, time: match.event.time, content: result, isError: result.contains { $0.raw.objectValue?["isError"]?.boolValue == true } || error != nil, errorCode: error?.string(named: "code"))
         return state
     }
 
@@ -630,7 +626,7 @@ private struct ToolDefinition: ConversationNodeDefinition {
         let result = state.result
         let boundary = result == nil ? context.start?.location.closedEvent : nil
         let interrupted = boundary != nil
-        let payload = CoreToolCallNode(status: result == nil ? (interrupted ? .interrupted : .running) : .settled, callID: state.callID, name: state.name, argumentsRaw: state.argumentsRaw, turn: state.turn, step: state.step, callTime: state.callTime, resultSeq: result?.seq ?? boundary?.seq, resultTime: result?.time ?? boundary?.time, resultContent: result?.content ?? [], isError: result?.isError ?? interrupted, errorCode: result?.errorCode ?? (interrupted ? "interrupted" : nil), callView: state.callView, resultView: result?.resultView)
+        let payload = CoreToolCallNode(status: result == nil ? (interrupted ? .interrupted : .running) : .settled, callID: state.callID, name: state.name, argumentsRaw: state.argumentsRaw, turn: state.turn, step: state.step, callTime: state.callTime, resultSeq: result?.seq ?? boundary?.seq, resultTime: result?.time ?? boundary?.time, resultContent: result?.content ?? [], isError: result?.isError ?? interrupted, errorCode: result?.errorCode ?? (interrupted ? "interrupted" : nil))
         if let boundary {
             return chatNode(context: context, kind: "tool-call", anchor: Double(boundary.seq) - 0.8, data: payload)
         }

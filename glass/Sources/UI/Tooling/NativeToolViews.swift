@@ -207,47 +207,24 @@ struct NativeToolRow: View {
         NativeToolRowModel.filePath(toolName: invocation.name, arguments: invocation.arguments)
     }
 
-    /// `ToolEventView.for` was retained separately by Core. A terminal call is
-    /// insufficient once a result arrives: the settled side must itself admit
-    /// `card:'terminal'`, otherwise the official generic raw fallback wins.
     private var terminal: NativeTerminalCardPresentation? {
-        NativeTerminalCardPresentation.resolve(
-            call: invocation.callView?.nativeTerminalView,
-            result: invocation.resultView?.nativeTerminalView,
-            settled: state != .running
-        )
+        NativeRawToolCardProjector.terminal(invocation)
     }
 
-    /// Read is result-side only in rc.2. A running call has no result content;
-    /// all unknown/malformed result cards remain in the generic branch.
     private var read: NativeReadCardPresentation? {
-        NativeReadCardPresentation.resolve(
-            result: invocation.resultView?.nativeReadView,
-            completed: state != .running
-        )
+        NativeRawToolCardProjector.read(invocation)
     }
 
     private var diff: NativeDiffCardPresentation? {
-        NativeDiffCardPresentation.resolve(
-            call: invocation.callView?.nativeDiffView,
-            result: invocation.resultView?.nativeDiffView,
-            settled: state != .running
-        )
+        NativeRawToolCardProjector.diff(invocation)
     }
 
     private var search: NativeSearchCardPresentation? {
-        NativeSearchCardPresentation.resolve(
-            result: invocation.resultView?.nativeSearchView,
-            completed: state != .running,
-            textRecovery: invocation.textOutput
-        )
+        NativeRawToolCardProjector.search(invocation)
     }
 
     private var web: NativeWebCardPresentation? {
-        NativeWebCardPresentation.resolve(
-            result: invocation.resultView?.nativeWebView,
-            completed: state != .running
-        )
+        NativeRawToolCardProjector.web(invocation)
     }
 
     private var rowAccessibilityLabel: String {
@@ -1162,24 +1139,19 @@ struct NativeToolDetailsBody: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
 
                         sectionLabel("details.output")
-                        if let terminal = terminalPresentation(for: invocation) {
-                            // rc.2 terminalCardModel also admits a running
-                            // terminal call. It replaces `details.running`; a
-                            // running non-terminal tool remains generic below.
+                        if let terminal = NativeRawToolCardProjector.terminal(invocation) {
                             NativeTerminalToolCardBody(presentation: terminal, maxLines: 16)
                                 .id(invocation.id)
-                        } else if let read = readPresentation(for: invocation) {
-                            // rc.2 readCardModel is result-side only, so this
-                            // never replaces the generic running placeholder.
+                        } else if let read = NativeRawToolCardProjector.read(invocation) {
                             NativeReadToolCardBody(presentation: read, maxLines: 16)
                                 .id(invocation.id)
-                        } else if let diff = diffPresentation(for: invocation) {
+                        } else if let diff = NativeRawToolCardProjector.diff(invocation) {
                             NativeDiffToolCardBody(presentation: diff, maxLines: 16)
                                 .id(invocation.id)
-                        } else if let search = searchPresentation(for: invocation) {
+                        } else if let search = NativeRawToolCardProjector.search(invocation) {
                             NativeSearchToolCardBody(presentation: search, maxLines: 16)
                                 .id(invocation.id)
-                        } else if let web = webPresentation(for: invocation) {
+                        } else if let web = NativeRawToolCardProjector.web(invocation) {
                             NativeWebToolCardBody(presentation: web)
                                 .id(invocation.id)
                         } else if invocation.state == .running {
@@ -1203,44 +1175,6 @@ struct NativeToolDetailsBody: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             }
         }
-    }
-
-    private func terminalPresentation(for invocation: NativeSessionStore.ToolInvocation) -> NativeTerminalCardPresentation? {
-        NativeTerminalCardPresentation.resolve(
-            call: invocation.callView?.nativeTerminalView,
-            result: invocation.resultView?.nativeTerminalView,
-            settled: invocation.state != .running
-        )
-    }
-
-    private func readPresentation(for invocation: NativeSessionStore.ToolInvocation) -> NativeReadCardPresentation? {
-        NativeReadCardPresentation.resolve(
-            result: invocation.resultView?.nativeReadView,
-            completed: invocation.state != .running
-        )
-    }
-
-    private func diffPresentation(for invocation: NativeSessionStore.ToolInvocation) -> NativeDiffCardPresentation? {
-        NativeDiffCardPresentation.resolve(
-            call: invocation.callView?.nativeDiffView,
-            result: invocation.resultView?.nativeDiffView,
-            settled: invocation.state != .running
-        )
-    }
-
-    private func searchPresentation(for invocation: NativeSessionStore.ToolInvocation) -> NativeSearchCardPresentation? {
-        NativeSearchCardPresentation.resolve(
-            result: invocation.resultView?.nativeSearchView,
-            completed: invocation.state != .running,
-            textRecovery: invocation.textOutput
-        )
-    }
-
-    private func webPresentation(for invocation: NativeSessionStore.ToolInvocation) -> NativeWebCardPresentation? {
-        NativeWebCardPresentation.resolve(
-            result: invocation.resultView?.nativeWebView,
-            completed: invocation.state != .running
-        )
     }
 
     @ViewBuilder

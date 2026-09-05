@@ -4,21 +4,17 @@ import Foundation
 @testable import GlassSpec
 #endif
 
-/// One raw Host event and the optional Host-rendered tool presentation carried
-/// with session history and live mux frames. Node reducers always retain this
-/// raw boundary; no SwiftUI renderer decodes an event body.
+/// One raw Host event carried through the reducer boundary. Node reducers
+/// retain the durable rc.1 event; SwiftUI renderers never decode event bodies.
 struct ConversationEventInput {
     let event: SessionEventDTO
-    let view: ToolEventViewDTO?
 
     init(entry: SessionHistoryEntryDTO) {
         self.event = entry.event
-        self.view = entry.view
     }
 
-    init(event: SessionEventDTO, view: ToolEventViewDTO? = nil) {
+    init(event: SessionEventDTO) {
         self.event = event
-        self.view = view
     }
 }
 
@@ -128,7 +124,6 @@ struct ConversationMatch {
     let location: ConversationLocation
 
     var event: SessionEventDTO { input.event }
-    var view: ToolEventViewDTO? { input.view }
 }
 
 /// General target-neutral render unit. The final SwiftUI target renderer reads

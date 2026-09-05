@@ -31,7 +31,7 @@ struct CoreDeliverablesTurnData: Equatable {
 struct DeliverablesDefinition: ConversationNodeDefinition {
     struct State {
         let turn: Int
-        var calls: [String: JSONValue?]
+        var calls: [String: String?]
         var produced: [CoreDeliverablesTurnData.ProducedPath]
     }
 
@@ -68,7 +68,10 @@ struct DeliverablesDefinition: ConversationNodeDefinition {
         switch match.event.type {
         case "tool/call":
             guard let callID = match.event.data.deliverablesString(named: "callId"), !callID.isEmpty else { return state }
-            state.calls[callID] = match.view?.for == "call" ? match.view?.view : nil
+            state.calls[callID] = mutationPath(
+                name: match.event.data.deliverablesString(named: "name") ?? "",
+                arguments: match.event.data.deliverablesString(named: "arguments") ?? ""
+            )
             return state
         case "tool/result":
             guard !match.event.data.deliverablesResultIsError,
@@ -77,11 +80,8 @@ struct DeliverablesDefinition: ConversationNodeDefinition {
                   let callID = source["callId"]?.stringValue,
                   !callID.isEmpty
             else { return state }
-            let additions = producedPaths(from: state.calls[callID] ?? nil).map {
-                CoreDeliverablesTurnData.ProducedPath(seq: match.event.seq, path: $0)
-            }
-            guard !additions.isEmpty else { return state }
-            state.produced.append(contentsOf: additions)
+            guard let path = state.calls[callID] ?? nil else { return state }
+            state.produced.append(.init(seq: match.event.seq, path: path))
             return state
         default:
             return state
@@ -102,12 +102,46 @@ struct DeliverablesDefinition: ConversationNodeDefinition {
         )
     }
 
-    private func producedPaths(from view: JSONValue?) -> [String] {
-        guard let object = view?.objectValue else { return [] }
-        let card = object["card"]?.stringValue
-        let isMutation = card == "diff" || (card == "generic" && object["kind"]?.stringValue == "edit")
-        guard isMutation else { return [] }
-        return object["locations"]?.arrayValue?.compactMap { $0.objectValue?["path"]?.stringValue } ?? []
+    private func mutationPath(name: String, arguments: String) -> String? {
+        guard let data = arguments.data(using: .utf8),
+              let value = try? JSONDecoder().decode(JSONValue.self, from: data),
+              let args = value.objectValue
+        else { return nil }
+        func path(_ key: String) -> String? {
+            guard let value = args[key]?.stringValue, !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+            return value
+        }
+        switch name {
+        case "write":
+            guard args["content"]?.stringValue != nil else { return nil }
+            return path("file_path")
+        case "edit":
+            guard let old = args["old_string"]?.stringValue, !old.isEmpty,
+                  let new = args["new_string"]?.stringValue, old != new,
+                  args["replace_all"] == nil || args["replace_all"]?.boolValue != nil
+            else { return nil }
+            return path("file_path")
+        case "str_replace_editor":
+            guard let target = path("path"), let command = args["command"]?.stringValue else { return nil }
+            switch command {
+            case "create":
+                return args["file_text"]?.stringValue != nil ? target : nil
+            case "str_replace":
+                guard let old = args["old_str"]?.stringValue, !old.isEmpty,
+                      args["new_str"] == nil || args["new_str"]?.stringValue != nil
+                else { return nil }
+                return target
+            case "insert":
+                guard let line = args["insert_line"]?.numberValue, line.isFinite, line.rounded(.towardZero) == line, line >= 0,
+                      args["new_str"]?.stringValue != nil
+                else { return nil }
+                return target
+            default:
+                return nil
+            }
+        default:
+            return nil
+        }
     }
 }
 

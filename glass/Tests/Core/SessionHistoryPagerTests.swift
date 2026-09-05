@@ -150,7 +150,7 @@ final class SessionHistoryPagerTests: XCTestCase {
     }
 
     private func entry(_ seq: Int, _ type: String) -> SessionHistoryEntryDTO {
-        SessionHistoryEntryDTO(event: event(seq, type), view: nil)
+        SessionHistoryEntryDTO(event: event(seq, type))
     }
 
     private func event(_ seq: Int, _ type: String) -> SessionEventDTO {
