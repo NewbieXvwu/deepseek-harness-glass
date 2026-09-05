@@ -630,14 +630,13 @@ final class NativeShellPresentation: ObservableObject {
 
     /// Source: `sessions.schema.ts:sessionForkRequestSchema`.
     func forkSession(_ sessionID: String) {
-        guard let apis, let controllers else { return }
+        guard let controllers else { return }
         let workspaceID = workspaceStore.snapshot.workspaces.first { $0.sessionIds.contains(sessionID) }?.workspaceId
         Task { [weak self] in
             guard let self else { return }
             do {
                 let forked = try await controllers.sessions.fork(sessionID: sessionID, atSeq: nil)
                 guard !Task.isCancelled else { return }
-                workspaceStore.refresh(using: apis)
                 selectSession(forked.sessionId, workspaceID: workspaceID)
             } catch {
                 DispatchQueue.main.async { self.userVisibleError = String(describing: error) }
