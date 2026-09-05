@@ -77,6 +77,14 @@ actor WorkspaceRuntime {
         return value
     }
 
+    func insertBefore(workspaceID: String, beforeWorkspaceID: String?) async throws -> RemoteWorkspaceOrderValue {
+        let value = try await controller.insertBefore(workspaceID: workspaceID, beforeWorkspaceID: beforeWorkspaceID)
+        if let generation = activeGeneration {
+            try apply(.order(value.workspaceIds), generation: generation)
+        }
+        return value
+    }
+
     func snapshots() -> AsyncStream<WorkspaceRuntimeState> {
         let id = UUID()
         let pair = AsyncStream<WorkspaceRuntimeState>.makeStream()
