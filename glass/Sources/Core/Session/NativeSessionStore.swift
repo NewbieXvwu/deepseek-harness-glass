@@ -1667,7 +1667,7 @@ final class NativeSessionStore: ObservableObject {
     func selectPermissionPreset(_ preset: String) {
         guard !isSubmittingPermission,
               preset != "custom",
-              let api,
+              sessionCommandService != nil || api != nil,
               let sessionID = activeSessionID,
               let permissions = extensionState?.permissions,
               permissions.currentValue != preset,
@@ -1678,6 +1678,8 @@ final class NativeSessionStore: ObservableObject {
         permissionSelectionGeneration &+= 1
         let mutationGeneration = permissionSelectionGeneration
         let currentRecoveryGeneration = recoveryGeneration
+        let commandService = sessionCommandService
+        let legacyAPI = api
         isSubmittingPermission = true
         permissionSelectionTask = Task { [weak self] in
             defer {
@@ -1689,13 +1691,22 @@ final class NativeSessionStore: ObservableObject {
                 }
             }
             do {
-                let response = try await api.prompt(
-                    sessionID: sessionID,
-                    content: [.text(text: "/permission \(preset)")],
-                    mode: .queue
-                )
-                guard response.accepted,
-                      !Task.isCancelled,
+                if let commandService {
+                    _ = try await commandService.prompt(
+                        sessionID: sessionID,
+                        mode: .queue,
+                        content: [.text("/permission \(preset)")],
+                        clientTimeZone: TimeZone.current.identifier
+                    )
+                } else if let legacyAPI {
+                    let response = try await legacyAPI.prompt(
+                        sessionID: sessionID,
+                        content: [.text(text: "/permission \(preset)")],
+                        mode: .queue
+                    )
+                    guard response.accepted else { return }
+                }
+                guard !Task.isCancelled,
                       self?.activeSessionID == sessionID,
                       self?.recoveryGeneration == currentRecoveryGeneration,
                       self?.permissionSelectionGeneration == mutationGeneration
