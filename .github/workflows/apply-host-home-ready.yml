@@ -1,0 +1,42 @@
+name: apply-host-home-ready
+on:
+  push:
+    branches: [gpt-continue-todo-20260905]
+    paths: [.github/workflows/apply-host-home-ready.yml]
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('glass/Sources/UI/Shell/NativeSplitContainer.swift')
+          s=p.read_text()
+          old='    /// Host-owned RC8 display context. It is fetched only after the endpoint has\n    /// passed the build-trust gate and cleared on disconnect/restart.\n    @Published private(set) var hostDescription: HostDescribeResponse?\n'
+          new='    /// Host-owned home path announced by the authenticated rc.1 `$events.ready` frame.\n    /// It is generation-scoped and cleared on disconnect/restart.\n    @Published private(set) var hostHome: String?\n    /// Transitional legacy descriptor retained only for the path-capability cut below.\n    @Published private(set) var hostDescription: HostDescribeResponse?\n'
+          if s.count(old)!=1: raise SystemExit('host description block mismatch')
+          s=s.replace(old,new)
+          old='        remoteGeneration = connection.context.events.generation\n'
+          if s.count(old)!=1: raise SystemExit('generation assignment mismatch')
+          s=s.replace(old,old+'        hostHome = connection.context.events.ready.host.home\n',1)
+          old='        observedEndpoint = nil\n        hostDescription = nil\n'
+          if s.count(old)!=1: raise SystemExit('disconnect block mismatch')
+          s=s.replace(old,'        observedEndpoint = nil\n        hostHome = nil\n        hostDescription = nil\n',1)
+          old='            hostHome: presentation.hostDescription?.home,\n'
+          if s.count(old)!=1: raise SystemExit('sidebar home mismatch')
+          s=s.replace(old,'            hostHome: presentation.hostHome,\n',1)
+          p.write_text(s)
+          PY
+          git rm .github/workflows/apply-host-home-ready.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add glass/Sources/UI/Shell/NativeSplitContainer.swift
+          git commit -m "feat: source host home from rc1 ready facts"
+          git push origin HEAD:gpt-continue-todo-20260905
