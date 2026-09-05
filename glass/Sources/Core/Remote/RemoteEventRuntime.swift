@@ -58,6 +58,10 @@ actor RemoteEventRuntime {
         return pair.stream
     }
 
+    func reply(eventID: String, outcome: RemoteEventReplyOutcome) async throws {
+        try await channel.reply(eventID: eventID, outcome: outcome)
+    }
+
     func close() {
         eventTask?.cancel()
         eventTask = nil
