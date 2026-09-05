@@ -9,7 +9,6 @@ import Foundation
 /// official request path and typed payload/value boundary while hiding HTTP URLs,
 /// wire envelopes and raw JSON values from feature code.
 struct HarnessAPIs: Sendable {
-    let credentials: CredentialsAPI
     let llm: LLMAPI
     let agentPresets: AgentPresetsAPI
 
@@ -25,7 +24,6 @@ struct HarnessAPIs: Sendable {
             diagnostics: diagnostics,
             session: session
         )
-        credentials = CredentialsAPI(client: client)
         llm = LLMAPI(client: client)
         agentPresets = AgentPresetsAPI(client: client)
     }
