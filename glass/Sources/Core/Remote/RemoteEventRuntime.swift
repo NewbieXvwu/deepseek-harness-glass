@@ -14,6 +14,7 @@ actor RemoteEventRuntime {
     private var eventTask: Task<Void, Never>?
     private var catalogObservers: [UUID: AsyncStream<RemoteSessionCatalogSnapshot?>.Continuation] = [:]
     private var otherObservers: [UUID: AsyncStream<RemoteEventDownlinkFrame>.Continuation] = [:]
+    private var interactionObservers: [UUID: AsyncStream<RemoteSessionInteractionUpdate>.Continuation] = [:]
 
     init(channel: RemoteEventChannel, sessions: any SessionControllerAPI) {
         self.channel = channel
@@ -54,6 +55,16 @@ actor RemoteEventRuntime {
         otherObservers[id] = pair.continuation
         pair.continuation.onTermination = { [weak self] _ in
             Task { await self?.removeOtherObserver(id) }
+        }
+        return pair.stream
+    }
+
+    func interactions() -> AsyncStream<RemoteSessionInteractionUpdate> {
+        let id = UUID()
+        let pair = AsyncStream<RemoteSessionInteractionUpdate>.makeStream()
+        interactionObservers[id] = pair.continuation
+        pair.continuation.onTermination = { [weak self] _ in
+            Task { await self?.removeInteractionObserver(id) }
         }
         return pair.stream
     }
@@ -99,6 +110,9 @@ actor RemoteEventRuntime {
                 invalidateCatalog()
             }
             return
+        }
+        if let interaction = RemoteInteractionProjector.project(frame) {
+            for observer in interactionObservers.values { observer.yield(interaction) }
         }
         for observer in otherObservers.values { observer.yield(frame) }
     }
@@ -191,4 +205,5 @@ actor RemoteEventRuntime {
 
     private func removeCatalogObserver(_ id: UUID) { catalogObservers.removeValue(forKey: id) }
     private func removeOtherObserver(_ id: UUID) { otherObservers.removeValue(forKey: id) }
+    private func removeInteractionObserver(_ id: UUID) { interactionObservers.removeValue(forKey: id) }
 }
