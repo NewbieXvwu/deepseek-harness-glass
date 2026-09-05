@@ -1,0 +1,35 @@
+name: apply-feedback-cleanup
+on:
+  push:
+    branches: [gpt-continue-todo-20260905]
+    paths: [.github/workflows/apply-feedback-cleanup.yml]
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Remove legacy feedback injection
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('glass/Sources/UI/Shell/NativeSplitContainer.swift')
+          text = p.read_text()
+          needle = '                messageFeedbackAPI: apis.feedback,\n'
+          count = text.count(needle)
+          if count != 2:
+              raise SystemExit(f'expected 2 matches, got {count}')
+          p.write_text(text.replace(needle, ''))
+          PY
+          git rm .github/workflows/apply-feedback-cleanup.yml
+          test "$(git diff --numstat glass/Sources/UI/Shell/NativeSplitContainer.swift | awk '{print $1 ":" $2}')" = "0:2"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add glass/Sources/UI/Shell/NativeSplitContainer.swift
+          git commit -m "chore: remove legacy message feedback injection"
+          git push origin HEAD:gpt-continue-todo-20260905
