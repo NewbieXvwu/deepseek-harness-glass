@@ -120,71 +120,6 @@ final class HarnessHostController: ObservableObject {
         }
     }
 
-    /// Probe an externally supplied loopback endpoint without assigning it the
-    /// bundled build's authority. A successful diagnostic probe remains
-    /// unverified until a future developer-controlled compatibility policy is
-    /// explicitly supplied, so writes cannot cross this boundary accidentally.
-    func probeExternal(endpoint: URL) {
-        guard process == nil else { return }
-        guard endpoint.scheme == "http", endpoint.host == "127.0.0.1", endpoint.port != nil else {
-            state = .failed(HostFailure(
-                kind: .verificationFailed,
-                message: "External DeepSeek Harness endpoint must be an explicit loopback HTTP URL with a port.",
-                exitStatus: nil,
-                logPath: runtime.logFile.path
-            ))
-            return
-        }
-        state = .probingExternal(endpoint)
-        verificationTask?.cancel()
-        verificationTask = Task { [weak self] in
-            do {
-                let transport = DSHClientTransport(baseURL: endpoint, accessPolicy: .diagnosticsOnly)
-                let response = try await transport.call(method: "host.describe", payload: .object([:]))
-                guard case .success = response.result, !Task.isCancelled else { return }
-                self?.state = .unverified(HostUnverified(
-                    reason: "External Host responded to host.describe but is not in SupportedHostBuilds.json.",
-                    developerWriteOverrideEnabled: false,
-                    logPath: self?.runtime.logFile.path ?? ""
-                ))
-            } catch {
-                guard !Task.isCancelled else { return }
-                if let self { await self.diagnostics.recordRPCError(error) }
-                self?.state = .failed(HostFailure(
-                    kind: .verificationFailed,
-                    message: "Could not probe external DeepSeek Harness Host: \(error.localizedDescription)",
-                    exitStatus: nil,
-                    logPath: self?.runtime.logFile.path ?? ""
-                ))
-            }
-        }
-    }
-
-    /// Discovers an already-running exact-loopback Host through diagnostics-only
-    /// `host.describe`, then delegates to the existing unverified external probe.
-    /// Discovery never starts a process or changes the external Host's trust.
-    func discoverExternal(candidates: [URL]) {
-        guard process == nil else { return }
-        verificationTask?.cancel()
-        verificationTask = Task { [weak self] in
-            let endpoint = await HostLoopbackEndpointDiscovery().discover(
-                candidates: candidates,
-                using: DiagnosticsOnlyLoopbackProbe()
-            )
-            guard !Task.isCancelled else { return }
-            guard let endpoint else {
-                self?.state = .failed(HostFailure(
-                    kind: .verificationFailed,
-                    message: "Could not discover an active loopback DeepSeek Harness Host.",
-                    exitStatus: nil,
-                    logPath: self?.runtime.logFile.path ?? ""
-                ))
-                return
-            }
-            self?.probeExternal(endpoint: endpoint)
-        }
-    }
-
     func retryOnce() {
         guard recoveryAttempts == 0 else { return }
         recoveryAttempts = 1
@@ -527,20 +462,6 @@ if announcedOutput.count > 32_768 {
         } catch {
             Task { [diagnostics] in await diagnostics.recordRPCError(error) }
             fputs("[HostLog] writeLog failed: \(error.localizedDescription)\n", stderr)
-        }
-    }
-}
-
-
-private struct DiagnosticsOnlyLoopbackProbe: HostLoopbackEndpointDiscovery.Probe {
-    func respondsToDescribe(at endpoint: URL) async -> Bool {
-        do {
-            let transport = DSHClientTransport(baseURL: endpoint, accessPolicy: .diagnosticsOnly)
-            let response = try await transport.call(method: "host.describe", payload: .object([:]))
-            if case .success = response.result { return true }
-            return false
-        } catch {
-            return false
         }
     }
 }
