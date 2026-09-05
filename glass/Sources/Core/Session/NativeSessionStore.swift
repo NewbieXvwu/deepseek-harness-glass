@@ -1426,7 +1426,7 @@ final class NativeSessionStore: ObservableObject {
     /// background; a cold session alone enters the blocking history phase.
     func open(
         sessionID: String,
-        using api: any NativeSessionAPI,
+        using api: (any NativeSessionAPI)? = nil,
         endpoint: URL,
         hostPathAPI: (any NativeHostPathAPI)? = nil,
         goalAPI: (any NativeGoalAPI)? = nil,
@@ -1598,6 +1598,7 @@ final class NativeSessionStore: ObservableObject {
 
                 // Legacy/test fallback while the remaining facade-only domains
                 // are cut over to rc.1 Remote.
+                guard let api else { throw DSHTransportError.invalidEndpoint }
                 let models = try await api.models(sessionID: sessionID)
                 guard !Task.isCancelled,
                       self?.recoveryGeneration == authorityGeneration,
