@@ -75,6 +75,33 @@ enum RemoteDecodedResult<Output: Sendable>: Sendable {
     case failure(RemoteFailurePayload)
 }
 
+private struct RemoteServerNoValueResponse: Decodable {
+    let type: String
+    let rpcId: String
+    let result: ResultPayload
+
+    enum ResultPayload: Decodable {
+        case success
+        case failure(RemoteFailurePayload)
+
+        private enum CodingKeys: String, CodingKey { case ok, error }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            if try container.decode(Bool.self, forKey: .ok) {
+                self = .success
+            } else {
+                self = .failure(try container.decode(RemoteFailurePayload.self, forKey: .error))
+            }
+        }
+    }
+}
+
+enum RemoteDecodedNoValue: Sendable {
+    case success
+    case failure(RemoteFailurePayload)
+}
+
 enum RemoteWireCodec {
     static func request<Arguments: Encodable>(
         rpcID: String,
@@ -100,6 +127,20 @@ enum RemoteWireCodec {
         }
         switch response.result {
         case let .value(value): return (response.rpcId, .value(value))
+        case let .failure(error): return (response.rpcId, .failure(error))
+        }
+    }
+
+    static func responseNoValue(
+        data: Data,
+        decoder: JSONDecoder
+    ) throws -> (rpcID: String, result: RemoteDecodedNoValue) {
+        let response = try decoder.decode(RemoteServerNoValueResponse.self, from: data)
+        guard response.type == "server-response" else {
+            throw RemoteConnectionError.protocolViolation("expected server-response envelope")
+        }
+        switch response.result {
+        case .success: return (response.rpcId, .success)
         case let .failure(error): return (response.rpcId, .failure(error))
         }
     }
