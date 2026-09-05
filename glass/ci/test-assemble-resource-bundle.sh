@@ -54,7 +54,7 @@ cat > "$FIXTURE_GLASS/Sources/Spec/HostUpgradeReport.json" <<'EOF'
 }
 EOF
 printf '{}\n' > "$FIXTURE_GLASS/Sources/Spec/Fixtures/official-column-layout-fixtures.json"
-printf '{}\n' > "$FIXTURE_GLASS/Sources/Core/Resources/official-host-rpc-fixtures.json"
+printf '{}\n' > "$FIXTURE_GLASS/Sources/Core/Resources/official-authenticated-host-fixtures.json"
 printf 'fixture svg\n' > "$FIXTURE_GLASS/assets/fixture.svg"
 printf 'fixture icon\n' > "$FIXTURE_ROOT/build/icon.icns"
 printf 'fixture accessibility baseline\n' > \
@@ -93,7 +93,7 @@ test -s "$APP_PATH/Contents/Resources/GlassSpec_GlassSpec.bundle/Fixtures/offici
 test -s "$APP_PATH/Contents/Resources/SupportedHostBuilds.json"
 test -s "$APP_PATH/Contents/Resources/HostUpgradeReport.json"
 test -s "$APP_PATH/Contents/Resources/official-column-layout-fixtures.json"
-test -s "$APP_PATH/Contents/Resources/official-host-rpc-fixtures.json"
+test -s "$APP_PATH/Contents/Resources/official-authenticated-host-fixtures.json"
 test -s "$APP_PATH/Contents/Resources/BuildManifest.json"
 grep -F '"hostBuildId": "fixture-build"' "$APP_PATH/Contents/Resources/BuildManifest.json"
 grep -F '"appSourceRevision": "unknown"' "$APP_PATH/Contents/Resources/BuildManifest.json"

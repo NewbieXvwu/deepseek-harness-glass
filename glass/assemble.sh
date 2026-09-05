@@ -53,7 +53,7 @@ cp Info.plist "$STAGE/Contents/Info.plist"
 cp Sources/Spec/SupportedHostBuilds.json "$STAGE/Contents/Resources/SupportedHostBuilds.json"
 cp Sources/Spec/HostUpgradeReport.json "$STAGE/Contents/Resources/HostUpgradeReport.json"
 cp Sources/Spec/Fixtures/official-column-layout-fixtures.json "$STAGE/Contents/Resources/official-column-layout-fixtures.json"
-cp Sources/Core/Resources/official-host-rpc-fixtures.json "$STAGE/Contents/Resources/official-host-rpc-fixtures.json"
+cp Sources/Core/Resources/official-authenticated-host-fixtures.json "$STAGE/Contents/Resources/official-authenticated-host-fixtures.json"
 APP_SOURCE_REVISION="$(git -C .. rev-parse HEAD 2>/dev/null || echo unknown)"
 python3 ../tools/emit-build-manifest.py \
   --repo .. \

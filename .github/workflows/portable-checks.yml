@@ -116,6 +116,10 @@ jobs:
           python3 glass/ci/test-official-remote-contract.py \
             .reference/deepseek-harness
           echo "::endgroup::"
+          echo "::group::Authenticated rc.1 Host fixture"
+          python3 glass/ci/check-authenticated-host-fixtures.py
+          python3 glass/ci/test-authenticated-host-fixtures.py
+          echo "::endgroup::"
           echo "::group::Official UI specification provenance"
           ./glass/ci/check-official-spec.py \
             --official-root .reference/deepseek-harness

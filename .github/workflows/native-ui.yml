@@ -268,6 +268,16 @@ jobs:
           python3 glass/ci/test-official-remote-contract.py \
             .reference/deepseek-harness
           echo "::endgroup::"
+          echo "::group::Authenticated rc.1 Host fixture"
+          python3 glass/ci/check-authenticated-host-fixtures.py
+          python3 glass/ci/test-authenticated-host-fixtures.py
+          AUTH_CAPTURE="$(mktemp)"
+          node tools/spec-generation/capture_authenticated_host_fixtures.mjs \
+            --payload-root glass/build/backend \
+            --output "$AUTH_CAPTURE"
+          cmp glass/Sources/Core/Resources/official-authenticated-host-fixtures.json "$AUTH_CAPTURE"
+          rm -f "$AUTH_CAPTURE"
+          echo "::endgroup::"
           echo "::group::Official UI specification provenance and AST icon reproduction"
           ./glass/ci/check-official-spec.py \
             --official-root .reference/deepseek-harness
@@ -528,8 +538,7 @@ jobs:
             glass/Sources/Spec/Fixtures/official-column-layout-fixtures.json
             glass/Sources/Spec/Fixtures/official-interaction-scenes.json
             glass/Sources/Spec/Fixtures/official-remote-contract-manifest.json
-            glass/Sources/Core/Resources/official-host-rpc-fixtures.json
-            glass/Sources/Core/Resources/official-transport-contract-fixtures.json
+            glass/Sources/Core/Resources/official-authenticated-host-fixtures.json
             glass/Package.swift
           if-no-files-found: error
           retention-days: 14

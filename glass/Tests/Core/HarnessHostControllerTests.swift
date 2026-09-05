@@ -236,7 +236,7 @@ extension HarnessHostControllerTests {
         XCTAssertEqual(snapshot.ownedProcessID, 4321)
         XCTAssertEqual(snapshot.ownership, "owned")
         XCTAssertEqual(snapshot.lastSSEAt, sseTime)
-        XCTAssertEqual(snapshot.protocolFixtureRevision, "official-b150a55-web-ui-r1")
+        XCTAssertEqual(snapshot.protocolFixtureRevision, "official-a66e470-remote-r1")
         XCTAssertEqual(snapshot.pluginCompatibility, "pinned-compatible")
         let copy = snapshot.copyableText()
         for required in ["hostBuild=", "port=", "dshHome=", "ownership=", "pid=", "lastSSEAt=", "lastRPCError=", "protocolFixtureRevision=", "pluginCompatibility=", "lifecycle="] {
