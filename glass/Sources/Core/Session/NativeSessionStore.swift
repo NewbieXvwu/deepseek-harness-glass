@@ -34,9 +34,8 @@ extension NativeSessionAPI {
     }
 }
 
-/// Typed Host action seam for RC8 GoalBar. A successful RPC returns only a
-/// compare-and-set reference (or clear receipt); visible state must still wait
-/// for the authoritative `goal` whole projection update.
+/// Legacy GoalBar action seam retained for focused store tests. Production
+/// mutations run through the typed `GoalController`.
 @MainActor
 protocol NativeGoalAPI: Sendable {
     func edit(_ request: GoalEditRequest) async throws -> GoalReferenceResponse
@@ -44,8 +43,6 @@ protocol NativeGoalAPI: Sendable {
     func resume(_ request: GoalReferenceRequest) async throws -> GoalReferenceResponse
     func clear(_ request: GoalReferenceRequest) async throws -> GoalClearResponse
 }
-
-extension CommandsAPI: NativeGoalAPI {}
 
 /// Typed complete direct-child catalog boundary. UI requests refresh explicitly;
 /// no local session summary may manufacture descendants when this API is absent.
