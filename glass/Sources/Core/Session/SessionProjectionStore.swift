@@ -28,6 +28,21 @@ final class SessionProjectionStore: ObservableObject {
         rowsBySession[sessionID]?[key]
     }
 
+    /// The rc.1 model-selection projection owns the effective next selection.
+    /// A missing/null `next` means the Host catalog default remains effective.
+    func remoteModelSelection(sessionID: String) -> RemoteModelSelection? {
+        guard let projection = value(sessionID: sessionID, key: "model/selection")?.objectValue,
+              let next = projection["next"]?.objectValue,
+              let provider = next["provider"]?.stringValue,
+              let model = next["model"]?.stringValue
+        else { return nil }
+        return .init(
+            provider: provider,
+            model: model,
+            reasoningEffort: next["reasoningEffort"]?.stringValue
+        )
+    }
+
     func values(sessionID: String) -> [String: JSONValue] {
         Dictionary(uniqueKeysWithValues: (rowsBySession[sessionID] ?? [:]).map { ($0.key, $0.value.value) })
     }
