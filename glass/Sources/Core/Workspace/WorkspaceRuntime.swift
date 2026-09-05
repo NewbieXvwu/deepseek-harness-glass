@@ -101,6 +101,14 @@ actor WorkspaceRuntime {
         return value
     }
 
+    func archiveSession(sessionID: String) async throws -> RemoteWorkspaceArchiveValue {
+        let value = try await controller.archiveSession(sessionID: sessionID)
+        if let generation = activeGeneration {
+            try apply(.archived(value.archivedSessionIds), generation: generation)
+        }
+        return value
+    }
+
     func snapshots() -> AsyncStream<WorkspaceRuntimeState> {
         let id = UUID()
         let pair = AsyncStream<WorkspaceRuntimeState>.makeStream()

@@ -648,13 +648,11 @@ final class NativeShellPresentation: ObservableObject {
 
     /// Source: `workspace.schema.ts:workspaceArchiveSessionRequestSchema`.
     func archiveSession(_ sessionID: String) {
-        guard let apis else { return }
+        guard let workspaceRuntime else { return }
         Task { [weak self] in
             guard let self else { return }
             do {
-                _ = try await apis.workspaces.archiveSession(sessionID: sessionID)
-                guard !Task.isCancelled else { return }
-                workspaceStore.refresh(using: apis)
+                _ = try await workspaceRuntime.archiveSession(sessionID: sessionID)
             } catch {
                 DispatchQueue.main.async { self.userVisibleError = String(describing: error) }
             }
