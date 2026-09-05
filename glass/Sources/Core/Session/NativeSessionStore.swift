@@ -1828,7 +1828,9 @@ final class NativeSessionStore: ObservableObject {
     /// Host `session.models` directory; it never replays or edits conversation
     /// history and is fenced against selection/recovery responses.
     func reloadModelDirectory() {
-        guard let api, let sessionID = activeSessionID else { return }
+        guard sessionController != nil || api != nil, let sessionID = activeSessionID else { return }
+        let controller = sessionController
+        let legacyAPI = api
         modelSelectionTask?.cancel()
         modelSelectionGeneration &+= 1
         isSelectingModel = false
@@ -1838,13 +1840,25 @@ final class NativeSessionStore: ObservableObject {
         modelDirectoryStatus = .loading
         modelSelectionTask = Task { [weak self] in
             do {
-                let response = try await api.models(sessionID: sessionID)
-                guard !Task.isCancelled,
-                      self?.activeSessionID == sessionID,
-                      self?.recoveryGeneration == currentRecoveryGeneration,
-                      self?.modelDirectoryGeneration == directoryGeneration
-                else { return }
-                self?.modelDirectory = .init(response: response)
+                if let controller {
+                    let catalog = try await controller.modelCatalog()
+                    guard !Task.isCancelled,
+                          self?.activeSessionID == sessionID,
+                          self?.recoveryGeneration == currentRecoveryGeneration,
+                          self?.modelDirectoryGeneration == directoryGeneration
+                    else { return }
+                    self?.remoteModelCatalog = catalog
+                    self?.refreshRemoteModelDirectory(sessionID: sessionID)
+                } else {
+                    guard let legacyAPI else { return }
+                    let response = try await legacyAPI.models(sessionID: sessionID)
+                    guard !Task.isCancelled,
+                          self?.activeSessionID == sessionID,
+                          self?.recoveryGeneration == currentRecoveryGeneration,
+                          self?.modelDirectoryGeneration == directoryGeneration
+                    else { return }
+                    self?.modelDirectory = .init(response: response)
+                }
                 self?.modelDirectoryStatus = .ready
             } catch {
                 guard !Task.isCancelled,
