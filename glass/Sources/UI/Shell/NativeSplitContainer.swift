@@ -433,7 +433,7 @@ final class NativeShellPresentation: ObservableObject {
               workspaceStore.snapshot.sessions.contains(where: { $0.sessionId == sessionID && $0.blank })
         else { return false }
         let selected = await agentPresetStore.select(sessionID: sessionID, agentPreset: presetID, using: apis.agentPresets)
-        if selected { workspaceStore.refresh(using: apis) }
+        if selected { workspaceStore.applyAgentPresetSelection(sessionID: sessionID, agentPreset: presetID) }
         return selected
     }
 

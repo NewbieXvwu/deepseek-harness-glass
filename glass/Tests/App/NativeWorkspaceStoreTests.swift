@@ -184,6 +184,28 @@ final class NativeWorkspaceStoreTests: XCTestCase {
         XCTAssertEqual(store.snapshot.sessions(in: workspaceA).map(\.sessionId), ["first"])
     }
 
+    func testAgentPresetSelectionUpdatesOnlyTheTargetSessionPresentation() {
+        let first = SessionSummaryDTO(
+            sessionId: "first", updatedAt: 1, running: false, blank: true,
+            pendingInteraction: nil, parentSessionId: nil, origin: nil, cwd: "/tmp/first",
+            agentPreset: nil, projections: nil
+        )
+        let second = SessionSummaryDTO(
+            sessionId: "second", updatedAt: 2, running: false, blank: true,
+            pendingInteraction: nil, parentSessionId: nil, origin: nil, cwd: "/tmp/second",
+            agentPreset: "standard", projections: nil
+        )
+        let store = NativeWorkspaceStore(initialSnapshot: .init(
+            workspaces: [], sessions: [first, second], archivedSessionIDs: [],
+            selectedSessionID: "first", selectedWorkspaceID: nil
+        ))
+
+        store.applyAgentPresetSelection(sessionID: "first", agentPreset: "research")
+
+        XCTAssertEqual(store.snapshot.sessions[0].agentPreset, "research")
+        XCTAssertEqual(store.snapshot.sessions[1].agentPreset, "standard")
+    }
+
     func testSessionRenameAppliesAcceptedTitleOnlyAtHigherProjectionSequence() {
         let store = NativeWorkspaceStore(initialSnapshot: .init(
             workspaces: [],

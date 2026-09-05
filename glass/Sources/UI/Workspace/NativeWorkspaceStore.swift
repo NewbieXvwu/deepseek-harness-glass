@@ -365,6 +365,31 @@ final class NativeWorkspaceStore: ObservableObject {
         )
     }
 
+    func applyAgentPresetSelection(sessionID: String, agentPreset: String) {
+        guard let index = snapshot.sessions.firstIndex(where: { $0.sessionId == sessionID }) else { return }
+        let current = snapshot.sessions[index]
+        var sessions = snapshot.sessions
+        sessions[index] = SessionSummaryDTO(
+            sessionId: current.sessionId,
+            updatedAt: current.updatedAt,
+            running: current.running,
+            blank: current.blank,
+            pendingInteraction: current.pendingInteraction,
+            parentSessionId: current.parentSessionId,
+            origin: current.origin,
+            cwd: current.cwd,
+            agentPreset: agentPreset,
+            projections: current.projections
+        )
+        snapshot = Snapshot(
+            workspaces: snapshot.workspaces,
+            sessions: sessions,
+            archivedSessionIDs: snapshot.archivedSessionIDs,
+            selectedSessionID: snapshot.selectedSessionID,
+            selectedWorkspaceID: snapshot.selectedWorkspaceID
+        )
+    }
+
     func applySessionRename(sessionID: String, value: RemoteSessionRenameValue) {
         guard let index = snapshot.sessions.firstIndex(where: { $0.sessionId == sessionID }) else { return }
         let current = snapshot.sessions[index]
