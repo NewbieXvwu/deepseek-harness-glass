@@ -4,7 +4,7 @@ import Foundation
 /// is deliberately independent of plugin manifest text: a plugin never gets
 /// to widen `connect-src`, navigation, frames, workers, or the source origins.
 public enum GhostPlaneContentSecurityPolicy {
-    public static let value = "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; frame-src 'none'; worker-src 'none'; form-action 'none'"
+    public static let value = "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src dsh-glass-attachment:; object-src 'none'; base-uri 'none'; frame-src 'none'; worker-src 'none'; form-action 'none'"
 
     public static let metaTag = "<meta http-equiv=\"Content-Security-Policy\" content=\"\(value)\">"
 

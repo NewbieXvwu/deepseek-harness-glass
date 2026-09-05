@@ -182,6 +182,11 @@ final class GhostPlaneWebViewHostTests: XCTestCase {
             document.addEventListener('dsh-ghost-plane-native-event', event => {
               window.__ghostNativeBridgeCapture = event.detail;
             }, { once: true });
+            document.addEventListener('keydown', event => {
+              window.__ghostStandardKeyboardCapture = {
+                key: event.key, code: event.code, metaKey: event.metaKey, repeat: event.repeat,
+              };
+            }, { once: true });
             return true;
             """,
             arguments: [:], contentWorld: .page
@@ -193,7 +198,12 @@ final class GhostPlaneWebViewHostTests: XCTestCase {
         let result = try await host.webView.callAsyncJavaScript(
             """
             const value = window.__ghostNativeBridgeCapture;
-            return { direction: value?.direction, epoch: value?.documentEpoch, sequence: value?.sequence, key: value?.event?.key };
+            const keyboard = window.__ghostStandardKeyboardCapture;
+            return {
+              direction: value?.direction, epoch: value?.documentEpoch, sequence: value?.sequence,
+              key: value?.event?.key, standardKey: keyboard?.key, standardCode: keyboard?.code,
+              standardMeta: keyboard?.metaKey,
+            };
             """,
             arguments: [:], contentWorld: .page
         ) as? [String: Any]
@@ -201,6 +211,90 @@ final class GhostPlaneWebViewHostTests: XCTestCase {
         XCTAssertEqual(result?["epoch"] as? Int, 1)
         XCTAssertEqual(result?["sequence"] as? Int, 1)
         XCTAssertEqual(result?["key"] as? String, "Enter")
+        XCTAssertEqual(result?["standardKey"] as? String, "Enter")
+        XCTAssertEqual(result?["standardCode"] as? String, "Enter")
+        XCTAssertEqual(result?["standardMeta"] as? Bool, true)
+    }
+
+    func testNativeImagePasteSelectionAndDragBecomeStandardBrowserEvents() async throws {
+        let host = GhostPlaneWebViewHost(policy: try policy())
+        let loaded = expectation(description: "native skeleton completed")
+        var observation: NSKeyValueObservation?
+        observation = host.webView.observe(\.isLoading, options: [.new]) { webView, change in
+            if change.newValue == false, webView.url != nil {
+                loaded.fulfill()
+                observation?.invalidate()
+                observation = nil
+            }
+        }
+        defer { observation?.invalidate() }
+        XCTAssertNotNil(host.loadSkeleton("""
+        <!doctype html><html><head></head><body>
+        <div id="ghost-scroll-content"></div>
+        <div id="ghost-selection-a"><span></span></div>
+        <div id="ghost-selection-b"><span></span></div>
+        </body></html>
+        """))
+        await fulfillment(of: [loaded], timeout: 5)
+        _ = try await host.webView.callAsyncJavaScript(
+            """
+            document.addEventListener('paste', event => {
+              const file = event.clipboardData?.files?.[0];
+              window.__ghostPasteCapture = file === undefined ? null : { name: file.name, type: file.type, size: file.size };
+            }, { once: true });
+            document.addEventListener('selectionchange', () => {
+              const selection = window.getSelection();
+              window.__ghostSelectionCapture = {
+                anchor: selection?.anchorNode?.id, focus: selection?.focusNode?.id, collapsed: selection?.isCollapsed,
+              };
+            }, { once: true });
+            document.addEventListener('dragenter', event => {
+              const file = event.dataTransfer?.files?.[0];
+              window.__ghostDragCapture = file === undefined ? null : { name: file.name, type: file.type, count: event.dataTransfer.files.length };
+            }, { once: true });
+            return true;
+            """, arguments: [:], contentWorld: .page
+        )
+
+        let pasteID = UUID()
+        try host.leaseTemporaryData(Data([1, 2, 3, 4]), id: pasteID, suggestedName: "pasted.png", mediaType: "image/png")
+        try await host.emitNativeBridgeEvent(.imagePaste(.init(
+            attachmentID: pasteID, suggestedName: "pasted.png", mediaType: "image/png"
+        )))
+        try await host.emitNativeBridgeEvent(.selection(.init(
+            anchorID: "ghost-selection-a", anchorOffset: 0,
+            focusID: "ghost-selection-b", focusOffset: 1, isCollapsed: false
+        )))
+        let dragID = UUID()
+        try host.leaseTemporaryData(Data([5, 6]), id: dragID, suggestedName: "dragged.png", mediaType: "image/png")
+        try await host.emitNativeBridgeEvent(.drag(.init(
+            phase: .enter, operation: .copy, attachmentIDs: [dragID], x: 1, y: 1
+        )))
+        try await host.emitNativeBridgeEvent(.drag(.init(
+            phase: .leave, operation: .none, attachmentIDs: [dragID], x: 1, y: 1
+        )))
+
+        let result = try await host.webView.callAsyncJavaScript(
+            """
+            return {
+              paste: window.__ghostPasteCapture,
+              selection: window.__ghostSelectionCapture,
+              drag: window.__ghostDragCapture,
+            };
+            """, arguments: [:], contentWorld: .page
+        ) as? [String: Any]
+        let paste = result?["paste"] as? [String: Any]
+        XCTAssertEqual(paste?["name"] as? String, "pasted.png")
+        XCTAssertEqual(paste?["type"] as? String, "image/png")
+        XCTAssertEqual(paste?["size"] as? Int, 4)
+        let selection = result?["selection"] as? [String: Any]
+        XCTAssertEqual(selection?["anchor"] as? String, "ghost-selection-a")
+        XCTAssertEqual(selection?["focus"] as? String, "ghost-selection-b")
+        XCTAssertEqual(selection?["collapsed"] as? Bool, false)
+        let drag = result?["drag"] as? [String: Any]
+        XCTAssertEqual(drag?["name"] as? String, "dragged.png")
+        XCTAssertEqual(drag?["type"] as? String, "image/png")
+        XCTAssertEqual(drag?["count"] as? Int, 1)
     }
 
     func testWebKitMessageHandlerDeliversOnlyWireDecodedFencedEvent() async throws {
