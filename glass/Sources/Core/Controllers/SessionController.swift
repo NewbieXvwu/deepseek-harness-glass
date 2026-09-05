@@ -8,6 +8,8 @@ protocol SessionControllerAPI: Sendable {
     func fork(sessionID: String, atSeq: SessionSeq?) async throws -> RemoteSessionForkValue
     func selectModel(sessionID: String, selection: RemoteModelSelection) async throws -> RemoteSessionSelectModelValue
     func modelCatalog() async throws -> RemoteModelCatalog
+    func canOpenWorkspacePath() async throws -> Bool
+    func openWorkspacePath(_ path: String) async throws -> RemoteSessionOpenWorkspacePathValue
     func prompt(_ request: RemoteSessionPromptRequest) async throws -> RemoteSessionAcceptedValue
     func cancel(sessionID: String) async throws -> RemoteSessionAcceptedValue
     func updateQueue(sessionID: String, itemID: String, action: RemoteQueueAction) async throws -> RemoteSessionAcceptedValue
@@ -218,6 +220,10 @@ struct RemoteSessionAcceptedValue: Codable, Sendable, Equatable {
     let accepted: Bool
 }
 
+struct RemoteSessionOpenWorkspacePathValue: Codable, Sendable, Equatable {
+    let opened: Bool
+}
+
 struct RemoteSessionPageRequest: Codable, Sendable, Equatable {
     let address: SessionAddress
     let throughSeq: SessionSeq
@@ -300,6 +306,17 @@ struct SessionController: SessionControllerAPI, Sendable {
         try await remote.call(RemoteProcedure("session/modelCatalog"), arguments: EmptyArguments())
     }
 
+    func canOpenWorkspacePath() async throws -> Bool {
+        try await remote.call(RemoteProcedure("session/canOpenWorkspacePath"), arguments: EmptyArguments())
+    }
+
+    func openWorkspacePath(_ path: String) async throws -> RemoteSessionOpenWorkspacePathValue {
+        try await remote.call(
+            RemoteProcedure("session/openWorkspacePath"),
+            arguments: OpenWorkspacePathArguments(request: .init(path: path))
+        )
+    }
+
     func prompt(_ request: RemoteSessionPromptRequest) async throws -> RemoteSessionAcceptedValue {
         try await remote.call(RemoteProcedure("session/prompt"), arguments: PromptArguments(request: request))
     }
@@ -354,6 +371,8 @@ struct SessionController: SessionControllerAPI, Sendable {
         let reasoningEffort: String?
     }
     private struct SelectModelArguments: Codable, Sendable { let request: SelectModelRequest }
+    private struct OpenWorkspacePathRequest: Codable, Sendable { let path: String }
+    private struct OpenWorkspacePathArguments: Codable, Sendable { let request: OpenWorkspacePathRequest }
     private struct PromptArguments: Codable, Sendable { let request: RemoteSessionPromptRequest }
     private struct CancelRequest: Codable, Sendable { let sessionId: String }
     private struct CancelArguments: Codable, Sendable { let request: CancelRequest }
