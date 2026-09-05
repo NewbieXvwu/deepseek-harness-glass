@@ -563,6 +563,7 @@ final class NativeSessionStore: ObservableObject {
     private var remoteInteractionTask: Task<Void, Never>?
     private var remoteInteractionBindingGeneration: UInt = 0
     private var goalController: (any GoalControllerAPI)?
+    private var subagentController: (any SubagentControllerAPI)?
     private var sessionCommandService: SessionCommandService?
     private var sessionController: (any SessionControllerAPI)?
     private var remoteModelCatalog: RemoteModelCatalog?
@@ -668,6 +669,10 @@ final class NativeSessionStore: ObservableObject {
 
     func bindGoalController(_ controller: (any GoalControllerAPI)?) {
         goalController = controller
+    }
+
+    func bindSubagentController(_ controller: (any SubagentControllerAPI)?) {
+        subagentController = controller
     }
 
     func bindEventRuntime(_ runtime: RemoteEventRuntime?) {
@@ -1586,6 +1591,7 @@ final class NativeSessionStore: ObservableObject {
         bindCommandService(nil)
         bindSessionController(nil)
         bindGoalController(nil)
+        bindSubagentController(nil)
         bindEventRuntime(nil)
         bindControlRuntime(nil)
         historyTask?.cancel()

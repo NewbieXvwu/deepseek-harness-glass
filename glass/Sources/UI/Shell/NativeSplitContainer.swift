@@ -235,6 +235,7 @@ final class NativeShellPresentation: ObservableObject {
         sessionStore.bindCommandService(SessionCommandService(controller: controllers.sessions))
         sessionStore.bindSessionController(controllers.sessions)
         sessionStore.bindGoalController(controllers.goals)
+        sessionStore.bindSubagentController(controllers.subagents)
         sessionStore.bindEventRuntime(eventRuntime)
         sessionStore.bindControlRuntime(sessionControlRuntime)
 
