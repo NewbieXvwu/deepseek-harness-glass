@@ -593,6 +593,7 @@ final class NativeSessionStore: ObservableObject {
     private var subagentCatalogAPI: (any NativeSubagentCatalogAPI)?
     private var subagentContinuationAPI: (any NativeSubagentContinuationAPI)?
     private var messageFeedbackAPI: (any NativeMessageFeedbackAPI)?
+    private var messageFeedbackController: (any MessageFeedbackControllerAPI)?
     private var messageFeedbackTask: Task<Void, Never>?
     /// RC8 reconnect resync waits behind any admitted feedback mutation before
     /// taking a fresh complete list, so an older list cannot revive a stale CAS
@@ -673,6 +674,11 @@ final class NativeSessionStore: ObservableObject {
 
     func bindSubagentController(_ controller: (any SubagentControllerAPI)?) {
         subagentController = controller
+    }
+
+    func bindMessageFeedbackController(_ controller: (any MessageFeedbackControllerAPI)?) {
+        messageFeedbackController = controller
+        isMessageFeedbackAvailable = activeSessionID != nil && (controller != nil || messageFeedbackAPI != nil)
     }
 
     func bindEventRuntime(_ runtime: RemoteEventRuntime?) {
@@ -1354,7 +1360,7 @@ final class NativeSessionStore: ObservableObject {
         self.subagentCatalogAPI = subagentCatalogAPI
         self.subagentContinuationAPI = subagentContinuationAPI
         self.messageFeedbackAPI = messageFeedbackAPI
-        self.isMessageFeedbackAvailable = messageFeedbackAPI != nil
+        self.isMessageFeedbackAvailable = messageFeedbackController != nil || messageFeedbackAPI != nil
         self.hostPathAPI = hostPathAPI
         self.activeSessionCWD = sessionCWD
         self.endpoint = endpoint
@@ -1601,6 +1607,7 @@ final class NativeSessionStore: ObservableObject {
         bindSessionController(nil)
         bindGoalController(nil)
         bindSubagentController(nil)
+        bindMessageFeedbackController(nil)
         bindEventRuntime(nil)
         bindControlRuntime(nil)
         historyTask?.cancel()
