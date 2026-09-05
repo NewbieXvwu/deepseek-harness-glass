@@ -11,7 +11,6 @@ final class PluginRouteMatrixTests: XCTestCase {
         let request = PluginRouteMatrix.Request(
             pluginID: "settings.shell",
             hostBuildID: hostBuild,
-            profile: .sharedWeb,
             runtimeClass: .declarativeUI,
             manifestRoute: .native(manifest),
             ghostPlaneAvailability: .admitted
@@ -34,7 +33,6 @@ final class PluginRouteMatrixTests: XCTestCase {
         let request = PluginRouteMatrix.Request(
             pluginID: "example.plugin",
             hostBuildID: hostBuild,
-            profile: .sharedWeb,
             runtimeClass: .declarativeUI,
             manifestRoute: .native(manifest),
             ghostPlaneAvailability: .admitted
@@ -48,7 +46,6 @@ final class PluginRouteMatrixTests: XCTestCase {
         let admitted = PluginRouteMatrix.Request(
             pluginID: "example.plugin",
             hostBuildID: hostBuild,
-            profile: .sharedWeb,
             runtimeClass: .sharedService,
             manifestRoute: fallback,
             ghostPlaneAvailability: .admitted
@@ -58,7 +55,6 @@ final class PluginRouteMatrixTests: XCTestCase {
         let unavailable = PluginRouteMatrix.Request(
             pluginID: "example.plugin",
             hostBuildID: hostBuild,
-            profile: .sharedWeb,
             runtimeClass: .sharedService,
             manifestRoute: fallback,
             ghostPlaneAvailability: .unavailable
@@ -66,19 +62,18 @@ final class PluginRouteMatrixTests: XCTestCase {
         XCTAssertEqual(PluginRouteMatrix().destination(for: unavailable), .hostOnly(.ghostPlaneUnavailable))
     }
 
-    func testSharedWebProfileRejectsStdioAndTUIBeforeAnyRenderRoute() {
+    func testWebProfileRejectsStdioAndTUIBeforeAnyRenderRoute() {
         for runtimeClass in [PluginRouteMatrix.RuntimeClass.exclusiveStdio, .tui] {
             let request = PluginRouteMatrix.Request(
                 pluginID: "settings.shell",
                 hostBuildID: hostBuild,
-                profile: .sharedWeb,
                 runtimeClass: runtimeClass,
                 manifestRoute: .native(makeManifest(pluginID: "settings.shell")),
                 ghostPlaneAvailability: .admitted
             )
             XCTAssertEqual(
                 PluginRouteMatrix().destination(for: request),
-                .hostOnly(.isolatedProfileRequired(runtimeClass: runtimeClass))
+                .hostOnly(.independentRuntimeRequired(runtimeClass: runtimeClass))
             )
         }
     }
@@ -87,8 +82,7 @@ final class PluginRouteMatrixTests: XCTestCase {
         let request = PluginRouteMatrix.Request(
             pluginID: "requested.plugin",
             hostBuildID: hostBuild,
-            profile: .isolated(name: "tui-run"),
-            runtimeClass: .tui,
+            runtimeClass: .declarativeUI,
             manifestRoute: .native(makeManifest(pluginID: "other.plugin")),
             ghostPlaneAvailability: .admitted
         )
