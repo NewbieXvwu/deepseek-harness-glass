@@ -64,8 +64,10 @@ final class NativeShellPresentation: ObservableObject {
     @Published var detailsPreference: CGFloat = OfficialUISpec.Layout.detailsDefault
     @Published private(set) var sidebarLayout = NativeSidebarLayoutState()
     @Published var detailsVisible = false
-    /// Host-owned RC8 display context. It is fetched only after the endpoint has
-    /// passed the build-trust gate and cleared on disconnect/restart.
+    /// Host-owned home path announced by the authenticated rc.1 `$events.ready` frame.
+    /// It is generation-scoped and cleared on disconnect/restart.
+    @Published private(set) var hostHome: String?
+    /// Transitional legacy descriptor retained only for the path-capability cut below.
     @Published private(set) var hostDescription: HostDescribeResponse?
     /// Snapshot exports normally have no Host. This opt-in exists only for a
     /// recorded official state that includes an already verified loopback
@@ -232,6 +234,7 @@ final class NativeShellPresentation: ObservableObject {
         self.eventRuntime = eventRuntime
         self.sessionControlRuntime = sessionControlRuntime
         remoteGeneration = connection.context.events.generation
+        hostHome = connection.context.events.ready.host.home
         sessionStore.bindCommandService(SessionCommandService(controller: controllers.sessions))
         sessionStore.bindSessionController(controllers.sessions)
         sessionStore.bindGoalController(controllers.goals)
@@ -344,6 +347,7 @@ final class NativeShellPresentation: ObservableObject {
         sessionControlRuntime = nil
         remoteGeneration = nil
         observedEndpoint = nil
+        hostHome = nil
         hostDescription = nil
         workspaceStore.detachHost()
         sessionStore.disconnect()
@@ -926,7 +930,7 @@ final class NativeShellController: NativeSplitViewController {
     ) -> NativeSidebarView {
         NativeSidebarView(
             workspaceStore: presentation.workspaceStore,
-            hostHome: presentation.hostDescription?.home,
+            hostHome: presentation.hostHome,
             settingsPresented: presentation.settingsPresented,
             collapsed: collapsed,
             setCollapsed: { presentation.setSidebarCollapsed($0) },
