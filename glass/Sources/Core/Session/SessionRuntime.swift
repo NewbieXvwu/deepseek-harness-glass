@@ -67,6 +67,16 @@ actor SessionRuntime {
         return journal.snapshot
     }
 
+    func resync() async throws -> SessionJournalSnapshot {
+        followTask?.cancel()
+        followTask = nil
+        try await repairFollowing()
+        guard let snapshot = journal.snapshot else {
+            throw SessionJournalError.missingOpeningSnapshot
+        }
+        return snapshot
+    }
+
     func close() {
         followTask?.cancel()
         followTask = nil
