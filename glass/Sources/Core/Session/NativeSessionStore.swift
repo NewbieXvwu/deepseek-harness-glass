@@ -121,14 +121,12 @@ private extension RemoteMessageFeedbackFailure {
     }
 }
 
-/// Typed desktop-action boundary for settled Markdown file mentions. The Host
-/// keeps both path opening authority and loopback/build-trust enforcement.
+/// Legacy desktop-action seam retained for focused store tests. Production
+/// path opening is owned by `SessionController.openWorkspacePath`.
 @MainActor
 protocol NativeHostPathAPI: Sendable {
     func openPath(_ path: String) async throws -> HostOpenPathResponse
 }
-
-extension HostAPI: NativeHostPathAPI {}
 
 /// Source: RC8 `resolveWorkspacePath`. This only constructs the Host-facing
 /// spelling; it neither touches the local filesystem nor interprets a URL.
