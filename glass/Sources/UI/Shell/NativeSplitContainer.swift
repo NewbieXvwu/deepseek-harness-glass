@@ -391,7 +391,7 @@ final class NativeShellPresentation: ObservableObject {
         selectedIDs: Set<String>,
         for provider: LLMProviderDTO
     ) async -> Bool {
-        guard let settingsAPI = apis?.settings else { return false }
+        guard let settingsAPI = controllers?.settings else { return false }
         do {
             let adopted = try await settingsStore.adoptDiscoveredModels(
                 candidates,
@@ -438,7 +438,7 @@ final class NativeShellPresentation: ObservableObject {
     }
 
     func selectAgentPresetDefault(_ preset: AgentPresetEntryDTO) async -> Bool {
-        guard let settingsAPI = apis?.settings else { return false }
+        guard let settingsAPI = controllers?.settings else { return false }
         do {
             try await settingsStore.selectAgentPresetDefault(preset, using: settingsAPI)
             guard settingsStore.agentPresetDefault.current == preset.id else { return false }
@@ -450,7 +450,7 @@ final class NativeShellPresentation: ObservableObject {
     }
 
     func selectThemePreference(_ preference: CoreThemePreference) {
-        guard let api = apis?.settings else { return }
+        guard let api = controllers?.settings else { return }
         Task { [weak self] in
             do {
                 try await self?.settingsStore.selectThemePreference(preference, using: api)
@@ -469,7 +469,7 @@ final class NativeShellPresentation: ObservableObject {
     /// Presents no local success state: card drafts are cleared by their view
     /// only after this method returns the Host-accepted namespace update.
     func savePluginCardDraft(_ draft: NativePluginCardDraft) async -> Bool {
-        guard let api = apis?.settings else { return false }
+        guard let api = controllers?.settings else { return false }
         do {
             return try await settingsStore.savePluginCardDraft(draft, using: api)
         } catch {
