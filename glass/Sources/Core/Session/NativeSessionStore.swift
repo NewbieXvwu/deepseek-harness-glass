@@ -5,9 +5,8 @@ import Foundation
 @testable import GlassSpec
 #endif
 
-/// Typed domain-intent boundary injected into the session feature. It carries
-/// only session operations; wire envelopes, URL requests and transport clients
-/// remain behind the production `SessionsAPI` implementation.
+/// Legacy session seam retained for focused store tests while production
+/// conversation authority runs through `SessionRuntime` and typed controllers.
 @MainActor
 protocol NativeSessionAPI: Sendable {
     func history(sessionID: String, beforeSeq: Int?, maxMessages: Int?) async throws -> SessionHistoryResponse
@@ -20,8 +19,6 @@ protocol NativeSessionAPI: Sendable {
     func answerQuestion(rpcID: String, sessionID: String, answers: [QuestionAnswerResponse]) async throws -> RPCReceipt
     func cancelQuestion(rpcID: String) async throws -> RPCReceipt
 }
-
-extension SessionsAPI: NativeSessionAPI {}
 
 extension NativeSessionAPI {
     /// Test fakes must opt in explicitly to queue mutation. Treat omitted seams
