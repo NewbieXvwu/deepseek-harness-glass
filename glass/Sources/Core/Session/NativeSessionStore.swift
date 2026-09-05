@@ -44,8 +44,8 @@ protocol NativeGoalAPI: Sendable {
     func clear(_ request: GoalReferenceRequest) async throws -> GoalClearResponse
 }
 
-/// Typed complete direct-child catalog boundary. UI requests refresh explicitly;
-/// no local session summary may manufacture descendants when this API is absent.
+/// Legacy direct-child catalog seam retained for focused store tests. Production
+/// catalog and continuation calls run through `SubagentController`.
 @MainActor
 protocol NativeSubagentCatalogAPI: Sendable {
     func list(parentSessionID: String) async throws -> SubagentListResponse
@@ -56,8 +56,6 @@ protocol NativeSubagentContinuationAPI: Sendable {
     func prompt(_ request: SubagentPromptRequest) async throws -> SubagentPromptResponse
     func interrupt(_ request: SubagentInterruptRequest) async throws -> SubagentInterruptResponse
 }
-
-extension SubagentsAPI: NativeSubagentCatalogAPI, NativeSubagentContinuationAPI {}
 
 /// Read-only phase of the RC8 feedback controller. Items are always supplied by
 /// the Host list response; mutations are added only behind the same typed seam.
