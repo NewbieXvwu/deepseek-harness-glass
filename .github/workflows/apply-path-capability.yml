@@ -1,0 +1,42 @@
+name: apply-path-capability
+on:
+  push:
+    branches: [gpt-continue-todo-20260905]
+    paths: [.github/workflows/apply-path-capability.yml]
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('glass/Sources/UI/Shell/NativeSplitContainer.swift')
+          s=p.read_text()
+          old='    /// Transitional legacy descriptor retained only for the path-capability cut below.\n    @Published private(set) var hostDescription: HostDescribeResponse?\n    /// Snapshot exports normally have no Host. This opt-in exists only for a\n    /// recorded official state that includes an already verified loopback\n    /// `host.describe.canOpenPath=true`; production never sets it.\n'
+          new='    /// Host capability reported by rc.1 `session/canOpenWorkspacePath`.\n    /// The async result is accepted only for the currently bound Remote generation.\n    @Published private(set) var canOpenWorkspacePath = false\n    /// Snapshot exports normally have no Host. This opt-in exists only for a\n    /// recorded official state that includes path-open capability; production never sets it.\n'
+          if s.count(old)!=1: raise SystemExit('capability block mismatch')
+          s=s.replace(old,new)
+          old='    var canOpenProjectPath: Bool {\n        hostDescription?.canOpenPath == true || snapshotCanOpenProjectPath\n    }\n'
+          if s.count(old)!=1: raise SystemExit('canOpenProjectPath mismatch')
+          s=s.replace(old,'    var canOpenProjectPath: Bool {\n        canOpenWorkspacePath || snapshotCanOpenProjectPath\n    }\n')
+          old='        remoteGeneration = connection.context.events.generation\n        hostHome = connection.context.events.ready.host.home\n'
+          if s.count(old)!=1: raise SystemExit('connect generation mismatch')
+          s=s.replace(old,old+'        canOpenWorkspacePath = false\n        let pathCapabilityGeneration = connection.context.events.generation\n        Task { [weak self] in\n            let canOpen = (try? await controllers.sessions.canOpenWorkspacePath()) ?? false\n            guard let self, self.remoteGeneration == pathCapabilityGeneration else { return }\n            self.canOpenWorkspacePath = canOpen\n        }\n',1)
+          old='        hostHome = nil\n        hostDescription = nil\n'
+          if s.count(old)!=1: raise SystemExit('disconnect capability mismatch')
+          s=s.replace(old,'        hostHome = nil\n        canOpenWorkspacePath = false\n',1)
+          p.write_text(s)
+          PY
+          git rm .github/workflows/apply-path-capability.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add glass/Sources/UI/Shell/NativeSplitContainer.swift
+          git commit -m "feat: load path capability through rc1 remote"
+          git push origin HEAD:gpt-continue-todo-20260905
