@@ -514,6 +514,7 @@ final class NativeSessionStore: ObservableObject {
     private var sessionRuntime: SessionRuntime?
     private var sessionControlRuntime: SessionControlRuntime?
     private var sessionCommandService: SessionCommandService?
+    private var sessionController: (any SessionControllerAPI)?
     private var controlTask: Task<Void, Never>?
     private var controlBindingGeneration: UInt = 0
     private var promptTask: Task<Void, Never>?
@@ -607,6 +608,10 @@ final class NativeSessionStore: ObservableObject {
 
     func bindCommandService(_ service: SessionCommandService?) {
         sessionCommandService = service
+    }
+
+    func bindSessionController(_ controller: (any SessionControllerAPI)?) {
+        sessionController = controller
     }
 
     func bindControlRuntime(_ runtime: SessionControlRuntime?) {
@@ -1440,6 +1445,7 @@ final class NativeSessionStore: ObservableObject {
 
     func disconnect() {
         bindCommandService(nil)
+        bindSessionController(nil)
         bindControlRuntime(nil)
         historyTask?.cancel()
         historyTask = nil
