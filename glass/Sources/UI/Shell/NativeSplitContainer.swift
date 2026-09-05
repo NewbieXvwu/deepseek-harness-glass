@@ -539,7 +539,7 @@ final class NativeShellPresentation: ObservableObject {
     /// missing target clears only selection; it does not create an unscoped
     /// synthetic session or disconnect the Host.
     func createSession(in workspaceID: String?) {
-        guard let apis, let endpoint = observedEndpoint else { return }
+        guard let apis, let controllers, let endpoint = observedEndpoint else { return }
         let snapshot = workspaceStore.snapshot
         let currentWorkspaceID = snapshot.selectedSessionID.flatMap { selectedID in
             snapshot.workspaces.first(where: { $0.sessionIds.contains(selectedID) })?.workspaceId
@@ -559,7 +559,7 @@ final class NativeShellPresentation: ObservableObject {
         Task { @MainActor [weak self] in
             guard let self else { return }
             do {
-                let sessionID = try await connectWorkspace(target, using: apis)
+                let sessionID = try await connectWorkspace(target, using: controllers.sessions)
                 guard !Task.isCancelled,
                       newSessionGeneration == generation,
                       observedEndpoint == endpoint
@@ -577,7 +577,7 @@ final class NativeShellPresentation: ObservableObject {
     /// that is both accounted by the workspace and has the workspace canonical
     /// cwd is reusable; archived blanks are intentionally invisible and cannot
     /// be opened. A create is coalesced per workspace until it settles.
-    private func connectWorkspace(_ workspaceID: String, using apis: HarnessAPIs) async throws -> String {
+    private func connectWorkspace(_ workspaceID: String, using sessions: any SessionControllerAPI) async throws -> String {
         try await blankConnectionCoordinator.connect(workspaceID: workspaceID) { [weak self] in
             guard let self else { throw CancellationError() }
             guard self.workspaceStore.snapshot.workspaces.contains(where: { $0.workspaceId == workspaceID }) else {
@@ -589,7 +589,7 @@ final class NativeShellPresentation: ObservableObject {
             ) {
                 return reusable
             }
-            return try await apis.sessions.create(workspaceID: workspaceID).sessionId
+            return try await sessions.create(.init(workspaceId: workspaceID)).sessionId
         }
     }
 
