@@ -515,6 +515,7 @@ final class NativeSessionStore: ObservableObject {
     private var sessionControlRuntime: SessionControlRuntime?
     private var sessionCommandService: SessionCommandService?
     private var sessionController: (any SessionControllerAPI)?
+    private var remoteModelCatalog: RemoteModelCatalog?
     private var controlTask: Task<Void, Never>?
     private var controlBindingGeneration: UInt = 0
     private var promptTask: Task<Void, Never>?
@@ -612,6 +613,7 @@ final class NativeSessionStore: ObservableObject {
 
     func bindSessionController(_ controller: (any SessionControllerAPI)?) {
         sessionController = controller
+        remoteModelCatalog = nil
     }
 
     func bindControlRuntime(_ runtime: SessionControlRuntime?) {
@@ -1267,20 +1269,21 @@ final class NativeSessionStore: ObservableObject {
         modelDirectoryStatus = .loading
         historyTask = Task { [weak self] in
             do {
-                // The locked Host's `agentFor` resolver is the official
-                // read-only cold-resume path. After a Host restart, models()
-                // reattaches a persisted selected session before mux opens;
-                // history() alone intentionally serves detached logs.
-                let models = try await api.models(sessionID: sessionID)
-                guard !Task.isCancelled,
-                      self?.recoveryGeneration == authorityGeneration,
-                      self?.modelDirectoryGeneration == directoryGeneration,
-                      self?.activeSessionID == sessionID,
-                      self?.endpoint == endpoint
-                else { return }
-                self?.modelDirectory = .init(response: models)
-                self?.modelDirectoryStatus = .ready
-                if let sessionRuntime {
+                if let sessionRuntime, let sessionController = self?.sessionController {
+                    let catalog: RemoteModelCatalog
+                    if let cached = self?.remoteModelCatalog {
+                        catalog = cached
+                    } else {
+                        catalog = try await sessionController.modelCatalog()
+                    }
+                    guard !Task.isCancelled,
+                          self?.recoveryGeneration == authorityGeneration,
+                          self?.modelDirectoryGeneration == directoryGeneration,
+                          self?.activeSessionID == sessionID,
+                          self?.endpoint == endpoint
+                    else { return }
+                    self?.remoteModelCatalog = catalog
+
                     let opening = try await sessionRuntime.open()
                     guard !Task.isCancelled,
                           self?.recoveryGeneration == authorityGeneration,
@@ -1288,6 +1291,8 @@ final class NativeSessionStore: ObservableObject {
                           self?.endpoint == endpoint
                     else { return }
                     self?.installRemoteJournal(opening, sessionID: sessionID)
+                    self?.refreshRemoteModelDirectory(sessionID: sessionID)
+                    self?.modelDirectoryStatus = .ready
                     self?.phase = .ready(sessionID: sessionID)
                     let snapshots = await sessionRuntime.snapshots()
                     for await snapshot in snapshots {
@@ -1300,6 +1305,18 @@ final class NativeSessionStore: ObservableObject {
                     }
                     return
                 }
+
+                // Legacy/test fallback while the remaining facade-only domains
+                // are cut over to rc.1 Remote.
+                let models = try await api.models(sessionID: sessionID)
+                guard !Task.isCancelled,
+                      self?.recoveryGeneration == authorityGeneration,
+                      self?.modelDirectoryGeneration == directoryGeneration,
+                      self?.activeSessionID == sessionID,
+                      self?.endpoint == endpoint
+                else { return }
+                self?.modelDirectory = .init(response: models)
+                self?.modelDirectoryStatus = .ready
 
                 let response = try await api.history(sessionID: sessionID, beforeSeq: nil, maxMessages: nil)
                 guard !Task.isCancelled,
@@ -2142,7 +2159,14 @@ final class NativeSessionStore: ObservableObject {
             apply(event: input.event)
         }
         projections.seed(sessionID: sessionID, remoteBaseline: snapshot.projections)
+        refreshRemoteModelDirectory(sessionID: sessionID)
         hasMoreHistory = snapshot.hasMore
+    }
+
+    private func refreshRemoteModelDirectory(sessionID: String) {
+        guard let catalog = remoteModelCatalog else { return }
+        let current = projections.remoteModelSelection(sessionID: sessionID) ?? catalog.default
+        modelDirectory = .init(catalog: catalog, current: current)
     }
 
     /// Source: `events.ts:MuxFrame` uses frame.method as the event discriminant
@@ -2396,6 +2420,7 @@ final class NativeSessionStore: ObservableObject {
         }
         if let baseline = snapshot.projections[sessionID] {
             projections.seed(sessionID: sessionID, remoteBaseline: baseline)
+            refreshRemoteModelDirectory(sessionID: sessionID)
         }
     }
 
