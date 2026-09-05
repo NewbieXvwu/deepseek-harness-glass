@@ -29,7 +29,6 @@ struct SupportedHostBuildCatalog: Codable, Sendable {
 enum HostBuildVerification: Equatable, Sendable {
     case verified(SupportedHostBuildCatalog.Build)
     case bestEffort(SupportedHostBuildCatalog.Build, reason: String)
-    case unverified(reason: String)
     case unsupported(reason: String)
 }
 
@@ -60,10 +59,10 @@ struct HostBuildVerifier: Sendable {
             return .unsupported(reason: "Bundled DeepSeek Harness entrypoint is missing.")
         }
         guard let build = catalog.builds.first(where: { $0.id == catalog.defaultBuildId }) else {
-            return .unverified(reason: "The bundled Host catalog has no default build.")
+            return .unsupported(reason: "The bundled Host catalog has no default build.")
         }
         guard build.officialSourceCommit == Self.lockedOfficialSourceCommit else {
-            return .unverified(reason: "Bundled Host catalog does not match the locked official source commit.")
+            return .unsupported(reason: "Bundled Host catalog does not match the locked official source commit.")
         }
         guard !build.dshPackageVersion.isEmpty,
               !build.webFrontendPackageVersion.isEmpty,
@@ -71,7 +70,7 @@ struct HostBuildVerifier: Sendable {
               !build.protocolFixtureRevision.isEmpty,
               !build.uiSpecRevision.isEmpty,
               !build.minimumAppVersion.isEmpty else {
-            return .unverified(reason: "Bundled Host catalog is missing fixed payload support metadata.")
+            return .unsupported(reason: "Bundled Host catalog is missing fixed payload support metadata.")
         }
 
         let dshPackageRoot = runtime.dshEntrypoint
@@ -85,10 +84,10 @@ struct HostBuildVerifier: Sendable {
             .appendingPathComponent("@deepseek-ai/dsh-web-frontend/package.json")
 
         guard let dshVersion = packageVersion(at: dshManifestURL), dshVersion == build.dshPackageVersion else {
-            return .unverified(reason: "Bundled dsh package version does not match the supported Host catalog.")
+            return .unsupported(reason: "Bundled dsh package version does not match the supported Host catalog.")
         }
         guard let webVersion = packageVersion(at: webManifestURL), webVersion == build.webFrontendPackageVersion else {
-            return .unverified(reason: "Bundled dsh web frontend version does not match the supported Host catalog.")
+            return .unsupported(reason: "Bundled dsh web frontend version does not match the supported Host catalog.")
         }
         if build.verificationState == "verified" { return .verified(build) }
         return .bestEffort(build, reason: "Bundled rc.1 payload matches the supported build but macOS verification is still pending.")

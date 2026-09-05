@@ -104,7 +104,7 @@ final class HarnessHostControllerTests: XCTestCase {
 
 
 extension HarnessHostControllerTests {
-    func testUnknownBuildBecomesUnverifiedAndDefaultsToWriteProtection() throws {
+    func testMismatchedBuildIsUnsupportedAndNeverLaunches() throws {
         let environment = ProcessInfo.processInfo.environment
         guard let nodePath = environment["DSH_GLASS_HOST_NODE"],
               let entrypointPath = environment["DSH_GLASS_HOST_ENTRY"] else {
@@ -112,7 +112,7 @@ extension HarnessHostControllerTests {
             return
         }
         let root = FileManager.default.temporaryDirectory
-            .appendingPathComponent("dsh-glass-unverified-test-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("dsh-glass-unsupported-test-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: root) }
         let runtime = HostRuntimeConfiguration(
             nodeExecutable: URL(fileURLWithPath: nodePath),
@@ -141,29 +141,21 @@ extension HarnessHostControllerTests {
             )]
         )
         let verifier = HostBuildVerifier(catalog: unknownCatalog)
-        guard case let .unverified(reason) = verifier.verify(runtime: runtime) else {
-            XCTFail("mismatched payload version must be unverified")
+        guard case let .unsupported(reason) = verifier.verify(runtime: runtime) else {
+            XCTFail("mismatched owned payload must be unsupported")
             return
         }
-        XCTAssertTrue(reason.contains("version"))
+        XCTAssertTrue(reason.contains("commit"))
 
         let controller = HarnessHostController(runtime: runtime, verifier: verifier)
         controller.start()
-        guard case let .unverified(status) = controller.state else {
-            XCTFail("unknown payload must enter explicit unverified state")
+        guard case let .failed(failure) = controller.state else {
+            XCTFail("unsupported owned payload must fail before launch")
             return
         }
-        XCTAssertFalse(status.developerWriteOverrideEnabled)
-        XCTAssertNil(controller.ownedProcessIdentifier, "unverified build must not be launched as ready")
-
-        let defaultPolicy = HostRPCAccessPolicy(trust: .unverified(reason: reason, developerWriteOverride: false))
-        XCTAssertTrue(defaultPolicy.permits(method: "host.describe"))
-        XCTAssertFalse(defaultPolicy.permits(method: "session.prompt"))
-        XCTAssertFalse(defaultPolicy.trust.permitsWrites)
-
-        let overridePolicy = HostRPCAccessPolicy(trust: .unverified(reason: reason, developerWriteOverride: true))
-        XCTAssertTrue(overridePolicy.permits(method: "session.prompt"))
-        XCTAssertTrue(overridePolicy.trust.permitsWrites)
+        XCTAssertEqual(failure.kind, .invalidBundledBaseline)
+        XCTAssertEqual(failure.message, reason)
+        XCTAssertNil(controller.ownedProcessIdentifier)
     }
 }
 
@@ -270,7 +262,7 @@ extension HarnessHostControllerTests {
 
 
 extension HarnessHostControllerTests {
-    func testPlannedBuildFailsClosedAfterPayloadMetadataMatches() throws {
+    func testPlannedBuildUsesBestEffortAfterPayloadMetadataMatches() throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("dsh-glass-planned-build-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -314,7 +306,10 @@ extension HarnessHostControllerTests {
 
         XCTAssertEqual(
             HostBuildVerifier(catalog: catalog).verify(runtime: runtime),
-            .unverified(reason: "Bundled Host build is awaiting the required macOS CI verification.")
+            .bestEffort(
+                build,
+                reason: "Bundled rc.1 payload matches the supported build but macOS verification is still pending."
+            )
         )
     }
 }

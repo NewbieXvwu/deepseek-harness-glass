@@ -83,15 +83,6 @@ final class HarnessHostController: ObservableObject {
             return
         }
         switch verifier.verify(runtime: runtime, fileManager: fileManager) {
-        case let .unverified(reason):
-            state = .unverified(HostUnverified(
-                reason: reason,
-                developerWriteOverrideEnabled: false,
-                logPath: runtime.logFile.path
-            ))
-            appendLog("[host] unverified write-protected: \(reason)")
-            Task { [diagnostics] in await diagnostics.recordUnverified(reason: reason) }
-            return
         case let .bestEffort(build, reason):
             appendLog("[host] best-effort build: \(reason)")
             launch(build: build, compatibility: .bestEffort(reason: reason))
