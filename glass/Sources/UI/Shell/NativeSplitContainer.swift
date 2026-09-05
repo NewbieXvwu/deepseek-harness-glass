@@ -539,7 +539,7 @@ final class NativeShellPresentation: ObservableObject {
     /// missing target clears only selection; it does not create an unscoped
     /// synthetic session or disconnect the Host.
     func createSession(in workspaceID: String?) {
-        guard let apis, let controllers, let endpoint = observedEndpoint else { return }
+        guard let controllers, let endpoint = observedEndpoint else { return }
         let snapshot = workspaceStore.snapshot
         let currentWorkspaceID = snapshot.selectedSessionID.flatMap { selectedID in
             snapshot.workspaces.first(where: { $0.sessionIds.contains(selectedID) })?.workspaceId
@@ -565,7 +565,6 @@ final class NativeShellPresentation: ObservableObject {
                       observedEndpoint == endpoint
                 else { return }
                 selectSession(sessionID, workspaceID: target)
-                workspaceStore.refresh(using: apis)
             } catch {
                 // RC8 treats a rejected blank connection as non-fatal: keep the
                 // current selection usable and wait for the next Host authority.
