@@ -39,49 +39,6 @@ struct HarnessAPIs: Sendable {
     }
 }
 
-struct SessionsAPI: Sendable {
-    private let client: DSHAPIClient
-    init(client: DSHAPIClient) { self.client = client }
-
-    func list() async throws -> SessionListResponse { try await client.sessionList() }
-    func search(query: String) async throws -> SessionSearchResponse { try await client.sessionSearch(query: query) }
-    func create(workspaceID: String? = nil) async throws -> SessionCreateResponse { try await client.sessionCreate(workspaceID: workspaceID) }
-    func history(sessionID: String, beforeSeq: Int? = nil, maxMessages: Int? = nil) async throws -> SessionHistoryResponse {
-        try await client.sessionHistory(sessionID: sessionID, beforeSeq: beforeSeq, maxMessages: maxMessages)
-    }
-    func prompt(sessionID: String, content: [SessionPromptContent], mode: SessionPromptMode) async throws -> SessionPromptResponse {
-        try await client.sessionPrompt(sessionID: sessionID, content: content, mode: mode)
-    }
-    func cancel(sessionID: String) async throws -> SessionCancelResponse { try await client.sessionCancel(sessionID: sessionID) }
-    /// Source: RC8 `sessions.schema.ts:sessionUpdateQueueRequestSchema`.
-    func updateQueue(_ request: SessionUpdateQueueRequest) async throws -> SessionUpdateQueueResponse {
-        try await client.call("session.updateQueue", payload: request)
-    }
-    func models(sessionID: String) async throws -> SessionModelsResponse { try await client.sessionModels(sessionID: sessionID) }
-    /// Source: RC8 `SessionAPI.selectModel`; visible selection is Host-confirmed.
-    func selectModel(_ request: SessionSelectModelRequest) async throws -> SessionSelectModelResponse {
-        try await client.sessionSelectModel(request)
-    }
-    func rename(sessionID: String, title: String) async throws -> SessionRenameResponse { try await client.sessionRename(sessionID: sessionID, title: title) }
-    func fork(sessionID: String, atSeq: Int? = nil) async throws -> SessionForkResponse { try await client.sessionFork(sessionID: sessionID, atSeq: atSeq) }
-
-    /// Source: approvals/question response payloads carried by `ClientResponse`.
-    func answerApproval(rpcID: String, sessionID: String, approvalID: String, outcome: ApprovalOutcome) async throws -> RPCReceipt {
-        try await client.respond(rpcID: rpcID, value: ApprovalResponsePayload(sessionId: sessionID, approvalId: approvalID, outcome: outcome.rawValue))
-    }
-
-    func answerQuestion(rpcID: String, sessionID: String, answers: [QuestionAnswerResponse]) async throws -> RPCReceipt {
-        try await client.respond(rpcID: rpcID, value: QuestionResponsePayload(sessionId: sessionID, answer: QuestionAnswerBatch(answers: answers)))
-    }
-
-    func cancelQuestion(rpcID: String) async throws -> RPCReceipt {
-        try await client.respondFailure(
-            rpcID: rpcID,
-            error: RPCBusinessError(code: "cancelled", message: "the user closed this question request", details: .object([:]))
-        )
-    }
-}
-
 /// Typed RC8 subagent domain. A catalog is Host authority and is never
 /// reconstructed from ordinary session summaries.
 struct SubagentsAPI: Sendable {
