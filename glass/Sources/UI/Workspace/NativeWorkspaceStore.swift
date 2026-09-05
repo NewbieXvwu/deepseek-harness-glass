@@ -290,37 +290,6 @@ final class NativeWorkspaceStore: ObservableObject {
     /// Source: `WorkspaceBrowser.tsx:SEARCH_DEBOUNCE_MS` and
     /// `session-search.ts:SESSION_SEARCH_RESULT_LIMIT`. The store owns request
     /// cancellation and stale result suppression; the view only binds text.
-    func search(query: String, using api: SessionsAPI?) {
-        let normalized = Self.sanitizeSearchQuery(query).trimmingCharacters(in: .whitespacesAndNewlines)
-        searchTask?.cancel()
-        guard !normalized.isEmpty else {
-            remoteSearch = .idle
-            return
-        }
-        remoteSearch = RemoteSearch(query: normalized, status: .loading, items: [], hasMore: false)
-        guard let api else {
-            remoteSearch = RemoteSearch(query: normalized, status: .failed, items: [], hasMore: false)
-            return
-        }
-        searchTask = Task { [weak self] in
-            try? await Task.sleep(for: .milliseconds(250))
-            guard !Task.isCancelled else { return }
-            do {
-                let response = try await api.search(query: normalized)
-                guard !Task.isCancelled, self?.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines) == normalized else { return }
-                self?.remoteSearch = RemoteSearch(
-                    query: normalized,
-                    status: .ready,
-                    items: response.items,
-                    hasMore: response.hasMore
-                )
-            } catch {
-                guard !Task.isCancelled, self?.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines) == normalized else { return }
-                self?.remoteSearch = RemoteSearch(query: normalized, status: .failed, items: [], hasMore: false)
-            }
-        }
-    }
-
     func search(query: String, using controller: SessionController?) {
         let normalized = Self.sanitizeSearchQuery(query).trimmingCharacters(in: .whitespacesAndNewlines)
         searchTask?.cancel()

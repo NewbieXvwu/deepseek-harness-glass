@@ -209,7 +209,7 @@ final class NativeWorkspaceStoreTests: XCTestCase {
         let store = NativeWorkspaceStore()
         store.searchQuery = "host-authoritative"
 
-        store.search(query: store.searchQuery, using: nil)
+        store.search(query: store.searchQuery, using: nil as SessionController?)
 
         XCTAssertEqual(store.remoteSearch.query, "host-authoritative")
         XCTAssertEqual(store.remoteSearch.status, .failed)
