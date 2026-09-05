@@ -14,7 +14,6 @@ struct HarnessAPIs: Sendable {
     let settings: SettingsAPI
     let credentials: CredentialsAPI
     let llm: LLMAPI
-    let commands: CommandsAPI
     let subagents: SubagentsAPI
     let skills: SkillsAPI
     let agentPresets: AgentPresetsAPI
@@ -38,7 +37,6 @@ struct HarnessAPIs: Sendable {
         settings = SettingsAPI(client: client)
         credentials = CredentialsAPI(client: client)
         llm = LLMAPI(client: client)
-        commands = CommandsAPI(client: client)
         subagents = SubagentsAPI(client: client)
         skills = SkillsAPI(client: client)
         agentPresets = AgentPresetsAPI(client: client)
