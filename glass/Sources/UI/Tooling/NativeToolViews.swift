@@ -6,7 +6,7 @@ import Foundation
 @testable import GlassCore
 @testable import GlassSpec
 #endif
-/// Native generic fallback for the official `tool.call.toolview` seat.
+/// Native generic fallback for tool calls without a reviewed native projector.
 ///
 /// Sources: `ui-tool/tool/components/ToolRow.tsx` and
 /// `ui-tool/tool/models/tool-call-model.ts`. Plugin-specific card interiors

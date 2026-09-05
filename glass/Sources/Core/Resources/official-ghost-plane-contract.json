@@ -43,140 +43,208 @@
     "[data-composer-seat]",
     "[data-conversation-scroll]",
     "[data-phase]",
-    "[data-slot=conversation.chat.node]",
-    "[data-slot=conversation.chat.turnTail]",
-    "[data-slot=conversation.composer]",
-    "[data-slot=conversation.details.tool]",
-    "[data-slot=conversation.session.header]",
-    "[data-slot=conversation.session]",
-    "[data-slot=tool.call.toolview]",
     "[data-streaming]"
   ],
   "slots": [
     {
       "name": "conversation.chat.assistant-actions",
       "kind": "list",
-      "scope": "session"
+      "scope": "session",
+      "sourcePath": "packages/client/ui-chat/src/client/contract/slots.ts",
+      "anchor": "chat",
+      "zone": "green"
     },
     {
       "name": "conversation.chat.commandview",
       "kind": "keyed",
-      "scope": "session"
+      "scope": "session",
+      "sourcePath": "packages/client/ui-chat/src/client/contract/slots.ts",
+      "anchor": "chat",
+      "zone": "green"
     },
     {
       "name": "conversation.chat.node",
       "kind": "keyed",
-      "scope": "session"
+      "scope": "session",
+      "sourcePath": "packages/client/ui-chat/src/client/contract/slots.ts",
+      "anchor": "chat",
+      "zone": "red"
     },
     {
       "name": "conversation.chat.turnTail",
       "kind": "chain",
-      "scope": "session"
+      "scope": "session",
+      "sourcePath": "packages/client/ui-chat/src/client/contract/slots.ts",
+      "anchor": "chat",
+      "zone": "green"
     },
     {
       "name": "conversation.composer",
       "kind": "chain",
-      "scope": "session"
+      "scope": "session",
+      "sourcePath": "packages/client/ui-conversation/src/client/contract/slots.ts",
+      "anchor": "composer",
+      "zone": "red"
     },
     {
       "name": "conversation.composer.bar",
       "kind": "single",
-      "scope": "session-maybe"
+      "scope": "session-maybe",
+      "sourcePath": "packages/client/ui-conversation/src/client/contract/slots.ts",
+      "anchor": "composer",
+      "zone": "green"
     },
     {
       "name": "conversation.composer.dock",
       "kind": "list",
-      "scope": "session"
+      "scope": "session",
+      "sourcePath": "packages/client/ui-conversation/src/client/contract/slots.ts",
+      "anchor": "composer",
+      "zone": "green"
     },
     {
       "name": "conversation.details.tool",
       "kind": "single",
-      "scope": "session"
+      "scope": "session",
+      "sourcePath": "packages/client/ui-chat/src/client/contract/slots.ts",
+      "anchor": "details",
+      "zone": "green"
     },
     {
       "name": "conversation.hero.agentPreset",
       "kind": "single",
-      "scope": "root"
+      "scope": "root",
+      "sourcePath": "packages/client/ui-conversation/src/client/contract/slots.ts",
+      "anchor": "hero",
+      "zone": "green"
     },
     {
       "name": "conversation.hero.brand.mark",
       "kind": "single",
-      "scope": "root"
+      "scope": "root",
+      "sourcePath": "packages/client/ui-conversation/src/client/contract/slots.ts",
+      "anchor": "hero",
+      "zone": "green"
     },
     {
       "name": "conversation.hero.workspace",
       "kind": "single",
-      "scope": "root"
+      "scope": "root",
+      "sourcePath": "packages/client/ui-conversation/src/client/contract/slots.ts",
+      "anchor": "hero",
+      "zone": "green"
     },
     {
       "name": "conversation.input.attachments",
       "kind": "single",
-      "scope": "session-maybe"
+      "scope": "session-maybe",
+      "sourcePath": "packages/client/ui-conversation/src/client/contract/slots.ts",
+      "anchor": "composer",
+      "zone": "green"
     },
     {
       "name": "conversation.input.dock",
       "kind": "list",
-      "scope": "session"
+      "scope": "session",
+      "sourcePath": "packages/client/ui-conversation/src/client/contract/slots.ts",
+      "anchor": "composer",
+      "zone": "green"
     },
     {
       "name": "conversation.input.left",
       "kind": "list",
-      "scope": "session"
+      "scope": "session",
+      "sourcePath": "packages/client/ui-conversation/src/client/contract/slots.ts",
+      "anchor": "composer",
+      "zone": "green"
     },
     {
       "name": "conversation.input.model",
       "kind": "single",
-      "scope": "session"
+      "scope": "session",
+      "sourcePath": "packages/client/ui-conversation/src/client/contract/slots.ts",
+      "anchor": "composer",
+      "zone": "green"
     },
     {
       "name": "conversation.input.overlay",
       "kind": "list",
-      "scope": "session"
+      "scope": "session",
+      "sourcePath": "packages/client/ui-conversation/src/client/contract/slots.ts",
+      "anchor": "composer",
+      "zone": "green"
     },
     {
       "name": "conversation.input.plan",
       "kind": "single",
-      "scope": "session"
+      "scope": "session",
+      "sourcePath": "packages/client/ui-conversation/src/client/contract/slots.ts",
+      "anchor": "composer",
+      "zone": "green"
     },
     {
       "name": "conversation.input.right",
       "kind": "list",
-      "scope": "session"
+      "scope": "session",
+      "sourcePath": "packages/client/ui-conversation/src/client/contract/slots.ts",
+      "anchor": "composer",
+      "zone": "green"
     },
     {
       "name": "conversation.message.images",
       "kind": "single",
-      "scope": "session"
+      "scope": "session",
+      "sourcePath": "packages/client/ui-chat/src/client/contract/slots.ts",
+      "anchor": "chat",
+      "zone": "green"
     },
     {
       "name": "conversation.session",
       "kind": "single",
-      "scope": "session"
+      "scope": "session",
+      "sourcePath": "packages/client/ui-conversation/src/client/contract/slots.ts",
+      "anchor": "conversation",
+      "zone": "red"
     },
     {
       "name": "conversation.session.header",
       "kind": "single",
-      "scope": "session"
+      "scope": "session",
+      "sourcePath": "packages/client/ui-conversation/src/client/contract/slots.ts",
+      "anchor": "header",
+      "zone": "red"
     },
     {
       "name": "conversation.session.header.actions",
       "kind": "list",
-      "scope": "session"
+      "scope": "session",
+      "sourcePath": "packages/client/ui-conversation/src/client/contract/slots.ts",
+      "anchor": "header",
+      "zone": "green"
     },
     {
       "name": "conversation.session.header.lineage",
       "kind": "single",
-      "scope": "session"
+      "scope": "session",
+      "sourcePath": "packages/client/ui-conversation/src/client/contract/slots.ts",
+      "anchor": "header",
+      "zone": "green"
     },
     {
       "name": "conversation.session.header.utilities",
       "kind": "list",
-      "scope": "session"
+      "scope": "session",
+      "sourcePath": "packages/client/ui-conversation/src/client/contract/slots.ts",
+      "anchor": "header",
+      "zone": "green"
     },
     {
       "name": "conversation.view",
       "kind": "list",
-      "scope": "session"
+      "scope": "session",
+      "sourcePath": "packages/client/ui-conversation/src/client/contract/slots.ts",
+      "anchor": "managed-view",
+      "zone": "managed"
     }
   ],
   "moduleLoader": {

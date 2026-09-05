@@ -209,7 +209,7 @@ public final class GhostPlaneWebViewHost: NSObject {
           const targetIDs = new Set([
             'ghost-plane-root', 'ghost-session-header', 'ghost-conversation-scroll',
             'ghost-chat-flow', 'ghost-composer-seat', 'ghost-turn-tail',
-            'ghost-toolview', 'ghost-details-tool',
+            'ghost-details-tool',
           ]);
           const lowerToken = (value, maximum) => typeof value === 'string'
             && value.length > 0 && value.length <= maximum && /^[a-z0-9-]+$/.test(value);

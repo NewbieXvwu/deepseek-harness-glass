@@ -27,7 +27,6 @@ public struct GhostPlaneTapIndexReplay: Equatable, Sendable {
         case chatFlow = "ghost-chat-flow"
         case composerSeat = "ghost-composer-seat"
         case turnTail = "ghost-turn-tail"
-        case toolview = "ghost-toolview"
         case detailsTool = "ghost-details-tool"
     }
 

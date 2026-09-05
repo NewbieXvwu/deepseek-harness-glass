@@ -82,7 +82,41 @@ def build(root: Path, source_commit: str) -> dict[str, object]:
     missing_selectors = required_data_selectors - data_selectors
     if missing_selectors:
         raise SystemExit("official conversation DOM lacks required anchors: " + ", ".join(sorted(missing_selectors)))
-    selectors = sorted(required_data_selectors | {f"[data-slot={name}]" for name in required_slot_names} | {"[data-slot=tool.call.toolview]"})
+    selectors = sorted(required_data_selectors)
+
+    red_slots = {
+        "conversation.session",
+        "conversation.session.header",
+        "conversation.chat.node",
+        "conversation.composer",
+    }
+    managed_slots = {"conversation.view"}
+
+    def slot_anchor(name: str) -> str:
+        if name == "conversation.session":
+            return "conversation"
+        if name.startswith("conversation.session.header"):
+            return "header"
+        if name.startswith("conversation.hero."):
+            return "hero"
+        if name.startswith("conversation.chat.") or name == "conversation.message.images":
+            return "chat"
+        if name.startswith("conversation.composer") or name.startswith("conversation.input."):
+            return "composer"
+        if name == "conversation.details.tool":
+            return "details"
+        if name == "conversation.view":
+            return "managed-view"
+        raise SystemExit(f"unclassified official Ghost Plane slot anchor: {name}")
+
+    reviewed_slots = []
+    for slot in slots:
+        name = slot["name"]
+        reviewed_slots.append({
+            **slot,
+            "anchor": slot_anchor(name),
+            "zone": "red" if name in red_slots else "managed" if name in managed_slots else "green",
+        })
 
     module_manifest = sources["packages/client/modules/src/client/manifest.ts"]
     module_host = sources["packages/client/modules/src/index.ts"]
@@ -96,7 +130,7 @@ def build(root: Path, source_commit: str) -> dict[str, object]:
         "sourceCommit": source_commit,
         "sources": [{"path": relative, "sha256": sha256(root / relative)} for relative in SOURCE_PATHS],
         "selectors": selectors,
-        "slots": sorted(slots, key=lambda slot: slot["name"]),
+        "slots": sorted(reviewed_slots, key=lambda slot: slot["name"]),
         "moduleLoader": {
             "bootGlobal": "__DSH_BOOT__",
             "registrationGlobal": "__ModuleLoader__",

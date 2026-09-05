@@ -57,7 +57,7 @@ final class GhostPlaneWebViewHostTests: XCTestCase {
 
         XCTAssertNotNil(host.loadSkeleton("""
         <!doctype html><html><head><meta charset="utf-8"></head><body>
-        <div id="ghost-plane-root"></div><div id="ghost-toolview"></div><div id="ghost-scroll-content"></div>
+        <div id="ghost-plane-root"></div><div id="ghost-details-tool"></div><div id="ghost-scroll-content"></div>
         </body></html>
         """))
         await fulfillment(of: [loaded], timeout: 5)
@@ -66,7 +66,7 @@ final class GhostPlaneWebViewHostTests: XCTestCase {
         let result = try await host.webView.callAsyncJavaScript(
             """
             const root = document.getElementById('ghost-plane-root');
-            const tool = document.getElementById('ghost-toolview');
+            const tool = document.getElementById('ghost-details-tool');
             return {
               color: root.style.getPropertyValue('--dsh-accent'),
               mode: tool.getAttribute('data-ghost-mode'),
@@ -267,12 +267,12 @@ final class GhostPlaneWebViewHostTests: XCTestCase {
             ),
             .init(
                 source: source,
-                target: .toolview,
+                target: .detailsTool,
                 mutation: .setDataAttribute(name: "data-ghost-mode", value: "review")
             ),
             .init(
                 source: source,
-                target: .toolview,
+                target: .detailsTool,
                 mutation: .addCompatibilityClass("ghost-compat-review-tool")
             ),
         ]

@@ -16,10 +16,7 @@ DEFAULT_CONTRACT = ROOT / "glass/Sources/Core/Resources/official-ghost-plane-con
 EXPECTED_TOP_LEVEL = {"schemaVersion", "sourceCommit", "sources", "selectors", "slots", "moduleLoader"}
 REQUIRED_SELECTORS = {
     "[data-conversation-scroll]", "[data-chat-flow]", "[data-chat-anchor-key]", "[data-chat-flow-key]",
-    "[data-chat-flow-kind]", "[data-streaming]", "[data-phase]", "[data-composer-seat]", "[data-slot=conversation.session]",
-    "[data-slot=conversation.session.header]", "[data-slot=conversation.chat.node]",
-    "[data-slot=conversation.chat.turnTail]", "[data-slot=conversation.details.tool]",
-    "[data-slot=conversation.composer]", "[data-slot=tool.call.toolview]",
+    "[data-chat-flow-kind]", "[data-streaming]", "[data-phase]", "[data-composer-seat]",
 }
 REQUIRED_SLOTS = {
     "conversation.session", "conversation.session.header", "conversation.chat.node",
@@ -40,10 +37,21 @@ def load_contract(path: Path) -> dict[str, object]:
         raise SystemExit("Ghost Plane contract fixture has an invalid source commit")
     selectors = decoded.get("selectors")
     if not isinstance(selectors, list) or not REQUIRED_SELECTORS.issubset(set(selectors)):
-        raise SystemExit("Ghost Plane contract fixture lacks required DOM/slot selectors")
+        raise SystemExit("Ghost Plane contract fixture lacks required rc.1 DOM selectors")
     slots = decoded.get("slots")
     if not isinstance(slots, list) or not REQUIRED_SLOTS.issubset({item.get("name") for item in slots if isinstance(item, dict)}):
         raise SystemExit("Ghost Plane contract fixture lacks required official SlotMap seats")
+    valid_zones = {"red", "green", "managed"}
+    valid_anchors = {"conversation", "header", "hero", "chat", "composer", "details", "managed-view"}
+    for item in slots:
+        if not isinstance(item, dict):
+            raise SystemExit("Ghost Plane contract fixture has a malformed slot entry")
+        if not isinstance(item.get("sourcePath"), str) or not item["sourcePath"].startswith("packages/client/"):
+            raise SystemExit(f"Ghost Plane slot lacks rc.1 source path: {item.get('name')}")
+        if item.get("zone") not in valid_zones or item.get("anchor") not in valid_anchors:
+            raise SystemExit(f"Ghost Plane slot lacks reviewed ownership admission: {item.get('name')}")
+    if any(item.get("name") == "tool.call.toolview" for item in slots):
+        raise SystemExit("legacy tool.call.toolview must not survive the rc.1 SlotMap")
     loader = decoded.get("moduleLoader")
     if loader != {
         "bootGlobal": "__DSH_BOOT__", "registrationGlobal": "__ModuleLoader__",

@@ -18,6 +18,9 @@ enum OfficialGhostPlaneContract {
             let name: String
             let kind: String
             let scope: String
+            let sourcePath: String
+            let anchor: String
+            let zone: String
         }
 
         struct ModuleLoader: Decodable, Equatable, Sendable {
@@ -61,7 +64,12 @@ enum OfficialGhostPlaneContract {
               fixture.sources.count >= 8,
               !fixture.sources.contains(where: { $0.path.isEmpty || !$0.sha256.hasPrefix("sha256:") }),
               !fixture.selectors.isEmpty,
-              !fixture.slots.isEmpty,
+              fixture.slots.count == 25,
+              !fixture.slots.contains(where: {
+                  $0.name.isEmpty || $0.sourcePath.isEmpty ||
+                  !["red", "green", "managed"].contains($0.zone)
+              }),
+              !fixture.slots.contains(where: { $0.name == "tool.call.toolview" }),
               fixture.moduleLoader == .init(
                 bootGlobal: "__DSH_BOOT__",
                 registrationGlobal: "__ModuleLoader__",

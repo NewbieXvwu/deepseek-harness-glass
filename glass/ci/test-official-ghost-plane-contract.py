@@ -37,7 +37,7 @@ def main() -> None:
         fixture["selectors"].remove("[data-streaming]")
         tampered.write_text(json.dumps(fixture), encoding="utf-8")
         result = invoke(official_root, tampered)
-        if result.returncode == 0 or "lacks required DOM/slot selectors" not in result.stderr:
+        if result.returncode == 0 or "lacks required rc.1 DOM selectors" not in result.stderr:
             raise SystemExit("tampered contract selector unexpectedly passed")
 
         copied_root = temp / "official"

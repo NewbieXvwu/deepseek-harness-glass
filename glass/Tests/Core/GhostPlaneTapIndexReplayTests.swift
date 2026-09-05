@@ -13,7 +13,7 @@ final class GhostPlaneTapIndexReplayTests: XCTestCase {
             ),
             .init(
                 source: source,
-                target: .toolview,
+                target: .detailsTool,
                 mutation: .setDataAttribute(name: "data-ghost-mode", value: "review")
             ),
             .init(
@@ -39,7 +39,7 @@ final class GhostPlaneTapIndexReplayTests: XCTestCase {
             [
                 "pluginID": "dsh-review-loop",
                 "revision": "r1",
-                "targetID": "ghost-toolview",
+                "targetID": "ghost-details-tool",
                 "kind": "dataAttribute",
                 "name": "data-ghost-mode",
                 "value": "review",
