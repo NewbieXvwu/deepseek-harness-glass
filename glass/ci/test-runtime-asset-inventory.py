@@ -41,7 +41,7 @@ def minimal_asset(asset_id: str, decision: str = "preserved", destination: str =
 def minimal_valid_document() -> dict[str, object]:
     return {
         "schemaVersion": 1,
-        "supportBuild": "dsh-0.1.1-rc.2-official-b150a55",
+        "supportBuild": module.LOCKED_SUPPORT_BUILD,
         "assets": [minimal_asset(aid) for aid in sorted(module.REQUIRED_IDS)],
     }
 

@@ -1,4 +1,7 @@
 import Foundation
+#if DEEPSEEK_HARNESS_PACKAGE
+@testable import GlassSpec
+#endif
 
 /// A reviewed native fast-path declaration. It is metadata only: renderers are
 /// selected by the UI layer after the registry has admitted an exact plugin ID,
@@ -55,21 +58,21 @@ struct SwiftAdapterRegistry: Sendable {
         .init(
             adapterID: "swift.settings.agent-loop.v1",
             pluginID: "settings.agent-loop",
-            minimumHostBuildID: "dsh-0.1.1-rc.2-official-b150a55",
+            minimumHostBuildID: OfficialUISpec.Build.id,
             fixtureID: "official-settings-agent-loop-r1",
             renderer: .reviewedBuiltinCard
         ),
         .init(
             adapterID: "swift.settings.shell.v1",
             pluginID: "settings.shell",
-            minimumHostBuildID: "dsh-0.1.1-rc.2-official-b150a55",
+            minimumHostBuildID: OfficialUISpec.Build.id,
             fixtureID: "official-settings-shell-r1",
             renderer: .reviewedBuiltinCard
         ),
         .init(
             adapterID: "swift.settings.web-search-deepseek.v1",
             pluginID: "settings.web-search-deepseek",
-            minimumHostBuildID: "dsh-0.1.1-rc.2-official-b150a55",
+            minimumHostBuildID: OfficialUISpec.Build.id,
             fixtureID: "official-settings-web-search-r1",
             renderer: .reviewedBuiltinCard
         ),
