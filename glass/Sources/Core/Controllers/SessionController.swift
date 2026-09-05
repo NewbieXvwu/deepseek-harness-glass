@@ -7,6 +7,7 @@ protocol SessionControllerAPI: Sendable {
     func rename(sessionID: String, title: String) async throws -> RemoteSessionRenameValue
     func fork(sessionID: String, atSeq: SessionSeq?) async throws -> RemoteSessionForkValue
     func selectModel(sessionID: String, selection: RemoteModelSelection) async throws -> RemoteSessionSelectModelValue
+    func modelCatalog() async throws -> RemoteModelCatalog
     func prompt(_ request: RemoteSessionPromptRequest) async throws -> RemoteSessionAcceptedValue
     func cancel(sessionID: String) async throws -> RemoteSessionAcceptedValue
     func updateQueue(sessionID: String, itemID: String, action: RemoteQueueAction) async throws -> RemoteSessionAcceptedValue
@@ -87,6 +88,42 @@ struct RemoteSessionSelectModelValue: Codable, Sendable, Equatable {
     let selected: RemoteModelSelection
 }
 
+struct RemoteModelReasoningEffort: Codable, Sendable, Equatable, Identifiable {
+    let id: String
+    let name: String
+    let description: String?
+}
+
+struct RemoteModelReasoning: Codable, Sendable, Equatable {
+    let efforts: [RemoteModelReasoningEffort]
+    let defaultEffort: String?
+}
+
+struct RemoteModelCatalogModel: Codable, Sendable, Equatable, Identifiable {
+    let id: String
+    let name: String
+    let description: String?
+    let reasoning: RemoteModelReasoning?
+}
+
+struct RemoteModelProviderGroup: Codable, Sendable, Equatable, Identifiable {
+    let id: String
+    let name: String
+    let models: [RemoteModelCatalogModel]
+}
+
+struct RemoteModelCatalogFailure: Codable, Sendable, Equatable, Identifiable {
+    let id: String
+    let name: String
+    let message: String
+}
+
+struct RemoteModelCatalog: Codable, Sendable, Equatable {
+    let `default`: RemoteModelSelection
+    let routableProviders: [String]
+    let groups: [RemoteModelProviderGroup]
+    let failures: [RemoteModelCatalogFailure]
+}
 
 enum RemoteSessionPromptMode: String, Codable, Sendable { case queue, steer }
 
@@ -257,6 +294,10 @@ struct SessionController: SessionControllerAPI, Sendable {
                 reasoningEffort: selection.reasoningEffort
             ))
         )
+    }
+
+    func modelCatalog() async throws -> RemoteModelCatalog {
+        try await remote.call(RemoteProcedure("session/modelCatalog"), arguments: EmptyArguments())
     }
 
     func prompt(_ request: RemoteSessionPromptRequest) async throws -> RemoteSessionAcceptedValue {
