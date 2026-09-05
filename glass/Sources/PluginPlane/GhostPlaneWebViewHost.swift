@@ -18,6 +18,7 @@ public final class GhostPlaneWebViewHost: NSObject {
     public let webView: WKWebView
     private let policy: GhostPlaneLoopbackPolicy
     private let responsePolicy: GhostPlaneResponsePolicy
+    private let externalNavigation: GhostPlaneExternalNavigationAdapter
     private let temporaryFiles: GhostPlaneTemporaryFileStore
     private var skeletonReady = false
     /// The main-frame request is retained only until its matching response
@@ -30,9 +31,13 @@ public final class GhostPlaneWebViewHost: NSObject {
     /// It never receives raw WKScriptMessage bodies or page objects.
     public var onPlaneEvent: ((GhostPlaneBridgeEvent) -> Void)?
 
-    public init(policy: GhostPlaneLoopbackPolicy) {
+    public init(
+        policy: GhostPlaneLoopbackPolicy,
+        externalNavigation: GhostPlaneExternalNavigationAdapter = .init()
+    ) {
         self.policy = policy
         responsePolicy = GhostPlaneResponsePolicy(loopback: policy)
+        self.externalNavigation = externalNavigation
         temporaryFiles = GhostPlaneTemporaryFileStore()
         let configuration = WKWebViewConfiguration()
         configuration.setURLSchemeHandler(temporaryFiles, forURLScheme: GhostPlaneTemporaryFileStore.scheme)
@@ -484,10 +489,24 @@ extension GhostPlaneWebViewHost: WKNavigationDelegate {
     ) {
         let url = navigationAction.request.url
         let permitted = allow(url)
-        if permitted && (navigationAction.targetFrame?.isMainFrame ?? true) {
-            pendingMainFrameRequestURL = url
+        if permitted {
+            if navigationAction.targetFrame?.isMainFrame ?? true {
+                pendingMainFrameRequestURL = url
+            }
+            decisionHandler(.allow)
+            return
         }
-        decisionHandler(permitted ? .allow : .cancel)
+
+        // rc.1 WebBlock emits credential-free HTTP(S) anchors with
+        // target=_blank. Keep the external document out of WebKit and hand the
+        // exact user-activated target to the native confirmation boundary.
+        if navigationAction.targetFrame == nil,
+           navigationAction.navigationType == .linkActivated,
+           let url, externalNavigation.open(url) {
+            decisionHandler(.cancel)
+            return
+        }
+        decisionHandler(.cancel)
     }
 
     public func webView(

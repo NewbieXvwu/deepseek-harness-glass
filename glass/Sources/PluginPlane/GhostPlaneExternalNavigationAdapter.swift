@@ -1,37 +1,49 @@
 import AppKit
-import GlassCore
 
-/// Native external-navigation adapter. A plugin cannot send users to an
-/// arbitrary scheme: broker approval is remembered per capability, while the
-/// user confirms each exact HTTP(S) target before `NSWorkspace` is invoked.
+/// Native boundary for a user-activated external HTTP(S) link from the shared
+/// rc.1 Ghost Plane document. The rc.1 client runtime does not expose a
+/// trustworthy per-plugin browser-call identity, so this adapter never accepts
+/// a caller-supplied plugin ID. Every exact destination is confirmed natively.
 @MainActor
 public final class GhostPlaneExternalNavigationAdapter {
-    private let prompts: GhostPlanePermissionPromptPresenter
-    private let workspace: NSWorkspace
+    public typealias Confirmation = @MainActor (URL) -> Bool
+    public typealias Opener = @MainActor (URL) -> Bool
+
+    private let confirmation: Confirmation
+    private let opener: Opener
 
     public init(
-        prompts: GhostPlanePermissionPromptPresenter = .init(),
-        workspace: NSWorkspace = .shared
+        confirmation: @escaping Confirmation = GhostPlaneExternalNavigationAdapter.confirmWithAlert,
+        opener: @escaping Opener = { NSWorkspace.shared.open($0) }
     ) {
-        self.prompts = prompts
-        self.workspace = workspace
+        self.confirmation = confirmation
+        self.opener = opener
     }
 
+    /// Opens only an exact, credential-free HTTP(S) target after the native
+    /// confirmation succeeds. The URL is never loaded into the Ghost Plane.
     @discardableResult
-    public func open(url: URL, pluginID: String, displayName: String) -> Bool {
-        guard (url.scheme == "http" || url.scheme == "https"), url.user == nil, url.password == nil else {
-            return false
-        }
-        guard prompts.request(pluginID: pluginID, displayName: displayName, capability: .externalNavigation) == .granted else {
-            return false
-        }
+    public func open(_ url: URL) -> Bool {
+        guard Self.isAdmitted(url), confirmation(url) else { return false }
+        return opener(url)
+    }
+
+    public static func isAdmitted(_ url: URL) -> Bool {
+        guard let scheme = url.scheme?.lowercased(),
+              scheme == "http" || scheme == "https",
+              url.user == nil, url.password == nil,
+              url.host != nil
+        else { return false }
+        return true
+    }
+
+    private static func confirmWithAlert(_ url: URL) -> Bool {
         let alert = NSAlert()
         alert.messageText = "Open external link?"
         alert.informativeText = url.absoluteString
         alert.alertStyle = .warning
         alert.addButton(withTitle: "Open Link")
         alert.addButton(withTitle: "Cancel")
-        guard alert.runModal() == .alertFirstButtonReturn else { return false }
-        return workspace.open(url)
+        return alert.runModal() == .alertFirstButtonReturn
     }
 }
