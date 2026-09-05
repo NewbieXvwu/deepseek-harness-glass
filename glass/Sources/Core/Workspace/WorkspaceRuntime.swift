@@ -69,6 +69,14 @@ actor WorkspaceRuntime {
         return value
     }
 
+    func delete(workspaceID: String) async throws -> RemoteWorkspaceDeleteValue {
+        let value = try await controller.delete(workspaceID: workspaceID)
+        if value.deleted, let generation = activeGeneration {
+            try apply(.remove(workspaceID), generation: generation)
+        }
+        return value
+    }
+
     func snapshots() -> AsyncStream<WorkspaceRuntimeState> {
         let id = UUID()
         let pair = AsyncStream<WorkspaceRuntimeState>.makeStream()

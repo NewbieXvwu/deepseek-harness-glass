@@ -601,10 +601,8 @@ final class NativeShellPresentation: ObservableObject {
 
     /// Source: `workspace.schema.ts:workspaceDeleteRequestSchema`.
     func deleteWorkspace(_ workspaceID: String) async throws {
-        guard let apis else { throw URLError(.notConnectedToInternet) }
-        _ = try await apis.workspaces.delete(workspaceID: workspaceID)
-        guard !Task.isCancelled else { return }
-        workspaceStore.refresh(using: apis)
+        guard let workspaceRuntime else { throw URLError(.notConnectedToInternet) }
+        _ = try await workspaceRuntime.delete(workspaceID: workspaceID)
     }
 
     /// Source: `workspace.schema.ts:workspaceInsertBeforeRequestSchema`.
