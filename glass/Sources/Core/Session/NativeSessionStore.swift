@@ -1765,19 +1765,33 @@ final class NativeSessionStore: ObservableObject {
         if let route = subagentRoute {
             guard route.mode == .continuable,
                   route.parentAvailable,
-                  let subagentContinuationAPI
+                  subagentController != nil || subagentContinuationAPI != nil
             else { return }
+            let controller = subagentController
+            let legacyAPI = subagentContinuationAPI
             isSubmittingPrompt = true
             promptTask?.cancel()
             promptTask = Task { [weak self] in
                 defer { self?.isSubmittingPrompt = false }
                 do {
-                    _ = try await subagentContinuationAPI.prompt(.init(
-                        parentSessionId: route.parentSessionID,
-                        childSessionId: route.childSessionID,
-                        content: content,
-                        clientTimeZone: TimeZone.current.identifier
-                    ))
+                    if let controller {
+                        _ = try await controller.prompt(.init(
+                            requestId: .fresh(),
+                            parentSessionId: route.parentSessionID,
+                            childSessionId: route.childSessionID,
+                            content: content.map(\.remotePromptContentPart),
+                            clientTimeZone: TimeZone.current.identifier
+                        ))
+                    } else if let legacyAPI {
+                        _ = try await legacyAPI.prompt(.init(
+                            parentSessionId: route.parentSessionID,
+                            childSessionId: route.childSessionID,
+                            content: content,
+                            clientTimeZone: TimeZone.current.identifier
+                        ))
+                    } else {
+                        return
+                    }
                     guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
                     self?.draft = ""
                     self?.pendingImages = []
