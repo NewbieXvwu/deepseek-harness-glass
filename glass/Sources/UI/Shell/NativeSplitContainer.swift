@@ -666,7 +666,7 @@ final class NativeShellPresentation: ObservableObject {
     }
 
     func searchSessions(_ query: String) {
-        workspaceStore.search(query: query, using: apis?.sessions)
+        workspaceStore.search(query: query, using: controllers?.sessions)
     }
 
     func presentWorkspaceRename(workspaceID: String, title: String) {
