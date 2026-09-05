@@ -210,20 +210,6 @@ struct LLMAPI: Sendable, NativeLLMDirectoryAPI {
     }
 }
 
-/// The locked RPC map names this mutation-only domain `goals`; the native facade
-/// uses CommandsAPI to keep Features independent of the wire path vocabulary.
-struct CommandsAPI: Sendable {
-    private let client: DSHAPIClient
-    init(client: DSHAPIClient) { self.client = client }
-
-    func create(_ request: GoalCreateRequest) async throws -> GoalReferenceResponse { try await client.call("goal.create", payload: request) }
-    func edit(_ request: GoalEditRequest) async throws -> GoalReferenceResponse { try await client.call("goal.edit", payload: request) }
-    func pause(_ request: GoalReferenceRequest) async throws -> GoalReferenceResponse { try await client.call("goal.pause", payload: request) }
-    func resume(_ request: GoalReferenceRequest) async throws -> GoalReferenceResponse { try await client.call("goal.resume", payload: request) }
-    func complete(_ request: GoalReferenceRequest) async throws -> GoalReferenceResponse { try await client.call("goal.complete", payload: request) }
-    func clear(_ request: GoalReferenceRequest) async throws -> GoalClearResponse { try await client.call("goal.clear", payload: request) }
-}
-
 protocol NativeAgentPresetAPI: Sendable {
     func list() async throws -> AgentPresetListResponse
     func select(sessionID: String, agentPreset: String) async throws -> AgentPresetSelectResponse
