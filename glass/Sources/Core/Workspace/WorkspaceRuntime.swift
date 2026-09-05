@@ -85,6 +85,22 @@ actor WorkspaceRuntime {
         return value
     }
 
+    func insertSessionBefore(
+        workspaceID: String,
+        sessionID: String,
+        beforeSessionID: String?
+    ) async throws -> RemoteWorkspaceValue {
+        let value = try await controller.insertSessionBefore(
+            workspaceID: workspaceID,
+            sessionID: sessionID,
+            beforeSessionID: beforeSessionID
+        )
+        if let generation = activeGeneration {
+            try apply(.upsert(value.workspace), generation: generation)
+        }
+        return value
+    }
+
     func snapshots() -> AsyncStream<WorkspaceRuntimeState> {
         let id = UUID()
         let pair = AsyncStream<WorkspaceRuntimeState>.makeStream()

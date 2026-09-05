@@ -613,10 +613,12 @@ final class NativeShellPresentation: ObservableObject {
 
     /// Source: `workspace.schema.ts:workspaceInsertSessionBeforeRequestSchema`.
     func moveSession(_ sessionID: String, in workspaceID: String, beforeSessionID: String?) async throws {
-        guard let apis else { throw URLError(.notConnectedToInternet) }
-        _ = try await apis.workspaces.insertSessionBefore(workspaceID: workspaceID, sessionID: sessionID, beforeSessionID: beforeSessionID)
-        guard !Task.isCancelled else { return }
-        workspaceStore.refresh(using: apis)
+        guard let workspaceRuntime else { throw URLError(.notConnectedToInternet) }
+        _ = try await workspaceRuntime.insertSessionBefore(
+            workspaceID: workspaceID,
+            sessionID: sessionID,
+            beforeSessionID: beforeSessionID
+        )
     }
 
     /// Source: `sessions.schema.ts:sessionRenameRequestSchema`.
