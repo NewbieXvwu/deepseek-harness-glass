@@ -181,11 +181,7 @@ final class HarnessHostController: ObservableObject {
         suppressRecoveryForTermination = false
         state = .startingOwned
         let process = Process()
-        process.executableURL = runtime.nodeExecutable
-        process.arguments = ["--expose-internals", runtime.dshEntrypoint.path, "web", "--port", "0"]
-        var environment = ProcessInfo.processInfo.environment
-        environment["DSH_HOME"] = runtime.homeDirectory.path
-        process.environment = environment
+        HarnessHostProcessLaunch.owned(runtime: runtime).apply(to: process)
 
         let pipe = Pipe()
         process.standardOutput = pipe
