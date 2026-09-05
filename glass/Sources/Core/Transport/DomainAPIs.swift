@@ -14,7 +14,6 @@ struct HarnessAPIs: Sendable {
     let llm: LLMAPI
     let agentPresets: AgentPresetsAPI
     let downloads: DownloadsAPI
-    let host: HostAPI
 
     init(
         baseURL: URL,
@@ -33,7 +32,6 @@ struct HarnessAPIs: Sendable {
         llm = LLMAPI(client: client)
         agentPresets = AgentPresetsAPI(client: client)
         downloads = DownloadsAPI(client: client)
-        host = HostAPI(client: client)
     }
 }
 
