@@ -1,0 +1,38 @@
+name: apply-session-create-controller
+on:
+  push:
+    branches: [gpt-continue-todo-20260905]
+    paths: [.github/workflows/apply-session-create-controller.yml]
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('glass/Sources/UI/Shell/NativeSplitContainer.swift')
+          s=p.read_text()
+          pairs=[
+            ('        guard let apis, let endpoint = observedEndpoint else { return }\n','        guard let apis, let controllers, let endpoint = observedEndpoint else { return }\n'),
+            ('                let sessionID = try await connectWorkspace(target, using: apis)\n','                let sessionID = try await connectWorkspace(target, using: controllers.sessions)\n'),
+            ('    private func connectWorkspace(_ workspaceID: String, using apis: HarnessAPIs) async throws -> String {\n','    private func connectWorkspace(_ workspaceID: String, using sessions: any SessionControllerAPI) async throws -> String {\n'),
+            ('            return try await apis.sessions.create(workspaceID: workspaceID).sessionId\n','            return try await sessions.create(.init(workspaceId: workspaceID)).sessionId\n'),
+          ]
+          for old,new in pairs:
+              if s.count(old)!=1: raise SystemExit(f'mismatch: {old!r}')
+              s=s.replace(old,new,1)
+          p.write_text(s)
+          PY
+          git rm .github/workflows/apply-session-create-controller.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add glass/Sources/UI/Shell/NativeSplitContainer.swift
+          git commit -m "feat: create sessions through rc1 controller"
+          git push origin HEAD:gpt-continue-todo-20260905
