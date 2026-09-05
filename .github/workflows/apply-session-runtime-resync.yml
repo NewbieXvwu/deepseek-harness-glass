@@ -1,0 +1,32 @@
+name: apply-session-runtime-resync
+on:
+  push:
+    branches: [gpt-continue-todo-20260905]
+    paths: [.github/workflows/apply-session-runtime-resync.yml]
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('glass/Sources/Core/Session/SessionRuntime.swift')
+          s=p.read_text()
+          needle='''    func close() {\n        followTask?.cancel()\n        followTask = nil\n    }\n'''
+          insert='''    func resync() async throws -> SessionJournalSnapshot {\n        followTask?.cancel()\n        followTask = nil\n        try await repairFollowing()\n        guard let snapshot = journal.snapshot else {\n            throw SessionJournalError.missingOpeningSnapshot\n        }\n        return snapshot\n    }\n\n'''
+          if s.count(needle)!=1: raise SystemExit('close block mismatch')
+          p.write_text(s.replace(needle,insert+needle,1))
+          PY
+          git rm .github/workflows/apply-session-runtime-resync.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add glass/Sources/Core/Session/SessionRuntime.swift
+          git commit -m "feat: resync rc1 session runtime"
+          git push origin HEAD:gpt-continue-todo-20260905
