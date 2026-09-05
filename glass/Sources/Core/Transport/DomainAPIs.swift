@@ -226,15 +226,6 @@ struct CommandsAPI: Sendable {
     func clear(_ request: GoalReferenceRequest) async throws -> GoalClearResponse { try await client.call("goal.clear", payload: request) }
 }
 
-struct SkillsAPI: Sendable {
-    private let client: DSHAPIClient
-    init(client: DSHAPIClient) { self.client = client }
-
-    func list(sessionID: String) async throws -> SkillsListResponse {
-        try await client.call("skill.list", payload: SkillsListRequest(sessionId: sessionID))
-    }
-}
-
 protocol NativeAgentPresetAPI: Sendable {
     func list() async throws -> AgentPresetListResponse
     func select(sessionID: String, agentPreset: String) async throws -> AgentPresetSelectResponse
