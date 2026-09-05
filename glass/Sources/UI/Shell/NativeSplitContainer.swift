@@ -682,7 +682,7 @@ final class NativeShellPresentation: ObservableObject {
     /// Source: `workspace.schema.ts:workspaceCreateRequestSchema`. macOS uses
     /// a native directory panel rather than a browser-mediated file picker.
     func addWorkspace() {
-        guard let apis else { return }
+        guard let workspaceRuntime else { return }
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
@@ -691,9 +691,7 @@ final class NativeShellPresentation: ObservableObject {
         Task { [weak self] in
             guard let self else { return }
             do {
-                _ = try await apis.workspaces.create(path: url.path)
-                guard !Task.isCancelled else { return }
-                workspaceStore.refresh(using: apis)
+                _ = try await workspaceRuntime.create(path: url.path)
             } catch {
                 DispatchQueue.main.async { self.userVisibleError = String(describing: error) }
             }

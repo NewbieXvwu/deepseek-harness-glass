@@ -61,6 +61,14 @@ actor WorkspaceRuntime {
 
     func current() -> WorkspaceRuntimeState? { state }
 
+    func create(path: String) async throws -> RemoteWorkspaceCreateValue {
+        let value = try await controller.create(path: path)
+        if let generation = activeGeneration {
+            try apply(.upsert(value.workspace), generation: generation)
+        }
+        return value
+    }
+
     func rename(workspaceID: String, title: String) async throws -> RemoteWorkspaceValue {
         let value = try await controller.rename(workspaceID: workspaceID, title: title)
         if let generation = activeGeneration {
