@@ -262,13 +262,11 @@ jobs:
           python3 glass/ci/check-official-interaction-scenes.py \
             --official-root .reference/deepseek-harness
           echo "::endgroup::"
-          echo "::group::Official RPC DTO manifest"
-          python3 glass/ci/check-official-rpc-dto-manifest.py \
+          echo "::group::Official rc.1 Remote contract"
+          python3 glass/ci/check-official-remote-contract.py \
             --official-root .reference/deepseek-harness
-          echo "::endgroup::"
-          echo "::group::Official transport contract baseline"
-          python3 glass/ci/check-official-transport-contract.py \
-            --official-root .reference/deepseek-harness
+          python3 glass/ci/test-official-remote-contract.py \
+            .reference/deepseek-harness
           echo "::endgroup::"
           echo "::group::Official UI specification provenance and AST icon reproduction"
           ./glass/ci/check-official-spec.py \
@@ -529,9 +527,8 @@ jobs:
             glass/Sources/Spec/OfficialThemeCatalog.swift
             glass/Sources/Spec/Fixtures/official-column-layout-fixtures.json
             glass/Sources/Spec/Fixtures/official-interaction-scenes.json
-            glass/Sources/Spec/Fixtures/official-rpc-dto-manifest.json
+            glass/Sources/Spec/Fixtures/official-remote-contract-manifest.json
             glass/Sources/Core/Resources/official-host-rpc-fixtures.json
-            glass/Sources/Spec/Fixtures/official-transport-contract-manifest.json
             glass/Sources/Core/Resources/official-transport-contract-fixtures.json
             glass/Package.swift
           if-no-files-found: error

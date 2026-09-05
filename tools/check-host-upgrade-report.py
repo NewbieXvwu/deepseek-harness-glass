@@ -139,7 +139,7 @@ def self_test(root: Path) -> None:
         raise AssertionError("mismatched official commit must be rejected")
 
     report = copy.deepcopy(documents[0])
-    report["requiredArtifacts"]["rpcDTOContract"] = "glass/Sources/Spec/Fixtures/missing.json"
+    report["requiredArtifacts"]["remoteContract"] = "glass/Sources/Spec/Fixtures/missing.json"
     try:
         validate_documents(root, report, *documents[1:])
     except ValidationError:
