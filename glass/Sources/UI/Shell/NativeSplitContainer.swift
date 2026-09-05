@@ -290,7 +290,6 @@ final class NativeShellPresentation: ObservableObject {
                 sessionID: selectedSessionID,
                 using: apis.sessions,
                 endpoint: connection.endpoint,
-                goalAPI: apis.commands,
                 sessionCWD: sessionCWD(for: selectedSessionID),
                 sessionRuntime: SessionRuntime(
                     controller: controllers.sessions,
@@ -513,7 +512,6 @@ final class NativeShellPresentation: ObservableObject {
                 sessionID: sessionID,
                 using: apis.sessions,
                 endpoint: observedEndpoint,
-                goalAPI: apis.commands,
                 sessionCWD: sessionCWD(for: sessionID),
                 sessionRuntime: runtime
             )
