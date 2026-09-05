@@ -1882,19 +1882,27 @@ final class NativeSessionStore: ObservableObject {
     /// destinations. This method is intentionally inert until the caller passes
     /// an already-recognized path token from that Host-backed vocabulary.
     func openKnownProjectPath(_ path: String) {
-        guard let hostPathAPI,
+        guard (sessionController != nil || hostPathAPI != nil),
               let sessionID = activeSessionID,
               Self.isProjectPathToken(path)
         else { return }
         let resolved = NativeProjectPathResolver.resolve(cwd: activeSessionCWD, path: path)
+        let controller = sessionController
+        let legacyHostPathAPI = hostPathAPI
         Task { [weak self] in
             do {
-                let response = try await hostPathAPI.openPath(resolved)
-                guard response.opened, self?.activeSessionID == sessionID else { return }
+                let opened: Bool
+                if let controller {
+                    opened = try await controller.openWorkspacePath(resolved).opened
+                } else if let legacyHostPathAPI {
+                    opened = try await legacyHostPathAPI.openPath(resolved).opened
+                } else {
+                    return
+                }
+                guard opened, self?.activeSessionID == sessionID else { return }
             } catch {
-                // RC8 chat rows intentionally keep Host desktop-open failure
-                // silent; no local path or transport-private error leaks into
-                // untrusted assistant Markdown.
+                // Chat rows intentionally keep Host desktop-open failure silent;
+                // no local path or transport-private error leaks into assistant Markdown.
             }
         }
     }
