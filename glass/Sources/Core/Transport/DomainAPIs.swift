@@ -35,25 +35,6 @@ struct HarnessAPIs: Sendable {
     }
 }
 
-/// Typed RC8 `messageFeedback` Remote namespace. Business failures remain
-/// result payloads rather than being collapsed into transport failures.
-struct MessageFeedbackAPI: Sendable {
-    private let client: DSHAPIClient
-    init(client: DSHAPIClient) { self.client = client }
-
-    func list(sessionID: String) async throws -> MessageFeedbackListResponse {
-        try await client.call("messageFeedback.list", payload: MessageFeedbackListRequest(sessionId: sessionID))
-    }
-
-    func put(_ request: MessageFeedbackPutRequest) async throws -> MessageFeedbackPutResponse {
-        try await client.call("messageFeedback.put", payload: request)
-    }
-
-    func delete(_ request: MessageFeedbackDeleteRequest) async throws -> MessageFeedbackDeleteResponse {
-        try await client.call("messageFeedback.delete", payload: request)
-    }
-}
-
 /// Source: `packages/feedback/message-feedback/src/types.ts` at RC8.
 enum MessageFeedbackRatingDTO: String, Codable, Sendable, Equatable {
     case positive
