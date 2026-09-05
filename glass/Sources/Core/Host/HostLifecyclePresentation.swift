@@ -20,8 +20,6 @@ struct HostLifecyclePresentation: Equatable, Sendable {
         switch state {
         case .idle:
             return HostLifecyclePresentation(title: loading, detail: nil, retryTitle: nil, permitsInteraction: false)
-        case let .probingExternal(endpoint):
-            return HostLifecyclePresentation(title: loading, detail: endpoint?.absoluteString, retryTitle: nil, permitsInteraction: false)
         case .startingOwned, .verifying, .recovering:
             return HostLifecyclePresentation(title: loading, detail: nil, retryTitle: nil, permitsInteraction: false)
         case .ready:

@@ -78,7 +78,7 @@ final class DeepSeekHarnessGlassApp: NSObject, NSApplicationDelegate {
             windowCoordinator.connectVerifiedHost(connection)
         case .idle, .stopping, .failed, .unverified:
             windowCoordinator.disconnectHost()
-        case .probingExternal, .startingOwned, .verifying, .recovering:
+        case .startingOwned, .verifying, .recovering:
             break
         }
     }

@@ -200,9 +200,6 @@ extension HarnessHostControllerTests {
         )
         XCTAssertTrue(controller.recentLogLines.contains(where: { $0.contains("[host] transition") }))
 
-        let probing = HostLifecyclePresentation.make(state: .probingExternal(URL(string: "http://127.0.0.1:43123")!))
-        XCTAssertEqual(probing.title, OfficialUISpec.LocaleCatalog.value(namespace: "locale", key: "loading", language: "en"))
-        XCTAssertFalse(probing.permitsInteraction)
         let failed = HostLifecyclePresentation.make(state: .failed(HostFailure(
             kind: .verificationFailed,
             message: "fixture failure",
