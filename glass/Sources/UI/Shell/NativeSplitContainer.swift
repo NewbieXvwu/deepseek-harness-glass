@@ -234,6 +234,7 @@ final class NativeShellPresentation: ObservableObject {
         remoteGeneration = connection.context.events.generation
         sessionStore.bindCommandService(SessionCommandService(controller: controllers.sessions))
         sessionStore.bindSessionController(controllers.sessions)
+        sessionStore.bindEventRuntime(eventRuntime)
         sessionStore.bindControlRuntime(sessionControlRuntime)
 
         // Domains not migrated to Remote yet keep using the old typed facades,

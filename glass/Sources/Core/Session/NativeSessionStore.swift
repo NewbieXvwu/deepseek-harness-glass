@@ -250,18 +250,53 @@ final class NativeSessionStore: ObservableObject {
     /// Source: `SessionEventMap['tool/call'|'tool/result']`. This generic native
     /// model preserves raw Host fields and optional view carrier without guessing
     /// a plugin-specific card schema.
-    /// Source: `events.schema.ts:approval/requested`; rpcID is the stable
-    /// answerable ServerRequest correlation identity and must be echoed on
-    /// `/api/respond`, while approvalID identifies the business request.
+    /// RC1 approval waterfall projected from `$events`. `eventID` is the
+    /// answerable correlation identity; legacy `approvalID` remains optional
+    /// only while the old SSE fallback is still compiled.
     struct PendingApproval: Identifiable, Equatable {
-        let rpcID: String
+        let eventID: String
         let sessionID: String
-        let approvalID: String
+        let approvalID: String?
         let toolName: String
         let callID: String?
         let reason: String?
 
-        var id: String { approvalID }
+        var id: String { eventID }
+        var rpcID: String { eventID }
+
+        init(
+            eventID: String,
+            sessionID: String,
+            approvalID: String? = nil,
+            toolName: String,
+            callID: String?,
+            reason: String?
+        ) {
+            self.eventID = eventID
+            self.sessionID = sessionID
+            self.approvalID = approvalID
+            self.toolName = toolName
+            self.callID = callID
+            self.reason = reason
+        }
+
+        init(
+            rpcID: String,
+            sessionID: String,
+            approvalID: String,
+            toolName: String,
+            callID: String?,
+            reason: String?
+        ) {
+            self.init(
+                eventID: rpcID,
+                sessionID: sessionID,
+                approvalID: approvalID,
+                toolName: toolName,
+                callID: callID,
+                reason: reason
+            )
+        }
     }
 
     /// Source: `events.schema.ts:askUserQuestionItemSchema`.
@@ -307,11 +342,22 @@ final class NativeSessionStore: ObservableObject {
             }
         }
 
-        let rpcID: String
+        let eventID: String
         let sessionID: String
         let items: [Item]
 
-        var id: String { rpcID }
+        var id: String { eventID }
+        var rpcID: String { eventID }
+
+        init(eventID: String, sessionID: String, items: [Item]) {
+            self.eventID = eventID
+            self.sessionID = sessionID
+            self.items = items
+        }
+
+        init(rpcID: String, sessionID: String, items: [Item]) {
+            self.init(eventID: rpcID, sessionID: sessionID, items: items)
+        }
     }
 
     /// Source: `dsh-user-questions/types:QuestionAnswer`.
@@ -513,6 +559,9 @@ final class NativeSessionStore: ObservableObject {
     private var historyTask: Task<Void, Never>?
     private var sessionRuntime: SessionRuntime?
     private var sessionControlRuntime: SessionControlRuntime?
+    private var remoteEventRuntime: RemoteEventRuntime?
+    private var remoteInteractionTask: Task<Void, Never>?
+    private var remoteInteractionBindingGeneration: UInt = 0
     private var sessionCommandService: SessionCommandService?
     private var sessionController: (any SessionControllerAPI)?
     private var remoteModelCatalog: RemoteModelCatalog?
@@ -614,6 +663,70 @@ final class NativeSessionStore: ObservableObject {
     func bindSessionController(_ controller: (any SessionControllerAPI)?) {
         sessionController = controller
         remoteModelCatalog = nil
+    }
+
+    func bindEventRuntime(_ runtime: RemoteEventRuntime?) {
+        remoteInteractionTask?.cancel()
+        remoteInteractionTask = nil
+        remoteEventRuntime = runtime
+        remoteInteractionBindingGeneration &+= 1
+        let generation = remoteInteractionBindingGeneration
+        guard let runtime else { return }
+        remoteInteractionTask = Task { [weak self] in
+            let interactions = await runtime.interactions()
+            for await interaction in interactions {
+                guard !Task.isCancelled,
+                      self?.remoteInteractionBindingGeneration == generation
+                else { return }
+                self?.applyRemoteInteraction(interaction)
+            }
+        }
+    }
+
+    private func applyRemoteInteraction(_ update: RemoteSessionInteractionUpdate) {
+        switch update {
+        case let .approval(approval):
+            guard approval.sessionID == activeSessionID else { return }
+            invalidateInteractions()
+            pendingApproval = PendingApproval(
+                eventID: approval.eventID,
+                sessionID: approval.sessionID,
+                toolName: approval.toolName,
+                callID: approval.callID,
+                reason: approval.reason
+            )
+        case let .question(question):
+            guard question.sessionID == activeSessionID else { return }
+            invalidateInteractions()
+            pendingQuestion = PendingQuestion(
+                eventID: question.eventID,
+                sessionID: question.sessionID,
+                items: question.questions.map { item in
+                    PendingQuestion.Item(
+                        id: item.id,
+                        question: item.question,
+                        header: item.header,
+                        detail: item.detail,
+                        options: item.options.map { .init(label: $0.label, detail: $0.description) },
+                        multiSelect: item.multiSelect,
+                        intent: item.intent.map { intent in
+                            switch intent {
+                            case let .planReview(approve): return .planReview(approve: approve)
+                            }
+                        }
+                    )
+                }
+            )
+        case let .cancelled(eventID):
+            if pendingApproval?.eventID == eventID {
+                pendingApproval = nil
+                invalidateApprovalSubmission()
+            }
+            if pendingQuestion?.eventID == eventID {
+                pendingQuestion = nil
+                invalidateQuestionSubmission()
+            }
+        }
     }
 
     func bindControlRuntime(_ runtime: SessionControlRuntime?) {
@@ -1069,6 +1182,7 @@ final class NativeSessionStore: ObservableObject {
         recoveryTask?.cancel()
         approvalSubmissionTask?.cancel()
         questionSubmissionTask?.cancel()
+        remoteInteractionTask?.cancel()
         subagentCatalogTask?.cancel()
     }
 
@@ -1463,6 +1577,7 @@ final class NativeSessionStore: ObservableObject {
     func disconnect() {
         bindCommandService(nil)
         bindSessionController(nil)
+        bindEventRuntime(nil)
         bindControlRuntime(nil)
         historyTask?.cancel()
         historyTask = nil
@@ -2611,6 +2726,7 @@ final class NativeSessionStore: ObservableObject {
     func answerApproval(allowOnce: Bool) {
         guard let approval = pendingApproval,
               let api,
+              let approvalID = approval.approvalID,
               !isSubmittingApproval
         else { return }
         isSubmittingApproval = true
@@ -2621,7 +2737,7 @@ final class NativeSessionStore: ObservableObject {
                 let receipt = try await api.answerApproval(
                     rpcID: approval.rpcID,
                     sessionID: approval.sessionID,
-                    approvalID: approval.approvalID,
+                    approvalID: approvalID,
                     outcome: outcome
                 )
                 guard !Task.isCancelled,
