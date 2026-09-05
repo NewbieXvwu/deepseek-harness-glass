@@ -88,6 +88,19 @@ extension NativeMessageFeedbackAPI {
 
 extension MessageFeedbackAPI: NativeMessageFeedbackAPI {}
 
+private extension RemoteMessageFeedbackItem {
+    var legacyPresentationDTO: MessageFeedbackItemDTO {
+        .init(
+            messageId: messageId,
+            rating: rating == .positive ? .positive : .negative,
+            note: note,
+            version: version.rawValue,
+            createdAt: createdAt,
+            updatedAt: updatedAt
+        )
+    }
+}
+
 /// Typed desktop-action boundary for settled Markdown file mentions. The Host
 /// keeps both path opening authority and loopback/build-trust enforcement.
 @MainActor
@@ -844,12 +857,14 @@ final class NativeSessionStore: ObservableObject {
     /// Fetches a complete sidecar snapshot. A business or carrier failure clears
     /// visible feedback rather than retaining stale ratings from another session.
     func refreshMessageFeedback() {
-        guard let api = messageFeedbackAPI, let sessionID = activeSessionID else {
+        guard let sessionID = activeSessionID, messageFeedbackController != nil || messageFeedbackAPI != nil else {
             messageFeedbackItems = [:]
             return
         }
         messageFeedbackTask?.cancel()
         let generation = recoveryGeneration
+        let controller = messageFeedbackController
+        let legacyAPI = messageFeedbackAPI
         isLoadingMessageFeedback = true
         failedMessageFeedbackLoad = false
         messageFeedbackTask = Task { [weak self] in
@@ -860,17 +875,43 @@ final class NativeSessionStore: ObservableObject {
                 }
             }
             do {
-                let response = try await api.list(sessionID: sessionID)
+                let items: [MessageFeedbackItemDTO]
+                if let controller {
+                    switch try await controller.list(sessionID: sessionID) {
+                    case let .success(value):
+                        items = value.items.map(\.legacyPresentationDTO)
+                    case .rejected(.sessionNotFound):
+                        guard !Task.isCancelled,
+                              self?.recoveryGeneration == generation,
+                              self?.activeSessionID == sessionID
+                        else { return }
+                        self?.messageFeedbackItems = [:]
+                        self?.hasLoadedMessageFeedback = false
+                        self?.failedMessageFeedbackLoad = true
+                        return
+                    case .rejected:
+                        throw RemoteConnectionError.protocolViolation("messageFeedback/list unsupported business failure")
+                    }
+                } else if let legacyAPI {
+                    let response = try await legacyAPI.list(sessionID: sessionID)
+                    guard response.ok, let legacyItems = response.value?.items else {
+                        guard !Task.isCancelled,
+                              self?.recoveryGeneration == generation,
+                              self?.activeSessionID == sessionID
+                        else { return }
+                        self?.messageFeedbackItems = [:]
+                        self?.hasLoadedMessageFeedback = false
+                        self?.failedMessageFeedbackLoad = true
+                        return
+                    }
+                    items = legacyItems
+                } else {
+                    return
+                }
                 guard !Task.isCancelled,
                       self?.recoveryGeneration == generation,
                       self?.activeSessionID == sessionID
                 else { return }
-                guard response.ok, let items = response.value?.items else {
-                    self?.messageFeedbackItems = [:]
-                    self?.hasLoadedMessageFeedback = false
-                    self?.failedMessageFeedbackLoad = true
-                    return
-                }
                 self?.messageFeedbackItems = Dictionary(uniqueKeysWithValues: items.map { ($0.messageId, $0) })
                 self?.hasLoadedMessageFeedback = true
             } catch {
@@ -906,7 +947,7 @@ final class NativeSessionStore: ObservableObject {
     /// behind the prior mutation tail. The completed Host list remains the only
     /// source that replaces the sidecar; no local version is synthesized.
     private func resyncMessageFeedbackAfterRecovery() {
-        guard messageFeedbackAPI != nil, let sessionID = activeSessionID else { return }
+        guard messageFeedbackController != nil || messageFeedbackAPI != nil, let sessionID = activeSessionID else { return }
         messageFeedbackResyncTask?.cancel()
         let generation = recoveryGeneration
         let priorMutation = messageFeedbackMutationTask
