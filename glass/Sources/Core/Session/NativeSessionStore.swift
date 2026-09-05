@@ -2206,14 +2206,27 @@ final class NativeSessionStore: ObservableObject {
         promptTask = nil
         isSubmittingPrompt = false
         if let route = subagentRoute {
-            guard route.mode == .continuable, let subagentContinuationAPI else { return }
+            guard route.mode == .continuable,
+                  subagentController != nil || subagentContinuationAPI != nil
+            else { return }
+            let controller = subagentController
+            let legacyAPI = subagentContinuationAPI
             cancelTask?.cancel()
             cancelTask = Task { [weak self] in
                 do {
-                    _ = try await subagentContinuationAPI.interrupt(.init(
-                        parentSessionId: route.parentSessionID,
-                        childSessionId: route.childSessionID
-                    ))
+                    if let controller {
+                        _ = try await controller.interrupt(
+                            parentSessionID: route.parentSessionID,
+                            childSessionID: route.childSessionID
+                        )
+                    } else if let legacyAPI {
+                        _ = try await legacyAPI.interrupt(.init(
+                            parentSessionId: route.parentSessionID,
+                            childSessionId: route.childSessionID
+                        ))
+                    } else {
+                        return
+                    }
                 } catch {
                     // 取消失败保留运行状态
                     self?.cancelAttemptError = error.localizedDescription
