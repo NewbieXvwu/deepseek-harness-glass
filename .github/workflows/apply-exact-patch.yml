@@ -1,0 +1,24 @@
+name: apply-exact-patch
+on:
+  push:
+    branches: [gpt-continue-todo-20260905]
+    paths: [.github/workflows/apply-exact-patch.yml]
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - shell: bash
+        run: |
+          set -euo pipefail
+          base64 --decode .recovery/current.patch.b64 | gzip -dc > /tmp/current.patch
+          git apply --index /tmp/current.patch
+          git rm .recovery/current.patch.b64 .github/workflows/apply-exact-patch.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "feat: add rc1 model catalog procedure"
+          git push origin HEAD:gpt-continue-todo-20260905
