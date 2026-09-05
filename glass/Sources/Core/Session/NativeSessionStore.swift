@@ -562,6 +562,7 @@ final class NativeSessionStore: ObservableObject {
     private var remoteEventRuntime: RemoteEventRuntime?
     private var remoteInteractionTask: Task<Void, Never>?
     private var remoteInteractionBindingGeneration: UInt = 0
+    private var goalController: (any GoalControllerAPI)?
     private var sessionCommandService: SessionCommandService?
     private var sessionController: (any SessionControllerAPI)?
     private var remoteModelCatalog: RemoteModelCatalog?
@@ -663,6 +664,10 @@ final class NativeSessionStore: ObservableObject {
     func bindSessionController(_ controller: (any SessionControllerAPI)?) {
         sessionController = controller
         remoteModelCatalog = nil
+    }
+
+    func bindGoalController(_ controller: (any GoalControllerAPI)?) {
+        goalController = controller
     }
 
     func bindEventRuntime(_ runtime: RemoteEventRuntime?) {
@@ -1580,6 +1585,7 @@ final class NativeSessionStore: ObservableObject {
     func disconnect() {
         bindCommandService(nil)
         bindSessionController(nil)
+        bindGoalController(nil)
         bindEventRuntime(nil)
         bindControlRuntime(nil)
         historyTask?.cancel()
@@ -2043,54 +2049,94 @@ final class NativeSessionStore: ObservableObject {
 
     // MARK: - Goal action face
 
-    /// Source: RC8 `GoalBar.onEdit`. The Host compares the active projection ref;
-    /// this method never writes the returned ref into `goal` state.
     func editGoal(objective: String) {
         let trimmed = objective.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        submitGoalAction { api, sessionID, goal in
-            _ = try await api.edit(.init(
-                sessionId: sessionID,
-                ref: .init(id: goal.id, revision: goal.revision),
-                objective: trimmed,
-                maxGoalRounds: nil
-            ))
-        }
+        submitGoalAction(
+            remote: { controller, sessionID, goal in
+                try await controller.edit(
+                    sessionID: sessionID,
+                    ref: .init(id: goal.id, revision: goal.revision),
+                    objective: trimmed
+                )
+            },
+            legacy: { api, sessionID, goal in
+                _ = try await api.edit(.init(
+                    sessionId: sessionID,
+                    ref: .init(id: goal.id, revision: goal.revision),
+                    objective: trimmed,
+                    maxGoalRounds: nil
+                ))
+            }
+        )
     }
 
-    /// Source: RC8 `GoalBar.onPause`.
     func pauseGoal() {
-        submitGoalAction { api, sessionID, goal in
-            _ = try await api.pause(.init(sessionId: sessionID, ref: .init(id: goal.id, revision: goal.revision)))
-        }
+        submitGoalAction(
+            remote: { controller, sessionID, goal in
+                try await controller.pause(
+                    sessionID: sessionID,
+                    ref: .init(id: goal.id, revision: goal.revision)
+                )
+            },
+            legacy: { api, sessionID, goal in
+                _ = try await api.pause(.init(
+                    sessionId: sessionID,
+                    ref: .init(id: goal.id, revision: goal.revision)
+                ))
+            }
+        )
     }
 
-    /// Source: RC8 `GoalBar.onResume`.
     func resumeGoal() {
-        submitGoalAction { api, sessionID, goal in
-            _ = try await api.resume(.init(sessionId: sessionID, ref: .init(id: goal.id, revision: goal.revision)))
-        }
+        submitGoalAction(
+            remote: { controller, sessionID, goal in
+                try await controller.resume(
+                    sessionID: sessionID,
+                    ref: .init(id: goal.id, revision: goal.revision)
+                )
+            },
+            legacy: { api, sessionID, goal in
+                _ = try await api.resume(.init(
+                    sessionId: sessionID,
+                    ref: .init(id: goal.id, revision: goal.revision)
+                ))
+            }
+        )
     }
 
-    /// Source: RC8 `GoalBar.onClear`. Success records only the same-goal
-    /// presentation marker until the Host tombstone projection catches up.
     func clearGoal() {
-        submitGoalAction(hideGoalOnSuccess: true) { api, sessionID, goal in
-            _ = try await api.clear(.init(sessionId: sessionID, ref: .init(id: goal.id, revision: goal.revision)))
-        }
+        submitGoalAction(
+            hideGoalOnSuccess: true,
+            remote: { controller, sessionID, goal in
+                try await controller.clear(
+                    sessionID: sessionID,
+                    ref: .init(id: goal.id, revision: goal.revision)
+                )
+            },
+            legacy: { api, sessionID, goal in
+                _ = try await api.clear(.init(
+                    sessionId: sessionID,
+                    ref: .init(id: goal.id, revision: goal.revision)
+                ))
+            }
+        )
     }
 
     private func submitGoalAction(
         hideGoalOnSuccess: Bool = false,
-        _ operation: @escaping @MainActor (any NativeGoalAPI, String, CoreGoalProjection) async throws -> Void
+        remote: @escaping @MainActor (any GoalControllerAPI, String, CoreGoalProjection) async throws -> Void,
+        legacy: @escaping @MainActor (any NativeGoalAPI, String, CoreGoalProjection) async throws -> Void
     ) {
         guard !isSubmittingGoal,
-              let goalAPI,
+              goalController != nil || goalAPI != nil,
               let sessionID = activeSessionID,
               let goal = extensionState?.goal
         else { return }
         isSubmittingGoal = true
         goalActionFailure = nil
+        let controller = goalController
+        let legacyAPI = goalAPI
         goalTask?.cancel()
         goalTask = Task { [weak self] in
             defer {
@@ -2099,15 +2145,23 @@ final class NativeSessionStore: ObservableObject {
                 }
             }
             do {
-                try await operation(goalAPI, sessionID, goal)
+                if let controller {
+                    try await remote(controller, sessionID, goal)
+                } else if let legacyAPI {
+                    try await legacy(legacyAPI, sessionID, goal)
+                }
                 guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
                 if hideGoalOnSuccess { self?.locallyClearedGoalID = goal.id }
             } catch let error as RPCBusinessError {
                 guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
                 self?.goalActionFailure = .init(message: error.message, code: error.code)
+            } catch let error as RemoteConnectionError {
+                guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
+                if case let .remote(payload) = error {
+                    self?.goalActionFailure = .init(message: payload.message, code: payload.code)
+                }
             } catch {
-                // Transport and cancellation remain handled by the existing
-                // session recovery surfaces; GoalBar never manufactures copy.
+                // Transport failures remain owned by the session/Host recovery surfaces.
             }
         }
     }

@@ -234,6 +234,7 @@ final class NativeShellPresentation: ObservableObject {
         remoteGeneration = connection.context.events.generation
         sessionStore.bindCommandService(SessionCommandService(controller: controllers.sessions))
         sessionStore.bindSessionController(controllers.sessions)
+        sessionStore.bindGoalController(controllers.goals)
         sessionStore.bindEventRuntime(eventRuntime)
         sessionStore.bindControlRuntime(sessionControlRuntime)
 
