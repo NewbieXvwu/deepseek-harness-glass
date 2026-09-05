@@ -89,23 +89,18 @@ final class NativeWorkspaceStore: ObservableObject {
 
     /// Allows an already-authoritative complete Host snapshot to seed a native
     /// presentation. Production keeps the default empty state and transitions
-    /// only through `refresh(using:)`; tests and shell restore paths can inject
-    /// a complete value without constructing a second client-side database.
+    /// through the bound rc.1 workspace/session runtimes; tests and snapshot
+    /// restore paths can inject a complete value without creating another store.
     init(initialSnapshot: Snapshot = .empty) {
         snapshot = initialSnapshot
     }
 
-    private var refreshTask: Task<Void, Never>?
     private var searchTask: Task<Void, Never>?
-    private var eventTask: Task<Void, Never>?
-    private var eventRefreshTask: Task<Void, Never>?
     private var remoteWorkspaceTask: Task<Void, Never>?
     private var remoteCatalogTask: Task<Void, Never>?
     private var remoteWorkspaceState: WorkspaceRuntimeState?
     private var remoteCatalogState: RemoteSessionCatalogSnapshot?
 
-    /// Source: `events.schema.ts:hostFrameSchema`. A single list reload folds
-    /// batches of related host increments into the host-authoritative snapshot.
     /// Source: RC8 `WorkspaceBrowser.sanitizeSearchQuery`. `String.UTF16View`
     /// matches the JavaScript wire length model and the boundary adjustment
     /// prevents a dangling high surrogate from reaching `session.search`.
@@ -122,21 +117,8 @@ final class NativeWorkspaceStore: ObservableObject {
         return String(decoding: units.prefix(end), as: UTF16.self)
     }
 
-    private static let browserAffectingHostMethods: Set<String> = [
-        "host/session-added",
-        "host/session-removed",
-        "host/session-status",
-        "host/workspace-changed",
-        "host/workspace-removed",
-        "host/workspace-order-changed",
-        "host/archived-sessions-changed",
-    ]
-
     deinit {
-        refreshTask?.cancel()
         searchTask?.cancel()
-        eventTask?.cancel()
-        eventRefreshTask?.cancel()
         remoteWorkspaceTask?.cancel()
         remoteCatalogTask?.cancel()
     }
@@ -146,8 +128,6 @@ final class NativeWorkspaceStore: ObservableObject {
         eventRuntime: RemoteEventRuntime,
         generation: RemoteConnectionGeneration
     ) {
-        refreshTask?.cancel()
-        stopObservingHostEvents()
         remoteWorkspaceTask?.cancel()
         remoteCatalogTask?.cancel()
         remoteWorkspaceState = nil
@@ -205,74 +185,9 @@ final class NativeWorkspaceStore: ObservableObject {
         phase = .ready
     }
 
-    func refresh(using apis: HarnessAPIs) {
-        refreshTask?.cancel()
-        phase = .loading
-        refreshTask = Task { [weak self] in
-            do {
-                async let workspaceResponse = apis.workspaces.list()
-                async let sessionResponse = apis.sessions.list()
-                let (workspaces, sessions) = try await (workspaceResponse, sessionResponse)
-                guard !Task.isCancelled else { return }
-                let old = self?.snapshot ?? .empty
-                self?.snapshot = Snapshot(
-                    workspaces: workspaces.items,
-                    sessions: sessions.items,
-                    archivedSessionIDs: Set(workspaces.archivedSessionIds),
-                    selectedSessionID: old.selectedSessionID,
-                    selectedWorkspaceID: old.selectedWorkspaceID
-                )
-                self?.phase = .ready
-            } catch {
-                guard !Task.isCancelled else { return }
-                self?.phase = .failed(error.localizedDescription)
-            }
-        }
-    }
-
-    /// Opens the official Host stream only after the controller has verified a
-    /// supported endpoint. Server-request `method` is the official frame type.
-    func observeHostEvents(at endpoint: URL, using apis: HarnessAPIs, diagnostics: HostDiagnosticRecorder) {
-        eventTask?.cancel()
-        let client = SSEClient(baseURL: endpoint)
-        eventTask = Task { [weak self] in
-            let stream = await client.reconnectingStream(.host)
-            do {
-                for try await frame in stream {
-                    await diagnostics.recordSSEActivity()
-                    self?.receiveHostEvent(frame, using: apis)
-                }
-            } catch is CancellationError {
-                return
-            } catch {
-                await diagnostics.recordRPCError(error)
-                // A finite reconnect policy can only surface after exhaustion;
-                // lifecycle ownership still replaces this stream on endpoint change.
-            }
-        }
-    }
-
-    /// Applies a server-request already accepted by the verified Host carrier.
-    /// The notification itself is not a partial browser snapshot: it only
-    /// schedules a full `workspace.list` + `session.list` authority refresh.
-    func receiveHostEvent(_ frame: RPCServerRequest, using apis: HarnessAPIs) {
-        guard Self.browserAffectingHostMethods.contains(frame.method) else { return }
-        scheduleRefresh(using: apis)
-    }
-
-    func stopObservingHostEvents() {
-        eventTask?.cancel()
-        eventTask = nil
-        eventRefreshTask?.cancel()
-        eventRefreshTask = nil
-    }
-
     /// Called by lifecycle ownership whenever the verified Host endpoint is no
     /// longer ready. No durable browser data is retained outside the Host.
     func detachHost() {
-        refreshTask?.cancel()
-        refreshTask = nil
-        stopObservingHostEvents()
         phase = .idle
         snapshot = .empty
         searchTask?.cancel()
@@ -322,15 +237,6 @@ final class NativeWorkspaceStore: ObservableObject {
                 else { return }
                 self?.remoteSearch = RemoteSearch(query: normalized, status: .failed, items: [], hasMore: false)
             }
-        }
-    }
-
-    private func scheduleRefresh(using apis: HarnessAPIs) {
-        eventRefreshTask?.cancel()
-        eventRefreshTask = Task { [weak self] in
-            try? await Task.sleep(for: .milliseconds(250))
-            guard !Task.isCancelled else { return }
-            self?.refresh(using: apis)
         }
     }
 
