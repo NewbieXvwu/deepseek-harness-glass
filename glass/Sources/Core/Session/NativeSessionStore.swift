@@ -2420,24 +2420,27 @@ final class NativeSessionStore: ObservableObject {
     func loadOlderHistory() {
         guard hasMoreHistory,
               !isLoadingOlderHistory,
-              let api,
               let sessionID = activeSessionID,
-              let beforeSeq = appliedSequences.min()
+              sessionRuntime != nil || (api != nil && appliedSequences.min() != nil)
         else { return }
 
+        let runtime = sessionRuntime
+        let legacyAPI = api
+        let legacyBeforeSeq = appliedSequences.min()
         isLoadingOlderHistory = true
         olderHistoryTask?.cancel()
         olderHistoryTask = Task { [weak self] in
             defer { self?.isLoadingOlderHistory = false }
             do {
-                if let sessionRuntime = self?.sessionRuntime {
-                    if let snapshot = try await sessionRuntime.loadOlder() {
+                if let runtime {
+                    if let snapshot = try await runtime.loadOlder() {
                         guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
                         self?.installRemoteJournal(snapshot, sessionID: sessionID)
                     }
                     return
                 }
-                let response = try await api.history(sessionID: sessionID, beforeSeq: beforeSeq, maxMessages: nil)
+                guard let legacyAPI, let legacyBeforeSeq else { return }
+                let response = try await legacyAPI.history(sessionID: sessionID, beforeSeq: legacyBeforeSeq, maxMessages: nil)
                 guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
                 self?.prependConversationWindow(response.events.map(ConversationEventInput.init(entry:)), hasMore: response.hasMore)
                 self?.applyHistory(response.events)
@@ -2458,8 +2461,8 @@ final class NativeSessionStore: ObservableObject {
     /// mux boundary supplies their ordered whole snapshots.
     func resyncActiveSession() {
         guard let sessionID = activeSessionID,
-              api != nil,
-              endpoint != nil
+              endpoint != nil,
+              sessionRuntime != nil || api != nil
         else { return }
 
         historyTask?.cancel()
@@ -2483,6 +2486,29 @@ final class NativeSessionStore: ObservableObject {
         hasMoreHistory = false
         lastError = nil
         phase = .loading(sessionID: sessionID)
+        if let runtime = sessionRuntime {
+            recoveryGeneration &+= 1
+            let generation = recoveryGeneration
+            historyTask = Task { [weak self] in
+                do {
+                    let snapshot = try await runtime.resync()
+                    guard !Task.isCancelled,
+                          self?.recoveryGeneration == generation,
+                          self?.activeSessionID == sessionID
+                    else { return }
+                    self?.installRemoteJournal(snapshot, sessionID: sessionID)
+                    self?.phase = .ready(sessionID: sessionID)
+                } catch {
+                    guard !Task.isCancelled,
+                          self?.recoveryGeneration == generation,
+                          self?.activeSessionID == sessionID
+                    else { return }
+                    self?.historyLoadError = error.localizedDescription
+                    self?.phase = .failed(sessionID: sessionID)
+                }
+            }
+            return
+        }
         requestAuthorityRecovery(sessionID: sessionID, reason: .residentResync)
     }
 
