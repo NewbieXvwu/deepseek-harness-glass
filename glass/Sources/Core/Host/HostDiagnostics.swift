@@ -70,12 +70,6 @@ actor HostDiagnosticRecorder {
         lifecycle = "ready"
     }
 
-    func recordUnverified(reason: String) {
-        hostBuildID = nil
-        pluginCompatibility = "unverified: \(HostLogRedactor.redact(reason))"
-        lifecycle = "unverified"
-    }
-
     func recordLifecycle(_ state: HostLifecycleState, ownedPID: Int32?) {
         lifecycle = stableStateName(state)
         ownedProcessID = ownedPID
@@ -90,7 +84,6 @@ actor HostDiagnosticRecorder {
         case .verifying: return "verifying"
         case .recovering: return "recovering"
         case .ready: return "ready"
-        case .unverified: return "unverified"
         case .failed: return "failed"
         case .stopping: return "stopping"
         }

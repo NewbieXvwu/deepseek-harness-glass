@@ -7,7 +7,6 @@ import Foundation
 /// A URL is data carried by `.ready`, never a substitute for lifecycle state.
 enum HostLifecycleState: Equatable, Sendable {
     case idle
-    case unverified(HostUnverified)
     case startingOwned
     case verifying(URL)
     case ready(HostConnection)
@@ -56,11 +55,6 @@ struct HostConnection: Sendable, Equatable {
     }
 }
 
-struct HostUnverified: Equatable, Sendable {
-    let reason: String
-    let developerWriteOverrideEnabled: Bool
-    let logPath: String
-}
 
 struct HostFailure: Equatable, Sendable, LocalizedError {
     enum Kind: String, Sendable {

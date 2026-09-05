@@ -27,8 +27,6 @@ struct HostLifecyclePresentation: Equatable, Sendable {
             // title is a placeholder and consumers gate on permitsInteraction
             // (true) rather than the title.
             return HostLifecyclePresentation(title: loading, detail: nil, retryTitle: nil, permitsInteraction: true)
-        case let .unverified(status):
-            return HostLifecyclePresentation(title: failed, detail: status.reason, retryTitle: retry, permitsInteraction: false)
         case let .failed(failure):
             return HostLifecyclePresentation(title: failed, detail: failure.message, retryTitle: retry, permitsInteraction: false)
         case .stopping:
