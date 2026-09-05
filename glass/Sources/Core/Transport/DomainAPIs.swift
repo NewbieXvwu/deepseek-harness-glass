@@ -19,7 +19,6 @@ struct HarnessAPIs: Sendable {
     let skills: SkillsAPI
     let agentPresets: AgentPresetsAPI
     let downloads: DownloadsAPI
-    let feedback: MessageFeedbackAPI
     let host: HostAPI
 
     init(
@@ -44,7 +43,6 @@ struct HarnessAPIs: Sendable {
         skills = SkillsAPI(client: client)
         agentPresets = AgentPresetsAPI(client: client)
         downloads = DownloadsAPI(client: client)
-        feedback = MessageFeedbackAPI(client: client)
         host = HostAPI(client: client)
     }
 }
