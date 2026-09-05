@@ -1,0 +1,32 @@
+name: apply-commands-root-cleanup
+on:
+  push:
+    branches: [gpt-continue-todo-20260905]
+    paths: [.github/workflows/apply-commands-root-cleanup.yml]
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('glass/Sources/Core/Transport/DomainAPIs.swift')
+          s=p.read_text()
+          for needle in ['    let commands: CommandsAPI\n','        commands = CommandsAPI(client: client)\n']:
+              if s.count(needle)!=1: raise SystemExit('commands root mismatch')
+              s=s.replace(needle,'')
+          p.write_text(s)
+          PY
+          git rm .github/workflows/apply-commands-root-cleanup.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add glass/Sources/Core/Transport/DomainAPIs.swift
+          git commit -m "chore: remove legacy commands facade from api root"
+          git push origin HEAD:gpt-continue-todo-20260905
