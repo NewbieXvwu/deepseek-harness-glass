@@ -24,7 +24,10 @@ enum OfficialGhostPlaneContract {
             let bootGlobal: String
             let registrationGlobal: String
             let registrationMethod: String
-            let bundlePathTemplate: String
+            let singleResourcePathTemplate: String
+            let comboPathTemplate: String
+            let bootBatchPhases: [String]
+            let initialURLFromBatches: Bool
             let factoryRegistration: Bool
         }
 
@@ -55,7 +58,7 @@ enum OfficialGhostPlaneContract {
         let fixture = try JSONDecoder().decode(Fixture.self, from: Data(contentsOf: url))
         guard fixture.schemaVersion == 1,
               fixture.sourceCommit == OfficialUISpec.Build.sourceCommit,
-              fixture.sources.count >= 6,
+              fixture.sources.count >= 8,
               !fixture.sources.contains(where: { $0.path.isEmpty || !$0.sha256.hasPrefix("sha256:") }),
               !fixture.selectors.isEmpty,
               !fixture.slots.isEmpty,
@@ -63,7 +66,10 @@ enum OfficialGhostPlaneContract {
                 bootGlobal: "__DSH_BOOT__",
                 registrationGlobal: "__ModuleLoader__",
                 registrationMethod: "load",
-                bundlePathTemplate: "/plugins/<id>/client.js?rev=<rev>",
+                singleResourcePathTemplate: "/plugins/??<id>/client.js&rev=<rev>",
+                comboPathTemplate: "/plugins/??<id1>/client.js,<id2>/client.js&rev=<rev>",
+                bootBatchPhases: ["bootstrap", "application"],
+                initialURLFromBatches: true,
                 factoryRegistration: true
               )
         else {

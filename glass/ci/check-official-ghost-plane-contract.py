@@ -16,7 +16,7 @@ DEFAULT_CONTRACT = ROOT / "glass/Sources/Core/Resources/official-ghost-plane-con
 EXPECTED_TOP_LEVEL = {"schemaVersion", "sourceCommit", "sources", "selectors", "slots", "moduleLoader"}
 REQUIRED_SELECTORS = {
     "[data-conversation-scroll]", "[data-chat-flow]", "[data-chat-anchor-key]", "[data-chat-flow-key]",
-    "[data-streaming]", "[data-composer-seat]", "[data-slot=conversation.session]",
+    "[data-chat-flow-kind]", "[data-streaming]", "[data-phase]", "[data-composer-seat]", "[data-slot=conversation.session]",
     "[data-slot=conversation.session.header]", "[data-slot=conversation.chat.node]",
     "[data-slot=conversation.chat.turnTail]", "[data-slot=conversation.details.tool]",
     "[data-slot=conversation.composer]", "[data-slot=tool.call.toolview]",
@@ -47,7 +47,11 @@ def load_contract(path: Path) -> dict[str, object]:
     loader = decoded.get("moduleLoader")
     if loader != {
         "bootGlobal": "__DSH_BOOT__", "registrationGlobal": "__ModuleLoader__",
-        "registrationMethod": "load", "bundlePathTemplate": "/plugins/<id>/client.js?rev=<rev>",
+        "registrationMethod": "load",
+        "singleResourcePathTemplate": "/plugins/??<id>/client.js&rev=<rev>",
+        "comboPathTemplate": "/plugins/??<id1>/client.js,<id2>/client.js&rev=<rev>",
+        "bootBatchPhases": ["bootstrap", "application"],
+        "initialURLFromBatches": True,
         "factoryRegistration": True,
     }:
         raise SystemExit("Ghost Plane contract fixture has an unexpected ModuleLoader wire contract")

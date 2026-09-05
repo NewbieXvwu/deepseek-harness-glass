@@ -13,11 +13,13 @@ from pathlib import Path
 
 SOURCE_PATHS = (
     "packages/client/ui-conversation/src/client/contract/slots.ts",
+    "packages/client/ui-chat/src/client/contract/slots.ts",
     "packages/client/ui-conversation/src/client/skeleton/ConversationRoot.tsx",
-    "packages/client/ui-conversation/src/client/chat/ChatView.tsx",
-    "packages/client/ui-conversation/src/client/chat/ChatNodeSeat.tsx",
-    "packages/client/ui-conversation/src/client/chat/AssistantMarkdown.tsx",
+    "packages/client/ui-chat/src/client/chat/ChatView.tsx",
+    "packages/client/ui-chat/src/client/chat/ChatNodeSeat.tsx",
+    "packages/client/ui-chat/src/client/chat/AssistantMarkdown.tsx",
     "packages/client/modules/src/client/manifest.ts",
+    "packages/client/modules/src/index.ts",
 )
 AST_EXTRACTOR = Path(__file__).with_name("extract_ghost_plane_ast.mjs")
 
@@ -74,17 +76,20 @@ def build(root: Path, source_commit: str) -> dict[str, object]:
     data_selectors = set(ast_data_selectors)
     required_data_selectors = {
         "[data-conversation-scroll]", "[data-chat-flow]", "[data-chat-anchor-key]",
-        "[data-chat-flow-key]", "[data-streaming]", "[data-composer-seat]",
+        "[data-chat-flow-key]", "[data-chat-flow-kind]", "[data-streaming]",
+        "[data-phase]", "[data-composer-seat]",
     }
     missing_selectors = required_data_selectors - data_selectors
     if missing_selectors:
         raise SystemExit("official conversation DOM lacks required anchors: " + ", ".join(sorted(missing_selectors)))
-    selectors = sorted(data_selectors | {f"[data-slot={name}]" for name in required_slot_names} | {"[data-slot=tool.call.toolview]"})
+    selectors = sorted(required_data_selectors | {f"[data-slot={name}]" for name in required_slot_names} | {"[data-slot=tool.call.toolview]"})
 
-    module_source = sources[SOURCE_PATHS[-1]]
-    required_module_terms = ("__DSH_BOOT__", "__ModuleLoader__", "/plugins/<id>/client.js?rev=<rev>", "factory")
-    if any(term not in module_source for term in required_module_terms):
-        raise SystemExit("official module manifest source no longer supplies the expected loader wire contract")
+    module_manifest = sources["packages/client/modules/src/client/manifest.ts"]
+    module_host = sources["packages/client/modules/src/index.ts"]
+    if any(term not in module_manifest for term in ("__DSH_BOOT__", "__ModuleLoader__", "factory", "batches", "initialUrl")):
+        raise SystemExit("official module manifest source no longer supplies the rc.1 loader wire contract")
+    if "return `/plugins/??${resources}&rev=${rev}`" not in module_host:
+        raise SystemExit("official module host no longer supplies the rc.1 combo bundle route")
 
     return {
         "schemaVersion": 1,
@@ -96,7 +101,10 @@ def build(root: Path, source_commit: str) -> dict[str, object]:
             "bootGlobal": "__DSH_BOOT__",
             "registrationGlobal": "__ModuleLoader__",
             "registrationMethod": "load",
-            "bundlePathTemplate": "/plugins/<id>/client.js?rev=<rev>",
+            "singleResourcePathTemplate": "/plugins/??<id>/client.js&rev=<rev>",
+            "comboPathTemplate": "/plugins/??<id1>/client.js,<id2>/client.js&rev=<rev>",
+            "bootBatchPhases": ["bootstrap", "application"],
+            "initialURLFromBatches": True,
             "factoryRegistration": True,
         },
     }

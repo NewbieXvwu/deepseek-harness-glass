@@ -26,13 +26,13 @@ function loadTypeScript() {
 
 const ts = loadTypeScript()
 
-const SLOT_PATH = resolve(officialRoot, 'packages/client/ui-conversation/src/client/contract/slots.ts')
-if (!existsSync(SLOT_PATH)) {
-  throw new Error(`slots.ts not found at ${SLOT_PATH}`)
+const SLOT_PATHS = [
+  'packages/client/ui-conversation/src/client/contract/slots.ts',
+  'packages/client/ui-chat/src/client/contract/slots.ts',
+].map(relativePath => resolve(officialRoot, relativePath))
+for (const slotPath of SLOT_PATHS) {
+  if (!existsSync(slotPath)) throw new Error(`slots.ts not found at ${slotPath}`)
 }
-
-const slotSourceText = readFileSync(SLOT_PATH, 'utf8')
-const slotSourceFile = ts.createSourceFile(SLOT_PATH, slotSourceText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
 
 const slots = []
 
@@ -67,13 +67,17 @@ function extractSlotMap(node) {
   ts.forEachChild(node, extractSlotMap)
 }
 
-extractSlotMap(slotSourceFile)
+for (const slotPath of SLOT_PATHS) {
+  const slotSourceText = readFileSync(slotPath, 'utf8')
+  const slotSourceFile = ts.createSourceFile(slotPath, slotSourceText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+  extractSlotMap(slotSourceFile)
+}
 
 const TSX_SOURCES = [
   'packages/client/ui-conversation/src/client/skeleton/ConversationRoot.tsx',
-  'packages/client/ui-conversation/src/client/chat/ChatView.tsx',
-  'packages/client/ui-conversation/src/client/chat/ChatNodeSeat.tsx',
-  'packages/client/ui-conversation/src/client/chat/AssistantMarkdown.tsx',
+  'packages/client/ui-chat/src/client/chat/ChatView.tsx',
+  'packages/client/ui-chat/src/client/chat/ChatNodeSeat.tsx',
+  'packages/client/ui-chat/src/client/chat/AssistantMarkdown.tsx',
 ]
 
 const dataSelectors = new Set()

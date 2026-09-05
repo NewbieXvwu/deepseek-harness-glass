@@ -1,30 +1,38 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e",
+  "sourceCommit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d",
   "sources": [
     {
       "path": "packages/client/ui-conversation/src/client/contract/slots.ts",
-      "sha256": "sha256:08c945c51fb4ced80ba971ce18e1905efe7bdccc40b5611722fe6681fb117a19"
+      "sha256": "sha256:19c0fed4bd30b5f4fd00dfa98781a2771d62efe8f9196bef7da448e5f8679e8c"
+    },
+    {
+      "path": "packages/client/ui-chat/src/client/contract/slots.ts",
+      "sha256": "sha256:05c51270076c22221384b9c29f63ab797702ed7a189b339ed9d0979297d3554e"
     },
     {
       "path": "packages/client/ui-conversation/src/client/skeleton/ConversationRoot.tsx",
-      "sha256": "sha256:dbdf53858eef23261f113e909c17a12cd78fcc4712a568ad0fdaf2df2caf5983"
+      "sha256": "sha256:401c33022b01b5b9203d769e8981dc49fa9bd49e288f2cac01c527b62a784767"
     },
     {
-      "path": "packages/client/ui-conversation/src/client/chat/ChatView.tsx",
-      "sha256": "sha256:85a6d0ba009a141a3f416ea2388d6f3e9570d3c7ece2418997fe9493ec9db541"
+      "path": "packages/client/ui-chat/src/client/chat/ChatView.tsx",
+      "sha256": "sha256:329ae3d2a2072ebf313930fb8c165717639e20cf76f68aafd62b3171c645d1a2"
     },
     {
-      "path": "packages/client/ui-conversation/src/client/chat/ChatNodeSeat.tsx",
-      "sha256": "sha256:d443494afc832d2468a671569e1e7d41a60d5606dd708c1276126e4bd6e4c2b5"
+      "path": "packages/client/ui-chat/src/client/chat/ChatNodeSeat.tsx",
+      "sha256": "sha256:51ddbb01929c61a07ba6b56c7f73e528dac4c578f5b2df9889dd89f6f9b0df21"
     },
     {
-      "path": "packages/client/ui-conversation/src/client/chat/AssistantMarkdown.tsx",
-      "sha256": "sha256:4eed0e01f82c331179301d1c8a97be3ac18dec8e8a70ea1b5b006578e0ba7d57"
+      "path": "packages/client/ui-chat/src/client/chat/AssistantMarkdown.tsx",
+      "sha256": "sha256:18d8e4d9b1f7a61f0f7f9e6f02245643314f782f4d6563e663640c41e380af99"
     },
     {
       "path": "packages/client/modules/src/client/manifest.ts",
-      "sha256": "sha256:7e5e7ed1b51fd1e021491f5f7994edb8948602a7594ca8845055f8e5776f95ca"
+      "sha256": "sha256:454222ab224e856b23c640d545aaf4e19f8dcc8ea531eb2944063fbe2f728a4c"
+    },
+    {
+      "path": "packages/client/modules/src/index.ts",
+      "sha256": "sha256:f0063899adb5833126dbef99e5b55a4a3de08b19888458a19e8f6cf2b95b4d06"
     }
   ],
   "selectors": [
@@ -121,6 +129,11 @@
       "scope": "session"
     },
     {
+      "name": "conversation.input.overlay",
+      "kind": "list",
+      "scope": "session"
+    },
+    {
       "name": "conversation.input.plan",
       "kind": "single",
       "scope": "session"
@@ -170,7 +183,13 @@
     "bootGlobal": "__DSH_BOOT__",
     "registrationGlobal": "__ModuleLoader__",
     "registrationMethod": "load",
-    "bundlePathTemplate": "/plugins/<id>/client.js?rev=<rev>",
+    "singleResourcePathTemplate": "/plugins/??<id>/client.js&rev=<rev>",
+    "comboPathTemplate": "/plugins/??<id1>/client.js,<id2>/client.js&rev=<rev>",
+    "bootBatchPhases": [
+      "bootstrap",
+      "application"
+    ],
+    "initialURLFromBatches": true,
     "factoryRegistration": true
   }
 }
