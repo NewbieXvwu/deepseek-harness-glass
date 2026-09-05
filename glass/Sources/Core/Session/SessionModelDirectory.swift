@@ -46,6 +46,33 @@ struct CoreSessionModelDirectory: Equatable {
     let groups: [ProviderGroup]
     let failures: [Failure]
 
+    init(catalog: RemoteModelCatalog, current: RemoteModelSelection) {
+        self.current = .init(
+            provider: current.provider,
+            model: current.model,
+            reasoningEffort: current.reasoningEffort
+        )
+        routable = catalog.routableProviders.contains(current.provider)
+        groups = catalog.groups.map { group in
+            .init(
+                id: group.id,
+                name: group.name,
+                models: group.models.map { model in
+                    .init(
+                        id: model.id,
+                        name: model.name,
+                        description: model.description,
+                        reasoningEfforts: model.reasoning?.efforts.map {
+                            .init(id: $0.id, name: $0.name, description: $0.description)
+                        } ?? [],
+                        defaultReasoningEffort: model.reasoning?.defaultEffort
+                    )
+                }
+            )
+        }
+        failures = catalog.failures.map { .init(id: $0.id, name: $0.name, message: $0.message) }
+    }
+
     init(response: SessionModelsResponse) {
         current = .init(
             provider: response.current.provider,
