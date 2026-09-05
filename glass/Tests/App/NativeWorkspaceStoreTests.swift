@@ -184,6 +184,37 @@ final class NativeWorkspaceStoreTests: XCTestCase {
         XCTAssertEqual(store.snapshot.sessions(in: workspaceA).map(\.sessionId), ["first"])
     }
 
+    func testSessionRenameAppliesAcceptedTitleOnlyAtHigherProjectionSequence() {
+        let store = NativeWorkspaceStore(initialSnapshot: .init(
+            workspaces: [],
+            sessions: [
+                SessionSummaryDTO(
+                    sessionId: "session", updatedAt: 1, running: false, blank: false,
+                    pendingInteraction: nil, parentSessionId: nil, origin: nil, cwd: "/tmp",
+                    agentPreset: nil,
+                    projections: .init(asOfSeq: 4, values: ["title": .string("old")])
+                ),
+            ],
+            archivedSessionIDs: [],
+            selectedSessionID: "session",
+            selectedWorkspaceID: nil
+        ))
+
+        store.applySessionRename(
+            sessionID: "session",
+            value: .init(title: "accepted", seq: .init(rawValue: 5))
+        )
+        XCTAssertEqual(store.snapshot.sessions[0].displayTitle, "accepted")
+        XCTAssertEqual(store.snapshot.sessions[0].projections?.asOfSeq, 5)
+
+        store.applySessionRename(
+            sessionID: "session",
+            value: .init(title: "stale", seq: .init(rawValue: 4))
+        )
+        XCTAssertEqual(store.snapshot.sessions[0].displayTitle, "accepted")
+        XCTAssertEqual(store.snapshot.sessions[0].projections?.asOfSeq, 5)
+    }
+
     func testRailSearchArmsWideInputAndFocusesOnlyAfterExpansionSettles() {
         let armed = NativeWorkspaceBrowserSearchOnExpand.armedState()
         XCTAssertEqual(armed, .init(searchExpanded: true, awaitsWideFocus: true))

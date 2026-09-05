@@ -365,6 +365,35 @@ final class NativeWorkspaceStore: ObservableObject {
         )
     }
 
+    func applySessionRename(sessionID: String, value: RemoteSessionRenameValue) {
+        guard let index = snapshot.sessions.firstIndex(where: { $0.sessionId == sessionID }) else { return }
+        let current = snapshot.sessions[index]
+        guard value.seq.rawValue > (current.projections?.asOfSeq ?? -1) else { return }
+
+        var values = current.projections?.values ?? [:]
+        values["title"] = .string(value.title)
+        var sessions = snapshot.sessions
+        sessions[index] = SessionSummaryDTO(
+            sessionId: current.sessionId,
+            updatedAt: current.updatedAt,
+            running: current.running,
+            blank: current.blank,
+            pendingInteraction: current.pendingInteraction,
+            parentSessionId: current.parentSessionId,
+            origin: current.origin,
+            cwd: current.cwd,
+            agentPreset: current.agentPreset,
+            projections: .init(asOfSeq: value.seq.rawValue, values: values)
+        )
+        snapshot = Snapshot(
+            workspaces: snapshot.workspaces,
+            sessions: sessions,
+            archivedSessionIDs: snapshot.archivedSessionIDs,
+            selectedSessionID: snapshot.selectedSessionID,
+            selectedWorkspaceID: snapshot.selectedWorkspaceID
+        )
+    }
+
     /// Snapshot-only projection of the locked official resident fixture. It uses
     /// the same list-RPC DTOs as production and never participates in Host I/O.
     func loadSnapshotFixtureWorkspace(

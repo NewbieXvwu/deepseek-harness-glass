@@ -627,10 +627,10 @@ final class NativeShellPresentation: ObservableObject {
 
     /// Source: `sessions.schema.ts:sessionRenameRequestSchema`.
     func renameSession(_ sessionID: String, title: String) async throws {
-        guard let apis, let controllers else { throw URLError(.notConnectedToInternet) }
-        _ = try await controllers.sessions.rename(sessionID: sessionID, title: title)
+        guard let controllers else { throw URLError(.notConnectedToInternet) }
+        let renamed = try await controllers.sessions.rename(sessionID: sessionID, title: title)
         guard !Task.isCancelled else { return }
-        workspaceStore.refresh(using: apis)
+        workspaceStore.applySessionRename(sessionID: sessionID, value: renamed)
     }
 
     /// Source: `sessions.schema.ts:sessionForkRequestSchema`.
