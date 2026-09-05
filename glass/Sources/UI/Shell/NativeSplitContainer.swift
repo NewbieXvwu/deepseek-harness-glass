@@ -482,15 +482,15 @@ final class NativeShellPresentation: ObservableObject {
     }
 
     func refreshCredentials(_ references: [String]) async {
-        await credentialStore.refresh(refs: references, using: apis?.credentials)
+        await credentialStore.refresh(refs: references, using: controllers?.credentials)
     }
 
     func setCredential(reference: String, value: String) async -> Bool {
-        await credentialStore.set(reference: reference, value: value, using: apis?.credentials)
+        await credentialStore.set(reference: reference, value: value, using: controllers?.credentials)
     }
 
     func unsetCredential(reference: String) async -> Bool {
-        await credentialStore.unset(reference: reference, using: apis?.credentials)
+        await credentialStore.unset(reference: reference, using: controllers?.credentials)
     }
 
     func selectSession(_ sessionID: String, workspaceID: String?) {
