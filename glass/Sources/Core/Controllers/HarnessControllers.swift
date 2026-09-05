@@ -7,6 +7,7 @@ struct HarnessControllers: Sendable {
     let subagents: SubagentController
     let messageFeedback: MessageFeedbackController
     let settings: SettingsController
+    let credentials: CredentialsController
 
     init(remote: RemoteConnection) {
         sessions = SessionController(remote: remote)
@@ -15,5 +16,6 @@ struct HarnessControllers: Sendable {
         subagents = SubagentController(remote: remote)
         messageFeedback = MessageFeedbackController(remote: remote)
         settings = SettingsController(remote: remote)
+        credentials = CredentialsController(remote: remote)
     }
 }
