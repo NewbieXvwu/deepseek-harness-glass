@@ -67,11 +67,11 @@ final class NativeShellPresentation: ObservableObject {
     /// Host-owned home path announced by the authenticated rc.1 `$events.ready` frame.
     /// It is generation-scoped and cleared on disconnect/restart.
     @Published private(set) var hostHome: String?
-    /// Transitional legacy descriptor retained only for the path-capability cut below.
-    @Published private(set) var hostDescription: HostDescribeResponse?
+    /// Host capability reported by rc.1 `session/canOpenWorkspacePath`.
+    /// The async result is accepted only for the currently bound Remote generation.
+    @Published private(set) var canOpenWorkspacePath = false
     /// Snapshot exports normally have no Host. This opt-in exists only for a
-    /// recorded official state that includes an already verified loopback
-    /// `host.describe.canOpenPath=true`; production never sets it.
+    /// recorded official state that includes path-open capability; production never sets it.
     private let snapshotCanOpenProjectPath: Bool
     /// The recorded RC8 Deliverables capture selects the session at a wide
     /// viewport, then shrinks to 780px while retaining the user's explicit
@@ -80,7 +80,7 @@ final class NativeShellPresentation: ObservableObject {
     private let releaseFeaturePolicy: NativeReleaseFeaturePolicy
 
     var canOpenProjectPath: Bool {
-        hostDescription?.canOpenPath == true || snapshotCanOpenProjectPath
+        canOpenWorkspacePath || snapshotCanOpenProjectPath
     }
 
     enum WorkspaceManagementDialog: Equatable {
@@ -235,6 +235,13 @@ final class NativeShellPresentation: ObservableObject {
         self.sessionControlRuntime = sessionControlRuntime
         remoteGeneration = connection.context.events.generation
         hostHome = connection.context.events.ready.host.home
+        canOpenWorkspacePath = false
+        let pathCapabilityGeneration = connection.context.events.generation
+        Task { [weak self] in
+            let canOpen = (try? await controllers.sessions.canOpenWorkspacePath()) ?? false
+            guard let self, self.remoteGeneration == pathCapabilityGeneration else { return }
+            self.canOpenWorkspacePath = canOpen
+        }
         sessionStore.bindCommandService(SessionCommandService(controller: controllers.sessions))
         sessionStore.bindSessionController(controllers.sessions)
         sessionStore.bindGoalController(controllers.goals)
@@ -348,7 +355,7 @@ final class NativeShellPresentation: ObservableObject {
         remoteGeneration = nil
         observedEndpoint = nil
         hostHome = nil
-        hostDescription = nil
+        canOpenWorkspacePath = false
         workspaceStore.detachHost()
         sessionStore.disconnect()
         settingsStore.load(using: nil)
