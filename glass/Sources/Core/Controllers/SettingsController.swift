@@ -18,7 +18,7 @@ struct SettingsController: SettingsControllerAPI, Sendable {
 
     func describe() async throws -> SettingsDescribeResponse {
         try await remote.call(
-            RemoteProcedure("settings/describe"),
+            RemoteProcedure(.settingsDescribe),
             arguments: EmptyArguments()
         )
     }
@@ -29,7 +29,7 @@ struct SettingsController: SettingsControllerAPI, Sendable {
         expectedRevision: Int?
     ) async throws -> SettingsNamespaceDTO {
         try await remote.call(
-            RemoteProcedure("settings/mutate"),
+            RemoteProcedure(.settingsMutate),
             arguments: MutateArguments(
                 ns: namespace,
                 ops: operations,
