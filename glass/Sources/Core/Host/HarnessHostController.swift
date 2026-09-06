@@ -82,10 +82,11 @@ final class HarnessHostController: ObservableObject {
             appendLog("[host] start reused existing owned process pid=\(process?.processIdentifier ?? 0)")
             return
         }
-        switch verifier.verify(runtime: runtime, fileManager: fileManager) {
+        let verification = verifier.verify(runtime: runtime, fileManager: fileManager)
+        switch verification {
         case let .bestEffort(build, reason):
-            appendLog("[host] best-effort build: \(reason)")
-            launch(build: build, compatibility: .bestEffort(reason: reason))
+            appendLog("[host] best-effort build candidate: \(reason)")
+            launch(build: build, verification: verification)
         case let .unsupported(reason):
             state = .failed(HostFailure(
                 kind: .invalidBundledBaseline,
@@ -107,7 +108,7 @@ final class HarnessHostController: ObservableObject {
                 ))
                 return
             }
-            launch(build: build, compatibility: .verified)
+            launch(build: build, verification: verification)
         }
     }
 
@@ -144,7 +145,7 @@ final class HarnessHostController: ObservableObject {
         }
     }
 
-    private func launch(build: SupportedHostBuildCatalog.Build, compatibility: HostCompatibility) {
+    private func launch(build: SupportedHostBuildCatalog.Build, verification: HostBuildVerification) {
         guard fileManager.isExecutableFile(atPath: runtime.nodeExecutable.path) else {
             state = .failed(HostFailure(
                 kind: .missingNodeRuntime,
@@ -190,7 +191,7 @@ final class HarnessHostController: ObservableObject {
             let data = handle.availableData
             guard !data.isEmpty else { return }
             let text = String(decoding: data, as: UTF8.self)
-            Task { @MainActor [weak self] in self?.consumeHostOutput(text, build: build, compatibility: compatibility) }
+            Task { @MainActor [weak self] in self?.consumeHostOutput(text, build: build, verification: verification) }
         }
         process.terminationHandler = { [weak self] terminated in
             Task { @MainActor [weak self] in self?.handleTermination(terminated) }
@@ -213,7 +214,7 @@ final class HarnessHostController: ObservableObject {
         }
     }
 
-    private func consumeHostOutput(_ text: String, build: SupportedHostBuildCatalog.Build, compatibility: HostCompatibility) {
+    private func consumeHostOutput(_ text: String, build: SupportedHostBuildCatalog.Build, verification: HostBuildVerification) {
         appendLog(text)
         let previousUTF16Length = (announcedOutput as NSString).length
         announcedOutput += text
@@ -250,7 +251,7 @@ if announcedOutput.count > 32_768 {
         startupTimeoutTask?.cancel()
         startupTimeoutTask = nil
         state = .authenticating(descriptor.cleanBaseURL)
-        verify(descriptor: descriptor, build: build, compatibility: compatibility)
+        verify(descriptor: descriptor, build: build, verification: verification)
     }
 
     /// Parses only the bounded append window selected by `consumeHostOutput`.
@@ -278,7 +279,7 @@ if announcedOutput.count > 32_768 {
     private func verify(
         descriptor: HostLaunchDescriptor,
         build: SupportedHostBuildCatalog.Build,
-        compatibility: HostCompatibility
+        verification: HostBuildVerification
     ) {
         verificationTask?.cancel()
         verificationTask = Task { [weak self] in
@@ -297,6 +298,19 @@ if announcedOutput.count > 32_768 {
                     return
                 }
                 self.state = .classifying(authenticatedHost.baseURL)
+                // rc.1 `$events.ready` proves the authenticated Remote generation and
+                // carries Host `home`; it intentionally exposes no build/version field.
+                // Build identity therefore comes from the trusted installation source,
+                // while assurance is published only after this handshake succeeds.
+                let compatibility: HostCompatibility
+                switch verification {
+                case .verified:
+                    compatibility = .verified
+                case let .bestEffort(_, reason):
+                    compatibility = .bestEffort(reason: reason)
+                case let .unsupported(reason):
+                    throw HostBuildClassificationError.unsupportedAfterHandshake(reason)
+                }
                 let endpoint = authenticatedHost.baseURL
                 await self.diagnostics.recordConnected(
                     build: build,
@@ -454,6 +468,16 @@ if announcedOutput.count > 32_768 {
         } catch {
             Task { [diagnostics] in await diagnostics.recordRPCError(error) }
             fputs("[HostLog] writeLog failed: \(error.localizedDescription)\n", stderr)
+        }
+    }
+}
+
+private enum HostBuildClassificationError: LocalizedError {
+    case unsupportedAfterHandshake(String)
+
+    var errorDescription: String? {
+        switch self {
+        case let .unsupportedAfterHandshake(reason): return reason
         }
     }
 }
