@@ -6,20 +6,22 @@ import Foundation
 /// it as a long-lived standalone field.
 struct HostLaunchDescriptor: Sendable, Equatable {
     let launchURL: URL
+    let cleanBaseURL: URL
 
     init(url: URL) throws {
         guard url.scheme == "http",
               url.host == "127.0.0.1",
-              url.port != nil,
+              let port = url.port,
+              (1...65_535).contains(port),
               url.user == nil,
               url.password == nil,
               url.path == "/",
-              url.fragment == nil
+              url.fragment == nil,
+              var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
         else {
             throw HostLaunchDescriptorError.invalidURL
         }
-        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-              let queryItems = components.queryItems,
+        guard let queryItems = components.queryItems,
               queryItems.count == 1,
               queryItems[0].name == "token",
               let token = queryItems[0].value,
@@ -27,14 +29,12 @@ struct HostLaunchDescriptor: Sendable, Equatable {
         else {
             throw HostLaunchDescriptorError.missingProcessToken
         }
-        self.launchURL = url
-    }
-
-    var cleanBaseURL: URL {
-        var components = URLComponents(url: launchURL, resolvingAgainstBaseURL: false)!
         components.query = nil
-        components.fragment = nil
-        return components.url!
+        guard let cleanBaseURL = components.url else {
+            throw HostLaunchDescriptorError.invalidURL
+        }
+        self.launchURL = url
+        self.cleanBaseURL = cleanBaseURL
     }
 }
 
