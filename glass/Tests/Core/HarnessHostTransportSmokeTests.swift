@@ -33,6 +33,14 @@ final class HarnessHostTransportSmokeTests: XCTestCase {
         controller.start()
         let initial = try await waitForReady(controller, excludingPID: nil, timeout: 15)
         XCTAssertEqual(initial.buildID, Self.fixedCatalog.defaultBuildId)
+        XCTAssertFalse(
+            initial.context.authenticatedHost.urlSession.configuration.httpCookieStorage === HTTPCookieStorage.shared,
+            "authenticated Host must not use the process-global cookie jar"
+        )
+        let initialCookieStorage = try XCTUnwrap(
+            initial.context.authenticatedHost.urlSession.configuration.httpCookieStorage
+        )
+        let initialSession = initial.context.authenticatedHost.urlSession
         let initialControllers = HarnessControllers(remote: initial.context.remote)
         let requestedID = "remote-smoke-\(UUID().uuidString.lowercased())"
         let created = try await initialControllers.sessions.create(.init(sessionId: requestedID))
@@ -60,6 +68,21 @@ final class HarnessHostTransportSmokeTests: XCTestCase {
         let recovered = try await waitForReady(controller, excludingPID: initialPID, timeout: 15)
         XCTAssertNotEqual(recovered.endpoint, initial.endpoint, "port-zero restart must publish a fresh authenticated endpoint")
         XCTAssertNotEqual(recovered.context.events.ready.clientId, initialClientID, "restarted Host must bootstrap a fresh $events client identity")
+        XCTAssertFalse(
+            recovered.context.authenticatedHost.urlSession === initialSession,
+            "restarted Host must receive a fresh authenticated URLSession"
+        )
+        let recoveredCookieStorage = try XCTUnwrap(
+            recovered.context.authenticatedHost.urlSession.configuration.httpCookieStorage
+        )
+        XCTAssertFalse(
+            recoveredCookieStorage === initialCookieStorage,
+            "restarted Host must receive a fresh ephemeral cookie jar"
+        )
+        XCTAssertFalse(
+            recoveredCookieStorage === HTTPCookieStorage.shared,
+            "restarted Host must remain isolated from the process-global cookie jar"
+        )
         let transitionSummaries = controller.stateTransitions.map(\.summary)
         XCTAssertTrue(transitionSummaries.contains("ready -> recovering"))
         XCTAssertTrue(transitionSummaries.contains("recovering -> starting"))
