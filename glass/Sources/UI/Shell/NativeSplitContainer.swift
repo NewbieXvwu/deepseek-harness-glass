@@ -113,6 +113,7 @@ final class NativeShellPresentation: ObservableObject {
     private var workspaceRuntime: WorkspaceRuntime?
     private var eventRuntime: RemoteEventRuntime?
     private var sessionControlRuntime: SessionControlRuntime?
+    private var modelCatalogRepository: ModelCatalogRepository?
     private var remoteGeneration: RemoteConnectionGeneration?
     private var selectedToolObservation: AnyCancellable?
     private var observedEndpoint: URL?
@@ -228,10 +229,12 @@ final class NativeShellPresentation: ObservableObject {
             controller: controllers.sessions,
             generation: connection.context.events.generation
         )
+        let modelCatalogRepository = ModelCatalogRepository(controller: controllers.sessions)
         self.controllers = controllers
         self.workspaceRuntime = workspaceRuntime
         self.eventRuntime = eventRuntime
         self.sessionControlRuntime = sessionControlRuntime
+        self.modelCatalogRepository = modelCatalogRepository
         remoteGeneration = connection.context.events.generation
         hostHome = connection.context.events.ready.host.home
         canOpenWorkspacePath = false
@@ -243,6 +246,7 @@ final class NativeShellPresentation: ObservableObject {
         }
         sessionStore.bindCommandService(SessionCommandService(controller: controllers.sessions))
         sessionStore.bindSessionController(controllers.sessions)
+        sessionStore.bindModelCatalogRepository(modelCatalogRepository)
         sessionStore.bindGoalController(controllers.goals)
         sessionStore.bindSubagentController(controllers.subagents)
         sessionStore.bindMessageFeedbackController(controllers.messageFeedback)
@@ -330,6 +334,9 @@ final class NativeShellPresentation: ObservableObject {
         workspaceRuntime = nil
         eventRuntime = nil
         sessionControlRuntime = nil
+        let previousModelCatalogRepository = modelCatalogRepository
+        modelCatalogRepository = nil
+        Task { await previousModelCatalogRepository?.invalidate() }
         remoteGeneration = nil
         observedEndpoint = nil
         hostHome = nil

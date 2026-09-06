@@ -621,7 +621,7 @@ final class NativeSessionStore: ObservableObject {
     private var subagentController: (any SubagentControllerAPI)?
     private var sessionCommandService: SessionCommandService?
     private var sessionController: (any SessionControllerAPI)?
-    private var remoteModelCatalog: RemoteModelCatalog?
+    private var modelCatalogRepository: ModelCatalogRepository?
     private var controlTask: Task<Void, Never>?
     private var controlBindingGeneration: UInt = 0
     private var promptTask: Task<Void, Never>?
@@ -719,7 +719,10 @@ final class NativeSessionStore: ObservableObject {
 
     func bindSessionController(_ controller: (any SessionControllerAPI)?) {
         sessionController = controller
-        remoteModelCatalog = nil
+    }
+
+    func bindModelCatalogRepository(_ repository: ModelCatalogRepository?) {
+        modelCatalogRepository = repository
     }
 
     func bindGoalController(_ controller: (any GoalControllerAPI)?) {
@@ -1574,20 +1577,14 @@ final class NativeSessionStore: ObservableObject {
         modelDirectoryStatus = .loading
         historyTask = Task { [weak self] in
             do {
-                if let sessionRuntime, let sessionController = self?.sessionController {
-                    let catalog: RemoteModelCatalog
-                    if let cached = self?.remoteModelCatalog {
-                        catalog = cached
-                    } else {
-                        catalog = try await sessionController.modelCatalog()
-                    }
+                if let sessionRuntime, let modelCatalogRepository = self?.modelCatalogRepository {
+                    let catalog = try await modelCatalogRepository.catalog()
                     guard !Task.isCancelled,
                           self?.recoveryGeneration == authorityGeneration,
                           self?.modelDirectoryGeneration == directoryGeneration,
                           self?.activeSessionID == sessionID,
                           self?.endpoint == endpoint
                     else { return }
-                    self?.remoteModelCatalog = catalog
 
                     let opening = try await sessionRuntime.open()
                     guard !Task.isCancelled,
@@ -1596,7 +1593,10 @@ final class NativeSessionStore: ObservableObject {
                           self?.endpoint == endpoint
                     else { return }
                     self?.installRemoteJournal(opening, sessionID: sessionID)
-                    self?.refreshRemoteModelDirectory(sessionID: sessionID)
+                    if let self {
+                        let current = self.projections.remoteModelSelection(sessionID: sessionID) ?? catalog.default
+                        self.modelDirectory = .init(catalog: catalog, current: current)
+                    }
                     self?.modelDirectoryStatus = .ready
                     self?.phase = .ready(sessionID: sessionID)
                     let snapshots = await sessionRuntime.snapshots()
@@ -1766,6 +1766,7 @@ final class NativeSessionStore: ObservableObject {
     func disconnect() {
         bindCommandService(nil)
         bindSessionController(nil)
+        bindModelCatalogRepository(nil)
         bindGoalController(nil)
         bindSubagentController(nil)
         bindMessageFeedbackController(nil)
@@ -2157,8 +2158,8 @@ final class NativeSessionStore: ObservableObject {
     /// Host `session.models` directory; it never replays or edits conversation
     /// history and is fenced against selection/recovery responses.
     func reloadModelDirectory() {
-        guard sessionController != nil || api != nil, let sessionID = activeSessionID else { return }
-        let controller = sessionController
+        guard modelCatalogRepository != nil || api != nil, let sessionID = activeSessionID else { return }
+        let modelCatalogRepository = modelCatalogRepository
         let legacyAPI = api
         modelSelectionTask?.cancel()
         modelSelectionGeneration &+= 1
@@ -2169,15 +2170,17 @@ final class NativeSessionStore: ObservableObject {
         modelDirectoryStatus = .loading
         modelSelectionTask = Task { [weak self] in
             do {
-                if let controller {
-                    let catalog = try await controller.modelCatalog()
+                if let modelCatalogRepository {
+                    let catalog = try await modelCatalogRepository.catalog(forceReload: true)
                     guard !Task.isCancelled,
                           self?.activeSessionID == sessionID,
                           self?.recoveryGeneration == currentRecoveryGeneration,
                           self?.modelDirectoryGeneration == directoryGeneration
                     else { return }
-                    self?.remoteModelCatalog = catalog
-                    self?.refreshRemoteModelDirectory(sessionID: sessionID)
+                    if let self {
+                        let current = self.projections.remoteModelSelection(sessionID: sessionID) ?? catalog.default
+                        self.modelDirectory = .init(catalog: catalog, current: current)
+                    }
                 } else {
                     guard let legacyAPI else { return }
                     let response = try await legacyAPI.models(sessionID: sessionID)
@@ -2574,9 +2577,8 @@ final class NativeSessionStore: ObservableObject {
     }
 
     private func refreshRemoteModelDirectory(sessionID: String) {
-        guard let catalog = remoteModelCatalog else { return }
-        let current = projections.remoteModelSelection(sessionID: sessionID) ?? catalog.default
-        modelDirectory = .init(catalog: catalog, current: current)
+        guard let current = projections.remoteModelSelection(sessionID: sessionID) else { return }
+        modelDirectory = modelDirectory?.applying(current)
     }
 
     /// Source: `events.ts:MuxFrame` uses frame.method as the event discriminant
