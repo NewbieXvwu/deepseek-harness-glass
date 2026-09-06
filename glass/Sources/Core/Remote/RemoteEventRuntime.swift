@@ -132,11 +132,11 @@ actor RemoteEventRuntime {
         var errors = current.errors
         switch event {
         case "api-session/added":
-            guard args.count == 1 else { throw RemoteMuxConnectionError.protocolViolation("api-session/added arguments") }
+            guard args.count == 1 else { throw RemoteConnectionError.protocolViolation("api-session/added arguments") }
             let summary: RemoteSessionSummary = try decode(args[0], as: RemoteSessionSummary.self)
             byID[summary.sessionId] = summary
         case "api-session/removed":
-            guard args.count == 1, case let .string(sessionID) = args[0] else { throw RemoteMuxConnectionError.protocolViolation("api-session/removed arguments") }
+            guard args.count == 1, case let .string(sessionID) = args[0] else { throw RemoteConnectionError.protocolViolation("api-session/removed arguments") }
             byID.removeValue(forKey: sessionID)
             errors.removeValue(forKey: sessionID)
         case "api-session/status":
@@ -144,20 +144,20 @@ actor RemoteEventRuntime {
                   case let .string(sessionID) = args[0],
                   case let .bool(running) = args[1],
                   let item = byID[sessionID]
-            else { throw RemoteMuxConnectionError.protocolViolation("api-session/status arguments") }
+            else { throw RemoteConnectionError.protocolViolation("api-session/status arguments") }
             byID[sessionID] = replacing(item, running: running)
         case "api-session/activity":
             guard args.count == 2,
                   case let .string(sessionID) = args[0],
                   case let .number(updatedAt) = args[1],
                   let item = byID[sessionID]
-            else { throw RemoteMuxConnectionError.protocolViolation("api-session/activity arguments") }
+            else { throw RemoteConnectionError.protocolViolation("api-session/activity arguments") }
             byID[sessionID] = replacing(item, updatedAt: Int64(updatedAt))
         case "api-session/error":
             guard args.count == 2,
                   case let .string(sessionID) = args[0],
                   case let .string(message) = args[1]
-            else { throw RemoteMuxConnectionError.protocolViolation("api-session/error arguments") }
+            else { throw RemoteConnectionError.protocolViolation("api-session/error arguments") }
             errors[sessionID] = message
         default:
             return

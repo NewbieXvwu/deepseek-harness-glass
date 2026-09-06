@@ -30,6 +30,23 @@ final class RPCModelsTests: XCTestCase {
         }
     }
 
+    func testRemoteErrorTaxonomyKeepsCarrierAndMethodAvailabilityDistinct() {
+        XCTAssertEqual(RemoteConnectionError.authenticationRequired.category, .authentication)
+        XCTAssertEqual(RemoteConnectionError.carrierLost("offline").category, .carrierLost)
+        XCTAssertEqual(RemoteConnectionError.httpStatus(404).category, .methodUnavailable)
+        XCTAssertEqual(RemoteConnectionError.remote(.init(
+            code: "gateway/method-unavailable",
+            message: "missing",
+            details: [:]
+        )).category, .methodUnavailable)
+        XCTAssertEqual(RemoteConnectionError.remote(.init(
+            code: "workspace/not-found",
+            message: "missing",
+            details: [:]
+        )).category, .remoteBusiness)
+        XCTAssertEqual(RemoteConnectionError.protocolViolation("bad frame").category, .protocolViolation)
+    }
+
     func testRC8ImageAttachmentLimitsRequireMaximumDimension() throws {
         let source = Data("""
         {

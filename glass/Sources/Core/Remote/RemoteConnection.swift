@@ -153,10 +153,10 @@ struct RemoteConnection: Sendable {
         )
         var iterator = source.makeAsyncIterator()
         guard let first = try await iterator.next() else {
-            throw RemoteMuxConnectionError.protocolViolation("$events ended before ready")
+            throw RemoteConnectionError.protocolViolation("$events ended before ready")
         }
         guard case let .ready(ready) = first else {
-            throw RemoteMuxConnectionError.protocolViolation("$events did not begin with ready")
+            throw RemoteConnectionError.protocolViolation("$events did not begin with ready")
         }
         let generation = await generations.next()
         let pair = AsyncThrowingStream<RemoteEventDownlinkFrame, Error>.makeStream()
@@ -164,7 +164,7 @@ struct RemoteConnection: Sendable {
             do {
                 while let frame = try await iterator.next() {
                     if case .ready = frame {
-                        throw RemoteMuxConnectionError.protocolViolation("$events emitted a second ready frame")
+                        throw RemoteConnectionError.protocolViolation("$events emitted a second ready frame")
                     }
                     pair.continuation.yield(frame)
                 }

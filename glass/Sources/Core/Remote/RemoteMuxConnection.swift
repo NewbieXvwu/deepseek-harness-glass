@@ -3,10 +3,6 @@ import Foundation
 import FoundationNetworking
 #endif
 
-enum RemoteMuxConnectionError: Error, Sendable, Equatable {
-    case carrierLost(String)
-    case protocolViolation(String)
-}
 
 actor RemoteMuxConnection {
     private struct Sink: Sendable {
@@ -55,7 +51,7 @@ actor RemoteMuxConnection {
         arguments: Arguments
     ) async throws -> AsyncThrowingStream<Frame, Error>
     where Arguments: Encodable & Sendable, Frame: Decodable & Sendable {
-        guard !closed else { throw RemoteMuxConnectionError.carrierLost("Remote mux is closed") }
+        guard !closed else { throw RemoteConnectionError.carrierLost("Remote mux is closed") }
         let socket = startSocketIfNeeded()
         let streamID = UUID().uuidString.lowercased()
         let pair = AsyncThrowingStream<Frame, Error>.makeStream()
@@ -65,7 +61,7 @@ actor RemoteMuxConnection {
                 do {
                     let item = try JSONDecoder().decode(ItemEnvelope<Frame>.self, from: data)
                     guard let value = item.value else {
-                        throw RemoteMuxConnectionError.protocolViolation("Remote stream item omitted value")
+                        throw RemoteConnectionError.protocolViolation("Remote stream item omitted value")
                     }
                     continuation.yield(value)
                 } catch {
@@ -105,7 +101,7 @@ actor RemoteMuxConnection {
         receiveTask = nil
         socket?.cancel(with: .normalClosure, reason: nil)
         socket = nil
-        failAll(RemoteMuxConnectionError.carrierLost("Remote mux closed"))
+        failAll(RemoteConnectionError.carrierLost("Remote mux closed"))
     }
 
     private func startSocketIfNeeded() -> URLSessionWebSocketTask {
@@ -131,7 +127,7 @@ actor RemoteMuxConnection {
                 case let .data(value): data = value
                 case let .string(value): data = Data(value.utf8)
                 @unknown default:
-                    throw RemoteMuxConnectionError.protocolViolation("unsupported WebSocket message")
+                    throw RemoteConnectionError.protocolViolation("unsupported WebSocket message")
                 }
                 let frame = try JSONDecoder().decode(ServerEnvelope.self, from: data)
                 guard let sink = sinks[frame.streamId] else { continue }
@@ -144,18 +140,18 @@ actor RemoteMuxConnection {
                     sinks.removeValue(forKey: frame.streamId)
                     let errorFrame = try? JSONDecoder().decode(ErrorEnvelope.self, from: data)
                     guard let error = errorFrame?.error else {
-                        sink.finish(RemoteMuxConnectionError.protocolViolation("Remote stream error omitted payload"))
+                        sink.finish(RemoteConnectionError.protocolViolation("Remote stream error omitted payload"))
                         continue
                     }
                     sink.finish(RemoteConnectionError.remote(error))
                 default:
-                    throw RemoteMuxConnectionError.protocolViolation("unknown Remote stream frame \(frame.type)")
+                    throw RemoteConnectionError.protocolViolation("unknown Remote stream frame \(frame.type)")
                 }
             }
         } catch {
             if socket === source { socket = nil }
             if !closed && !Task.isCancelled {
-                failAll(RemoteMuxConnectionError.carrierLost(String(describing: error)))
+                failAll(RemoteConnectionError.carrierLost(String(describing: error)))
             }
         }
     }
@@ -171,12 +167,12 @@ actor RemoteMuxConnection {
     private func send<Message: Encodable>(_ message: Message, on socket: URLSessionWebSocketTask) async throws {
         let data = try JSONEncoder().encode(message)
         guard let text = String(data: data, encoding: .utf8) else {
-            throw RemoteMuxConnectionError.protocolViolation("failed to encode Remote stream message")
+            throw RemoteConnectionError.protocolViolation("failed to encode Remote stream message")
         }
         do {
             try await socket.send(.string(text))
         } catch {
-            throw RemoteMuxConnectionError.carrierLost(String(describing: error))
+            throw RemoteConnectionError.carrierLost(String(describing: error))
         }
     }
 
