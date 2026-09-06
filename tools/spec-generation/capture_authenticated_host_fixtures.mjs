@@ -2,7 +2,7 @@
 /** Capture deterministic, secret-free fixtures from an exact bundled rc.1 Host. */
 import { createHash } from 'node:crypto'
 import { spawn } from 'node:child_process'
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { createRequire } from 'node:module'
@@ -22,10 +22,11 @@ const require = createRequire(join(payloadRoot, 'package.json'))
 const WebSocket = require('ws')
 
 const sandbox = await mkdtemp(join(tmpdir(), 'dsh-auth-fixture-'))
-const home = join(sandbox, 'home')
-const workspace = join(sandbox, 'workspace-a')
-await mkdir(join(home, '.dsh'), { recursive: true })
-await mkdir(workspace, { recursive: true })
+const homePath = join(sandbox, 'home')
+const workspacePath = join(sandbox, 'workspace-a')
+await mkdir(join(homePath, '.dsh'), { recursive: true })
+await mkdir(workspacePath, { recursive: true })
+const [home, workspace] = await Promise.all([realpath(homePath), realpath(workspacePath)])
 
 let child
 try {
