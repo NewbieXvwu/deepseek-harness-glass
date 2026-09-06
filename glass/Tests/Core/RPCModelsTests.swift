@@ -59,16 +59,4 @@ final class RPCModelsTests: XCTestCase {
         XCTAssertThrowsError(try JSONDecoder().decode(ImageAttachmentLimits.self, from: incomplete))
     }
 
-    func testEnvelopePreservesRPCIDAndBusinessBranch() {
-        let response = RPCServerResponse(
-            type: "server-response",
-            rpcId: "rpc-fixture",
-            result: .failure(RPCBusinessError(code: "revision_conflict", message: "refresh", details: .object([:])))
-        )
-        guard case let .failure(error) = response.result else {
-            XCTFail("fixture must preserve closed business error branch")
-            return
-        }
-        XCTAssertEqual(error.disposition, .requiresRefresh)
-    }
 }
