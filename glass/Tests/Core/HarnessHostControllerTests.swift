@@ -218,9 +218,13 @@ extension HarnessHostControllerTests {
     func testDiagnosticsAreCopyableCompleteAndRedacted() async throws {
         let recorder = HostDiagnosticRecorder(dshHome: "/tmp/diagnostic-home")
         let endpoint = try XCTUnwrap(URL(string: "http://127.0.0.1:43123"))
-        await recorder.recordConnected(build: Self.fixedCatalog.builds[0], compatibility: .verified, endpoint: endpoint, pid: 4321)
-        let sseTime = Date(timeIntervalSince1970: 1_700_000_000)
-        await recorder.recordSSEActivity(at: sseTime)
+        await recorder.recordConnected(
+            build: Self.fixedCatalog.builds[0],
+            compatibility: .verified,
+            endpoint: endpoint,
+            pid: 4321,
+            generation: .init(rawValue: 7)
+        )
         await recorder.recordRPCError(NSError(
             domain: "fixture",
             code: 1,
@@ -232,11 +236,12 @@ extension HarnessHostControllerTests {
         XCTAssertEqual(snapshot.dshHome, "/tmp/diagnostic-home")
         XCTAssertEqual(snapshot.ownedProcessID, 4321)
         XCTAssertEqual(snapshot.ownership, "owned")
-        XCTAssertEqual(snapshot.lastSSEAt, sseTime)
+        XCTAssertEqual(snapshot.remoteGeneration, 7)
+        XCTAssertEqual(snapshot.streamState, "ready")
         XCTAssertEqual(snapshot.protocolFixtureRevision, "official-a66e470-remote-r1")
-        XCTAssertEqual(snapshot.pluginCompatibility, "verified")
+        XCTAssertEqual(snapshot.hostCompatibility, "verified")
         let copy = snapshot.copyableText()
-        for required in ["hostBuild=", "port=", "dshHome=", "ownership=", "pid=", "lastSSEAt=", "lastRPCError=", "protocolFixtureRevision=", "pluginCompatibility=", "lifecycle="] {
+        for required in ["hostBuild=", "port=", "dshHome=", "ownership=", "pid=", "remoteGeneration=", "streamState=", "lastRPCError=", "protocolFixtureRevision=", "hostCompatibility=", "lifecycle="] {
             XCTAssertTrue(copy.contains(required), "diagnostic copy must include \(required)")
         }
         for secret in ["top-secret", "session-cookie", "bearer-secret", "user:password", "json-secret", "json-token"] {
