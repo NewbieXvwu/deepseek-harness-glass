@@ -1,7 +1,7 @@
 import XCTest
 @testable import GlassCore
 
-final class HarnessHostProcessLaunchTests: XCTestCase {
+final class HarnessHostProcessTests: XCTestCase {
     func testOwnedLaunchUsesBundledNodeWithoutPATHResolution() {
         let runtime = HostRuntimeConfiguration(
             nodeExecutable: URL(fileURLWithPath: "/App/Contents/Resources/node/node"),
@@ -9,7 +9,7 @@ final class HarnessHostProcessLaunchTests: XCTestCase {
             homeDirectory: URL(fileURLWithPath: "/tmp/glass-dsh-home"),
             logFile: URL(fileURLWithPath: "/tmp/glass-host.log")
         )
-        let launch = HarnessHostProcessLaunch.owned(
+        let launch = HarnessHostProcess.owned(
             runtime: runtime,
             inheritedEnvironment: ["PATH": "", "HOME": "/tmp/fake-user"]
         )

@@ -3,7 +3,7 @@ import Foundation
 /// Immutable launch facts for an owned rc.1 Host process. The executable is
 /// always the Node binary resolved from the selected runtime resources; PATH is
 /// never consulted to find Node or dsh.
-struct HarnessHostProcessLaunch: Equatable, Sendable {
+struct HarnessHostProcess: Equatable, Sendable {
     let executableURL: URL
     let arguments: [String]
     let environment: [String: String]
@@ -11,7 +11,7 @@ struct HarnessHostProcessLaunch: Equatable, Sendable {
     static func owned(
         runtime: HostRuntimeConfiguration,
         inheritedEnvironment: [String: String] = ProcessInfo.processInfo.environment
-    ) -> HarnessHostProcessLaunch {
+    ) -> HarnessHostProcess {
         var environment = inheritedEnvironment
         environment["DSH_HOME"] = runtime.homeDirectory.path
         return .init(

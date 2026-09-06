@@ -181,7 +181,7 @@ final class HarnessHostController: ObservableObject {
         suppressRecoveryForTermination = false
         state = .startingOwned
         let process = Process()
-        HarnessHostProcessLaunch.owned(runtime: runtime).apply(to: process)
+        HarnessHostProcess.owned(runtime: runtime).apply(to: process)
 
         let pipe = Pipe()
         process.standardOutput = pipe
