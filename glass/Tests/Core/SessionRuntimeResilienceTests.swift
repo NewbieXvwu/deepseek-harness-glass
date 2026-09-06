@@ -109,22 +109,18 @@ final class SessionRuntimeResilienceTests: XCTestCase {
         XCTAssertEqual(calls, 1)
     }
 
-    func testRuntimeStreamInterruptionReconnectsAndUpdatesJournal() async throws {
+    func testNormalStreamEndDoesNotReplayFollowWithinSameGeneration() async throws {
         let mockController = MockSessionController()
 
-        // 第一次连接：建立握手后正常结束流（模拟断网或服务端重置连接）
         await mockController.queueFollowStream {
             let (stream, continuation) = AsyncThrowingStream<RemoteSessionFollowFrame, Error>.makeStream()
             continuation.yield(Self.makeOpeningSnapshot(sessionID: "test-session", cursor: 1))
             continuation.finish()
             return stream
         }
-
-        // 第二次连接（自动自愈）：重连成功，补充第二帧
         await mockController.queueFollowStream {
             let (stream, continuation) = AsyncThrowingStream<RemoteSessionFollowFrame, Error>.makeStream()
-            continuation.yield(Self.makeOpeningSnapshot(sessionID: "test-session", cursor: 1))
-            continuation.yield(Self.makeEventFrame(seq: 2))
+            continuation.yield(Self.makeOpeningSnapshot(sessionID: "test-session", cursor: 2))
             return stream
         }
 
@@ -134,34 +130,43 @@ final class SessionRuntimeResilienceTests: XCTestCase {
             address: .session(sessionID: "test-session")
         )
 
-        let initialSnapshot = try await runtime.open()
-        guard case let .session(id) = initialSnapshot.address else {
-            XCTFail("快照 address 必须为 session")
-            return
-        }
-        XCTAssertEqual(id, "test-session")
-
-        // 观察快照流：断网自愈后必须收到更新的 snapshot
-        var receivedSnapshots: [SessionJournalSnapshot] = []
-        let snapshotStream = await runtime.snapshots()
-
-        let expectation = expectation(description: "自愈后接收到新快照")
-
-        let observerTask = Task {
-            for await snap in snapshotStream {
-                receivedSnapshots.append(snap)
-                if snap.records.count >= 2 {
-                    expectation.fulfill()
-                    break
-                }
-            }
-        }
-
-        await fulfillment(of: [expectation], timeout: 2.0)
-        observerTask.cancel()
+        _ = try await runtime.open()
+        try await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertEqual(await mockController.followCallCount, 1)
         await runtime.close()
+    }
 
-        let calls = await mockController.followCallCount
-        XCTAssertGreaterThanOrEqual(calls, 2, "网络断开后必须触发自动重连自愈，严禁静默假死！")
+    func testLiveGapPerformsOneAuthoritativeContinuityResync() async throws {
+        let mockController = MockSessionController()
+
+        await mockController.queueFollowStream {
+            let (stream, continuation) = AsyncThrowingStream<RemoteSessionFollowFrame, Error>.makeStream()
+            continuation.yield(Self.makeOpeningSnapshot(sessionID: "test-session", cursor: 1))
+            continuation.yield(Self.makeEventFrame(seq: 3))
+            return stream
+        }
+        await mockController.queueFollowStream {
+            let (stream, continuation) = AsyncThrowingStream<RemoteSessionFollowFrame, Error>.makeStream()
+            continuation.yield(Self.makeOpeningSnapshot(sessionID: "test-session", cursor: 3))
+            return stream
+        }
+
+        let runtime = SessionRuntime(
+            controller: mockController,
+            generation: RemoteConnectionGeneration(rawValue: 1),
+            address: .session(sessionID: "test-session")
+        )
+
+        _ = try await runtime.open()
+        for _ in 0..<100 {
+            if await mockController.followCallCount == 2,
+               await runtime.currentSnapshot()?.openingCut == SessionSeq(rawValue: 3) {
+                await runtime.close()
+                return
+            }
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        await runtime.close()
+        XCTFail("A journal continuity gap did not trigger one fresh authoritative opening cut")
     }
 }
