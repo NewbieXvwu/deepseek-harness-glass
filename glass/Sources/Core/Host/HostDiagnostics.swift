@@ -21,15 +21,15 @@ struct HostDiagnosticSnapshot: Equatable, Sendable {
 
     func copyableText() -> String {
         [
-            "hostBuild=\(hostBuildID ?? \"unverified\")",
-            "port=\(port.map { String($0) } ?? \"none\")",
+            "hostBuild=\(hostBuildID ?? "unverified")",
+            "port=\(port.map { String($0) } ?? "none")",
             "dshHome=\(dshHome)",
             "ownership=\(ownership)",
-            "pid=\(ownedProcessID.map { String($0) } ?? \"none\")",
-            "remoteGeneration=\(remoteGeneration.map(String.init) ?? \"none\")",
+            "pid=\(ownedProcessID.map { String($0) } ?? "none")",
+            "remoteGeneration=\(remoteGeneration.map(String.init) ?? "none")",
             "streamState=\(streamState)",
-            "lastRPCError=\(lastRPCError ?? \"none\")",
-            "protocolFixtureRevision=\(protocolFixtureRevision ?? \"none\")",
+            "lastRPCError=\(lastRPCError ?? "none")",
+            "protocolFixtureRevision=\(protocolFixtureRevision ?? "none")",
             "hostCompatibility=\(hostCompatibility)",
             "lifecycle=\(lifecycle)",
         ].joined(separator: "\n")
