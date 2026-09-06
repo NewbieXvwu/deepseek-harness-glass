@@ -106,8 +106,9 @@ public struct GhostPlaneSlotRegistry: Equatable, Sendable {
     }
 
     private static func valid(_ value: String) -> Bool {
-        !value.isEmpty && value.count <= 128 && value.unicodeScalars.allSatisfy {
-            $0.value == 45 || $0.value == 46 || $0.value == 64 || $0.value == 95 ||
+        guard !value.isEmpty, value.count <= 128, !value.contains("..") else { return false }
+        return value.unicodeScalars.allSatisfy {
+            $0.value == 45 || $0.value == 46 || $0.value == 47 || $0.value == 64 || $0.value == 95 ||
             (48...57).contains($0.value) || (65...90).contains($0.value) || (97...122).contains($0.value)
         }
     }

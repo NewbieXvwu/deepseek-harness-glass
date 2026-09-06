@@ -10,7 +10,7 @@ enum RemoteMuxConnectionError: Error, Sendable, Equatable {
 
 actor RemoteMuxConnection {
     private struct Sink: Sendable {
-        let yield: @Sendable (RemoteJSONValue?) -> Void
+        let yield: @Sendable (Data) -> Void
         let finish: @Sendable (Error?) -> Void
     }
 
@@ -27,10 +27,16 @@ actor RemoteMuxConnection {
         let streamId: String
     }
 
-    private struct ServerMessage: Decodable {
+    private struct ServerEnvelope: Decodable {
         let type: String
         let streamId: String
-        let value: RemoteJSONValue?
+    }
+
+    private struct ItemEnvelope<Frame: Decodable>: Decodable {
+        let value: Frame?
+    }
+
+    private struct ErrorEnvelope: Decodable {
         let error: RemoteFailurePayload?
     }
 
@@ -55,13 +61,13 @@ actor RemoteMuxConnection {
         let pair = AsyncThrowingStream<Frame, Error>.makeStream()
         let continuation = pair.continuation
         let sink = Sink(
-            yield: { value in
+            yield: { data in
                 do {
-                    guard let value else {
+                    let item = try JSONDecoder().decode(ItemEnvelope<Frame>.self, from: data)
+                    guard let value = item.value else {
                         throw RemoteMuxConnectionError.protocolViolation("Remote stream item omitted value")
                     }
-                    let data = try JSONEncoder().encode(value)
-                    continuation.yield(try JSONDecoder().decode(Frame.self, from: data))
+                    continuation.yield(value)
                 } catch {
                     continuation.finish(throwing: error)
                 }
@@ -127,16 +133,17 @@ actor RemoteMuxConnection {
                 @unknown default:
                     throw RemoteMuxConnectionError.protocolViolation("unsupported WebSocket message")
                 }
-                let frame = try JSONDecoder().decode(ServerMessage.self, from: data)
+                let frame = try JSONDecoder().decode(ServerEnvelope.self, from: data)
                 guard let sink = sinks[frame.streamId] else { continue }
                 switch frame.type {
-                case "item": sink.yield(frame.value)
+                case "item": sink.yield(data)
                 case "end":
                     sinks.removeValue(forKey: frame.streamId)
                     sink.finish(nil)
                 case "error":
                     sinks.removeValue(forKey: frame.streamId)
-                    guard let error = frame.error else {
+                    let errorFrame = try? JSONDecoder().decode(ErrorEnvelope.self, from: data)
+                    guard let error = errorFrame?.error else {
                         sink.finish(RemoteMuxConnectionError.protocolViolation("Remote stream error omitted payload"))
                         continue
                     }

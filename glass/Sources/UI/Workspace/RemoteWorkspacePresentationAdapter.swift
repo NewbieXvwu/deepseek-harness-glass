@@ -1,4 +1,11 @@
 import Foundation
+#if DEEPSEEK_HARNESS_PACKAGE
+@testable import GlassCore
+@testable import GlassSpec
+#else
+import GlassCore
+import GlassSpec
+#endif
 
 extension WorkspaceSummaryDTO {
     init(remote: RemoteWorkspaceView) {

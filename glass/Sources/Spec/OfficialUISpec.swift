@@ -418,8 +418,8 @@ enum OfficialUISpec {
         static let preview = "Preview"
         static let chooseWorkspace = "Choose workspace"
         static let composerWorkspacePlaceholder = "Choose a workspace to start"
-        static let composerDefaultPlaceholder = "Message the agent"
-        static let composerHeroPlaceholder = "Describe what you want to build"
+        static let composerDefaultPlaceholder = "Message or run a task... / commands, @ files or sessions"
+        static let composerHeroPlaceholder = "Describe what you want to build... / commands, @ files or sessions"
         // Source: packages/client/connection/src/client/fixture.ts / ui-conversation PermissionSelect
         static let fixtureWorkspaceWrite = "Workspace Write"
         /// Source: RC8 `ui-conversation/PermissionSelect.tsx:60-62`.

@@ -83,7 +83,7 @@ public final class GhostPlaneWebViewHost: NSObject {
             if (ghostPlane === undefined || typeof ghostPlane.applyTapIndex !== 'function') {
               throw new Error('Ghost Plane tapIndex bootstrap is unavailable');
             }
-            return ghostPlane.applyTapIndex(arguments.records);
+            return ghostPlane.applyTapIndex(records);
             """,
             arguments: ["records": replay.rendererPayload()],
                         contentWorld: .page
@@ -104,7 +104,7 @@ public final class GhostPlaneWebViewHost: NSObject {
             if (ghostPlane === undefined || typeof ghostPlane.promoteModuleFactories !== 'function') {
               throw new Error('Ghost Plane module promotion bootstrap is unavailable');
             }
-            return ghostPlane.promoteModuleFactories(arguments.pluginIDs);
+            return ghostPlane.promoteModuleFactories(pluginIDs);
             """,
             arguments: ["pluginIDs": ids],
                         contentWorld: .page
@@ -187,7 +187,7 @@ public final class GhostPlaneWebViewHost: NSObject {
             if (ghostPlane === undefined || typeof ghostPlane.applyNativeBridgeEvent !== 'function') {
               throw new Error('Ghost Plane native bridge bootstrap is unavailable');
             }
-            return await ghostPlane.applyNativeBridgeEvent(arguments.message, arguments.files);
+            return await ghostPlane.applyNativeBridgeEvent(message, files);
             """,
             arguments: ["message": object, "files": descriptors],
                         contentWorld: .page
@@ -213,7 +213,7 @@ public final class GhostPlaneWebViewHost: NSObject {
               throw new Error('Ghost Plane scroll bootstrap is unavailable');
             }
             return ghostPlane.applyScrollOffset(
-              arguments.documentEpoch, arguments.sequence, arguments.scrollOffset
+              documentEpoch, sequence, scrollOffset
             );
             """,
             arguments: scalar.rendererArguments,

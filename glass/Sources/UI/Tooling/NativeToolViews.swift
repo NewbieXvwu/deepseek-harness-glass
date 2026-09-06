@@ -208,23 +208,28 @@ struct NativeToolRow: View {
     }
 
     private var terminal: NativeTerminalCardPresentation? {
-        NativeRawToolCardProjector.terminal(invocation)
+        guard invocation.name == "bash" || invocation.name == "pwsh" || invocation.name == "terminal_send" else { return nil }
+        return NativeRawToolCardProjector.terminal(invocation)
     }
 
     private var read: NativeReadCardPresentation? {
-        NativeRawToolCardProjector.read(invocation)
+        guard invocation.name == "read" else { return nil }
+        return NativeRawToolCardProjector.read(invocation)
     }
 
     private var diff: NativeDiffCardPresentation? {
-        NativeRawToolCardProjector.diff(invocation)
+        guard invocation.name == "write" || invocation.name == "edit" || invocation.name == "str_replace_editor" else { return nil }
+        return NativeRawToolCardProjector.diff(invocation)
     }
 
     private var search: NativeSearchCardPresentation? {
-        NativeRawToolCardProjector.search(invocation)
+        guard invocation.name == "grep" || invocation.name == "glob" else { return nil }
+        return NativeRawToolCardProjector.search(invocation)
     }
 
     private var web: NativeWebCardPresentation? {
-        NativeRawToolCardProjector.web(invocation)
+        guard invocation.name == "web_search" else { return nil }
+        return NativeRawToolCardProjector.web(invocation)
     }
 
     private var rowAccessibilityLabel: String {
@@ -1139,19 +1144,24 @@ struct NativeToolDetailsBody: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
 
                         sectionLabel("details.output")
-                        if let terminal = NativeRawToolCardProjector.terminal(invocation) {
+                        if (invocation.name == "bash" || invocation.name == "pwsh" || invocation.name == "terminal_send"),
+                           let terminal = NativeRawToolCardProjector.terminal(invocation) {
                             NativeTerminalToolCardBody(presentation: terminal, maxLines: 16)
                                 .id(invocation.id)
-                        } else if let read = NativeRawToolCardProjector.read(invocation) {
+                        } else if invocation.name == "read",
+                                  let read = NativeRawToolCardProjector.read(invocation) {
                             NativeReadToolCardBody(presentation: read, maxLines: 16)
                                 .id(invocation.id)
-                        } else if let diff = NativeRawToolCardProjector.diff(invocation) {
+                        } else if (invocation.name == "write" || invocation.name == "edit" || invocation.name == "str_replace_editor"),
+                                  let diff = NativeRawToolCardProjector.diff(invocation) {
                             NativeDiffToolCardBody(presentation: diff, maxLines: 16)
                                 .id(invocation.id)
-                        } else if let search = NativeRawToolCardProjector.search(invocation) {
+                        } else if (invocation.name == "grep" || invocation.name == "glob"),
+                                  let search = NativeRawToolCardProjector.search(invocation) {
                             NativeSearchToolCardBody(presentation: search, maxLines: 16)
                                 .id(invocation.id)
-                        } else if let web = NativeRawToolCardProjector.web(invocation) {
+                        } else if invocation.name == "web_search",
+                                  let web = NativeRawToolCardProjector.web(invocation) {
                             NativeWebToolCardBody(presentation: web)
                                 .id(invocation.id)
                         } else if invocation.state == .running {
@@ -1186,6 +1196,8 @@ struct NativeToolDetailsBody: View {
     }
 
     private func locale(_ key: String) -> String {
-        OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: key, language: "en") ?? ""
+        OfficialUISpec.LocaleCatalog.value(namespace: "ui-chat", key: key, language: "en")
+            ?? OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: key, language: "en")
+            ?? ""
     }
 }

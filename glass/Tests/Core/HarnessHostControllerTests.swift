@@ -11,8 +11,7 @@ final class HarnessHostControllerTests: XCTestCase {
         let environment = ProcessInfo.processInfo.environment
         guard let nodePath = environment["DSH_GLASS_HOST_NODE"],
               let entrypointPath = environment["DSH_GLASS_HOST_ENTRY"] else {
-            XCTFail("T3.1 Host command-line test requires DSH_GLASS_HOST_NODE and DSH_GLASS_HOST_ENTRY")
-            return
+            throw XCTSkip("T3.1 Host command-line test requires DSH_GLASS_HOST_NODE and DSH_GLASS_HOST_ENTRY")
         }
 
         let root = FileManager.default.temporaryDirectory
@@ -108,8 +107,7 @@ extension HarnessHostControllerTests {
         let environment = ProcessInfo.processInfo.environment
         guard let nodePath = environment["DSH_GLASS_HOST_NODE"],
               let entrypointPath = environment["DSH_GLASS_HOST_ENTRY"] else {
-            XCTFail("T3.2 Host command-line test requires DSH_GLASS_HOST_NODE and DSH_GLASS_HOST_ENTRY")
-            return
+            throw XCTSkip("T3.2 Host command-line test requires DSH_GLASS_HOST_NODE and DSH_GLASS_HOST_ENTRY")
         }
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("dsh-glass-unsupported-test-\(UUID().uuidString)", isDirectory: true)
@@ -165,8 +163,7 @@ extension HarnessHostControllerTests {
         let environment = ProcessInfo.processInfo.environment
         guard let nodePath = environment["DSH_GLASS_HOST_NODE"],
               let entrypointPath = environment["DSH_GLASS_HOST_ENTRY"] else {
-            XCTFail("T3.3 Host command-line test requires DSH_GLASS_HOST_NODE and DSH_GLASS_HOST_ENTRY")
-            return
+            throw XCTSkip("T3.3 Host command-line test requires DSH_GLASS_HOST_NODE and DSH_GLASS_HOST_ENTRY")
         }
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("dsh-glass-transition-test-\(UUID().uuidString)", isDirectory: true)
@@ -221,7 +218,7 @@ extension HarnessHostControllerTests {
     func testDiagnosticsAreCopyableCompleteAndRedacted() async throws {
         let recorder = HostDiagnosticRecorder(dshHome: "/tmp/diagnostic-home")
         let endpoint = try XCTUnwrap(URL(string: "http://127.0.0.1:43123"))
-        await recorder.recordVerified(build: Self.fixedCatalog.builds[0], endpoint: endpoint, pid: 4321)
+        await recorder.recordConnected(build: Self.fixedCatalog.builds[0], compatibility: .verified, endpoint: endpoint, pid: 4321)
         let sseTime = Date(timeIntervalSince1970: 1_700_000_000)
         await recorder.recordSSEActivity(at: sseTime)
         await recorder.recordRPCError(NSError(
@@ -237,7 +234,7 @@ extension HarnessHostControllerTests {
         XCTAssertEqual(snapshot.ownership, "owned")
         XCTAssertEqual(snapshot.lastSSEAt, sseTime)
         XCTAssertEqual(snapshot.protocolFixtureRevision, "official-a66e470-remote-r1")
-        XCTAssertEqual(snapshot.pluginCompatibility, "pinned-compatible")
+        XCTAssertEqual(snapshot.pluginCompatibility, "verified")
         let copy = snapshot.copyableText()
         for required in ["hostBuild=", "port=", "dshHome=", "ownership=", "pid=", "lastSSEAt=", "lastRPCError=", "protocolFixtureRevision=", "pluginCompatibility=", "lifecycle="] {
             XCTAssertTrue(copy.contains(required), "diagnostic copy must include \(required)")

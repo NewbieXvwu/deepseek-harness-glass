@@ -36,6 +36,7 @@ final class GhostPlaneTemporaryFileStore: NSObject, WKURLSchemeHandler {
         root = FileManager.default.temporaryDirectory
             .appendingPathComponent("DeepSeekHarnessGlass", isDirectory: true)
             .appendingPathComponent("GhostPlaneAttachments", isDirectory: true)
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
         super.init()
         try? FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
     }

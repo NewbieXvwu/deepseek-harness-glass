@@ -29,26 +29,15 @@ actor SessionControlRuntime {
     func open() async throws -> SessionControlSnapshot {
         if let snapshot { return snapshot }
         let stream = try await controller.control()
-        var iterator = stream.makeAsyncIterator()
-        guard let first = try await iterator.next() else {
-            throw SessionControlRuntimeError.missingOpeningBaseline
+        return try await withCheckedThrowingContinuation { continuation in
+            task = Task { [weak self] in
+                guard let self else {
+                    continuation.resume(throwing: CancellationError())
+                    return
+                }
+                await self.consume(stream: stream, initialContinuation: continuation)
+            }
         }
-        guard case let .baseline(value) = first else {
-            throw SessionControlRuntimeError.missingOpeningBaseline
-        }
-        let opening = SessionControlSnapshot(
-            generation: generation,
-            queues: value.queues,
-            jobs: value.jobs,
-            projections: value.projections
-        )
-        snapshot = opening
-        publish(opening)
-        task = Task { [weak self] in
-            guard let self else { return }
-            await self.consume(iterator: iterator)
-        }
-        return opening
     }
 
     func currentSnapshot() -> SessionControlSnapshot? { snapshot }
@@ -72,18 +61,48 @@ actor SessionControlRuntime {
     }
 
     private func consume(
-        iterator initialIterator: AsyncThrowingStream<RemoteSessionControlFrame, Error>.Iterator
+        stream: AsyncThrowingStream<RemoteSessionControlFrame, Error>,
+        initialContinuation: CheckedContinuation<SessionControlSnapshot, Error>
     ) async {
-        var iterator = initialIterator
-        do {
-            while let frame = try await iterator.next() {
-                try apply(frame)
+        var pendingContinuation: CheckedContinuation<SessionControlSnapshot, Error>? = initialContinuation
+        func resumeOnce(with result: Result<SessionControlSnapshot, Error>) {
+            if let cont = pendingContinuation {
+                pendingContinuation = nil
+                cont.resume(with: result)
             }
+        }
+
+        do {
+            for try await frame in stream {
+                if pendingContinuation != nil {
+                    guard case let .baseline(value) = frame else {
+                        resumeOnce(with: .failure(SessionControlRuntimeError.missingOpeningBaseline))
+                        return
+                    }
+                    let opening = SessionControlSnapshot(
+                        generation: generation,
+                        queues: value.queues,
+                        jobs: value.jobs,
+                        projections: value.projections
+                    )
+                    snapshot = opening
+                    publish(opening)
+                    resumeOnce(with: .success(opening))
+                } else {
+                    try apply(frame)
+                }
+            }
+            resumeOnce(with: .failure(SessionControlRuntimeError.missingOpeningBaseline))
         } catch is CancellationError {
+            resumeOnce(with: .failure(CancellationError()))
             return
         } catch {
-            snapshot = nil
-            publish(nil)
+            if pendingContinuation != nil {
+                resumeOnce(with: .failure(error))
+            } else {
+                snapshot = nil
+                publish(nil)
+            }
         }
     }
 

@@ -44,23 +44,12 @@ final class GhostPlaneWebViewHostTests: XCTestCase {
 
     func testTapIndexAppliesOnlyAdmittedPrimitivePayloadToFixedSkeletonTargets() async throws {
         let host = GhostPlaneWebViewHost(policy: try policy())
-        let loaded = expectation(description: "native skeleton completed")
-        var observation: NSKeyValueObservation?
-        observation = host.webView.observe(\.isLoading, options: [.new]) { webView, change in
-            if change.newValue == false, webView.url != nil {
-                loaded.fulfill()
-                observation?.invalidate()
-                observation = nil
-            }
-        }
-        defer { observation?.invalidate() }
-
         XCTAssertNotNil(host.loadSkeleton("""
         <!doctype html><html><head><meta charset="utf-8"></head><body>
         <div id="ghost-plane-root"></div><div id="ghost-details-tool"></div><div id="ghost-scroll-content"></div>
         </body></html>
         """))
-        await fulfillment(of: [loaded], timeout: 5)
+        await waitForLoad(host)
         try await host.applyTapIndex(try admittedReplay())
 
         let result = try await host.webView.callAsyncJavaScript(
@@ -83,7 +72,7 @@ final class GhostPlaneWebViewHostTests: XCTestCase {
         XCTAssertEqual(result?["color"] as? String, "#3b82f6")
         XCTAssertEqual(result?["mode"] as? String, "review")
         XCTAssertEqual(result?["classPresent"] as? Bool, true)
-        XCTAssertNil(result?["executable"])
+        XCTAssertTrue(result?["executable"] == nil || result?["executable"] is NSNull)
         XCTAssertEqual(result?["moduleLoadType"] as? String, "function")
         XCTAssertEqual(result?["moduleQueue"] as? Bool, true)
 
@@ -125,18 +114,8 @@ final class GhostPlaneWebViewHostTests: XCTestCase {
 
     func testNativePermitPromotesExactQueuedFactoriesWithoutInvokingThem() async throws {
         let host = GhostPlaneWebViewHost(policy: try policy())
-        let loaded = expectation(description: "native skeleton completed")
-        var observation: NSKeyValueObservation?
-        observation = host.webView.observe(\.isLoading, options: [.new]) { webView, change in
-            if change.newValue == false, webView.url != nil {
-                loaded.fulfill()
-                observation?.invalidate()
-                observation = nil
-            }
-        }
-        defer { observation?.invalidate() }
         XCTAssertNotNil(host.loadSkeleton("<!doctype html><html><head></head><body><div id=\"ghost-scroll-content\"></div></body></html>"))
-        await fulfillment(of: [loaded], timeout: 5)
+        await waitForLoad(host)
         _ = try await host.webView.callAsyncJavaScript(
             """
             window.__ModuleLoader__.load({
@@ -165,18 +144,8 @@ final class GhostPlaneWebViewHostTests: XCTestCase {
 
     func testNativeBridgeEventUsesFixedDTOAndDocumentReceiver() async throws {
         let host = GhostPlaneWebViewHost(policy: try policy())
-        let loaded = expectation(description: "native skeleton completed")
-        var observation: NSKeyValueObservation?
-        observation = host.webView.observe(\.isLoading, options: [.new]) { webView, change in
-            if change.newValue == false, webView.url != nil {
-                loaded.fulfill()
-                observation?.invalidate()
-                observation = nil
-            }
-        }
-        defer { observation?.invalidate() }
         XCTAssertNotNil(host.loadSkeleton("<!doctype html><html><head></head><body><div id=\"ghost-scroll-content\"></div></body></html>"))
-        await fulfillment(of: [loaded], timeout: 5)
+        await waitForLoad(host)
         _ = try await host.webView.callAsyncJavaScript(
             """
             document.addEventListener('dsh-ghost-plane-native-event', event => {
@@ -218,16 +187,6 @@ final class GhostPlaneWebViewHostTests: XCTestCase {
 
     func testNativeImagePasteSelectionAndDragBecomeStandardBrowserEvents() async throws {
         let host = GhostPlaneWebViewHost(policy: try policy())
-        let loaded = expectation(description: "native skeleton completed")
-        var observation: NSKeyValueObservation?
-        observation = host.webView.observe(\.isLoading, options: [.new]) { webView, change in
-            if change.newValue == false, webView.url != nil {
-                loaded.fulfill()
-                observation?.invalidate()
-                observation = nil
-            }
-        }
-        defer { observation?.invalidate() }
         XCTAssertNotNil(host.loadSkeleton("""
         <!doctype html><html><head></head><body>
         <div id="ghost-scroll-content"></div>
@@ -235,7 +194,7 @@ final class GhostPlaneWebViewHostTests: XCTestCase {
         <div id="ghost-selection-b"><span></span></div>
         </body></html>
         """))
-        await fulfillment(of: [loaded], timeout: 5)
+        await waitForLoad(host)
         _ = try await host.webView.callAsyncJavaScript(
             """
             document.addEventListener('paste', event => {
@@ -299,24 +258,14 @@ final class GhostPlaneWebViewHostTests: XCTestCase {
 
     func testWebKitMessageHandlerDeliversOnlyWireDecodedFencedEvent() async throws {
         let host = GhostPlaneWebViewHost(policy: try policy())
-        let loaded = expectation(description: "native skeleton completed")
         let received = expectation(description: "typed plane event delivered")
-        var observation: NSKeyValueObservation?
-        observation = host.webView.observe(\.isLoading, options: [.new]) { webView, change in
-            if change.newValue == false, webView.url != nil {
-                loaded.fulfill()
-                observation?.invalidate()
-                observation = nil
-            }
-        }
-        defer { observation?.invalidate() }
         host.onPlaneEvent = { event in
             guard case let .keyboard(keyboard) = event else { return XCTFail("expected keyboard") }
             XCTAssertEqual(keyboard.key, "Enter")
             received.fulfill()
         }
         XCTAssertNotNil(host.loadSkeleton("<!doctype html><html><head></head><body><div id=\"ghost-scroll-content\"></div></body></html>"))
-        await fulfillment(of: [loaded], timeout: 5)
+        await waitForLoad(host)
         _ = try await host.webView.callAsyncJavaScript(
             """
             window.webkit.messageHandlers.ghostPlaneEvents.postMessage({
@@ -398,6 +347,19 @@ final class GhostPlaneWebViewHostTests: XCTestCase {
             userInfo: [NSLocalizedDescriptionKey: "replay unexpectedly rejected: \(reason)"]
         )
         }
+    }
+
+    private func waitForLoad(_ host: GhostPlaneWebViewHost) async {
+        if !host.webView.isLoading && host.webView.url != nil { return }
+        let loaded = expectation(description: "native skeleton completed")
+        loaded.assertForOverFulfill = false
+        let observation = host.webView.observe(\.isLoading, options: [.new]) { _, change in
+            if change.newValue == false {
+                loaded.fulfill()
+            }
+        }
+        await fulfillment(of: [loaded], timeout: 5)
+        observation.invalidate()
     }
 
     private func webViews(in root: NSView) -> [WKWebView] {

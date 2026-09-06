@@ -32,6 +32,7 @@ private extension NativeSessionStore {
     }
 }
 
+@MainActor
 final class NativeSessionStoreTests: XCTestCase {
     func testComposerIntentUsesInjectedTypedSessionFacadeAndRetainsDraftOnRejection() async {
         let promptReachedFacade = expectation(description: "typed prompt facade receives the user intent")
@@ -2539,6 +2540,7 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual((finalNodes.first?.data as? CoreAssistantNode)?.blocks.compactMap(\.text).joined(), "settled")
     }
 
+    @MainActor
     func testToolResultRetainsEveryContentBlockAndUsesStructuredEmptyErrorFallback() throws {
         let store = NativeSessionStore()
         store.loadSnapshotToolingFixture()
@@ -2569,7 +2571,7 @@ final class NativeSessionStoreTests: XCTestCase {
             ])
         ), sessionID: "snapshot-tooling")
 
-        let mixed = tryUnwrap(store.toolInvocations.first(where: { $0.id == "result-text-mixed" }))
+        let mixed = try tryUnwrap(store.toolInvocations.first(where: { $0.id == "result-text-mixed" }))
         XCTAssertTrue(mixed.output?.hasPrefix("first\n") == true)
         XCTAssertTrue(mixed.output?.contains("\"type\"") == true)
         XCTAssertTrue(mixed.output?.contains("\"reasoning\"") == true)
@@ -2601,7 +2603,7 @@ final class NativeSessionStoreTests: XCTestCase {
             ])
         ), sessionID: "snapshot-tooling")
 
-        let empty = tryUnwrap(store.toolInvocations.first(where: { $0.id == "result-text-empty-error" }))
+        let empty = try tryUnwrap(store.toolInvocations.first(where: { $0.id == "result-text-empty-error" }))
         XCTAssertEqual(empty.output, "ToolError: interrupted")
         XCTAssertNil(empty.textOutput)
         XCTAssertEqual(empty.errorName, "ToolError")
@@ -2678,7 +2680,8 @@ final class NativeSessionStoreTests: XCTestCase {
         }
     }
 
-    private func eventually(timeout: TimeInterval, condition: @escaping @MainActor () -> Bool) async {
+    @MainActor
+    private func eventually(timeout: TimeInterval, condition: () -> Bool) async {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
             if condition() { return }
@@ -3284,6 +3287,7 @@ final class NativeSessionStoreTests: XCTestCase {
                 if Task.isCancelled { oldCancellationCancelled.fulfill() }
                 throw DSHTransportError.invalidEndpoint
             }
+            try? await Task.sleep(for: .seconds(5))
             return .init(accepted: true, reason: nil)
         }
     }
@@ -3319,6 +3323,7 @@ final class NativeSessionStoreTests: XCTestCase {
                 if Task.isCancelled { oldApprovalCancelled.fulfill() }
                 throw DSHTransportError.invalidEndpoint
             }
+            try? await Task.sleep(for: .seconds(5))
             return .init(accepted: true, reason: nil)
         }
 
@@ -3358,6 +3363,7 @@ final class NativeSessionStoreTests: XCTestCase {
                 if Task.isCancelled { oldAnswerCancelled.fulfill() }
                 throw DSHTransportError.invalidEndpoint
             }
+            try? await Task.sleep(for: .seconds(5))
             return .init(accepted: true, reason: nil)
         }
 

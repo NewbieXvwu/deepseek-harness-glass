@@ -1613,7 +1613,7 @@ final class NativeSessionStore: ObservableObject {
 
                 // Legacy/test fallback while the remaining facade-only domains
                 // are cut over to rc.1 Remote.
-                guard let api else { throw DSHTransportError.invalidEndpoint }
+                guard let api = self?.api else { throw DSHTransportError.invalidEndpoint }
                 let models = try await api.models(sessionID: sessionID)
                 guard !Task.isCancelled,
                       self?.recoveryGeneration == authorityGeneration,
@@ -4064,14 +4064,16 @@ final class NativeSessionStore: ObservableObject {
     /// rc.1 durable tool results are one `tool-result` wrapper inside the user
     /// message. The wrapper, not the outer message, owns result content/error.
     private func toolResultWrapper(in message: [String: JSONValue], callID: String) -> ToolResultWrapper? {
-        guard let values = message["content"]?.arrayValue, values.count == 1,
-              let wrapper = values[0].objectValue,
-              wrapper["type"]?.stringValue == "tool-result",
-              wrapper["toolCallId"]?.stringValue == callID,
-              let content = wrapper["content"]?.arrayValue
-        else { return nil }
-        if wrapper["isError"] != nil && wrapper["isError"]?.boolValue == nil { return nil }
-        return .init(content: content, isError: wrapper["isError"]?.boolValue ?? false)
+        guard let values = message["content"]?.arrayValue else { return nil }
+        if values.count == 1,
+           let wrapper = values[0].objectValue,
+           wrapper["type"]?.stringValue == "tool-result",
+           wrapper["toolCallId"]?.stringValue == callID,
+           let content = wrapper["content"]?.arrayValue {
+            if wrapper["isError"] != nil && wrapper["isError"]?.boolValue == nil { return nil }
+            return .init(content: content, isError: wrapper["isError"]?.boolValue ?? false)
+        }
+        return .init(content: values, isError: false)
     }
 
     /// rc.1 generic result text flattens the inner tool-result content. Text is

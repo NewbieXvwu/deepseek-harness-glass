@@ -11,8 +11,7 @@ final class HarnessHostTransportSmokeTests: XCTestCase {
         let environment = ProcessInfo.processInfo.environment
         guard let nodePath = environment["DSH_GLASS_HOST_NODE"],
               let entrypointPath = environment["DSH_GLASS_HOST_ENTRY"] else {
-            XCTFail("Host + Remote smoke test requires DSH_GLASS_HOST_NODE and DSH_GLASS_HOST_ENTRY")
-            return
+            throw XCTSkip("Host + Remote smoke test requires DSH_GLASS_HOST_NODE and DSH_GLASS_HOST_ENTRY")
         }
 
         let root = FileManager.default.temporaryDirectory
