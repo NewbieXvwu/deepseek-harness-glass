@@ -52,7 +52,7 @@ actor RemoteMuxConnection {
     ) async throws -> AsyncThrowingStream<Frame, Error>
     where Arguments: Encodable & Sendable, Frame: Decodable & Sendable {
         guard !closed else { throw RemoteConnectionError.carrierLost("Remote mux is closed") }
-        let socket = startSocketIfNeeded()
+        let socket = try startSocketIfNeeded()
         let streamID = UUID().uuidString.lowercased()
         let pair = AsyncThrowingStream<Frame, Error>.makeStream()
         let continuation = pair.continuation
@@ -104,14 +104,19 @@ actor RemoteMuxConnection {
         failAll(RemoteConnectionError.carrierLost("Remote mux closed"))
     }
 
-    private func startSocketIfNeeded() -> URLSessionWebSocketTask {
+    private func startSocketIfNeeded() throws -> URLSessionWebSocketTask {
         if let socket { return socket }
-        var components = URLComponents(url: authenticatedHost.baseURL, resolvingAgainstBaseURL: false)!
+        guard var components = URLComponents(url: authenticatedHost.baseURL, resolvingAgainstBaseURL: false) else {
+            throw RemoteConnectionError.protocolViolation("invalid authenticated Host URL")
+        }
         components.scheme = components.scheme == "https" ? "wss" : "ws"
         components.path = "/api/remote.mux"
         components.query = nil
         components.fragment = nil
-        let created = authenticatedHost.urlSession.webSocketTask(with: components.url!)
+        guard let url = components.url else {
+            throw RemoteConnectionError.protocolViolation("invalid Remote mux URL")
+        }
+        let created = authenticatedHost.urlSession.webSocketTask(with: url)
         socket = created
         created.resume()
         receiveTask = Task { [weak self] in await self?.receiveLoop(created) }
