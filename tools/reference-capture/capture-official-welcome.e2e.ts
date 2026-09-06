@@ -1,6 +1,7 @@
+import { execFileSync } from 'node:child_process'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
-import { CallId, createAssistantMessage, createToolResultMessage, createUserMessage } from '@deepseek-ai/dsh-llm'
+import { ToolCallId, createAssistantMessage, createToolResultMessage, createUserMessage } from '@deepseek-ai/dsh-llm'
 import { SESSION_FORMAT_VERSION, Session, SessionId } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-session-title'
 import { chromium, type Locator, type Page } from 'playwright'
@@ -12,10 +13,11 @@ const outputDirectory = resolve(process.env.DSH_REFERENCE_SCREENSHOT_DIR ?? '.ar
 const viewport = { width: 1280, height: 840 }
 const railViewport = { width: 1023, height: 840 }
 const deliverablesViewport = { width: 780, height: 900 }
-const lifecycleFixture = join(REPO_ROOT, 'apps/web/tests/snapshots/lifecycle-chrome/session.jsonl')
-const workspaceSearchFixture = join(REPO_ROOT, 'apps/web/tests/snapshots/navigation-panes/seed.jsonl')
-const approvalFixture = join(REPO_ROOT, 'apps/web/tests/snapshots/approval-composer/session.jsonl')
-const questionFixture = join(REPO_ROOT, 'apps/web/tests/snapshots/question-composer/session.jsonl')
+const lifecycleFixture = join(REPO_ROOT, 'snapshots/web/lifecycle-chrome/session.jsonl')
+const workspaceSearchFixture = join(REPO_ROOT, 'snapshots/web/navigation-panes/session.jsonl')
+const approvalFixture = join(REPO_ROOT, 'snapshots/web/approval-composer/session.jsonl')
+const questionFixture = join(REPO_ROOT, 'snapshots/web/question-composer/session.jsonl')
+const officialSourceCommit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: REPO_ROOT, encoding: 'utf8' }).trim()
 const recordedPrompt = 'Reply with the single word LIGHTHOUSE and stop.'
 const approvalPrompt = `Write a file named notes.txt in the workspace containing exactly this text on one line: ${Array.from({ length: 220 }, (_, index) => `tok${((index + 1) * 7919 % 99991).toString(36)}`).join(' ')}. Use one bash command with the literal text inline. Then reply with the single word DONE and stop.`
 const questionPrompt = 'Use the ask_user_question tool to ask me exactly one multi-select question with id "color", question "Which color do you prefer?", header "Pick one", and two options: label "Blue" with description "A cool recessive hue that reads as calm and trustworthy in long reading sessions and dense dashboards.", and label "Green" with description "A restful mid-spectrum hue with the highest perceived brightness, easiest on the eye over long reading sessions." Set multi_select to true. After I answer, reply with the single word DONE and stop.'
@@ -41,7 +43,7 @@ let browser: Awaited<ReturnType<typeof chromium.launch>>
 type CapturePage = Page
 
 async function applyOfficialColorScheme(page: CapturePage, colorScheme: CaptureColorScheme): Promise<void> {
-  // RC8 ThemeRuntime uses this body attribute as the authoritative dark-theme
+  // rc.1 ThemeRuntime uses this body attribute as the authoritative dark-theme
   // cascade. The browser media preference is still supplied on page creation,
   // but the attribute ensures the official user-visible palette itself is
   // captured instead of relying on an implementation-default preference.
@@ -79,7 +81,7 @@ async function writeCaptureMetadata(
   })
   const ariaSnapshot = await page.locator('body').ariaSnapshot()
   await writeFile(join(outputDirectory, `${name}.json`), JSON.stringify({
-    officialSourceCommit: 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e',
+    officialSourceCommit,
     viewport: captureViewport,
     locale: 'en-US',
     colorScheme,
@@ -141,7 +143,7 @@ async function openWorkspaceManagementDialog(page: CapturePage, kind: 'workspace
   return 'Delete workspace'
 }
 
-/** RC8 `produced-files.e2e.ts` finished turn: ten successful write calls
+/** rc.1 `produced-files.e2e.ts` finished turn: ten successful write calls
  * become one turn-tail location list without model output. */
 function deliverablesFixture(): string {
   const session = Session.create(SessionId('produced-files-source'))
@@ -157,7 +159,7 @@ function deliverablesFixture(): string {
   session.append('step/start', { turn: 1, step: 1 })
   const calls = deliverablesPaths.map((path, index) => ({
     path,
-    callId: CallId(`produced-files-${String(index)}`),
+    callId: ToolCallId(`produced-files-${String(index)}`),
     args: JSON.stringify({ file_path: path, content: `content of ${path}\n` }),
   }))
   session.append('assistant/message', {
@@ -232,9 +234,6 @@ function registryJob(label: string) {
 describe('reference capture: official welcome and session Jobs action', () => {
   beforeAll(async () => {
     await mkdir(outputDirectory, { recursive: true })
-    // Welcome is a no-model-call state, so it must not mount a replay fixture
-    // with an unconsumed scripted turn. Each Jobs theme creates its own isolated
-    // replay scaffold below because the Host registry is stateful.
     scaffold = await launchWebScaffold()
     browser = await chromium.launch({ headless: true })
   }, 120_000)
@@ -250,7 +249,7 @@ describe('reference capture: official welcome and session Jobs action', () => {
       const context = await browser.newContext({ viewport, locale: 'en-US', colorScheme, deviceScaleFactor: 1 })
       const page = await context.newPage()
       const consoleTripwire = watchConsole(page)
-      await page.goto(scaffold.baseUrl, { waitUntil: 'load' })
+      await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
       await page.locator('#root').waitFor({ state: 'attached', timeout: 30_000 })
       await applyOfficialColorScheme(page, colorScheme)
       await page.getByRole('textbox', { name: 'Choose workspace' }).waitFor({ timeout: 30_000 })
@@ -268,7 +267,7 @@ describe('reference capture: official welcome and session Jobs action', () => {
       const context = await browser.newContext({ viewport: railViewport, locale: 'en-US', colorScheme, deviceScaleFactor: 1 })
       const page = await context.newPage()
       const consoleTripwire = watchConsole(page)
-      await page.goto(scaffold.baseUrl, { waitUntil: 'load' })
+      await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
       await page.locator('#root').waitFor({ state: 'attached', timeout: 30_000 })
       await applyOfficialColorScheme(page, colorScheme)
       await page.getByRole('textbox', { name: 'Choose workspace' }).waitFor({ timeout: 30_000 })
@@ -293,7 +292,7 @@ describe('reference capture: official welcome and session Jobs action', () => {
         await writeFile(join(sessionCwd, 'nav-a.md'), '# alpha nav\n')
         await writeFile(join(sessionCwd, 'nav-b.md'), '# beta nav\n')
         await seedSession(searchScaffold, await readFile(workspaceSearchFixture, 'utf8'), 'navigation-panes-web-e2e')
-        await page.goto(searchScaffold.baseUrl, { waitUntil: 'load' })
+        await page.goto(searchScaffold.authenticatedUrl, { waitUntil: 'load' })
         await page.locator('#root').waitFor({ state: 'attached', timeout: 30_000 })
         await applyOfficialColorScheme(page, colorScheme)
         await page.getByText('Ungrouped', { exact: true }).waitFor({ timeout: 30_000 })
@@ -333,7 +332,7 @@ describe('reference capture: official welcome and session Jobs action', () => {
             await writeFile(join(sessionCwd, 'nav-b.md'), '# beta nav\n')
             await seedSession(managementScaffold, await readFile(workspaceSearchFixture, 'utf8'), 'navigation-panes-web-e2e')
           }
-          await page.goto(managementScaffold.baseUrl, { waitUntil: 'load' })
+          await page.goto(managementScaffold.authenticatedUrl, { waitUntil: 'load' })
           await page.locator('#root').waitFor({ state: 'attached', timeout: 30_000 })
           await applyOfficialColorScheme(page, colorScheme)
           if (kind === 'session-rename') {
@@ -367,7 +366,7 @@ describe('reference capture: official welcome and session Jobs action', () => {
       await writeFile(join(sessionCwd, 'nav-a.md'), '# alpha nav\n')
       await writeFile(join(sessionCwd, 'nav-b.md'), '# beta nav\n')
       await seedSession(toolingScaffold, await readFile(workspaceSearchFixture, 'utf8'), 'navigation-panes-web-e2e')
-      await page.goto(toolingScaffold.baseUrl, { waitUntil: 'load' })
+      await page.goto(toolingScaffold.authenticatedUrl, { waitUntil: 'load' })
       await page.locator('#root').waitFor({ state: 'attached', timeout: 30_000 })
       await applyOfficialColorScheme(page, 'light')
       await page.getByText('Ungrouped', { exact: true }).waitFor({ timeout: 30_000 })
@@ -397,14 +396,14 @@ describe('reference capture: official welcome and session Jobs action', () => {
     }
   }, 120_000)
 
-  it('captures official rc.2 Full access confirmation from the live permission picker', async () => {
+  it('captures official rc.1 Full access confirmation from the live permission picker', async () => {
     const name = 'permission-confirmation-light'
     const permissionScaffold = await launchWebScaffold()
     const context = await browser.newContext({ viewport, locale: 'en-US', colorScheme: 'light', deviceScaleFactor: 1 })
     const page = await context.newPage()
     const consoleTripwire = watchConsole(page)
     try {
-      await page.goto(permissionScaffold.baseUrl, { waitUntil: 'load' })
+      await page.goto(permissionScaffold.authenticatedUrl, { waitUntil: 'load' })
       await page.locator('#root').waitFor({ state: 'attached', timeout: 30_000 })
       await applyOfficialColorScheme(page, 'light')
       await connectFreshWorkspace(page, permissionScaffold.workspaceCwd)
@@ -432,7 +431,7 @@ describe('reference capture: official welcome and session Jobs action', () => {
     const page = await context.newPage()
     const consoleTripwire = watchConsole(page)
     try {
-      await page.goto(approvalScaffold.baseUrl, { waitUntil: 'load' })
+      await page.goto(approvalScaffold.authenticatedUrl, { waitUntil: 'load' })
       await page.locator('#root').waitFor({ state: 'attached', timeout: 30_000 })
       await applyOfficialColorScheme(page, 'light')
       await connectFreshWorkspace(page, approvalScaffold.workspaceCwd)
@@ -448,9 +447,6 @@ describe('reference capture: official welcome and session Jobs action', () => {
       await panel.getByText(/tok/).first().waitFor({ timeout: 30_000 })
       await page.screenshot({ path: join(outputDirectory, `${name}.png`) })
       await writeCaptureMetadata(page, name, 'light', { width: 1280, height: 1100 }, consoleTripwire.warnings, consoleTripwire.pageErrors)
-      // The fixture has a second response after the user decision. Complete the
-      // sanctioned action after the stable waiting capture so scaffold.close()
-      // can verify replay consumption without changing the captured surface.
       await panel.getByRole('button', { name: 'Allow once' }).click()
       await page.getByText('DONE', { exact: true }).waitFor({ timeout: 30_000 })
       await expect.poll(() => page.locator('textarea').first().isEnabled(), { timeout: 30_000 }).toBe(true)
@@ -469,7 +465,7 @@ describe('reference capture: official welcome and session Jobs action', () => {
     const page = await context.newPage()
     const consoleTripwire = watchConsole(page)
     try {
-      await page.goto(questionScaffold.baseUrl, { waitUntil: 'load' })
+      await page.goto(questionScaffold.authenticatedUrl, { waitUntil: 'load' })
       await page.locator('#root').waitFor({ state: 'attached', timeout: 30_000 })
       await applyOfficialColorScheme(page, 'light')
       await connectFreshWorkspace(page, questionScaffold.workspaceCwd)
@@ -483,8 +479,6 @@ describe('reference capture: official welcome and session Jobs action', () => {
       await page.getByText('Waiting for answer', { exact: true }).waitFor({ timeout: 30_000 })
       await page.screenshot({ path: join(outputDirectory, `${name}.png`) })
       await writeCaptureMetadata(page, name, 'light', { width: 1280, height: 1100 }, consoleTripwire.warnings, consoleTripwire.pageErrors)
-      // Answer after the waiting-state screenshot to consume the fixture's
-      // closing response and prove the takeover returns to the regular composer.
       await composer.getByRole('checkbox', { name: 'Blue' }).click()
       const customAnswer = composer.getByRole('textbox')
       await customAnswer.fill('Include accessibility notes')
@@ -499,19 +493,17 @@ describe('reference capture: official welcome and session Jobs action', () => {
     }
   }, 120_000)
 
-  it('captures official narrow Deliverables from the RC8 produced-files turn', async () => {
+  it('captures official narrow Deliverables from the rc.1 produced-files turn', async () => {
     const name = 'deliverables-light'
     const deliverablesScaffold = await launchWebScaffold({
       extraOverlayPath: join(REPO_ROOT, 'apps/web/tests/produced-files.overlay.yml'),
     })
-    // RC8 selects the cold session while the sidebar is wide; at the narrow
-    // lane viewport its tree descendants deliberately are not mounted.
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'en-US', colorScheme: 'light', deviceScaleFactor: 1 })
     const page = await context.newPage()
     const consoleTripwire = watchConsole(page)
     try {
       await seedSession(deliverablesScaffold, deliverablesFixture(), 'produced-files-web-e2e')
-      await page.goto(deliverablesScaffold.baseUrl, { waitUntil: 'load' })
+      await page.goto(deliverablesScaffold.authenticatedUrl, { waitUntil: 'load' })
       await page.locator('[class*="frame"]').waitFor({ timeout: 30_000 })
       await applyOfficialColorScheme(page, 'light')
       const groupRow = page.locator('[role="treeitem"]').first()
@@ -543,17 +535,13 @@ describe('reference capture: official welcome and session Jobs action', () => {
   it('captures official expanded Jobs actions in light and dark mode from Host-owned whole snapshots', async () => {
     for (const colorScheme of captureColorSchemes) {
       const name = `jobs-expanded-${colorScheme}`
-      // Browser contexts isolate local storage, but a scaffold also owns the
-      // real Host workspace/session registry. Give each themed Jobs fixture a
-      // new scaffold/DSH_HOME so a captured light session cannot be
-      // auto-selected by the subsequent dark page.
       const jobsScaffold = await launchWebScaffold({ replayFixture: lifecycleFixture, paceMs: 100 })
       const context = await browser.newContext({ viewport, locale: 'en-US', colorScheme, deviceScaleFactor: 1 })
       const page = await context.newPage()
       const consoleTripwire = watchConsole(page)
       let live: ReturnType<typeof registryJob> | undefined
       try {
-        await page.goto(jobsScaffold.baseUrl, { waitUntil: 'load' })
+        await page.goto(jobsScaffold.authenticatedUrl, { waitUntil: 'load' })
         await page.locator('#root').waitFor({ state: 'attached', timeout: 30_000 })
         await applyOfficialColorScheme(page, colorScheme)
         await connectFreshWorkspace(page, jobsScaffold.workspaceCwd)
@@ -585,9 +573,6 @@ describe('reference capture: official welcome and session Jobs action', () => {
         expect(consoleTripwire.warnings).toEqual([])
         expect(consoleTripwire.pageErrors).toEqual([])
       } finally {
-        // The capture intentionally observes this job as live. Settle only after
-        // the PNG/ARIA evidence is written so scaffold.close() never awaits an
-        // artificial indefinitely-running task.
         live?.settle()
         await context.close()
         await jobsScaffold.close()
@@ -617,14 +602,12 @@ describe('reference capture: official model selector', () => {
     const page = await context.newPage()
     const consoleTripwire = watchConsole(page)
     try {
-      await page.goto(modelScaffold.baseUrl, { waitUntil: 'load' })
+      await page.goto(modelScaffold.authenticatedUrl, { waitUntil: 'load' })
       await page.locator('#root').waitFor({ state: 'attached', timeout: 30_000 })
       await applyOfficialColorScheme(page, 'light')
       await connectFreshWorkspace(page, modelScaffold.workspaceCwd)
       const trigger = page.getByRole('button', { name: 'Select model, current DeepSeek-V4-Flash' })
       await trigger.waitFor({ timeout: 30_000 })
-      // The matching macOS capture exercises the same closed trigger. Native
-      // AppKit Menu presentation is intentionally a separate interaction scene.
       await page.screenshot({ path: join(outputDirectory, `${name}.png`) })
       await writeCaptureMetadata(page, name, 'light', viewport, consoleTripwire.warnings, consoleTripwire.pageErrors)
       expect(consoleTripwire.warnings).toEqual([])
