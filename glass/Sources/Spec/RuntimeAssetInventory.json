@@ -36,11 +36,11 @@
     },
     {
       "id": "external-port-attachment",
-      "source": "95c3ad8 historical 127.0.0.1:3080 probe",
-      "responsibility": "Probe and reuse default 127.0.0.1:3080 dsh web instance before spawning the bundled payload.",
-      "decision": "preserved",
-      "destination": "Sources/Core/Host/HarnessHostController.swift",
-      "verification": "HarnessHostController probes loopback 3080; attaches if active or falls back to spawning owned Host."
+      "source": "Historical 127.0.0.1:3080 unauthenticated probe",
+      "responsibility": "Reuse a local Host only through the rc.1 process-token launch URL, then bootstrap its authenticated cookie session before Remote access.",
+      "decision": "replaced",
+      "destination": "Sources/Core/Host/HostLaunchDescriptor.swift and Sources/Core/Host/HostAuthBootstrap.swift",
+      "verification": "No unauthenticated loopback probe remains; HostLaunchDescriptor requires a loopback process-token URL and HostAuthBootstrap establishes the authenticated ephemeral session before Remote composition."
     },
     {
       "id": "snapshot-export",
