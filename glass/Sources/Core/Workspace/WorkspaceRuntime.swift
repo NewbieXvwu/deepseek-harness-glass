@@ -9,7 +9,6 @@ struct WorkspaceRuntimeState: Sendable, Equatable {
 enum WorkspaceRuntimeError: Error, Sendable, Equatable {
     case missingBaseline
     case duplicateBaseline
-    case invalidOrder
 }
 
 /// 纯函数领域状态机：无锁、无异步、零副作用、绝不抛出异常
@@ -109,12 +108,18 @@ actor WorkspaceRuntime {
                     install(baseline, generation: generation)
                     resumeOnce(with: .success(()))
                 } else {
+                    if case .baseline = frame {
+                        invalidate(generation: generation)
+                        return
+                    }
                     apply(frame, generation: generation)
                 }
             }
             if pendingContinuation != nil {
                 activeGeneration = nil
                 resumeOnce(with: .failure(WorkspaceRuntimeError.missingBaseline))
+            } else {
+                invalidate(generation: generation)
             }
         } catch is CancellationError {
             resumeOnce(with: .failure(CancellationError()))
@@ -233,4 +238,3 @@ actor WorkspaceRuntime {
 
     private func removeObserver(_ id: UUID) { observers.removeValue(forKey: id) }
 }
-
