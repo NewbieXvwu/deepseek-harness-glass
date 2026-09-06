@@ -16,6 +16,12 @@ final class HarnessHostController: ObservableObject {
             stateTransitions.append(transition)
             if stateTransitions.count > 200 { stateTransitions.removeFirst(stateTransitions.count - 200) }
             appendLog("[host] transition \(transition.summary)")
+            if case let .ready(connection) = oldValue {
+                Task {
+                    await connection.context.remote.closeStreams()
+                    connection.context.authenticatedHost.invalidate()
+                }
+            }
             Task { [diagnostics] in await diagnostics.recordLifecycle(state, ownedPID: process?.processIdentifier) }
         }
     }
@@ -291,10 +297,12 @@ if announcedOutput.count > 32_768 {
                 let events = try await remote.connectEvents()
                 guard !Task.isCancelled else {
                     await remote.closeStreams()
+                    authenticatedHost.invalidate()
                     return
                 }
                 guard let self else {
                     await remote.closeStreams()
+                    authenticatedHost.invalidate()
                     return
                 }
                 self.state = .classifying(authenticatedHost.baseURL)
@@ -316,7 +324,8 @@ if announcedOutput.count > 32_768 {
                     build: build,
                     compatibility: compatibility,
                     endpoint: endpoint,
-                    pid: self.process?.processIdentifier
+                    pid: self.process?.processIdentifier,
+                    generation: events.generation
                 )
                 let context = HostConnectionContext(
                     authenticatedHost: authenticatedHost,
