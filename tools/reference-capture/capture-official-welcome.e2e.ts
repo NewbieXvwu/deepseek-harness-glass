@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { ToolCallId, createAssistantMessage, createToolResultMessage, createUserMessage } from '@deepseek-ai/dsh-llm'
+import { JobId } from '@deepseek-ai/dsh-jobs'
 import { SESSION_FORMAT_VERSION, Session, SessionId } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-session-title'
 import { chromium, type Locator, type Page } from 'playwright'
@@ -13,12 +14,11 @@ const outputDirectory = resolve(process.env.DSH_REFERENCE_SCREENSHOT_DIR ?? '.ar
 const viewport = { width: 1280, height: 840 }
 const railViewport = { width: 1023, height: 840 }
 const deliverablesViewport = { width: 780, height: 900 }
-const lifecycleFixture = join(REPO_ROOT, 'snapshots/web/lifecycle-chrome/session.jsonl')
+const jobsFixture = join(REPO_ROOT, 'snapshots/web/fresh-round-trip/session.jsonl')
 const workspaceSearchFixture = join(REPO_ROOT, 'snapshots/web/navigation-panes/session.jsonl')
 const approvalFixture = join(REPO_ROOT, 'snapshots/web/approval-composer/session.jsonl')
 const questionFixture = join(REPO_ROOT, 'snapshots/web/question-composer/session.jsonl')
 const officialSourceCommit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: REPO_ROOT, encoding: 'utf8' }).trim()
-const recordedPrompt = 'Reply with the single word LIGHTHOUSE and stop.'
 const approvalPrompt = `Write a file named notes.txt in the workspace containing exactly this text on one line: ${Array.from({ length: 220 }, (_, index) => `tok${((index + 1) * 7919 % 99991).toString(36)}`).join(' ')}. Use one bash command with the literal text inline. Then reply with the single word DONE and stop.`
 const questionPrompt = 'Use the ask_user_question tool to ask me exactly one multi-select question with id "color", question "Which color do you prefer?", header "Pick one", and two options: label "Blue" with description "A cool recessive hue that reads as calm and trustworthy in long reading sessions and dense dashboards.", and label "Green" with description "A restful mid-spectrum hue with the highest perceived brightness, easiest on the eye over long sessions." Set multi_select to true. After I answer, reply with the single word DONE and stop.'
 const deliverablesDone = 'PRODUCED_FILES_DONE'
@@ -92,7 +92,17 @@ async function writeCaptureMetadata(
   }, null, 2) + '\n')
 }
 
-/** Start a true registry-backed job without consuming model output. */
+/** Open-session Agent resolution copied from rc.1 `background-job-list.e2e.ts`. */
+async function liveAgent(scaffold: WebScaffold, sessionId: SessionId) {
+  const deadline = Date.now() + 30_000
+  for (;;) {
+    const found = scaffold.ctx.agents.get(sessionId)
+    if (found !== undefined) return found
+    if (Date.now() > deadline) throw new Error(`opening session "${sessionId}" published no live Agent`)
+    await new Promise(resolve => setTimeout(resolve, 100))
+  }
+}
+
 async function revealAndClickRowAction(row: Locator, actionName: string): Promise<void> {
   const action = row.getByRole('button', { name: actionName })
   for (let attempt = 0; attempt < 4; attempt += 1) {
@@ -211,24 +221,6 @@ function deliverablesFixture(): string {
     })),
     '',
   ].join('\n')
-}
-
-function registryJob(label: string) {
-  let settle!: () => void
-  return {
-    spec: {
-      kind: 'bash' as const,
-      label,
-      run: () => ({
-        cancel: () => {},
-        done: new Promise<{ status: 'completed' }>((resolve) => {
-          settle = () => { resolve({ status: 'completed' }) }
-        }),
-        readOutput: () => '',
-      }),
-    },
-    settle: () => { settle() },
-  }
 }
 
 describe('reference capture: official welcome and session Jobs action', () => {
@@ -536,48 +528,58 @@ describe('reference capture: official welcome and session Jobs action', () => {
     }
   }, 120_000)
 
-  it('captures official expanded Jobs actions in light and dark mode from Host-owned whole snapshots', async () => {
+  it('captures official expanded Jobs action in light and dark mode through the real bash tool', async () => {
     for (const colorScheme of captureColorSchemes) {
       const name = `jobs-expanded-${colorScheme}`
-      const jobsScaffold = await launchWebScaffold({ replayFixture: lifecycleFixture, paceMs: 100 })
+      const jobsScaffold = await launchWebScaffold()
       const context = await browser.newContext({ viewport, locale: 'en-US', colorScheme, deviceScaleFactor: 1 })
       const page = await context.newPage()
       const consoleTripwire = watchConsole(page)
-      let live: ReturnType<typeof registryJob> | undefined
+      let jobID: JobId | undefined
+      let agent: Awaited<ReturnType<typeof liveAgent>> | undefined
       try {
+        const seedID = 'background-job-list-web-e2e'
+        const command = 'sleep 45'
+        await seedSession(jobsScaffold, await readFile(jobsFixture, 'utf8'), seedID)
         await page.goto(jobsScaffold.authenticatedUrl, { waitUntil: 'load' })
-        await page.locator('#root').waitFor({ state: 'attached', timeout: 30_000 })
+        await page.locator('[class*="frame"]').waitFor({ timeout: 30_000 })
         await applyOfficialColorScheme(page, colorScheme)
-        await connectFreshWorkspace(page, jobsScaffold.workspaceCwd)
 
-        const input = page.locator('textarea:enabled[placeholder="Describe what you want to build"]')
-        const settled = jobsScaffold.whenTurnSettled()
-        await input.fill(recordedPrompt)
-        await input.press('Enter')
-        const sessionID = await settled
-        await page.getByText('LIGHTHOUSE', { exact: true }).waitFor({ timeout: 30_000 })
+        const groupRow = page.locator('[role="treeitem"]').first()
+        await groupRow.waitFor({ timeout: 30_000 })
+        await groupRow.click()
+        const sessionRow = page.locator('[role="treeitem"]').nth(1)
+        await sessionRow.waitFor({ timeout: 30_000 })
+        await sessionRow.click()
+        agent = await liveAgent(jobsScaffold, SessionId(seedID))
 
-        const agent = jobsScaffold.ctx.agents.get(sessionID)
-        if (agent === undefined) throw new Error('Jobs reference capture requires the current Host agent')
-        if (jobsScaffold.ctx.jobs === undefined) throw new Error('Jobs reference capture requires the bundled Host registry')
-        live = registryJob('sleep 60')
-        const completed = registryJob('pnpm run build')
-        jobsScaffold.ctx.jobs.start({ ...live.spec, owner: agent })
-        jobsScaffold.ctx.jobs.start({ ...completed.spec, owner: agent })
-        completed.settle()
+        const trigger = page.getByRole('button', { name: '1 background job running' })
+        expect(await trigger.count()).toBe(0)
+        const started = await jobsScaffold.ctx.tools.execute({
+          signal: new AbortController().signal,
+          callId: ToolCallId(`background-job-list-capture-${colorScheme}`),
+          name: 'bash',
+          arguments: { command, description: 'Hold a background slot open', run_in_background: true },
+          agent,
+        })
+        const reported = started.content.map(block => block.type === 'text' ? block.text : '').join('')
+        const matched = /\bbash-\d+\b/.exec(reported)
+        if (matched === null) throw new Error(`background bash reported no job id: ${reported}`)
+        jobID = JobId(matched[0])
 
-        const action = page.getByRole('button', { name: '1 background job running' })
-        await action.waitFor({ timeout: 30_000 })
-        await action.click()
-        const list = page.getByRole('list', { name: 'Background jobs' })
-        await list.waitFor({ timeout: 30_000 })
-        await page.getByText('completed', { exact: true }).waitFor({ timeout: 30_000 })
+        await trigger.waitFor({ timeout: 30_000 })
+        await trigger.click()
+        const row = page.getByRole('list', { name: 'Background jobs' }).getByRole('listitem').first()
+        await row.waitFor({ timeout: 30_000 })
+        await expect.poll(() => row.textContent()).toContain(command)
         await page.screenshot({ path: join(outputDirectory, `${name}.png`) })
         await writeCaptureMetadata(page, name, colorScheme, viewport, consoleTripwire.warnings, consoleTripwire.pageErrors)
         expect(consoleTripwire.warnings).toEqual([])
         expect(consoleTripwire.pageErrors).toEqual([])
       } finally {
-        live?.settle()
+        if (jobID !== undefined && agent !== undefined) {
+          jobsScaffold.ctx.jobs.kill(jobID, agent, 'reference capture complete')
+        }
         await context.close()
         await jobsScaffold.close()
       }
