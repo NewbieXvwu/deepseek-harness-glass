@@ -7,7 +7,7 @@
 
 ## 目录
 1. [项目工程基准与第一性原理](#1-项目工程基准与第一性原理)
-2. [七大严禁反模式与具体错误代码剖析](#2-七大严禁反模式与具体错误代码剖析)
+2. [十三严禁反模式与具体错误代码剖析](#2-十三严禁反模式与具体错误代码剖析)
    - [反模式 1：形式主义自杀式崩溃断言与强制解包](#反模式-1形式主义自杀式崩溃断言与强制解包)
    - [反模式 2：脆弱的“文本对暗号”与正则伪测试](#反模式-2脆弱的文本对暗号与正则伪测试)
    - [反模式 3：流式热路径过度抽象与多重序列化损耗](#反模式-3流式热路径过度抽象与多重序列化损耗)
@@ -15,6 +15,12 @@
    - [反模式 5：析构函数副作用跨界破坏共享运行环境](#反模式-5析构函数副作用跨界破坏共享运行环境)
    - [反模式 6：未阅 API 规范主观臆断平台桥接机制](#反模式-6未阅-api-规范主观臆断平台桥接机制)
    - [反模式 7：集成与烟雾测试强依赖外部环境导致 CI 脆弱](#反模式-7集成与烟雾测试强依赖外部环境导致-ci-脆弱)
+   - [反模式 8：单测装载 AppKit 临时窗口未关闭系统动画导致 UAF / SIGSEGV 悬垂指针崩溃](#反模式-8单测装载-appkit-临时窗口未关闭系统动画导致-uaf--sigsegv-悬垂指针崩溃)
+   - [反模式 9：传输层重构盲目“一刀切”误删官方核心 DTO 架构](#反模式-9传输层重构盲目一刀切误删官方核心-dto-架构)
+   - [反模式 10：大文本数据流投影病态依赖跨行正则而不是 O(1) 边界切片](#反模式-10大文本数据流投影病态依赖跨行正则而不是-o1-边界切片)
+   - [反模式 11：形式主义“自测套娃”与黑客式字符串抹除断言](#反模式-11形式主义自测套娃与黑客式字符串抹除断言)
+   - [反模式 12：协议与契约提取病态依赖多行正则导致数据截断腐烂](#反模式-12协议与契约提取病态依赖多行正则导致数据截断腐烂)
+   - [反模式 13：顺序同步帧脆弱断言导致全局桌面状态清空崩塌](#反模式-13顺序同步帧脆弱断言导致全局桌面状态清空崩塌)
 3. [测试有效性第一性原理 (Anti-Theater Testing)](#3-测试有效性第一性原理-anti-theater-testing)
 4. [Swift 并发与架构红线](#4-swift-并发与架构红线)
 5. [提交前全量自检清单](#5-提交前全量自检清单)
@@ -33,7 +39,7 @@
 
 ---
 
-## 2. 七大严禁反模式与具体错误代码剖析
+## 2. 十一严禁反模式与具体错误代码剖析
 
 以下反模式均来自历史审查中发现的真实严重工程缺陷。任何 AI 智能体在提交代码时若重犯以下任意一种，均视为重大质量事故。
 
@@ -240,6 +246,188 @@ let hostNode = ProcessInfo.processInfo.environment["DSH_GLASS_HOST_NODE"]!
 guard let hostNode = ProcessInfo.processInfo.environment["DSH_GLASS_HOST_NODE"], !hostNode.isEmpty else {
     throw XCTSkip("Skipping host smoke test: DSH_GLASS_HOST_NODE environment variable not configured.")
 }
+```
+
+---
+
+### 反模式 8：单测装载 AppKit 临时窗口未关闭系统动画导致 UAF / SIGSEGV 悬垂指针崩溃
+
+* **危害**：在单测或视图测试中，为了布局或无障碍元素检查，创建临时 `NSWindow` 并调用 `window.makeKeyAndOrderFront(nil)`，但未禁用动画（未设置 `window.animationBehavior = .none`）且未设置 `window.isReleasedWhenClosed = false`。AppKit 会默认启动异步的 `_NSWindowTransformAnimation`；单测结束窗口关闭后，CoreAnimation 观察者回调触发，动画对象析构解引用已销毁的野指针，在 `_NSWindowTransformAnimation dealloc` 中引发致命的 `EXC_BAD_ACCESS (SIGSEGV 11)` 间歇性崩溃。
+* **规则**：所有单测中创建的辅助 `NSWindow` 必须显式关闭动画并移交生命周期管理，确保无异步渲染残留。
+
+#### 真实对比案例：[`glass/Tests/App/NativeMaterialIsolationRuntimeTests.swift`](glass/Tests/App/NativeMaterialIsolationRuntimeTests.swift) 与 [`glass/Tests/App/NativeAccessibilityRuntimeTests.swift`](glass/Tests/App/NativeAccessibilityRuntimeTests.swift)
+
+```swift
+// ❌ 错误做法：未禁用动画直接展示窗口并在单测结束立即关闭，导致 CoreAnimation 异步动画对象野指针崩溃！
+let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 960, height: 720), styleMask: [.titled], backing: .buffered, defer: false)
+window.contentView = host
+window.makeKeyAndOrderFront(nil)
+RunLoop.main.run(until: Date().addingTimeInterval(0.1))
+defer { window.close() } // 抛出 EXC_BAD_ACCESS: -[_NSWindowTransformAnimation dealloc]
+```
+
+```swift
+// ✅ 正确做法：强制禁用动画、禁止自动析构，保证单测环境完全纯净
+let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 960, height: 720), styleMask: [.titled], backing: .buffered, defer: false)
+window.animationBehavior = .none
+window.isReleasedWhenClosed = false
+window.contentView = host
+window.makeKeyAndOrderFront(nil)
+host.layoutSubtreeIfNeeded()
+RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+defer {
+    window.contentView = nil
+    window.orderOut(nil)
+    window.close()
+}
+```
+
+---
+
+### 反模式 9：传输层重构盲目“一刀切”误删官方核心 DTO 架构
+
+* **危害**：在退役旧网络传输层（如废弃旧 HTTP Client）时，不加仔细甄别，将挂载在同一文件底部的几十个官方协议模型（如 `SessionEventDTO`、`SessionSubscribedDTO`、`SessionJobDTO`、`SettingsNamespaceDTO` 等）直接全量物理删除，导致会话、投射、设置等全模块编译大面积瘫痪。
+* **规则**：传输机制（Transport mechanism）与官方数据传输契约（DTO Contract）必须严格分层。重构网络客户端前，必须先将协议 DTO 妥善收拢至强类型的独立模型文件（如 [`glass/Sources/Core/Remote/RemoteDTOModels.swift`](glass/Sources/Core/Remote/RemoteDTOModels.swift)）。
+
+#### 真实对比案例：[`glass/Sources/Core/Remote/RemoteDTOModels.swift`](glass/Sources/Core/Remote/RemoteDTOModels.swift)
+
+```swift
+// ❌ 错误做法：退役 DSHAPIClient 时一刀切物理删除文件，60+ 核心 DTO 直接蒸发，项目无法构建！
+// git rm glass/Sources/Core/Transport/DSHAPIClient.swift (连带抹杀 SessionEventDTO、SessionSubscribedDTO...)
+```
+
+```swift
+// ✅ 正确做法：将传输层逻辑与官方 DTO 规范彻底解耦，收拢为专属纯数据契约层
+// glass/Sources/Core/Remote/RemoteDTOModels.swift:
+struct SessionEventDTO: Decodable, Sendable, Identifiable {
+    let type: String
+    let seq: Int
+    let time: Double
+    let data: JSONValue
+    let surfaceOp: JSONValue?
+    let sourceEventSeqs: [Int]?
+    let ignorable: Bool?
+    ...
+}
+```
+
+---
+
+### 反模式 10：大文本数据流投影病态依赖跨行正则而不是 O(1) 边界切片
+
+* **危害**：在工具调用结果卡片投射（如终端输出或大文件读取）中，处理可能包含数十万行或几兆字节的原始文本时，无脑使用 `try! NSRegularExpression` 或 `[\s\S]*` 跨行匹配。对于 10MB 的工具输出，不仅触发昂贵的 `NSString` 全量内存桥接复制，还会引发灾难性的正则回溯死锁和内存飙升。
+* **规则**：大文本热路径必须使用 O(1) 前缀/后缀短路、字符切片或尾部反向查找，彻底杜绝回溯型正则表达式。
+
+#### 真实对比案例：[`glass/Sources/Core/Session/Projection/Tooling/NativeRawToolCardProjector.swift`](glass/Sources/Core/Session/Projection/Tooling/NativeRawToolCardProjector.swift)
+
+```swift
+// ❌ 错误做法：在 10MB 文本上触发 NSString 拷贝与跨行通配，卡死主线程
+private static let readEnvelope = try! NSRegularExpression(
+    pattern: #"^<path>[^\n]*</path>\n<type>file</type>\n<content>\n[\s\S]*\n</content>$"#
+)
+```
+
+```swift
+// ✅ 正确做法：O(1) 快速守卫与区间切片，零内存桥接，毫秒级响应
+private static func matchesReadEnvelope(_ text: String) -> Bool {
+    guard text.hasPrefix("<path>"),
+          text.hasSuffix("\n</content>"),
+          let separatorRange = text.range(of: "</path>\n<type>file</type>\n<content>\n")
+    else { return false }
+    let pathContent = text[text.index(text.startIndex, offsetBy: 6)..<separatorRange.lowerBound]
+    return !pathContent.contains("\n")
+}
+```
+
+---
+
+### 反模式 11：形式主义“自测套娃”与黑客式字符串抹除断言
+
+* **危害**：为了完成门禁覆盖率指标，编写专门篡改 JSON 运行另一个 Python 脚本并硬编码断言检查特定报错字符串（如 `"38 reviewed codes"`、`"token"`）的套娃脚本；或者在合规检查中，使用 `raw.lower().replace('persistedlaunchtoken', '')` 后暴力搜索子串 `'token'`。一旦业务新增 `shadowedTokenCount` 属性，测试直接假报警。
+* **规则**：严禁自测套娃。隐私与契约检查必须通过结构化 JSON 解析与 AST 遍历执行，禁止对整文件源码使用文本子串抹除技巧。
+
+#### 真实对比案例：[`glass/ci/check-authenticated-host-fixtures.py`](glass/ci/check-authenticated-host-fixtures.py)
+
+```python
+# ❌ 错误做法：黑客式字符串抹除后全局搜索子串，极度脆弱且极易误报正常字段
+require('token' not in raw.lower().replace('persistedlaunchtoken', ''), 'fixture contains unexpected token text')
+```
+
+```python
+# ✅ 正确做法：结构化解析 JSON，针对敏感字典与认证键值进行确定性模式校验
+parsed = json.loads(raw)
+for pattern in FORBIDDEN_CREDENTIAL_PATTERNS:
+    require(pattern.search(raw) is None, f'fixture leaked sensitive credential pattern')
+```
+
+---
+
+### 反模式 12：协议与契约提取病态依赖多行正则导致数据截断腐烂
+
+* **危害**：使用脆弱的正则表达式提取 TypeScript 复杂接口（如 `RemoteErrorDetailsMap`）。当类型声明跨行时，正则仅捕获首行，把类型描述符截断为残废的单字符 `'{'` 或半截属性声明，并写入协议清册 `official-remote-contract-manifest.json`，导致契约元数据严重腐烂。
+* **规则**：凡提取官方协议与类型定义，必须使用 TypeScript Compiler API 进行 AST 解析，坚决禁止使用脆弱的正则表达式猜测 AST 语法树。
+
+#### 真实对比案例：[`tools/spec-generation/generate_official_remote_contract_manifest.py`](tools/spec-generation/generate_official_remote_contract_manifest.py) 与 [`tools/spec-generation/extract_official_remote_contract_ast.mjs`](tools/spec-generation/extract_official_remote_contract_ast.mjs)
+
+```python
+# ❌ 错误做法：用单行正则匹配多行类型，detailsType 被腰斩为 "{"，协议清册数据完全腐烂！
+property_pattern = re.compile(r"['\"]([^'\"]+/[^'\"]+)['\"]\s*:\s*([^\n;]+(?:\{[^}]*\})?)")
+# 输出结果：
+# "code": "session/conflict",
+# "detailsType": "{"
+```
+
+```javascript
+// ✅ 正确做法：使用 TypeScript 编译器 AST 遍历节点，提取完整强类型描述
+if (ts.isInterfaceDeclaration(node) && node.name.text === 'RemoteErrorDetailsMap') {
+  for (const member of node.members) {
+    if (ts.isPropertySignature(member) && member.name) {
+      const code = member.name.getText(sourceFile).replace(/^['"]|['"]$/g, '')
+      const detailsType = member.type ? member.type.getText(sourceFile).replace(/\s+/g, ' ').trim() : 'unknown'
+      declaredErrors.set(code, { detailsType, sourcePath: relPath })
+    }
+  }
+}
+// 输出结果：
+// "code": "session/conflict",
+// "detailsType": "{ readonly sessionId: SessionId readonly requestedCwd: string readonly existingCwd?: string }"
+```
+
+---
+
+### 反模式 13：顺序同步帧脆弱断言导致全局桌面状态清空崩塌
+
+* **危害**：在长连接增量事件处理（如 `.order(workspaceIDs)`）中，强行断言服务端下发的排序 ID 列表与本地内存列表数量完全一致、集合完全等价（`guard workspaceIDs.count == current.items.count, Set(workspaceIDs) == Set(byID.keys) else { throw invalidOrder }`）。由于网络延迟或本地新建/删除操作的微小时序差，一旦产生微小偏离，直接抛出异常导致 `invalidate`，将客户端全局状态直接置为 `nil`，用户侧边栏列表瞬间全部消失！
+* **规则**：增量数据流处理必须具备防御性容错能力。对已知 ID 依据排序指令重排，对未知 ID 忽略，对本地遗留 ID 保留追加到末尾，严禁因顺序帧轻微漂移而自杀式清空整个运行时。
+
+#### 真实对比案例：[`glass/Sources/Core/Workspace/WorkspaceRuntime.swift`](glass/Sources/Core/Workspace/WorkspaceRuntime.swift)
+
+```swift
+// ❌ 错误做法：严苛断言集合完全相等，网络并发稍有不一致直接抛错触发 invalidate 清空所有工作区！
+case let .order(workspaceIDs):
+    let byID = Dictionary(current.items.map { ($0.workspaceId, $0) }, uniquingKeysWith: { _, new in new })
+    guard workspaceIDs.count == current.items.count,
+          Set(workspaceIDs) == Set(byID.keys)
+    else { throw WorkspaceRuntimeError.invalidOrder } // 抛错导致整个 state = nil！
+    current.items = workspaceIDs.compactMap { byID[$0] }
+```
+
+```swift
+// ✅ 正确做法：防御性排序对齐，排已知项、略未知项、留本地项，生产坚如磐石
+case let .order(workspaceIDs):
+    let byID = Dictionary(current.items.map { ($0.workspaceId, $0) }, uniquingKeysWith: { _, new in new })
+    var ordered: [RemoteWorkspaceView] = []
+    var seenIDs = Set<String>()
+    for id in workspaceIDs {
+        if let item = byID[id], !seenIDs.contains(id) {
+            ordered.append(item)
+            seenIDs.insert(id)
+        }
+    }
+    for item in current.items where !seenIDs.contains(item.workspaceId) {
+        ordered.append(item)
+    }
+    current.items = ordered
 ```
 
 ---

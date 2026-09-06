@@ -162,7 +162,7 @@ final class NativeShellPresentation: ObservableObject {
                 // Source: RC8 `ui-trajectory/src/client/index.ts`: the trajectory
                 // contribution is a real `conversation.view` tab, ordered after
                 // Chat and backed by its target-specific inspection snapshot.
-                try conversationViewRegistry.register(
+                _ = try conversationViewRegistry.register(
                     id: "trajectory",
                     order: 10,
                     label: OfficialUISpec.Text.trajectory
@@ -177,7 +177,7 @@ final class NativeShellPresentation: ObservableObject {
             do {
                 // Source: RC8 `ui-subagent/src/client/index.ts:60-68`: direct-child
                 // catalog is a session-header action at order 10.
-                try conversationHeaderContributions.register(
+                _ = try conversationHeaderContributions.register(
                     slot: .actions,
                     id: "subagent-catalog",
                     order: 10
@@ -1499,7 +1499,7 @@ private struct NativeWorkspaceManagementDialogOverlay: View {
     }
 
     private func submitWorkspaceRename() {
-        guard case .workspaceRename(let workspaceID, let originalTitle)? = presentation.workspaceManagementDialog else { return }
+        guard case .workspaceRename(let workspaceID, _)? = presentation.workspaceManagementDialog else { return }
         submit {
             try await presentation.renameWorkspace(
                 workspaceID,

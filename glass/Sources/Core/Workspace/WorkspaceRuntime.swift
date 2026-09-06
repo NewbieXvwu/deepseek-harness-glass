@@ -30,24 +30,57 @@ actor WorkspaceRuntime {
         state = nil
 
         let stream = try await controller.follow()
-        var iterator = stream.makeAsyncIterator()
-        guard let opening = try await iterator.next(), case let .baseline(baseline) = opening else {
-            activeGeneration = nil
-            throw WorkspaceRuntimeError.missingBaseline
-        }
-        install(baseline, generation: generation)
-
-        streamTask = Task { [weak self] in
-            do {
-                while let frame = try await iterator.next() {
-                    guard let self else { return }
-                    try await self.apply(frame, generation: generation)
+        return try await withCheckedThrowingContinuation { continuation in
+            streamTask = Task { [weak self] in
+                guard let self else {
+                    continuation.resume(throwing: CancellationError())
+                    return
                 }
-            } catch is CancellationError {
-                return
-            } catch {
-                guard let self else { return }
-                await self.invalidate(generation: generation)
+                await self.runStreamLoop(stream: stream, generation: generation, initialContinuation: continuation)
+            }
+        }
+    }
+
+    private func runStreamLoop(
+        stream: AsyncThrowingStream<RemoteWorkspaceFollowFrame, Error>,
+        generation: RemoteConnectionGeneration,
+        initialContinuation: CheckedContinuation<Void, Error>
+    ) async {
+        var pendingContinuation: CheckedContinuation<Void, Error>? = initialContinuation
+        func resumeOnce(with result: Result<Void, Error>) {
+            if let cont = pendingContinuation {
+                pendingContinuation = nil
+                cont.resume(with: result)
+            }
+        }
+
+        do {
+            for try await frame in stream {
+                if pendingContinuation != nil {
+                    guard case let .baseline(baseline) = frame else {
+                        activeGeneration = nil
+                        resumeOnce(with: .failure(WorkspaceRuntimeError.missingBaseline))
+                        return
+                    }
+                    install(baseline, generation: generation)
+                    resumeOnce(with: .success(()))
+                } else {
+                    try apply(frame, generation: generation)
+                }
+            }
+            if pendingContinuation != nil {
+                activeGeneration = nil
+                resumeOnce(with: .failure(WorkspaceRuntimeError.missingBaseline))
+            }
+        } catch is CancellationError {
+            resumeOnce(with: .failure(CancellationError()))
+            return
+        } catch {
+            if pendingContinuation != nil {
+                activeGeneration = nil
+                resumeOnce(with: .failure(error))
+            } else {
+                invalidate(generation: generation)
             }
         }
     }
@@ -149,10 +182,18 @@ actor WorkspaceRuntime {
             current.items.removeAll { $0.workspaceId == workspaceID }
         case let .order(workspaceIDs):
             let byID = Dictionary(current.items.map { ($0.workspaceId, $0) }, uniquingKeysWith: { _, new in new })
-            guard workspaceIDs.count == current.items.count,
-                  Set(workspaceIDs) == Set(byID.keys)
-            else { throw WorkspaceRuntimeError.invalidOrder }
-            current.items = workspaceIDs.compactMap { byID[$0] }
+            var ordered: [RemoteWorkspaceView] = []
+            var seenIDs = Set<String>()
+            for id in workspaceIDs {
+                if let item = byID[id], !seenIDs.contains(id) {
+                    ordered.append(item)
+                    seenIDs.insert(id)
+                }
+            }
+            for item in current.items where !seenIDs.contains(item.workspaceId) {
+                ordered.append(item)
+            }
+            current.items = ordered
         case let .archived(sessionIDs):
             current.archivedSessionIDs = sessionIDs
         }

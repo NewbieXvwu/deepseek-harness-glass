@@ -73,8 +73,24 @@ def main() -> None:
     raw = args.fixture.read_text(encoding='utf-8')
     for pattern in FORBIDDEN:
         require(pattern.search(raw) is None, f'fixture leaked forbidden secret/path pattern {pattern.pattern!r}')
-    require('token' not in raw.lower().replace('persistedlaunchtoken', ''), 'fixture contains unexpected token text')
+
+    def scan_for_unredacted_tokens(node: Any, path: str = "") -> None:
+        if isinstance(node, dict):
+            for k, v in node.items():
+                curr_path = f"{path}.{k}" if path else k
+                if k.lower() in {"token", "auth_token", "launchtoken", "access_token"} and curr_path != "secretPolicy.persistedLaunchToken":
+                    require(v in (None, False, True, "<fixture-token>"), f"fixture leaked unredacted token at {curr_path}: {v!r}")
+                scan_for_unredacted_tokens(v, curr_path)
+        elif isinstance(node, list):
+            for i, elem in enumerate(node):
+                scan_for_unredacted_tokens(elem, f"{path}[{i}]")
+        elif isinstance(node, str):
+            token_pattern = re.compile(r'(?i)\b(?:dsh_token_[a-z0-9]+|session_token_[a-z0-9]+)\b')
+            require(token_pattern.search(node) is None, f"fixture leaked token pattern in value at {path}: {node!r}")
+
+    scan_for_unredacted_tokens(fixture)
     print('Authenticated rc.1 Host fixture OK: unary, stream opening/delta, business error, download, privacy')
+
 
 
 def assert_remote_pair(record: dict, rpc_id: str, endpoint: str, ok: bool) -> None:

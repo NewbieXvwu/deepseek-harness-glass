@@ -19,3 +19,13 @@ mac阵列音箱/
 .ci-artifacts/
 reference-artifacts/
 visual-review/**/artifacts/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Local agents and skills
+.agents/
+.solidifier.json
+
+

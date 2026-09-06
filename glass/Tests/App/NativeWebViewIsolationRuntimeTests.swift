@@ -53,11 +53,13 @@ final class NativeWebViewIsolationRuntimeTests: XCTestCase {
             backing: .buffered,
             defer: false
         )
+        window.animationBehavior = .none
+        window.isReleasedWhenClosed = false
         window.contentView = host
         window.makeKeyAndOrderFront(nil)
         host.layoutSubtreeIfNeeded()
         // 等待 SwiftUI 布局稳定，避免 flaky
-        RunLoop.main.run(until: Date().addingTimeInterval(0.1))
+        RunLoop.main.run(until: Date().addingTimeInterval(0.05))
         defer {
             window.contentView = nil
             window.orderOut(nil)

@@ -22,13 +22,16 @@ final class ModelCatalogRepositoryTests: XCTestCase {
 
         _ = try await repository.catalog()
         _ = try await repository.catalog()
-        XCTAssertEqual(await source.calls, 1)
+        let calls1 = await source.calls
+        XCTAssertEqual(calls1, 1)
 
         _ = try await repository.catalog(forceReload: true)
-        XCTAssertEqual(await source.calls, 2)
+        let calls2 = await source.calls
+        XCTAssertEqual(calls2, 2)
 
         await repository.invalidate()
         _ = try await repository.catalog()
-        XCTAssertEqual(await source.calls, 3)
+        let calls3 = await source.calls
+        XCTAssertEqual(calls3, 3)
     }
 }

@@ -44,7 +44,7 @@ enum NativeRawToolCardProjector {
               validReadCall(name: invocation.name, raw: invocation.arguments),
               let meta = readMeta(invocation.resultMeta),
               let text = singleResultText(invocation.resultContent),
-              readEnvelope.matches(in: text)
+              matchesReadEnvelope(text)
         else { return nil }
         return .init(
             label: relativeLabel(meta.path, cwd: invocation.sessionCWD),
@@ -217,14 +217,22 @@ enum NativeRawToolCardProjector {
     private struct TerminalStatus { let output: String; let exitCode: Int?; let signal: String? }
 
     private static func parseExitStatus(_ text: String) -> TerminalStatus {
-        if let match = text.range(of: #"\n\[killed by signal: ([^\]\n]+)\]$"#, options: .regularExpression) {
-            let marker = String(text[match]).dropFirst("\n[killed by signal: ".count).dropLast()
-            return .init(output: String(text[..<match.lowerBound]), exitCode: nil, signal: String(marker))
-        }
-        if let match = text.range(of: #"\n\[exit code: ([0-9]+)\]$"#, options: .regularExpression) {
-            let marker = String(text[match])
-            let digits = marker.dropFirst("\n[exit code: ".count).dropLast()
-            return .init(output: String(text[..<match.lowerBound]), exitCode: Int(digits), signal: nil)
+        if text.hasSuffix("]") {
+            if let lastNewline = text.lastIndex(of: "\n") {
+                let tail = text[text.index(after: lastNewline)...]
+                if tail.hasPrefix("[killed by signal: ") && tail.hasSuffix("]") {
+                    let sig = tail.dropFirst("[killed by signal: ".count).dropLast()
+                    if !sig.contains("\n") && !sig.contains("]") {
+                        return .init(output: String(text[..<lastNewline]), exitCode: nil, signal: String(sig))
+                    }
+                }
+                if tail.hasPrefix("[exit code: ") && tail.hasSuffix("]") {
+                    let digits = tail.dropFirst("[exit code: ".count).dropLast()
+                    if let code = Int(digits) {
+                        return .init(output: String(text[..<lastNewline]), exitCode: code, signal: nil)
+                    }
+                }
+            }
         }
         return .init(output: text, exitCode: 0, signal: nil)
     }
@@ -289,9 +297,14 @@ enum NativeRawToolCardProjector {
         return .init(path: path, lines: lines, totalLines: total, lang: meta["lang"]?.stringValue)
     }
 
-    private static let readEnvelope = try! NSRegularExpression(
-        pattern: #"^<path>[^\n]*</path>\n<type>file</type>\n<content>\n[\s\S]*\n</content>$"#
-    )
+    private static func matchesReadEnvelope(_ text: String) -> Bool {
+        guard text.hasPrefix("<path>"),
+              text.hasSuffix("\n</content>"),
+              let separatorRange = text.range(of: "</path>\n<type>file</type>\n<content>\n")
+        else { return false }
+        let pathContent = text[text.index(text.startIndex, offsetBy: 6)..<separatorRange.lowerBound]
+        return !pathContent.contains("\n")
+    }
 
     private static func relativeLabel(_ path: String, cwd: String?) -> String {
         guard let cwd, !cwd.isEmpty else { return path }
@@ -456,10 +469,4 @@ enum NativeRawToolCardProjector {
     }
     private static func nonNegativeInteger(_ value: JSONValue?) -> Int? { integer(value).flatMap { $0 >= 0 ? $0 : nil } }
     private static func guardPositiveInteger(_ value: JSONValue?) -> Int? { integer(value).flatMap { $0 >= 1 ? $0 : nil } }
-}
-
-private extension NSRegularExpression {
-    func matches(in value: String) -> Bool {
-        firstMatch(in: value, range: NSRange(value.startIndex..., in: value)) != nil
-    }
 }

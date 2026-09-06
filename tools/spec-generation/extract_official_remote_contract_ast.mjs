@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 import { createRequire } from 'node:module'
-import { existsSync, readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { resolve, relative } from 'node:path'
 
 const [officialRootArgument] = process.argv.slice(2)
 if (!officialRootArgument) throw new Error('usage: extract_official_remote_contract_ast.mjs <official-root>')
 const officialRoot = resolve(officialRootArgument)
-const requireLocal = createRequire(import.meta.url)
-const ts = requireLocal('typescript')
+const requireOfficial = createRequire(resolve(officialRoot, 'package.json'))
+const ts = requireOfficial('typescript')
 
 const SOURCE_PATHS = [
   'packages/preset/agent-presets/src/index.ts',
@@ -20,6 +20,22 @@ const SOURCE_PATHS = [
   'packages/api/session-controller/src/index.ts',
   'packages/api/workspace-controller/src/index.ts',
 ]
+
+const ERROR_SCAN_ROOTS = [
+  'packages/preset/agent-presets/src',
+  'packages/api/settings-controller/src',
+  'packages/goal/goal/src',
+  'packages/llm/llm/src',
+  'packages/feedback/message-feedback/src',
+  'packages/subagent/subagent/src',
+  'packages/api/session-controller/src',
+  'packages/api/workspace-controller/src',
+  'packages/core/session/src',
+  'packages/workspace/workspace/src',
+]
+
+const EXTRA_GATEWAY_ERRORS = ['gateway/method-unavailable', 'gateway/service-unavailable']
+
 const SKIP_ENDPOINTS = new Set(['settings/update', 'settings/replace'])
 const LOOKUPS = new Map([
   ['Agent', { lookup: 'agent', wire: 'agentId' }],
@@ -80,6 +96,7 @@ function normalizeType(text) {
   return text.replace(/\s+/g, ' ').replace(/\s*([<>{}\[\](),|&?:])\s*/g, '$1').trim()
 }
 
+// 1. Extract Procedures
 const procedures = []
 for (const relativePath of SOURCE_PATHS) {
   const absolutePath = resolve(officialRoot, relativePath)
@@ -124,4 +141,79 @@ for (const relativePath of SOURCE_PATHS) {
   }
 }
 procedures.sort((a, b) => a.endpoint.localeCompare(b.endpoint))
-process.stdout.write(JSON.stringify({ procedures }, null, 2))
+
+// 2. Extract Errors via AST
+function getAllTsFiles(dir) {
+  let results = []
+  if (!existsSync(dir)) return results
+  const list = readdirSync(dir)
+  for (const file of list) {
+    const fullPath = resolve(dir, file)
+    const stat = statSync(fullPath)
+    if (stat && stat.isDirectory()) results = results.concat(getAllTsFiles(fullPath))
+    else if (file.endsWith('.ts') && file !== 'directory-picker.ts') results.push(fullPath)
+  }
+  return results
+}
+
+const declaredErrors = new Map()
+const thrownErrorCodes = new Set()
+
+function scanErrorFile(filePath) {
+  const relPath = relative(officialRoot, filePath)
+  const sourceText = readFileSync(filePath, 'utf8')
+  const sourceFile = ts.createSourceFile(filePath, sourceText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+
+  function visit(node) {
+    if (ts.isInterfaceDeclaration(node) && node.name.text === 'RemoteErrorDetailsMap') {
+      for (const member of node.members) {
+        if (ts.isPropertySignature(member) && member.name) {
+          const rawName = member.name.getText(sourceFile)
+          const code = rawName.replace(/^['"]|['"]$/g, '')
+          const detailsType = member.type ? member.type.getText(sourceFile).replace(/\s+/g, ' ').trim() : 'unknown'
+          declaredErrors.set(code, { detailsType, sourcePath: relPath })
+        }
+      }
+    }
+    if (ts.isNewExpression(node)) {
+      const target = node.expression
+      if (ts.isIdentifier(target) && target.text === 'RemoteError' && node.arguments && node.arguments.length > 0) {
+        const firstArg = node.arguments[0]
+        if (ts.isStringLiteral(firstArg)) {
+          thrownErrorCodes.add(firstArg.text)
+        }
+      }
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(sourceFile)
+}
+
+for (const root of ERROR_SCAN_ROOTS) {
+  for (const file of getAllTsFiles(resolve(officialRoot, root))) {
+    scanErrorFile(file)
+  }
+}
+scanErrorFile(resolve(officialRoot, 'packages/typert/protocol/src/types.ts'))
+scanErrorFile(resolve(officialRoot, 'packages/api/gateway/src/remote-error-codes.ts'))
+
+for (const extra of EXTRA_GATEWAY_ERRORS) {
+  thrownErrorCodes.add(extra)
+}
+
+const missing = [...thrownErrorCodes].filter(c => !declaredErrors.has(c))
+if (missing.length > 0) {
+  throw new Error('Remote errors lack declared details: ' + missing.join(', '))
+}
+
+const closedRemoteErrors = [...thrownErrorCodes].sort().map(code => {
+  const decl = declaredErrors.get(code)
+  return {
+    code,
+    detailsType: decl.detailsType,
+    sourcePath: decl.sourcePath,
+  }
+})
+
+process.stdout.write(JSON.stringify({ procedures, closedRemoteErrors }, null, 2))
+

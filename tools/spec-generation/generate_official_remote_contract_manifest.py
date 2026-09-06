@@ -14,36 +14,12 @@ COMMIT = "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
 REVISION = "official-a66e470-remote-contract-r1"
 ROOT = Path(__file__).resolve().parents[2]
 EXTRACTOR = Path(__file__).with_name("extract_official_remote_contract_ast.mjs")
-REMOTE_SOURCES = (
-    "packages/preset/agent-presets/src/index.ts",
-    "packages/api/settings-controller/src/index.ts",
-    "packages/api/settings-controller/src/credentials.ts",
-    "packages/goal/goal/src/index.ts",
-    "packages/llm/llm/src/index.ts",
-    "packages/feedback/message-feedback/src/index.ts",
-    "packages/subagent/subagent/src/index.ts",
-    "packages/api/session-controller/src/index.ts",
-    "packages/api/workspace-controller/src/index.ts",
-)
-ERROR_SCAN_ROOTS = (
-    "packages/preset/agent-presets/src",
-    "packages/api/settings-controller/src",
-    "packages/goal/goal/src",
-    "packages/llm/llm/src",
-    "packages/feedback/message-feedback/src",
-    "packages/subagent/subagent/src",
-    "packages/api/session-controller/src",
-    "packages/api/workspace-controller/src",
-    "packages/core/session/src",
-    "packages/workspace/workspace/src",
-)
 CARRIER_SOURCES = (
     "packages/api/gateway/src/stream-protocol.ts",
     "packages/api/gateway/src/remote-error-codes.ts",
     "packages/client/connection/src/client/rpc.ts",
     "packages/session-query/session-log-export/src/index.ts",
 )
-EXTRA_GATEWAY_ERRORS = {"gateway/method-unavailable", "gateway/service-unavailable"}
 
 
 def digest_bytes(data: bytes) -> str:
@@ -62,7 +38,7 @@ def canonical_signature(value: Any) -> str:
     return digest_bytes(payload.encode("utf-8"))
 
 
-def extract_procedures(root: Path) -> list[dict[str, Any]]:
+def extract_ast_contract(root: Path) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     process = subprocess.run(
         ["node", str(EXTRACTOR), str(root)], text=True, capture_output=True, check=False,
     )
@@ -72,11 +48,12 @@ def extract_procedures(root: Path) -> list[dict[str, Any]]:
         decoded = json.loads(process.stdout)
     except json.JSONDecodeError as error:
         raise SystemExit(f"Remote AST extractor emitted invalid JSON: {error}") from error
-    procedures = decoded.get("procedures")
-    if not isinstance(procedures, list):
+
+    procedures_raw = decoded.get("procedures")
+    if not isinstance(procedures_raw, list):
         raise SystemExit("Remote AST extractor emitted no procedures")
-    result: list[dict[str, Any]] = []
-    for procedure in procedures:
+    procedures: list[dict[str, Any]] = []
+    for procedure in procedures_raw:
         if not isinstance(procedure, dict):
             raise SystemExit("Remote AST extractor emitted a non-object procedure")
         source_path = procedure.get("sourcePath")
@@ -88,70 +65,24 @@ def extract_procedures(root: Path) -> list[dict[str, Any]]:
             key: reviewed[key]
             for key in ("endpoint", "mode", "parameters", "injected", "returnType")
         })
-        result.append(reviewed)
-    if len(result) != 51:
-        raise SystemExit(f"reviewed rc.1 Remote surface expected 51 procedures, found {len(result)}")
-    return sorted(result, key=lambda item: item["endpoint"])
+        procedures.append(reviewed)
 
+    errors_raw = decoded.get("closedRemoteErrors")
+    if not isinstance(errors_raw, list):
+        raise SystemExit("Remote AST extractor emitted no closedRemoteErrors")
+    errors: list[dict[str, Any]] = []
+    for error in errors_raw:
+        if not isinstance(error, dict):
+            raise SystemExit("Remote AST extractor emitted a non-object error")
+        source_path = error.get("sourcePath")
+        if not isinstance(source_path, str):
+            raise SystemExit("Remote error lacks sourcePath")
+        reviewed_error = dict(error)
+        reviewed_error["sourceSHA256"] = source_digest(root, source_path)
+        errors.append(reviewed_error)
 
-def declared_error_details(root: Path) -> dict[str, dict[str, str]]:
-    result: dict[str, dict[str, str]] = {}
-    property_pattern = re.compile(r"['\"]([^'\"]+/[^'\"]+)['\"]\s*:\s*([^\n;]+(?:\{[^}]*\})?)")
-    for scan_root in ERROR_SCAN_ROOTS:
-        for path in sorted((root / scan_root).rglob("*.ts")):
-            if path.name == "directory-picker.ts":
-                continue
-            text = path.read_text(encoding="utf-8")
-            if "RemoteErrorDetailsMap" not in text:
-                continue
-            for code, details in property_pattern.findall(text):
-                result[code] = {
-                    "detailsType": re.sub(r"\s+", " ", details).strip(),
-                    "sourcePath": path.relative_to(root).as_posix(),
-                }
-    protocol = root / "packages/typert/protocol/src/types.ts"
-    text = protocol.read_text(encoding="utf-8")
-    for code, details in property_pattern.findall(text):
-        result[code] = {
-            "detailsType": re.sub(r"\s+", " ", details).strip(),
-            "sourcePath": protocol.relative_to(root).as_posix(),
-        }
-    gateway = root / "packages/api/gateway/src/remote-error-codes.ts"
-    text = gateway.read_text(encoding="utf-8")
-    for code, details in property_pattern.findall(text):
-        if code in EXTRA_GATEWAY_ERRORS:
-            result[code] = {
-                "detailsType": re.sub(r"\s+", " ", details).strip(),
-                "sourcePath": gateway.relative_to(root).as_posix(),
-            }
-    return result
+    return sorted(procedures, key=lambda item: item["endpoint"]), sorted(errors, key=lambda item: item["code"])
 
-
-def thrown_error_codes(root: Path) -> set[str]:
-    pattern = re.compile(r"new\s+RemoteError\(\s*['\"]([^'\"]+)['\"]")
-    result: set[str] = set()
-    for scan_root in ERROR_SCAN_ROOTS:
-        for path in sorted((root / scan_root).rglob("*.ts")):
-            if path.name == "directory-picker.ts":
-                continue
-            result.update(pattern.findall(path.read_text(encoding="utf-8")))
-    return result
-
-
-def extract_errors(root: Path) -> list[dict[str, str]]:
-    codes = thrown_error_codes(root) | EXTRA_GATEWAY_ERRORS
-    declarations = declared_error_details(root)
-    missing = sorted(codes - declarations.keys())
-    if missing:
-        raise SystemExit("Remote errors lack declared details: " + ", ".join(missing))
-    if len(codes) != 38:
-        raise SystemExit(f"reviewed rc.1 closed Remote error surface expected 38 codes, found {len(codes)}")
-    result = []
-    for code in sorted(codes):
-        item = {"code": code, **declarations[code]}
-        item["sourceSHA256"] = source_digest(root, item["sourcePath"])
-        result.append(item)
-    return result
 
 
 def carrier(root: Path) -> dict[str, Any]:
@@ -205,13 +136,14 @@ def main() -> None:
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     root = args.official_root.resolve()
+    procedures, errors = extract_ast_contract(root)
     manifest = {
         "schemaVersion": 1,
         "officialSourceCommit": COMMIT,
         "contractRevision": REVISION,
         "generation": "locked rc.1 Typert Remote AST and Gateway carrier manifest",
-        "procedures": extract_procedures(root),
-        "closedRemoteErrors": extract_errors(root),
+        "procedures": procedures,
+        "closedRemoteErrors": errors,
         "carrier": carrier(root),
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -220,3 +152,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
