@@ -18,7 +18,7 @@ struct NativeConversationColumn: View {
     let jobsPopoverInitiallyOpen: Bool
     let jobsLanguageCode: String?
     let openSession: (String) -> Void
-    /// Comes only from a verified loopback Host `host.describe` response.
+    /// Comes only from the authenticated Host `session/canOpenWorkspacePath` capability.
     let canOpenProjectPath: Bool
     /// Held by the resident shell in production; default construction keeps
     /// isolated preview/snapshot call sites deterministic.

@@ -962,6 +962,7 @@ HarnessHostProcess
 - [ ] **CUT2.7：重做外部 Host 复用。** 外部本地 Host 必须提供或发现能够完成 rc.1 auth bootstrap 的 launch URL；认证成功后按 CUT2.6 分类。删除“裸 `127.0.0.1:port` + 未认证 probe”作为正式连接方式。
   - 依赖：CUT2.2、CUT2.6。
   - 验收：exact baseline 外部 Host 可为 verified；相邻未知版本若 handshake 成功则可 Best-effort 使用；无法通过当前 auth/Remote handshake 的旧 Host 自然失败。
+  - 当前进度（2026-09-06）：旧 `HostLoopbackEndpointDiscovery` 与未认证 `host.describe` probe 已从 production/tests 删除；外部 Host 的 authenticated launch-URL Attach/Adopt lifecycle 尚未接通，因此本项保持未勾。
 
 - [ ] **CUT2.8：重做 Host restart/recovery。** owned Host 退出后完整丢弃 `AuthenticatedHostSession`、Remote connection 与所有 stream generation，重启后重新 launch-token exchange、Remote connect、classify，再发布新的 `HostConnectionContext`。
   - 依赖：CUT2.4、CUT3.6。

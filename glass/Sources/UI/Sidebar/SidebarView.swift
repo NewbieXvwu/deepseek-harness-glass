@@ -6,7 +6,7 @@ import SwiftUI
 #endif
 struct NativeSidebarView: View {
     let workspaceStore: NativeWorkspaceStore
-    /// Source: RC8 `host.describe.home`; absent until the verified Host answers.
+    /// Source: authenticated rc.1 `$events.ready.host.home`; absent until ready.
     let hostHome: String?
     /// Source for the native settings trigger's expanded accessibility value.
     let settingsPresented: Bool

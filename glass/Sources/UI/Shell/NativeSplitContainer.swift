@@ -208,9 +208,9 @@ final class NativeShellPresentation: ObservableObject {
         }
     }
 
-    /// Called only after `HarnessHostController` has verified host.describe on
-    /// the pinned bundled Host. The browser obtains its truth from list RPCs
-    /// and the official Host SSE stream, never from a web surface.
+    /// Called only after `HarnessHostController` has established an authenticated
+    /// rc.1 Host context. The browser obtains its truth from Remote controllers
+    /// and the authenticated `$events` stream, never from a web surface.
     func connectVerifiedHost(_ connection: HostConnection) {
         // A ready HostConnection is generation-scoped even when the loopback
         // endpoint is reused. Tear down the previous streams before binding the

@@ -25,7 +25,7 @@ final class GhostPlaneWebViewHostTests: XCTestCase {
             .allowPluginResource(pluginID: "dsh-review-loop")
         )
         XCTAssertEqual(
-            policy.decision(for: URL(string: "http://127.0.0.1:7342/api/host.describe")!),
+            policy.decision(for: URL(string: "http://127.0.0.1:7342/api/session.export?sessionId=s1")!),
             .deny(.nonPluginPath)
         )
     }

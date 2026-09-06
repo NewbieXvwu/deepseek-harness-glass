@@ -68,9 +68,9 @@ enum NativeProducedFilesLayout {
 struct NativeProducedFiles: View {
     let paths: [String]
     let open: (String) -> Void
-    /// RC8 gates directory disclosure on `isLoopback && host.describe.canOpenPath`.
-    /// This native surface receives that already-verified conjunction from the
-    /// Shell; snapshot and disconnected callers remain fail-closed.
+    /// rc.1 directory disclosure is gated by the authenticated
+    /// `session/canOpenWorkspacePath` capability. Snapshot and disconnected
+    /// callers remain fail-closed.
     let canShowInFolder: Bool
 
     private let shownLimit = 6
