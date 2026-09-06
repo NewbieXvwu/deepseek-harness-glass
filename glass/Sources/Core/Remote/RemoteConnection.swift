@@ -42,15 +42,7 @@ struct RemoteConnection: Sendable {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
-        let data: Data
-        let response: URLResponse
-        do {
-            (data, response) = try await authenticatedHost.urlSession.data(for: request)
-        } catch is CancellationError {
-            throw CancellationError()
-        } catch {
-            throw RemoteConnectionError.transport(String(describing: error))
-        }
+        let (data, response) = try await perform(request)
         guard let http = response as? HTTPURLResponse else {
             throw RemoteConnectionError.protocolViolation("non-HTTP Remote response")
         }
@@ -77,7 +69,6 @@ struct RemoteConnection: Sendable {
         case let .failure(error): throw RemoteConnectionError.remote(error)
         }
     }
-
     func callNoValue<Arguments: Encodable & Sendable>(
         endpoint: String,
         arguments: Arguments,
@@ -103,15 +94,7 @@ struct RemoteConnection: Sendable {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
-        let data: Data
-        let response: URLResponse
-        do {
-            (data, response) = try await authenticatedHost.urlSession.data(for: request)
-        } catch is CancellationError {
-            throw CancellationError()
-        } catch {
-            throw RemoteConnectionError.transport(String(describing: error))
-        }
+        let (data, response) = try await perform(request)
         guard let http = response as? HTTPURLResponse else {
             throw RemoteConnectionError.protocolViolation("non-HTTP Remote response")
         }
@@ -135,6 +118,20 @@ struct RemoteConnection: Sendable {
         }
         if case let .failure(error) = decoded.result {
             throw RemoteConnectionError.remote(error)
+        }
+    }
+
+    private func perform(_ request: URLRequest) async throws -> (Data, URLResponse) {
+        do {
+            return try await authenticatedHost.urlSession.data(for: request)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch let error as URLError where error.code == .cancelled {
+            throw CancellationError()
+        } catch let error as URLError where error.code == .timedOut {
+            throw RemoteConnectionError.timeout
+        } catch {
+            throw RemoteConnectionError.transport(String(describing: error))
         }
     }
 
@@ -195,4 +192,5 @@ struct RemoteConnection: Sendable {
     func closeStreams() async {
         await mux.close()
     }
+
 }

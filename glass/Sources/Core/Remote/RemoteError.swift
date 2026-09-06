@@ -13,6 +13,7 @@ enum RemoteConnectionError: Error, Sendable, Equatable {
     case authenticationRequired
     case httpStatus(Int)
     case transport(String)
+    case timeout
     case carrierLost(String)
     case correlationMismatch(expected: String, actual: String)
     case protocolViolation(String)
@@ -24,7 +25,7 @@ enum RemoteConnectionError: Error, Sendable, Equatable {
             return .authentication
         case .httpStatus(404):
             return .methodUnavailable
-        case .httpStatus, .transport:
+        case .httpStatus, .transport, .timeout:
             return .transport
         case .carrierLost:
             return .carrierLost

@@ -33,6 +33,7 @@ final class RPCModelsTests: XCTestCase {
     func testRemoteErrorTaxonomyKeepsCarrierAndMethodAvailabilityDistinct() {
         XCTAssertEqual(RemoteConnectionError.authenticationRequired.category, .authentication)
         XCTAssertEqual(RemoteConnectionError.carrierLost("offline").category, .carrierLost)
+        XCTAssertEqual(RemoteConnectionError.timeout.category, .transport)
         XCTAssertEqual(RemoteConnectionError.httpStatus(404).category, .methodUnavailable)
         XCTAssertEqual(RemoteConnectionError.remote(.init(
             code: "gateway/method-unavailable",
