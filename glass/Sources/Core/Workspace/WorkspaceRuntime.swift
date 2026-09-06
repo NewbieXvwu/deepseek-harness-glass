@@ -59,7 +59,7 @@ actor WorkspaceRuntime {
     private var activeGeneration: RemoteConnectionGeneration?
     private var state: WorkspaceRuntimeState?
     private var streamTask: Task<Void, Never>?
-    private var observers: [UUID: AsyncStream<WorkspaceRuntimeState>.Continuation] = [:]
+    private var observers: [UUID: AsyncStream<WorkspaceRuntimeState?>.Continuation] = [:]
 
     init(controller: WorkspaceControllerAPI) {
         self.controller = controller
@@ -138,6 +138,7 @@ actor WorkspaceRuntime {
         streamTask = nil
         activeGeneration = nil
         state = nil
+        publish(nil)
     }
 
     func current() -> WorkspaceRuntimeState? { state }
@@ -174,11 +175,11 @@ actor WorkspaceRuntime {
         try await controller.archiveSession(sessionID: sessionID)
     }
 
-    func snapshots() -> AsyncStream<WorkspaceRuntimeState> {
+    func snapshots() -> AsyncStream<WorkspaceRuntimeState?> {
         let id = UUID()
-        let pair = AsyncStream<WorkspaceRuntimeState>.makeStream()
+        let pair = AsyncStream<WorkspaceRuntimeState?>.makeStream()
         observers[id] = pair.continuation
-        if let state { pair.continuation.yield(state) }
+        pair.continuation.yield(state)
         pair.continuation.onTermination = { @Sendable [weak self] _ in
             guard let self else { return }
             Task { await self.removeObserver(id) }
@@ -188,7 +189,7 @@ actor WorkspaceRuntime {
 
     private func install(_ baseline: RemoteWorkspaceBaseline, generation: RemoteConnectionGeneration) {
         state = .init(generation: generation, items: baseline.items, archivedSessionIDs: baseline.archivedSessionIds)
-        publish()
+        publish(state)
     }
 
     private func apply(_ frame: RemoteWorkspaceFollowFrame, generation: RemoteConnectionGeneration) {
@@ -196,7 +197,7 @@ actor WorkspaceRuntime {
         let next = WorkspaceStateReducer.reduce(current: current, frame: frame)
         if next != current {
             state = next
-            publish()
+            publish(next)
         }
     }
 
@@ -204,11 +205,11 @@ actor WorkspaceRuntime {
         guard activeGeneration == generation else { return }
         activeGeneration = nil
         state = nil
+        publish(nil)
     }
 
-    private func publish() {
-        guard let state else { return }
-        for observer in observers.values { observer.yield(state) }
+    private func publish(_ snapshot: WorkspaceRuntimeState?) {
+        for observer in observers.values { observer.yield(snapshot) }
     }
 
     private func removeObserver(_ id: UUID) { observers.removeValue(forKey: id) }
