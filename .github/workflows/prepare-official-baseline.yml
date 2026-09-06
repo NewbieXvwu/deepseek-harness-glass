@@ -98,18 +98,35 @@ jobs:
           cd .reference/deepseek-harness
           corepack pnpm install --frozen-lockfile
 
-      - name: Build and capture locked official WebUI baseline
+      - name: Prepare official client build environment
+        if: steps.official-baseline-cache.outputs.cache-hit != 'true'
+        run: |
+          cd .reference/deepseek-harness
+          echo "DSH_CLIENT_BUILD_PROFILE=official" >> "$GITHUB_ENV"
+          echo "DSH_CLIENT_COMMIT_HASH=${OFFICIAL_COMMIT:0:7}" >> "$GITHUB_ENV"
+          echo "DSH_CLIENT_VERSION=$(node -p "require('./package.json').version")" >> "$GITHUB_ENV"
+          echo "DSH_CLIENT_TITLE=DeepSeek Harness" >> "$GITHUB_ENV"
+
+      - name: Build locked official client libraries
         if: steps.official-baseline-cache.outputs.cache-hit != 'true'
         run: |
           export PATH="$NODE24_BIN:$PATH"
           cd .reference/deepseek-harness
-          export DSH_CLIENT_BUILD_PROFILE=official
-          export DSH_CLIENT_COMMIT_HASH="${OFFICIAL_COMMIT:0:7}"
-          export DSH_CLIENT_VERSION="$(node -p "require('./package.json').version")"
-          export DSH_CLIENT_TITLE="DeepSeek Harness"
           NODE_OPTIONS="--max-old-space-size=8192" corepack pnpm run build:lib:client
+
+      - name: Build locked official WebUI
+        if: steps.official-baseline-cache.outputs.cache-hit != 'true'
+        run: |
+          export PATH="$NODE24_BIN:$PATH"
+          cd .reference/deepseek-harness
           NODE_OPTIONS="--max-old-space-size=8192" corepack pnpm run build:web
           test -s apps/web/dist/index.html
+
+      - name: Capture locked official WebUI baseline
+        if: steps.official-baseline-cache.outputs.cache-hit != 'true'
+        run: |
+          export PATH="$NODE24_BIN:$PATH"
+          cd .reference/deepseek-harness
           cp "$GITHUB_WORKSPACE/tools/reference-capture/capture-official-welcome.e2e.ts" apps/web/tests/
           corepack pnpm --filter @deepseek-ai/dsh-web-frontend exec playwright install chromium
           DSH_REFERENCE_SCREENSHOT_DIR="$GITHUB_WORKSPACE/artifacts/official-webui" \
