@@ -80,8 +80,10 @@ actor HostDiagnosticRecorder {
     private func stableStateName(_ state: HostLifecycleState) -> String {
         switch state {
         case .idle: return "idle"
-        case .startingOwned: return "starting-owned"
-        case .verifying: return "verifying"
+        case .starting: return "starting"
+        case .authenticating: return "authenticating"
+        case .connecting: return "connecting"
+        case .classifying: return "classifying"
         case .recovering: return "recovering"
         case .ready: return "ready"
         case .failed: return "failed"

@@ -4,8 +4,10 @@ import Foundation
 /// A URL is data carried by `.ready`, never a substitute for lifecycle state.
 enum HostLifecycleState: Equatable, Sendable {
     case idle
-    case startingOwned
-    case verifying(URL)
+    case starting
+    case authenticating(URL)
+    case connecting(URL)
+    case classifying(URL)
     case ready(HostConnection)
     case recovering(attempt: Int)
     case failed(HostFailure)
@@ -13,7 +15,7 @@ enum HostLifecycleState: Equatable, Sendable {
 
     var endpoint: URL? {
         switch self {
-        case let .verifying(url): return url
+        case let .authenticating(url), let .connecting(url), let .classifying(url): return url
         case let .ready(connection): return connection.endpoint
         default: return nil
         }

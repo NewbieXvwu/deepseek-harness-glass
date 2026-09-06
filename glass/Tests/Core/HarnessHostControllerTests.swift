@@ -185,7 +185,7 @@ extension HarnessHostControllerTests {
         // pass a state machine that oscillates or skips steps.
         XCTAssertEqual(
             controller.stateTransitions.map(\.summary),
-            ["idle -> startingOwned", "startingOwned -> verifying", "verifying -> ready", "ready -> stopping", "stopping -> idle"]
+            ["idle -> starting", "starting -> authenticating", "authenticating -> connecting", "connecting -> classifying", "classifying -> ready", "ready -> stopping", "stopping -> idle"]
         )
         XCTAssertTrue(controller.recentLogLines.contains(where: { $0.contains("[host] transition") }))
 

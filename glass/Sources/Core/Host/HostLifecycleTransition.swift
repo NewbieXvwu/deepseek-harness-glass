@@ -19,8 +19,10 @@ struct HostLifecycleTransition: Equatable, Sendable {
     private static func name(_ state: HostLifecycleState) -> String {
         switch state {
         case .idle: return "idle"
-        case .startingOwned: return "startingOwned"
-        case .verifying: return "verifying"
+        case .starting: return "starting"
+        case .authenticating: return "authenticating"
+        case .connecting: return "connecting"
+        case .classifying: return "classifying"
         case .ready: return "ready"
         case .recovering: return "recovering"
         case .failed: return "failed"

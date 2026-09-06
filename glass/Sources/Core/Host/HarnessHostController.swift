@@ -179,7 +179,7 @@ final class HarnessHostController: ObservableObject {
 
         announcedOutput = ""
         suppressRecoveryForTermination = false
-        state = .startingOwned
+        state = .starting
         let process = Process()
         HarnessHostProcess.owned(runtime: runtime).apply(to: process)
 
@@ -231,7 +231,7 @@ if announcedOutput.count > 32_768 {
         let searchStart = wasTrimmed
             ? 0
             : max(0, previousUTF16Length - Self.announcementRescanLookbackUTF16)
-        guard case .startingOwned = state,
+        guard case .starting = state,
               let launchURL = Self.announcedEndpoint(in: announcedOutput, fromUTF16Offset: searchStart) else { return }
         let descriptor: HostLaunchDescriptor
         do {
@@ -249,7 +249,7 @@ if announcedOutput.count > 32_768 {
         announcedOutput = ""
         startupTimeoutTask?.cancel()
         startupTimeoutTask = nil
-        state = .verifying(descriptor.cleanBaseURL)
+        state = .authenticating(descriptor.cleanBaseURL)
         verify(descriptor: descriptor, build: build, compatibility: compatibility)
     }
 
@@ -284,6 +284,8 @@ if announcedOutput.count > 32_768 {
         verificationTask = Task { [weak self] in
             do {
                 let authenticatedHost = try await HostAuthBootstrap.authenticate(descriptor)
+                guard !Task.isCancelled else { return }
+                self?.state = .connecting(authenticatedHost.baseURL)
                 let remote = RemoteConnection(authenticatedHost: authenticatedHost)
                 let events = try await remote.connectEvents()
                 guard !Task.isCancelled else {
@@ -294,6 +296,7 @@ if announcedOutput.count > 32_768 {
                     await remote.closeStreams()
                     return
                 }
+                self.state = .classifying(authenticatedHost.baseURL)
                 let endpoint = authenticatedHost.baseURL
                 await self.diagnostics.recordConnected(
                     build: build,
@@ -378,7 +381,7 @@ if announcedOutput.count > 32_768 {
         startupTimeoutTask = Task { [weak self, weak process] in
             try? await Task.sleep(nanoseconds: self?.startupTimeoutNanoseconds ?? 0)
             guard !Task.isCancelled, let self, let process, self.process === process,
-                  case .startingOwned = self.state else { return }
+                  case .starting = self.state else { return }
             self.state = .failed(HostFailure(
                 kind: .endpointNotAnnounced,
                 message: "DeepSeek Harness Host did not announce a loopback endpoint before startup timeout.",

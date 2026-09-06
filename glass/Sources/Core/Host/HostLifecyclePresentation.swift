@@ -20,7 +20,7 @@ struct HostLifecyclePresentation: Equatable, Sendable {
         switch state {
         case .idle:
             return HostLifecyclePresentation(title: loading, detail: nil, retryTitle: nil, permitsInteraction: false)
-        case .startingOwned, .verifying, .recovering:
+        case .starting, .authenticating, .connecting, .classifying, .recovering:
             return HostLifecyclePresentation(title: loading, detail: nil, retryTitle: nil, permitsInteraction: false)
         case .ready:
             // The locked official locale exposes no "ready" copy; the loading

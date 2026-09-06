@@ -62,8 +62,8 @@ final class HarnessHostTransportSmokeTests: XCTestCase {
         XCTAssertNotEqual(recovered.context.events.ready.clientId, initialClientID, "restarted Host must bootstrap a fresh $events client identity")
         let transitionSummaries = controller.stateTransitions.map(\.summary)
         XCTAssertTrue(transitionSummaries.contains("ready -> recovering"))
-        XCTAssertTrue(transitionSummaries.contains("recovering -> startingOwned"))
-        XCTAssertTrue(transitionSummaries.contains("verifying -> ready"))
+        XCTAssertTrue(transitionSummaries.contains("recovering -> starting"))
+        XCTAssertTrue(transitionSummaries.contains("classifying -> ready"))
 
         let recoveredControllers = HarnessControllers(remote: recovered.context.remote)
         let recoveredSessions = try await recoveredControllers.sessions.list()
