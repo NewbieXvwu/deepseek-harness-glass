@@ -429,23 +429,6 @@ struct WorkspaceArchiveSessionResponse: Decodable, Sendable {
     let archivedSessionIds: [String]
 }
 
-/// These intentionally retain only stable top-level fields needed by the first
-/// native readiness/browser phases. Per-domain DTOs expand only with official
-/// schema fixtures; unknown fields remain decodable through Codable defaults.
-/// Source: `packages/host/apiproxy/src/api/host.schema.ts:hostDescribeValueSchema`.
-/// RC8 makes the account home directory part of every Host description so native
-/// displays can apply the same POSIX-only `~` abbreviation as the official UI.
-struct HostDescribeResponse: Decodable, Sendable {
-    let version: String
-    let cwd: String
-    let provider: String?
-    let model: String?
-    let attachedSessions: Int
-    let home: String
-    let canOpenPath: Bool
-    let directoryPicker: String?
-}
-
 struct SessionListResponse: Decodable, Sendable {
     let items: [SessionSummaryDTO]
 }

@@ -40,7 +40,7 @@ final class HostBuildClassifierTests: XCTestCase {
         build = Self.build(verificationState: "verified")
         guard case let .unsupported(versionReason) = HostBuildClassifier().classify(
             build: build,
-            dshVersion: "0.1.2-rc.2",
+            dshVersion: "0.1.2-incompatible",
             webFrontendVersion: "0.1.2-rc.1"
         ) else { return XCTFail("wrong dsh version must be unsupported") }
         XCTAssertTrue(versionReason.contains("dsh package version"))
