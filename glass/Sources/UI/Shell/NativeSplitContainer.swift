@@ -114,6 +114,8 @@ final class NativeShellPresentation: ObservableObject {
     private var eventRuntime: RemoteEventRuntime?
     private var sessionControlRuntime: SessionControlRuntime?
     private var modelCatalogRepository: ModelCatalogRepository?
+    private var settingsRepository: SettingsRepository?
+    private var credentialRepository: CredentialRepository?
     private var remoteGeneration: RemoteConnectionGeneration?
     private var selectedToolObservation: AnyCancellable?
     private var observedEndpoint: URL?
@@ -230,11 +232,15 @@ final class NativeShellPresentation: ObservableObject {
             generation: connection.context.events.generation
         )
         let modelCatalogRepository = ModelCatalogRepository(controller: controllers.sessions)
+        let settingsRepository = SettingsRepository(source: controllers.settings)
+        let credentialRepository = CredentialRepository(source: controllers.credentials)
         self.controllers = controllers
         self.workspaceRuntime = workspaceRuntime
         self.eventRuntime = eventRuntime
         self.sessionControlRuntime = sessionControlRuntime
         self.modelCatalogRepository = modelCatalogRepository
+        self.settingsRepository = settingsRepository
+        self.credentialRepository = credentialRepository
         remoteGeneration = connection.context.events.generation
         hostHome = connection.context.events.ready.host.home
         canOpenWorkspacePath = false
@@ -263,7 +269,7 @@ final class NativeShellPresentation: ObservableObject {
 
         Task { [weak self] in await self?.agentPresetStore.refresh(using: controllers.agentPresets) }
         if settingsPresented {
-            settingsStore.load(using: controllers.settings)
+            settingsStore.load(using: settingsRepository)
             Task { [weak self] in await self?.modelDirectoryStore.refresh(using: controllers.llm) }
         }
 
@@ -336,6 +342,8 @@ final class NativeShellPresentation: ObservableObject {
         sessionControlRuntime = nil
         let previousModelCatalogRepository = modelCatalogRepository
         modelCatalogRepository = nil
+        settingsRepository = nil
+        credentialRepository = nil
         Task { await previousModelCatalogRepository?.invalidate() }
         remoteGeneration = nil
         observedEndpoint = nil
@@ -354,7 +362,7 @@ final class NativeShellPresentation: ObservableObject {
 
     func openSettings() {
         settingsPresented = true
-        settingsStore.load(using: controllers?.settings)
+        settingsStore.load(using: settingsRepository)
         Task { [weak self] in await self?.modelDirectoryStore.refresh(using: self?.controllers?.llm) }
         Task { [weak self] in await self?.agentPresetStore.refresh(using: self?.controllers?.agentPresets) }
     }
@@ -379,7 +387,7 @@ final class NativeShellPresentation: ObservableObject {
         selectedIDs: Set<String>,
         for provider: LLMProviderDTO
     ) async -> Bool {
-        guard let settingsAPI = controllers?.settings else { return false }
+        guard let settingsAPI = settingsRepository else { return false }
         do {
             let adopted = try await settingsStore.adoptDiscoveredModels(
                 candidates,
@@ -426,7 +434,7 @@ final class NativeShellPresentation: ObservableObject {
     }
 
     func selectAgentPresetDefault(_ preset: AgentPresetEntryDTO) async -> Bool {
-        guard let settingsAPI = controllers?.settings else { return false }
+        guard let settingsAPI = settingsRepository else { return false }
         do {
             try await settingsStore.selectAgentPresetDefault(preset, using: settingsAPI)
             guard settingsStore.agentPresetDefault.current == preset.id else { return false }
@@ -438,7 +446,7 @@ final class NativeShellPresentation: ObservableObject {
     }
 
     func selectThemePreference(_ preference: CoreThemePreference) {
-        guard let api = controllers?.settings else { return }
+        guard let api = settingsRepository else { return }
         Task { [weak self] in
             do {
                 try await self?.settingsStore.selectThemePreference(preference, using: api)
@@ -457,7 +465,7 @@ final class NativeShellPresentation: ObservableObject {
     /// Presents no local success state: card drafts are cleared by their view
     /// only after this method returns the Host-accepted namespace update.
     func savePluginCardDraft(_ draft: NativePluginCardDraft) async -> Bool {
-        guard let api = controllers?.settings else { return false }
+        guard let api = settingsRepository else { return false }
         do {
             return try await settingsStore.savePluginCardDraft(draft, using: api)
         } catch {
@@ -470,15 +478,15 @@ final class NativeShellPresentation: ObservableObject {
     }
 
     func refreshCredentials(_ references: [String]) async {
-        await credentialStore.refresh(refs: references, using: controllers?.credentials)
+        await credentialStore.refresh(refs: references, using: credentialRepository)
     }
 
     func setCredential(reference: String, value: String) async -> Bool {
-        await credentialStore.set(reference: reference, value: value, using: controllers?.credentials)
+        await credentialStore.set(reference: reference, value: value, using: credentialRepository)
     }
 
     func unsetCredential(reference: String) async -> Bool {
-        await credentialStore.unset(reference: reference, using: controllers?.credentials)
+        await credentialStore.unset(reference: reference, using: credentialRepository)
     }
 
     func selectSession(_ sessionID: String, workspaceID: String?) {

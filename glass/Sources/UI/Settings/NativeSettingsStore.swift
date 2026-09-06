@@ -5,21 +5,6 @@ import Foundation
 @testable import GlassSpec
 #endif
 
-/// Typed settings boundary for the native feature. Production uses the rc.1
-/// `SettingsController`; tests inject success/failure authority without assembling
-/// wire envelopes or raw JSON.
-@MainActor
-protocol NativeSettingsAPI: Sendable {
-    func describe() async throws -> SettingsDescribeResponse
-    func mutate(
-        namespace: String,
-        operations: [SettingsPathOperationDTO],
-        expectedRevision: Int?
-    ) async throws -> SettingsNamespaceDTO
-}
-
-extension SettingsController: NativeSettingsAPI {}
-
 /// Host-authoritative settings projection. Secret values never enter this store:
 /// `settings.describe` returns only redacted values plus write-only slot state.
 @MainActor
