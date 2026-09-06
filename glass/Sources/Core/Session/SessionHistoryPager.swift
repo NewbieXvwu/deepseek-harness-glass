@@ -161,18 +161,18 @@ final class SessionHistoryPager: ObservableObject {
         return .appended
     }
 
-    /// Session export is deliberately routed through the already verified
-    /// Downloads facade. No history page or raw event is re-encoded locally.
+    /// Session export uses the same authenticated Host session as Remote and
+    /// mux. No history page or raw event is re-encoded locally.
     func export(
-        downloads: DownloadsAPI,
+        authenticatedHost: AuthenticatedHostSession,
         exporter: SessionLogExporter,
         includeDescendants: Bool = true
     ) async throws -> SessionLogExport {
         guard let sessionID else { throw DSHTransportError.invalidEndpoint }
-        return try await downloads.exportSessionLog(
+        return try await exporter.export(
             sessionID: sessionID,
             includeDescendants: includeDescendants,
-            exporter: exporter
+            authenticatedHost: authenticatedHost
         )
     }
 

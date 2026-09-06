@@ -42,16 +42,29 @@ actor SessionLogExporter {
     func export(
         sessionID: String,
         includeDescendants: Bool = true,
-        downloads: DownloadsAPI
+        authenticatedHost: AuthenticatedHostSession
     ) async throws -> SessionLogExport {
-        let url = try await downloads.sessionLogURL(sessionID: sessionID, includeDescendants: includeDescendants)
-        return try await export(url: url, fallbackFilename: "deepseek-session-\(safeFilenameComponent(sessionID)).zip")
+        let url = try sessionExportURL(
+            baseURL: authenticatedHost.baseURL,
+            sessionID: sessionID,
+            includeDescendants: includeDescendants
+        )
+        return try await export(
+            url: url,
+            fallbackFilename: "deepseek-session-\(safeFilenameComponent(sessionID)).zip",
+            session: authenticatedHost.urlSession
+        )
     }
 
-    /// Exposed for a URLProtocol-backed Core test; production features call the
-    /// facade-taking overload above and never construct a download URL.
+    /// Exposed for URLProtocol-backed Core tests. Production receives an
+    /// `AuthenticatedHostSession` and therefore reuses its ephemeral cookie jar.
     func export(url: URL, fallbackFilename: String) async throws -> SessionLogExport {
+        try await export(url: url, fallbackFilename: fallbackFilename, session: session)
+    }
+
+    private func export(url: URL, fallbackFilename: String, session: URLSession) async throws -> SessionLogExport {
         guard isTrustedLoopbackDownloadURL(url) else { throw DSHTransportError.invalidEndpoint }
+        try await preflight(url: url, session: session)
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.timeoutInterval = 60
@@ -59,7 +72,7 @@ actor SessionLogExporter {
 
         try fileManager.createDirectory(at: destinationDirectory, withIntermediateDirectories: true)
         let stagingURL = destinationDirectory.appendingPathComponent(".session-export-\(UUID().uuidString).partial", isDirectory: false)
-        let (stagedURL, response) = try await download(request, stagingURL: stagingURL)
+        let (stagedURL, response) = try await download(request, stagingURL: stagingURL, session: session)
         defer { try? fileManager.removeItem(at: stagedURL) }
         guard let http = response as? HTTPURLResponse,
               isTrustedLoopbackDownloadURL(http.url ?? url) else {
@@ -67,6 +80,10 @@ actor SessionLogExporter {
         }
         guard (200 ... 299).contains(http.statusCode) else {
             throw DSHTransportError.invalidHTTPStatus(http.statusCode, body: "")
+        }
+        let responseContentType = http.value(forHTTPHeaderField: "Content-Type")
+        guard responseContentType?.lowercased().hasPrefix("application/zip") == true else {
+            throw DSHTransportError.decoding("session export GET did not return application/zip")
         }
         guard fileManager.fileExists(atPath: stagedURL.path) else {
             throw DSHTransportError.network("URLSessionDownloadTask did not produce a staging file")
@@ -82,8 +99,46 @@ actor SessionLogExporter {
         return SessionLogExport(
             fileURL: destination,
             suggestedFilename: destination.lastPathComponent,
-            responseContentType: http.value(forHTTPHeaderField: "Content-Type")
+            responseContentType: responseContentType
         )
+    }
+
+    private func sessionExportURL(baseURL: URL, sessionID: String, includeDescendants: Bool) throws -> URL {
+        guard isTrustedLoopbackDownloadURL(baseURL),
+              var components = URLComponents(url: baseURL.appending(path: "api/session.export"), resolvingAgainstBaseURL: false)
+        else { throw DSHTransportError.invalidEndpoint }
+        components.queryItems = [
+            URLQueryItem(name: "sessionId", value: sessionID),
+            URLQueryItem(name: "includeDescendants", value: includeDescendants ? "true" : "false"),
+        ]
+        guard let url = components.url else { throw DSHTransportError.invalidEndpoint }
+        return url
+    }
+
+    private func preflight(url: URL, session: URLSession) async throws {
+        var request = URLRequest(url: url)
+        request.httpMethod = "HEAD"
+        request.timeoutInterval = 30
+        request.setValue("application/zip", forHTTPHeaderField: "Accept")
+        let response: URLResponse
+        do {
+            let (_, received) = try await session.data(for: request)
+            response = received
+        } catch is CancellationError {
+            throw DSHTransportError.cancelled
+        } catch {
+            throw DSHTransportError.network(error.localizedDescription)
+        }
+        guard let http = response as? HTTPURLResponse,
+              isTrustedLoopbackDownloadURL(http.url ?? url)
+        else { throw DSHTransportError.invalidEndpoint }
+        guard (200 ... 299).contains(http.statusCode) else {
+            throw DSHTransportError.invalidHTTPStatus(http.statusCode, body: "")
+        }
+        let contentType = http.value(forHTTPHeaderField: "Content-Type")?.lowercased() ?? ""
+        guard contentType.hasPrefix("application/zip") else {
+            throw DSHTransportError.decoding("session export HEAD did not return application/zip")
+        }
     }
 
     private func isTrustedLoopbackDownloadURL(_ url: URL) -> Bool {
@@ -140,7 +195,7 @@ actor SessionLogExporter {
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private func download(_ request: URLRequest, stagingURL: URL) async throws -> (URL, URLResponse) {
+    private func download(_ request: URLRequest, stagingURL: URL, session: URLSession) async throws -> (URL, URLResponse) {
         let box = DownloadTaskBox()
         return try await withTaskCancellationHandler(operation: {
             try await withCheckedThrowingContinuation { continuation in

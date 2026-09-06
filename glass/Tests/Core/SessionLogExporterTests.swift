@@ -25,8 +25,9 @@ final class SessionLogExporterTests: XCTestCase {
         XCTAssertEqual(second.suggestedFilename, "session log (2).zip")
         XCTAssertEqual(try Data(contentsOf: first.fileURL), Data("zip-contract".utf8))
         XCTAssertEqual(try Data(contentsOf: second.fileURL), Data("zip-contract".utf8))
-        XCTAssertEqual(ExportURLProtocol.state.observedRequests().count, 2)
-        XCTAssertEqual(ExportURLProtocol.state.observedRequests().first?.httpMethod, "GET")
+        let requests = ExportURLProtocol.state.observedRequests()
+        XCTAssertEqual(requests.count, 4)
+        XCTAssertEqual(requests.map(\.httpMethod), ["HEAD", "GET", "HEAD", "GET"])
     }
 
     func testTaskCancellationMapsToCancelledTransportError() async throws {
@@ -66,22 +67,6 @@ final class SessionLogExporterTests: XCTestCase {
             }
         }
         XCTAssertTrue(ExportURLProtocol.state.observedRequests().isEmpty)
-    }
-
-    func testUnverifiedHostCannotCreateNativeDownloadURL() async throws {
-        let transport = DSHClientTransport(
-            baseURL: URL(string: "http://127.0.0.1:9281/")!,
-            accessPolicy: .diagnosticsOnly,
-            session: makeSession()
-        )
-        do {
-            _ = try await transport.downloadURL(sessionID: "contract-session")
-            XCTFail("unverified Host must not expose a file-materializing download URL")
-        } catch let error as DSHTransportError {
-            guard case .unverifiedHostBuild = error else {
-                return XCTFail("Expected unverifiedHostBuild, got \(error)")
-            }
-        }
     }
 
     func testDownloadMapsHostMissingSessionToHTTPTransportError() async throws {

@@ -143,20 +143,6 @@ actor DSHClientTransport {
         }
     }
 
-    /// The attachment is read-only on the Host but materializes a native file,
-    /// so it remains unavailable to an unverified diagnostic-only endpoint.
-    func downloadURL(sessionID: String, includeDescendants: Bool = true) throws -> URL {
-        guard var components = URLComponents(url: baseURL.appendingPathComponent("api/session.export"), resolvingAgainstBaseURL: false) else {
-            throw DSHTransportError.invalidEndpoint
-        }
-        components.queryItems = [
-            URLQueryItem(name: "sessionId", value: sessionID),
-            URLQueryItem(name: "includeDescendants", value: includeDescendants ? "true" : "false"),
-        ]
-        guard let url = components.url else { throw DSHTransportError.invalidEndpoint }
-        return url
-    }
-
     private func post<T: Encodable>(path: String, body: T, timeout: TimeInterval) async throws -> RPCServerResponse {
         var request = try makeRequest(path: path, timeout: timeout)
         request.httpBody = try encoder.encode(body)

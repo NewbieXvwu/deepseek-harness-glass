@@ -109,23 +109,6 @@ protocol NativeAgentPresetAPI: Sendable {
     func remove(agentPreset: String) async throws -> EmptyRPCResponse
 }
 
-struct DownloadsAPI: Sendable {
-    private let client: DSHAPIClient
-    init(client: DSHAPIClient) { self.client = client }
-
-    func sessionLogURL(sessionID: String, includeDescendants: Bool = true) async throws -> URL {
-        try await client.transport.downloadURL(sessionID: sessionID, includeDescendants: includeDescendants)
-    }
-
-    func exportSessionLog(
-        sessionID: String,
-        includeDescendants: Bool = true,
-        exporter: SessionLogExporter
-    ) async throws -> SessionLogExport {
-        try await exporter.export(sessionID: sessionID, includeDescendants: includeDescendants, downloads: self)
-    }
-}
-
 // MARK: - ServerRequest response DTOs
 
 enum ApprovalOutcome: String, Codable, Sendable { case allowedOnce = "allowed-once"; case rejected }
