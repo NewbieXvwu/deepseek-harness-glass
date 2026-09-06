@@ -107,12 +107,19 @@ jobs:
           echo "DSH_CLIENT_VERSION=$(node -p "require('./package.json').version")" >> "$GITHUB_ENV"
           echo "DSH_CLIENT_TITLE=DeepSeek Harness" >> "$GITHUB_ENV"
 
-      - name: Build locked official client libraries
+      - name: Typecheck locked official client libraries
         if: steps.official-baseline-cache.outputs.cache-hit != 'true'
         run: |
           export PATH="$NODE24_BIN:$PATH"
           cd .reference/deepseek-harness
-          NODE_OPTIONS="--max-old-space-size=8192" corepack pnpm run build:lib:client
+          NODE_OPTIONS="--max-old-space-size=8192" corepack pnpm exec tsc -b tsconfig.client.json
+
+      - name: Bundle locked official client libraries
+        if: steps.official-baseline-cache.outputs.cache-hit != 'true'
+        run: |
+          export PATH="$NODE24_BIN:$PATH"
+          cd .reference/deepseek-harness
+          NODE_OPTIONS="--max-old-space-size=8192" corepack pnpm exec tsdown --env.DSH_BUILD_FACE client
 
       - name: Build locked official WebUI
         if: steps.official-baseline-cache.outputs.cache-hit != 'true'
