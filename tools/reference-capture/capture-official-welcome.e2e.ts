@@ -206,7 +206,7 @@ function deliverablesFixture(): string {
       type: 'session', version: SESSION_FORMAT_VERSION, id: '{{sessionId}}',
       createdAt: 0, cwd: '{{cwd}}',
     }),
-    ...session.events.map(event => JSON.stringify({
+    ...session.snapshotEvents().map(event => JSON.stringify({
       ...event, time: eventTimeOrigin + event.seq * 1_000,
     })),
     '',
@@ -498,7 +498,7 @@ describe('reference capture: official welcome and session Jobs action', () => {
     const deliverablesScaffold = await launchWebScaffold({
       extraOverlayPath: join(REPO_ROOT, 'apps/web/tests/produced-files.overlay.yml'),
     })
-    const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'en-US', colorScheme: 'light', deviceScaleFactor: 1 })
+    const context = await browser.newContext({ viewport: { width: 1800, height: 900 }, locale: 'en-US', colorScheme: 'light', deviceScaleFactor: 1 })
     const page = await context.newPage()
     const consoleTripwire = watchConsole(page)
     try {
@@ -513,15 +513,19 @@ describe('reference capture: official welcome and session Jobs action', () => {
       await sessionRow.waitFor({ timeout: 30_000 })
       await sessionRow.click()
       await page.getByText(deliverablesDone, { exact: true }).waitFor({ timeout: 30_000 })
-      await page.setViewportSize(deliverablesViewport)
       const row = page.locator('[data-produced-files-row]')
       await row.waitFor({ timeout: 30_000 })
       const chips = row.getByRole('button')
-      await expect.poll(() => chips.count()).toBe(2)
+      await expect.poll(() => chips.count()).toBe(6)
+      await expect.poll(() => row.getByText('+ 4 files', { exact: true }).isVisible()).toBe(true)
+      await page.setViewportSize(deliverablesViewport)
+      await expect.poll(() => chips.count()).toBe(5)
       expect(await chips.nth(0).innerText()).toBe('关于我.md')
       expect(await chips.nth(1).innerText()).toBe('index.html')
-      expect(await row.getByText('+ 8 files', { exact: true }).count()).toBe(1)
+      expect(await chips.nth(4).innerText()).toBe('app.ts')
+      await expect.poll(() => row.getByText('+ 5 files', { exact: true }).isVisible()).toBe(true)
       expect(await page.getByRole('button', { name: 'Show in folder', exact: true }).count()).toBe(1)
+      expect(await page.getByText('Produced', { exact: true }).count()).toBe(1)
       await page.screenshot({ path: join(outputDirectory, `${name}.png`) })
       await writeCaptureMetadata(page, name, 'light', deliverablesViewport, consoleTripwire.warnings, consoleTripwire.pageErrors)
       expect(consoleTripwire.warnings).toEqual([])
