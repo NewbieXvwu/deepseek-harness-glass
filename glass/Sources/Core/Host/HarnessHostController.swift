@@ -307,7 +307,9 @@ if announcedOutput.count > 32_768 {
                 let context = HostConnectionContext(
                     authenticatedHost: authenticatedHost,
                     remote: remote,
-                    events: events
+                    events: events,
+                    compatibility: compatibility,
+                    diagnostics: self.diagnostics
                 )
                 self.state = .ready(HostConnection(
                     endpoint: endpoint,
