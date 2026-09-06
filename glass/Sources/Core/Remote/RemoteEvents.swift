@@ -134,6 +134,8 @@ struct RemoteEventChannel: Sendable {
 }
 
 actor RemoteGenerationCounter {
+    static let shared = RemoteGenerationCounter()
+
     private var value: UInt64 = 0
     func next() -> RemoteConnectionGeneration {
         value &+= 1

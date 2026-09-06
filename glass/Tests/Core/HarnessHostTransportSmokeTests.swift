@@ -68,6 +68,7 @@ final class HarnessHostTransportSmokeTests: XCTestCase {
         let recovered = try await waitForReady(controller, excludingPID: initialPID, timeout: 15)
         XCTAssertNotEqual(recovered.endpoint, initial.endpoint, "port-zero restart must publish a fresh authenticated endpoint")
         XCTAssertNotEqual(recovered.context.events.ready.clientId, initialClientID, "restarted Host must bootstrap a fresh $events client identity")
+        XCTAssertNotEqual(recovered.context.generation, initial.context.generation, "restarted Host must publish a fresh Remote authority generation")
         XCTAssertFalse(
             recovered.context.authenticatedHost.urlSession === initialSession,
             "restarted Host must receive a fresh authenticated URLSession"

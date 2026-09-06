@@ -15,7 +15,7 @@ struct RemoteConnection: Sendable {
         self.encoder = JSONEncoder()
         self.decoder = JSONDecoder()
         self.mux = RemoteMuxConnection(authenticatedHost: authenticatedHost)
-        self.generations = RemoteGenerationCounter()
+        self.generations = .shared
     }
 
     func call<Arguments, Output>(
@@ -77,6 +77,7 @@ struct RemoteConnection: Sendable {
         case let .failure(error): throw RemoteConnectionError.remote(error)
         }
     }
+
     func callNoValue<Arguments: Encodable & Sendable>(
         endpoint: String,
         arguments: Arguments,
@@ -194,5 +195,4 @@ struct RemoteConnection: Sendable {
     func closeStreams() async {
         await mux.close()
     }
-
 }
