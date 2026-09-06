@@ -9,11 +9,11 @@ struct LLMController: Sendable {
 
     func providers() async throws -> LLMProvidersResponse {
         async let registered: [ProviderInfo] = remote.call(
-            RemoteProcedure("llm/listProviders"),
+            RemoteProcedure(.llmListProviders),
             arguments: EmptyArguments()
         )
         async let configurable: [ConfigurableProvider] = remote.call(
-            RemoteProcedure("llm/listConfigurableProviders"),
+            RemoteProcedure(.llmListConfigurableProviders),
             arguments: EmptyArguments()
         )
         let (live, directory) = try await (registered, configurable)
@@ -45,7 +45,7 @@ struct LLMController: Sendable {
 
     func discoverModels(_ request: LLMDiscoverModelsRequest) async throws -> LLMDiscoverModelsResponse {
         let models: [LLMDiscoveredModelDTO] = try await remote.call(
-            RemoteProcedure("llm/discoverModels"),
+            RemoteProcedure(.llmDiscoverModels),
             arguments: DiscoverArguments(
                 settingsNs: request.settingsNs,
                 request: DiscoveryRequest(
