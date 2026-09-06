@@ -95,19 +95,11 @@ actor SessionRuntime {
             }
         }
 
-        var retryDelayNanoseconds: UInt64 = 200_000_000 // 200ms
-        let maxRetryDelayNanoseconds: UInt64 = 3_000_000_000 // 3s
-        var consecutiveFailures = 0
-        let maxConsecutiveFailures = 10
-
         while !Task.isCancelled {
             var receivedOpening = false
+            var needsContinuityRepair = false
             do {
                 for try await frame in currentStream {
-                    // 只要接收到任意帧，证明流是通畅的，重置重试计数与退避延迟
-                    consecutiveFailures = 0
-                    retryDelayNanoseconds = 200_000_000
-
                     if !receivedOpening {
                         receivedOpening = true
                         if isRepair {
@@ -124,14 +116,19 @@ actor SessionRuntime {
                         do {
                             try acceptFollow(frame)
                         } catch SessionJournalError.liveGap, SessionJournalError.partiallyOverlappingEntry {
+                            needsContinuityRepair = true
                             break
                         }
                     }
                 }
-                if !receivedOpening {
+                guard receivedOpening else {
                     throw SessionJournalError.missingOpeningSnapshot
                 }
-                if Task.isCancelled { return }
+                guard !Task.isCancelled, needsContinuityRepair else { return }
+
+                // Sequence continuity is a domain concern: replace the current
+                // cut from a fresh opening snapshot. Carrier/business/protocol
+                // failures never reach this path and are not replayed here.
                 isRepair = true
                 currentStream = try await controller.follow(.init(address: address, maxMessages: maxMessages))
             } catch is CancellationError {
@@ -139,25 +136,9 @@ actor SessionRuntime {
                 return
             } catch {
                 if pendingContinuation != nil {
-                    // 首帧握手阶段失败，立即返回错误给调用方
                     resumeOnce(with: .failure(error))
-                    return
                 }
-                // 运行态网络中断：严禁消极退出自杀！执行自愈重连
-                consecutiveFailures += 1
-                if consecutiveFailures > maxConsecutiveFailures || Task.isCancelled {
-                    return
-                }
-                try? await Task.sleep(nanoseconds: retryDelayNanoseconds)
-                retryDelayNanoseconds = min(retryDelayNanoseconds * 2, maxRetryDelayNanoseconds)
-                if Task.isCancelled { return }
-                do {
-                    isRepair = true
-                    currentStream = try await controller.follow(.init(address: address, maxMessages: maxMessages))
-                } catch {
-                    // 重连失败，循环继续并下一次退避
-                    continue
-                }
+                return
             }
         }
     }
