@@ -9,7 +9,7 @@
   "fixtureRevision": "sha256:88d34ec5caba97af890bb90b50ca17b8a8bda199fc364abfc72519028b4db597",
   "generatedAt": "2026-09-03T02:27:19+08:00",
   "generator": {
-    "name": "generate_official_ui_spec_build.py",
+    "name": "generate_official_ui_spec_build.ts",
     "version": "1.0.0"
   },
   "inputs": [

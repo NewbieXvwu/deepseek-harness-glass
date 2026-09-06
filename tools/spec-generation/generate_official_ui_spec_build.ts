@@ -11,7 +11,7 @@ import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync, readdirSync } from "node:fs";
 import { resolve, relative, dirname, join } from "node:path";
 
-const GENERATOR_NAME = "generate_official_ui_spec_build.py";
+const GENERATOR_NAME = "generate_official_ui_spec_build.ts";
 const GENERATOR_VERSION = "1.0.0";
 const EXPECTED_COMMIT = "a66e4702047846cdaa10c66c9d3df3951f5ea70d";
 const HOST_BUILD_ID = "dsh-0.1.2-rc.1-official-a66e470";
