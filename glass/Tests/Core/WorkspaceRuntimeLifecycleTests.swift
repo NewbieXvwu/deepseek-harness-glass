@@ -18,6 +18,31 @@ final class WorkspaceRuntimeLifecycleTests: XCTestCase {
         try await assertEventuallyInvalid(runtime)
     }
 
+    func testStreamEndPublishesAuthorityInvalidationToObservers() async throws {
+        let source = WorkspaceFollowSource()
+        let runtime = WorkspaceRuntime(controller: source)
+        let generation = RemoteConnectionGeneration(rawValue: 13)
+        let starting = Task { try await runtime.start(generation: generation) }
+
+        source.continuation.yield(.baseline(.init(items: [], archivedSessionIds: [])))
+        try await starting.value
+
+        let snapshots = await runtime.snapshots()
+        var iterator = snapshots.makeAsyncIterator()
+        guard let initialEvent = await iterator.next(), let initialState = initialEvent else {
+            XCTFail("Workspace observer did not receive the accepted opening baseline")
+            return
+        }
+        XCTAssertEqual(initialState.generation, generation)
+
+        source.continuation.finish()
+        guard let invalidationEvent = await iterator.next() else {
+            XCTFail("Workspace observer ended before authority invalidation was published")
+            return
+        }
+        XCTAssertNil(invalidationEvent)
+    }
+
     func testSecondBaselineInvalidatesCurrentGeneration() async throws {
         let source = WorkspaceFollowSource()
         let runtime = WorkspaceRuntime(controller: source)
