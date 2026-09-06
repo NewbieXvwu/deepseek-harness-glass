@@ -8,7 +8,6 @@ struct WorkspaceRuntimeState: Sendable, Equatable {
 
 enum WorkspaceRuntimeError: Error, Sendable, Equatable {
     case missingBaseline
-    case duplicateBaseline
 }
 
 /// 纯函数领域状态机：无锁、无异步、零副作用、绝不抛出异常
@@ -20,7 +19,7 @@ enum WorkspaceStateReducer {
         var next = current
         switch frame {
         case .baseline:
-            // 重复 baseline 幂等忽略，物理杜绝因重复帧抛错
+            // Opening snapshots are handled by WorkspaceRuntime before reducer entry.
             return current
         case let .upsert(workspace):
             if let index = next.items.firstIndex(where: { $0.workspaceId == workspace.workspaceId }) {
@@ -144,35 +143,19 @@ actor WorkspaceRuntime {
     func current() -> WorkspaceRuntimeState? { state }
 
     func create(path: String) async throws -> RemoteWorkspaceCreateValue {
-        let value = try await controller.create(path: path)
-        if let generation = activeGeneration {
-            apply(.upsert(value.workspace), generation: generation)
-        }
-        return value
+        try await controller.create(path: path)
     }
 
     func rename(workspaceID: String, title: String) async throws -> RemoteWorkspaceValue {
-        let value = try await controller.rename(workspaceID: workspaceID, title: title)
-        if let generation = activeGeneration {
-            apply(.upsert(value.workspace), generation: generation)
-        }
-        return value
+        try await controller.rename(workspaceID: workspaceID, title: title)
     }
 
     func delete(workspaceID: String) async throws -> RemoteWorkspaceDeleteValue {
-        let value = try await controller.delete(workspaceID: workspaceID)
-        if value.deleted, let generation = activeGeneration {
-            apply(.remove(workspaceID), generation: generation)
-        }
-        return value
+        try await controller.delete(workspaceID: workspaceID)
     }
 
     func insertBefore(workspaceID: String, beforeWorkspaceID: String?) async throws -> RemoteWorkspaceOrderValue {
-        let value = try await controller.insertBefore(workspaceID: workspaceID, beforeWorkspaceID: beforeWorkspaceID)
-        if let generation = activeGeneration {
-            apply(.order(value.workspaceIds), generation: generation)
-        }
-        return value
+        try await controller.insertBefore(workspaceID: workspaceID, beforeWorkspaceID: beforeWorkspaceID)
     }
 
     func insertSessionBefore(
@@ -180,23 +163,15 @@ actor WorkspaceRuntime {
         sessionID: String,
         beforeSessionID: String?
     ) async throws -> RemoteWorkspaceValue {
-        let value = try await controller.insertSessionBefore(
+        try await controller.insertSessionBefore(
             workspaceID: workspaceID,
             sessionID: sessionID,
             beforeSessionID: beforeSessionID
         )
-        if let generation = activeGeneration {
-            apply(.upsert(value.workspace), generation: generation)
-        }
-        return value
     }
 
     func archiveSession(sessionID: String) async throws -> RemoteWorkspaceArchiveValue {
-        let value = try await controller.archiveSession(sessionID: sessionID)
-        if let generation = activeGeneration {
-            apply(.archived(value.archivedSessionIds), generation: generation)
-        }
-        return value
+        try await controller.archiveSession(sessionID: sessionID)
     }
 
     func snapshots() -> AsyncStream<WorkspaceRuntimeState> {
