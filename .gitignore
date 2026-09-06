@@ -28,4 +28,5 @@ __pycache__/
 .agents/
 .solidifier.json
 
-
+# Local upstream checkout reference
+.reference/

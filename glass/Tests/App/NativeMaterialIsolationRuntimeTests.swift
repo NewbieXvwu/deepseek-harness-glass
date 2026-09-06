@@ -112,30 +112,12 @@ final class NativeMaterialIsolationRuntimeTests: XCTestCase {
     }
 
     private func assertNoVisualEffects<V: View>(in view: V, surface: String) {
-        let host = NSHostingView(rootView: view)
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 960, height: 720),
-            styleMask: [.titled],
-            backing: .buffered,
-            defer: false
-        )
-        window.animationBehavior = .none
-        window.isReleasedWhenClosed = false
-        window.contentView = host
-        window.makeKeyAndOrderFront(nil)
-        host.layoutSubtreeIfNeeded()
-        // 等待 SwiftUI 布局稳定，避免 flaky
-        RunLoop.main.run(until: Date().addingTimeInterval(0.05))
-        defer {
-            window.contentView = nil
-            window.orderOut(nil)
-            window.close()
+        IsolatedTestWindowHarness.withHostedView(view) { host in
+            XCTAssertTrue(
+                visualEffects(in: host).isEmpty,
+                "D3 violation: \(surface) mounted an ad-hoc NSVisualEffectView in its runtime content tree."
+            )
         }
-
-        XCTAssertTrue(
-            visualEffects(in: host).isEmpty,
-            "D3 violation: \(surface) mounted an ad-hoc NSVisualEffectView in its runtime content tree."
-        )
     }
 
     private func visualEffects(in root: NSView) -> [NSVisualEffectView] {

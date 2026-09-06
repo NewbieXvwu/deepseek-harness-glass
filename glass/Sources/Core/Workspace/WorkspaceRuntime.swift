@@ -12,6 +12,50 @@ enum WorkspaceRuntimeError: Error, Sendable, Equatable {
     case invalidOrder
 }
 
+/// 纯函数领域状态机：无锁、无异步、零副作用、绝不抛出异常
+enum WorkspaceStateReducer {
+    static func reduce(
+        current: WorkspaceRuntimeState,
+        frame: RemoteWorkspaceFollowFrame
+    ) -> WorkspaceRuntimeState {
+        var next = current
+        switch frame {
+        case .baseline:
+            // 重复 baseline 幂等忽略，物理杜绝因重复帧抛错
+            return current
+        case let .upsert(workspace):
+            if let index = next.items.firstIndex(where: { $0.workspaceId == workspace.workspaceId }) {
+                next.items[index] = workspace
+            } else {
+                next.items.append(workspace)
+            }
+            return next
+        case let .remove(workspaceID):
+            next.items.removeAll { $0.workspaceId == workspaceID }
+            return next
+        case let .order(workspaceIDs):
+            // 纯函数防御性排序对齐：排已知项、忽略未知项、保留本地项追加末尾
+            let byID = Dictionary(next.items.map { ($0.workspaceId, $0) }, uniquingKeysWith: { _, new in new })
+            var ordered: [RemoteWorkspaceView] = []
+            var seenIDs = Set<String>()
+            for id in workspaceIDs {
+                if let item = byID[id], !seenIDs.contains(id) {
+                    ordered.append(item)
+                    seenIDs.insert(id)
+                }
+            }
+            for item in next.items where !seenIDs.contains(item.workspaceId) {
+                ordered.append(item)
+            }
+            next.items = ordered
+            return next
+        case let .archived(sessionIDs):
+            next.archivedSessionIDs = sessionIDs
+            return next
+        }
+    }
+}
+
 actor WorkspaceRuntime {
     private let controller: WorkspaceControllerAPI
     private var activeGeneration: RemoteConnectionGeneration?
@@ -65,7 +109,7 @@ actor WorkspaceRuntime {
                     install(baseline, generation: generation)
                     resumeOnce(with: .success(()))
                 } else {
-                    try apply(frame, generation: generation)
+                    apply(frame, generation: generation)
                 }
             }
             if pendingContinuation != nil {
@@ -97,7 +141,7 @@ actor WorkspaceRuntime {
     func create(path: String) async throws -> RemoteWorkspaceCreateValue {
         let value = try await controller.create(path: path)
         if let generation = activeGeneration {
-            try apply(.upsert(value.workspace), generation: generation)
+            apply(.upsert(value.workspace), generation: generation)
         }
         return value
     }
@@ -105,7 +149,7 @@ actor WorkspaceRuntime {
     func rename(workspaceID: String, title: String) async throws -> RemoteWorkspaceValue {
         let value = try await controller.rename(workspaceID: workspaceID, title: title)
         if let generation = activeGeneration {
-            try apply(.upsert(value.workspace), generation: generation)
+            apply(.upsert(value.workspace), generation: generation)
         }
         return value
     }
@@ -113,7 +157,7 @@ actor WorkspaceRuntime {
     func delete(workspaceID: String) async throws -> RemoteWorkspaceDeleteValue {
         let value = try await controller.delete(workspaceID: workspaceID)
         if value.deleted, let generation = activeGeneration {
-            try apply(.remove(workspaceID), generation: generation)
+            apply(.remove(workspaceID), generation: generation)
         }
         return value
     }
@@ -121,7 +165,7 @@ actor WorkspaceRuntime {
     func insertBefore(workspaceID: String, beforeWorkspaceID: String?) async throws -> RemoteWorkspaceOrderValue {
         let value = try await controller.insertBefore(workspaceID: workspaceID, beforeWorkspaceID: beforeWorkspaceID)
         if let generation = activeGeneration {
-            try apply(.order(value.workspaceIds), generation: generation)
+            apply(.order(value.workspaceIds), generation: generation)
         }
         return value
     }
@@ -137,7 +181,7 @@ actor WorkspaceRuntime {
             beforeSessionID: beforeSessionID
         )
         if let generation = activeGeneration {
-            try apply(.upsert(value.workspace), generation: generation)
+            apply(.upsert(value.workspace), generation: generation)
         }
         return value
     }
@@ -145,7 +189,7 @@ actor WorkspaceRuntime {
     func archiveSession(sessionID: String) async throws -> RemoteWorkspaceArchiveValue {
         let value = try await controller.archiveSession(sessionID: sessionID)
         if let generation = activeGeneration {
-            try apply(.archived(value.archivedSessionIds), generation: generation)
+            apply(.archived(value.archivedSessionIds), generation: generation)
         }
         return value
     }
@@ -167,38 +211,13 @@ actor WorkspaceRuntime {
         publish()
     }
 
-    private func apply(_ frame: RemoteWorkspaceFollowFrame, generation: RemoteConnectionGeneration) throws {
-        guard activeGeneration == generation, var current = state else { return }
-        switch frame {
-        case .baseline:
-            throw WorkspaceRuntimeError.duplicateBaseline
-        case let .upsert(workspace):
-            if let index = current.items.firstIndex(where: { $0.workspaceId == workspace.workspaceId }) {
-                current.items[index] = workspace
-            } else {
-                current.items.append(workspace)
-            }
-        case let .remove(workspaceID):
-            current.items.removeAll { $0.workspaceId == workspaceID }
-        case let .order(workspaceIDs):
-            let byID = Dictionary(current.items.map { ($0.workspaceId, $0) }, uniquingKeysWith: { _, new in new })
-            var ordered: [RemoteWorkspaceView] = []
-            var seenIDs = Set<String>()
-            for id in workspaceIDs {
-                if let item = byID[id], !seenIDs.contains(id) {
-                    ordered.append(item)
-                    seenIDs.insert(id)
-                }
-            }
-            for item in current.items where !seenIDs.contains(item.workspaceId) {
-                ordered.append(item)
-            }
-            current.items = ordered
-        case let .archived(sessionIDs):
-            current.archivedSessionIDs = sessionIDs
+    private func apply(_ frame: RemoteWorkspaceFollowFrame, generation: RemoteConnectionGeneration) {
+        guard activeGeneration == generation, let current = state else { return }
+        let next = WorkspaceStateReducer.reduce(current: current, frame: frame)
+        if next != current {
+            state = next
+            publish()
         }
-        state = current
-        publish()
     }
 
     private func invalidate(generation: RemoteConnectionGeneration) {
@@ -214,3 +233,4 @@ actor WorkspaceRuntime {
 
     private func removeObserver(_ id: UUID) { observers.removeValue(forKey: id) }
 }
+

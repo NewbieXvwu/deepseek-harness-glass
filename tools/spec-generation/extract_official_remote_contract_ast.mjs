@@ -6,8 +6,39 @@ import { resolve, relative } from 'node:path'
 const [officialRootArgument] = process.argv.slice(2)
 if (!officialRootArgument) throw new Error('usage: extract_official_remote_contract_ast.mjs <official-root>')
 const officialRoot = resolve(officialRootArgument)
-const requireOfficial = createRequire(resolve(officialRoot, 'package.json'))
-const ts = requireOfficial('typescript')
+
+let ts
+try {
+  const requireOfficial = createRequire(resolve(officialRoot, 'package.json'))
+  ts = requireOfficial('typescript')
+} catch {}
+
+if (!ts || !ts.createSourceFile) {
+  const fallbackRoots = [
+    resolve(process.env.HOME || '', 'deepseek-harness'),
+    resolve(officialRoot, '../deepseek-harness'),
+    resolve(officialRoot, '../../deepseek-harness'),
+    process.cwd(),
+  ]
+  for (const root of fallbackRoots) {
+    try {
+      const candidateRequire = createRequire(resolve(root, 'package.json'))
+      ts = candidateRequire('typescript')
+      if (ts && ts.createSourceFile) break
+    } catch {}
+  }
+}
+
+if (!ts || !ts.createSourceFile) {
+  try {
+    const localRequire = createRequire(import.meta.url)
+    ts = localRequire('typescript')
+  } catch {}
+}
+
+if (!ts || !ts.createSourceFile) {
+  throw new Error(`cannot load typescript compiler API for AST extraction at ${officialRoot}`)
+}
 
 const SOURCE_PATHS = [
   'packages/preset/agent-presets/src/index.ts',

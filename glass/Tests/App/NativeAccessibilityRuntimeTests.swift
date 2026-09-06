@@ -771,42 +771,24 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         guard AXIsProcessTrusted() else {
             throw XCTSkip("Accessibility trust is unavailable for this XCTest process; the runtime locale catalog regression remains mandatory in CI.")
         }
-        let host = NSHostingView(rootView: view)
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 900, height: 840),
-            styleMask: [.titled],
-            backing: .buffered,
-            defer: false
-        )
-        window.animationBehavior = .none
-        window.isReleasedWhenClosed = false
-        window.contentView = host
-        window.makeKeyAndOrderFront(nil)
-        host.layoutSubtreeIfNeeded()
-        // 等待 SwiftUI 布局稳定，避免 flaky
-        RunLoop.main.run(until: Date().addingTimeInterval(0.05))
-        defer {
-            window.contentView = nil
-            window.orderOut(nil)
-            window.close()
-        }
-
-        let labels = accessibilityLabels(in: host)
-        guard !labels.isEmpty else {
-            throw XCTSkip("The trusted process exposed no SwiftUI accessibility elements; run this tree assertion in the GUI accessibility-test host.")
-        }
-        for label in expected {
-            XCTAssertTrue(labels.contains(label), "expected \(label), exported labels: \(labels)")
-        }
-        for (label, count) in expectedCounts {
-            XCTAssertEqual(
-                labels.filter { $0 == label }.count,
-                count,
-                "expected \(count) occurrences of \(label), exported labels: \(labels)"
-            )
-        }
-        for label in forbidden {
-            XCTAssertFalse(labels.contains(label), "forbidden hidden-control label \(label), exported labels: \(labels)")
+        try IsolatedTestWindowHarness.withHostedView(view, size: NSSize(width: 900, height: 840)) { host in
+            let labels = accessibilityLabels(in: host)
+            guard !labels.isEmpty else {
+                throw XCTSkip("The trusted process exposed no SwiftUI accessibility elements; run this tree assertion in the GUI accessibility-test host.")
+            }
+            for label in expected {
+                XCTAssertTrue(labels.contains(label), "expected \(label), exported labels: \(labels)")
+            }
+            for (label, count) in expectedCounts {
+                XCTAssertEqual(
+                    labels.filter { $0 == label }.count,
+                    count,
+                    "expected \(count) occurrences of \(label), exported labels: \(labels)"
+                )
+            }
+            for label in forbidden {
+                XCTAssertFalse(labels.contains(label), "forbidden hidden-control label \(label), exported labels: \(labels)")
+            }
         }
     }
 
@@ -818,30 +800,12 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         guard AXIsProcessTrusted() else {
             throw XCTSkip("Accessibility trust is unavailable for this XCTest process; run settings trigger state assertion in the GUI accessibility-test host.")
         }
-        let host = NSHostingView(rootView: view)
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 360, height: 720),
-            styleMask: [.titled],
-            backing: .buffered,
-            defer: false
-        )
-        window.animationBehavior = .none
-        window.isReleasedWhenClosed = false
-        window.contentView = host
-        window.makeKeyAndOrderFront(nil)
-        host.layoutSubtreeIfNeeded()
-        // 等待 SwiftUI 布局稳定，避免 flaky
-        RunLoop.main.run(until: Date().addingTimeInterval(0.05))
-        defer {
-            window.contentView = nil
-            window.orderOut(nil)
-            window.close()
+        try IsolatedTestWindowHarness.withHostedView(view, size: NSSize(width: 360, height: 720)) { host in
+            guard let element = accessibilityElements(in: host).first(where: { $0.accessibilityLabel() == label }) else {
+                throw XCTSkip("The trusted process exposed no settings trigger accessibility element.")
+            }
+            XCTAssertEqual(element.accessibilityValue() as? String, expected)
         }
-
-        guard let element = accessibilityElements(in: host).first(where: { $0.accessibilityLabel() == label }) else {
-            throw XCTSkip("The trusted process exposed no settings trigger accessibility element.")
-        }
-        XCTAssertEqual(element.accessibilityValue() as? String, expected)
     }
 
     private func accessibilityLabels(in element: any NSAccessibilityProtocol) -> [String] {

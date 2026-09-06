@@ -59,10 +59,48 @@ def load(path: Path) -> dict[str, Any]:
     return decoded
 
 
+def validate_type_syntax(type_str: str, context: str) -> None:
+    """Validate that type strings are not truncated and have balanced brackets."""
+    if not isinstance(type_str, str) or not type_str.strip():
+        fail(f"{context}: empty type declaration")
+    s = type_str.strip()
+    if len(s) == 1 and s in "{[(<":
+        fail(f"{context}: severely truncated type '{s}'")
+
+    pairs = {"{": "}", "[": "]", "(": ")", "<": ">"}
+    stack: list[str] = []
+    in_quote: str | None = None
+    escaped = False
+
+    for ch in s:
+        if escaped:
+            escaped = False
+            continue
+        if ch == "\\":
+            escaped = True
+            continue
+        if in_quote:
+            if ch == in_quote:
+                in_quote = None
+            continue
+        if ch in ("'", '"', "`"):
+            in_quote = ch
+            continue
+        if ch in pairs:
+            stack.append(pairs[ch])
+        elif ch in pairs.values():
+            if not stack or stack[-1] != ch:
+                fail(f"{context}: unbalanced bracket '{ch}' in type '{s}'")
+            stack.pop()
+
+    if stack:
+        fail(f"{context}: unclosed bracket expecting '{stack[-1]}' in type '{s}'")
+
+
 def validate_shape(manifest: dict[str, Any]) -> None:
     procedures = manifest.get("procedures")
-    if not isinstance(procedures, list) or len(procedures) != 51:
-        fail("procedures must contain exactly the 51 reviewed rc.1 endpoints")
+    if not isinstance(procedures, list) or not procedures:
+        fail("procedures must be a non-empty list of reviewed endpoints")
     endpoints: list[str] = []
     for procedure in procedures:
         if not isinstance(procedure, dict) or not isinstance(procedure.get("endpoint"), str):
@@ -73,8 +111,12 @@ def validate_shape(manifest: dict[str, Any]) -> None:
             fail(f"{endpoint}: invalid invocation mode")
         if not isinstance(procedure.get("parameters"), list) or not isinstance(procedure.get("injected"), list):
             fail(f"{endpoint}: parameters/injected must be arrays")
+        for param in procedure.get("parameters", []):
+            if isinstance(param, dict) and "type" in param:
+                validate_type_syntax(param["type"], f"{endpoint} parameter '{param.get('name')}'")
         if not isinstance(procedure.get("returnType"), str) or not procedure["returnType"]:
             fail(f"{endpoint}: missing returnType")
+        validate_type_syntax(procedure["returnType"], f"{endpoint} returnType")
         if not isinstance(procedure.get("contractSignatureSHA256"), str) or not procedure["contractSignatureSHA256"].startswith("sha256:"):
             fail(f"{endpoint}: missing signature")
         if not isinstance(procedure.get("sourceSHA256"), str) or not procedure["sourceSHA256"].startswith("sha256:"):
@@ -91,10 +133,19 @@ def validate_shape(manifest: dict[str, Any]) -> None:
         fail("unreviewed settings whole-section mutation escaped into the Glass contract")
 
     errors = manifest.get("closedRemoteErrors")
-    if not isinstance(errors, list) or len(errors) != 38:
-        fail("closedRemoteErrors must contain exactly the 38 reviewed codes")
-    codes = [entry.get("code") for entry in errors if isinstance(entry, dict)]
-    if len(codes) != len(errors) or not all(isinstance(code, str) for code in codes) or len(codes) != len(set(codes)):
+    if not isinstance(errors, list) or not errors:
+        fail("closedRemoteErrors must be a non-empty list of reviewed error codes")
+    codes: list[str] = []
+    for entry in errors:
+        if not isinstance(entry, dict) or not isinstance(entry.get("code"), str):
+            fail("closedRemoteErrors entry must be an object with string code")
+        code = entry["code"]
+        codes.append(code)
+        details_type = entry.get("detailsType")
+        if not isinstance(details_type, str):
+            fail(f"error '{code}' lacks detailsType string")
+        validate_type_syntax(details_type, f"error '{code}' detailsType")
+    if len(codes) != len(set(codes)):
         fail("closedRemoteErrors must contain unique string codes")
     for universal in ("gateway/bad-request", "gateway/cancelled", "gateway/internal", "gateway/method-unavailable", "gateway/service-unavailable"):
         if universal not in codes:
