@@ -150,8 +150,11 @@ jobs:
           cd .reference/deepseek-harness
           cp "$GITHUB_WORKSPACE/tools/reference-capture/capture-official-welcome.e2e.ts" apps/web/tests/
           corepack pnpm --filter @deepseek-ai/dsh-web-frontend exec playwright install chromium
+          mkdir -p "$GITHUB_WORKSPACE/artifacts/official-webui"
+          set -o pipefail
           DSH_REFERENCE_SCREENSHOT_DIR="$GITHUB_WORKSPACE/artifacts/official-webui" \
-            corepack pnpm exec vitest run --config vitest.web.config.ts apps/web/tests/capture-official-welcome.e2e.ts
+            corepack pnpm exec vitest run --config vitest.web.config.ts apps/web/tests/capture-official-welcome.e2e.ts \
+            2>&1 | tee "$GITHUB_WORKSPACE/artifacts/official-webui/capture.log"
 
       - name: Save official WebUI baseline
         if: steps.official-baseline-cache.outputs.cache-hit != 'true'
@@ -161,6 +164,7 @@ jobs:
           key: ${{ steps.official-baseline-cache.outputs.cache-primary-key }}
 
       - name: Upload official baseline artifacts
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: official-webui-baseline-${{ env.OFFICIAL_COMMIT }}
