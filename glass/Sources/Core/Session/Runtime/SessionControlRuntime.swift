@@ -92,7 +92,12 @@ actor SessionControlRuntime {
                     try apply(frame)
                 }
             }
-            resumeOnce(with: .failure(SessionControlRuntimeError.missingOpeningBaseline))
+            if pendingContinuation != nil {
+                resumeOnce(with: .failure(SessionControlRuntimeError.missingOpeningBaseline))
+            } else {
+                snapshot = nil
+                publish(nil)
+            }
         } catch is CancellationError {
             resumeOnce(with: .failure(CancellationError()))
             return
