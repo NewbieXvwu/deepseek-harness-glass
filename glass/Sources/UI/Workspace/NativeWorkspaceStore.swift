@@ -141,7 +141,11 @@ final class NativeWorkspaceStore: ObservableObject {
                 for await state in snapshots {
                     guard !Task.isCancelled else { return }
                     self?.remoteWorkspaceState = state
-                    self?.publishRemoteBrowserState()
+                    if state == nil {
+                        self?.phase = .loading
+                    } else {
+                        self?.publishRemoteBrowserState()
+                    }
                 }
             } catch {
                 guard !Task.isCancelled else { return }
