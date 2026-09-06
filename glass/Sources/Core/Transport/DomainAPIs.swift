@@ -4,31 +4,6 @@ import Foundation
 @testable import GlassSpec
 #endif
 
-/// The sole Core composition root exposed to native Feature/UI modules after a
-/// Host endpoint has passed build verification. All domain facades preserve the
-/// official request path and typed payload/value boundary while hiding HTTP URLs,
-/// wire envelopes and raw JSON values from feature code.
-struct HarnessAPIs: Sendable {
-    let llm: LLMAPI
-    let agentPresets: AgentPresetsAPI
-
-    init(
-        baseURL: URL,
-        accessPolicy: HostRPCAccessPolicy,
-        diagnostics: HostDiagnosticRecorder,
-        session: URLSession = .shared
-    ) {
-        let client = DSHAPIClient(
-            baseURL: baseURL,
-            accessPolicy: accessPolicy,
-            diagnostics: diagnostics,
-            session: session
-        )
-        llm = LLMAPI(client: client)
-        agentPresets = AgentPresetsAPI(client: client)
-    }
-}
-
 /// Source: `packages/feedback/message-feedback/src/types.ts` at RC8.
 enum MessageFeedbackRatingDTO: String, Codable, Sendable, Equatable {
     case positive
@@ -114,55 +89,15 @@ struct MessageFeedbackDeleteResponse: Codable, Sendable, Equatable {
     let error: MessageFeedbackBusinessErrorDTO?
 }
 
-struct SettingsAPI: Sendable {
-    private let client: DSHAPIClient
-    init(client: DSHAPIClient) { self.client = client }
-
-    func describe() async throws -> SettingsDescribeResponse { try await client.settingsDescribe() }
-    func mutate(namespace: String, operations: [SettingsPathOperationDTO], expectedRevision: Int?) async throws -> SettingsNamespaceDTO {
-        try await client.settingsMutate(namespace: namespace, operations: operations, expectedRevision: expectedRevision)
-    }
-}
-
 protocol NativeCredentialAPI: Sendable {
     func describe(refs: [String]) async throws -> CredentialsDescribeResponse
     func set(ref: String, value: String) async throws -> EmptyRPCResponse
     func unset(ref: String) async throws -> EmptyRPCResponse
 }
 
-struct CredentialsAPI: Sendable, NativeCredentialAPI {
-    private let client: DSHAPIClient
-    init(client: DSHAPIClient) { self.client = client }
-
-    func describe(refs: [String]) async throws -> CredentialsDescribeResponse {
-        try await client.call("credentials.describe", payload: CredentialsDescribeRequest(refs: refs))
-    }
-    func set(ref: String, value: String) async throws -> EmptyRPCResponse {
-        try await client.call("credentials.set", payload: CredentialsSetRequest(ref: ref, value: value))
-    }
-    func unset(ref: String) async throws -> EmptyRPCResponse {
-        try await client.call("credentials.unset", payload: CredentialsUnsetRequest(ref: ref))
-    }
-}
-
 protocol NativeLLMDirectoryAPI: Sendable {
     func providers() async throws -> LLMProvidersResponse
     func discoverModels(_ request: LLMDiscoverModelsRequest) async throws -> LLMDiscoverModelsResponse
-}
-
-struct LLMAPI: Sendable, NativeLLMDirectoryAPI {
-    private let client: DSHAPIClient
-    init(client: DSHAPIClient) { self.client = client }
-
-    func providers() async throws -> LLMProvidersResponse {
-        try await client.call("llm.providers", payload: EmptyPayload())
-    }
-    func models() async throws -> LLMModelsResponse {
-        try await client.call("llm.models", payload: EmptyPayload())
-    }
-    func discoverModels(_ request: LLMDiscoverModelsRequest) async throws -> LLMDiscoverModelsResponse {
-        try await client.call("llm.discoverModels", payload: request)
-    }
 }
 
 protocol NativeAgentPresetAPI: Sendable {
@@ -172,28 +107,6 @@ protocol NativeAgentPresetAPI: Sendable {
     func copy(_ request: AgentPresetCopyRequest) async throws -> AgentPresetCopyResponse
     func openDocument(agentPreset: String) async throws -> AgentPresetOpenDocumentResponse
     func remove(agentPreset: String) async throws -> EmptyRPCResponse
-}
-
-struct AgentPresetsAPI: Sendable, NativeAgentPresetAPI {
-    private let client: DSHAPIClient
-    init(client: DSHAPIClient) { self.client = client }
-
-    func list() async throws -> AgentPresetListResponse { try await client.call("agentPreset.list", payload: EmptyPayload()) }
-    func select(sessionID: String, agentPreset: String) async throws -> AgentPresetSelectResponse {
-        try await client.call("agentPreset.select", payload: AgentPresetSelectRequest(sessionId: sessionID, agentPreset: agentPreset))
-    }
-    func read(agentPreset: String) async throws -> AgentPresetReadResponse {
-        try await client.call("agentPreset.read", payload: AgentPresetReadRequest(agentPreset: agentPreset))
-    }
-    func copy(_ request: AgentPresetCopyRequest) async throws -> AgentPresetCopyResponse {
-        try await client.call("agentPreset.copy", payload: request)
-    }
-    func openDocument(agentPreset: String) async throws -> AgentPresetOpenDocumentResponse {
-        try await client.call("agentPreset.openDocument", payload: AgentPresetOpenDocumentRequest(agentPreset: agentPreset))
-    }
-    func remove(agentPreset: String) async throws -> EmptyRPCResponse {
-        try await client.call("agentPreset.remove", payload: AgentPresetRemoveRequest(agentPreset: agentPreset))
-    }
 }
 
 struct DownloadsAPI: Sendable {

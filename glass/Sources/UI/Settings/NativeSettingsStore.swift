@@ -5,9 +5,9 @@ import Foundation
 @testable import GlassSpec
 #endif
 
-/// Typed settings boundary for the native feature. Production continues to use
-/// the verified `SettingsAPI`; tests can inject success/failure authority without
-/// assembling wire envelopes or raw JSON.
+/// Typed settings boundary for the native feature. Production uses the rc.1
+/// `SettingsController`; tests inject success/failure authority without assembling
+/// wire envelopes or raw JSON.
 @MainActor
 protocol NativeSettingsAPI: Sendable {
     func describe() async throws -> SettingsDescribeResponse
@@ -18,7 +18,6 @@ protocol NativeSettingsAPI: Sendable {
     ) async throws -> SettingsNamespaceDTO
 }
 
-extension SettingsAPI: NativeSettingsAPI {}
 extension SettingsController: NativeSettingsAPI {}
 
 /// Host-authoritative settings projection. Secret values never enter this store:

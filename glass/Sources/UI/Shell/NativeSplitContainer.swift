@@ -109,7 +109,6 @@ final class NativeShellPresentation: ObservableObject {
     let jobsPopoverInitiallyOpen: Bool
     /// Optional capture-only locale for Jobs; production uses the system locale.
     let jobsSnapshotLanguageCode: String?
-    private var apis: HarnessAPIs?
     private var controllers: HarnessControllers?
     private var workspaceRuntime: WorkspaceRuntime?
     private var eventRuntime: RemoteEventRuntime?
@@ -250,23 +249,6 @@ final class NativeShellPresentation: ObservableObject {
         sessionStore.bindEventRuntime(eventRuntime)
         sessionStore.bindControlRuntime(sessionControlRuntime)
 
-        // Domains not migrated to Remote yet keep using the old typed facades,
-        // but they share the authenticated ephemeral cookie session. Build
-        // compatibility remains diagnostic-only.
-        let legacyTrust: HostBuildTrust
-        switch connection.compatibility {
-        case .verified:
-            legacyTrust = .verified(connection.build)
-        case let .bestEffort(reason):
-            legacyTrust = .unverified(reason: reason, developerWriteOverride: false)
-        }
-        let apis = HarnessAPIs(
-            baseURL: connection.endpoint,
-            accessPolicy: HostRPCAccessPolicy(trust: legacyTrust),
-            diagnostics: connection.diagnostics,
-            session: connection.context.authenticatedHost.urlSession
-        )
-        self.apis = apis
         observedEndpoint = connection.endpoint
 
         workspaceStore.bind(
@@ -275,10 +257,10 @@ final class NativeShellPresentation: ObservableObject {
             generation: connection.context.events.generation
         )
 
-        Task { [weak self] in await self?.agentPresetStore.refresh(using: apis.agentPresets) }
+        Task { [weak self] in await self?.agentPresetStore.refresh(using: controllers.agentPresets) }
         if settingsPresented {
             settingsStore.load(using: controllers.settings)
-            Task { [weak self] in await self?.modelDirectoryStore.refresh(using: apis.llm) }
+            Task { [weak self] in await self?.modelDirectoryStore.refresh(using: controllers.llm) }
         }
 
         // The conversation store remains on its transitional facade until its
@@ -344,7 +326,6 @@ final class NativeShellPresentation: ObservableObject {
             await previousEventRuntime?.close()
             await previousControlRuntime?.invalidate()
         }
-        apis = nil
         controllers = nil
         workspaceRuntime = nil
         eventRuntime = nil
@@ -367,8 +348,8 @@ final class NativeShellPresentation: ObservableObject {
     func openSettings() {
         settingsPresented = true
         settingsStore.load(using: controllers?.settings)
-        Task { [weak self] in await self?.modelDirectoryStore.refresh(using: self?.apis?.llm) }
-        Task { [weak self] in await self?.agentPresetStore.refresh(using: self?.apis?.agentPresets) }
+        Task { [weak self] in await self?.modelDirectoryStore.refresh(using: self?.controllers?.llm) }
+        Task { [weak self] in await self?.agentPresetStore.refresh(using: self?.controllers?.agentPresets) }
     }
 
     func closeSettings() {
@@ -379,11 +360,11 @@ final class NativeShellPresentation: ObservableObject {
     /// view itself has no transport access; on failure, a fresh Host descriptor
     /// remains authoritative and no local durable preference is manufactured.
     func refreshModelDirectory() async {
-        await modelDirectoryStore.refresh(using: apis?.llm)
+        await modelDirectoryStore.refresh(using: controllers?.llm)
     }
 
     func discoverModels(_ request: LLMDiscoverModelsRequest) async {
-        await modelDiscoveryStore.discover(request, using: apis?.llm)
+        await modelDiscoveryStore.discover(request, using: controllers?.llm)
     }
 
     func adoptDiscoveredModels(
@@ -399,7 +380,7 @@ final class NativeShellPresentation: ObservableObject {
                 for: provider,
                 using: settingsAPI
             )
-            if adopted { await modelDirectoryStore.refresh(using: apis?.llm) }
+            if adopted { await modelDirectoryStore.refresh(using: controllers?.llm) }
             return adopted
         } catch {
             return false
@@ -407,32 +388,32 @@ final class NativeShellPresentation: ObservableObject {
     }
 
     func refreshAgentPresets() async {
-        await agentPresetStore.refresh(using: apis?.agentPresets)
+        await agentPresetStore.refresh(using: controllers?.agentPresets)
     }
 
     func readAgentPreset(_ agentPreset: String) async -> Bool {
-        await agentPresetStore.read(agentPreset: agentPreset, using: apis?.agentPresets)
+        await agentPresetStore.read(agentPreset: agentPreset, using: controllers?.agentPresets)
     }
 
     func openAgentPresetDocument(_ agentPreset: String) async -> Bool {
-        await agentPresetStore.openDocument(agentPreset: agentPreset, using: apis?.agentPresets)
+        await agentPresetStore.openDocument(agentPreset: agentPreset, using: controllers?.agentPresets)
     }
 
     func copyAgentPreset(_ request: AgentPresetCopyRequest) async -> Bool {
-        await agentPresetStore.copy(request, using: apis?.agentPresets)
+        await agentPresetStore.copy(request, using: controllers?.agentPresets)
     }
 
     func removeAgentPreset(_ agentPreset: String) async -> Bool {
-        await agentPresetStore.remove(agentPreset: agentPreset, using: apis?.agentPresets)
+        await agentPresetStore.remove(agentPreset: agentPreset, using: controllers?.agentPresets)
     }
 
     /// RC8 seat selection is legal only while the Host projects this session as
     /// blank. Running-session histories cannot be recomposed locally.
     func selectAgentPreset(sessionID: String, presetID: String) async -> Bool {
-        guard let apis,
+        guard let agentPresets = controllers?.agentPresets,
               workspaceStore.snapshot.sessions.contains(where: { $0.sessionId == sessionID && $0.blank })
         else { return false }
-        let selected = await agentPresetStore.select(sessionID: sessionID, agentPreset: presetID, using: apis.agentPresets)
+        let selected = await agentPresetStore.select(sessionID: sessionID, agentPreset: presetID, using: agentPresets)
         if selected { workspaceStore.applyAgentPresetSelection(sessionID: sessionID, agentPreset: presetID) }
         return selected
     }
@@ -442,7 +423,7 @@ final class NativeShellPresentation: ObservableObject {
         do {
             try await settingsStore.selectAgentPresetDefault(preset, using: settingsAPI)
             guard settingsStore.agentPresetDefault.current == preset.id else { return false }
-            await agentPresetStore.refresh(using: apis?.agentPresets)
+            await agentPresetStore.refresh(using: controllers?.agentPresets)
             return agentPresetStore.presets.contains(where: { $0.id == preset.id && $0.isDefault })
         } catch {
             return false
@@ -496,7 +477,7 @@ final class NativeShellPresentation: ObservableObject {
     func selectSession(_ sessionID: String, workspaceID: String?) {
         let didSwitchSession = sessionStore.selectedSessionID != sessionID
         workspaceStore.select(sessionID: sessionID, workspaceID: workspaceID)
-        if let apis, let observedEndpoint {
+        if let observedEndpoint {
             let runtime: SessionRuntime?
             if let controllers, let remoteGeneration {
                 runtime = SessionRuntime(
