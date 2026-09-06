@@ -10,7 +10,7 @@
     "remoteContract": "glass/Sources/Spec/Fixtures/official-remote-contract-manifest.json",
     "rawEventCatalog": "glass/Sources/Core/Resources/official-raw-event-replay-fixtures.json",
     "reducerReplayTests": "glass/Tests/Core/RawEventReplayReducerTests.swift",
-    "transportChaosTests": "glass/Tests/Core/SSEClientTests.swift",
+    "transportChaosTests": "glass/Tests/Core/DSHClientTransportTests.swift",
     "upgradeGovernance": "notes/T13.3-host-upgrade-governance.md",
     "authenticatedHostFixtures": "glass/Sources/Core/Resources/official-authenticated-host-fixtures.json"
   },

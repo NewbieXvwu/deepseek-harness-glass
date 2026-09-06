@@ -187,9 +187,9 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
     }
 
     func testToolDetailsExportsOfficialSectionsAndSelectionEmptyStates() throws {
-        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.input", language: "en"))
-        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.output", language: "en"))
-        let notInWindow = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.notInWindow", language: "en"))
+        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-chat", key: "details.input", language: "en"))
+        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-chat", key: "details.output", language: "en"))
+        let notInWindow = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-chat", key: "details.notInWindow", language: "en"))
         let invocation = NativeSessionStore.ToolInvocation(
             id: "details-call",
             name: "custom_tool",
@@ -218,8 +218,8 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
     }
 
     func testTypedReadDetailsExportsAdmittedReadChromeAndSource() throws {
-        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.input", language: "en"))
-        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.output", language: "en"))
+        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-chat", key: "details.input", language: "en"))
+        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-chat", key: "details.output", language: "en"))
         let invocation = NativeSessionStore.ToolInvocation(
             id: "read-details",
             name: "read",
@@ -263,8 +263,8 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
     }
 
     func testTypedDiffDetailsUsesAppliedResultAndExportsChrome() throws {
-        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.input", language: "en"))
-        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.output", language: "en"))
+        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-chat", key: "details.input", language: "en"))
+        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-chat", key: "details.output", language: "en"))
         let invocation = NativeSessionStore.ToolInvocation(
             id: "diff-details",
             name: "edit",
@@ -298,8 +298,8 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
     }
 
     func testTypedSearchDetailsExportsSummaryRecoveryAndMatches() throws {
-        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.input", language: "en"))
-        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.output", language: "en"))
+        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-chat", key: "details.input", language: "en"))
+        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-chat", key: "details.output", language: "en"))
         let invocation = NativeSessionStore.ToolInvocation(
             id: "search-details",
             name: "grep",
@@ -342,8 +342,8 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
     }
 
     func testTypedWebDetailsExportsSafeSourceAndTruncation() throws {
-        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.input", language: "en"))
-        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.output", language: "en"))
+        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-chat", key: "details.input", language: "en"))
+        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-chat", key: "details.output", language: "en"))
         let invocation = NativeSessionStore.ToolInvocation(
             id: "web-details",
             name: "web_search",
@@ -380,8 +380,8 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
     }
 
     func testTypedTerminalDetailsExportsCappedOutputAndCopy() throws {
-        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.input", language: "en"))
-        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.output", language: "en"))
+        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-chat", key: "details.input", language: "en"))
+        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-chat", key: "details.output", language: "en"))
         let lines = (1...20).map(String.init)
         let invocation = NativeSessionStore.ToolInvocation(
             id: "terminal-details",
@@ -415,8 +415,8 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
     }
 
     func testTerminalStatusPillExportsSignalBeforeNonZeroExit() throws {
-        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.input", language: "en"))
-        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.output", language: "en"))
+        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-chat", key: "details.input", language: "en"))
+        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-chat", key: "details.output", language: "en"))
         let invocation = NativeSessionStore.ToolInvocation(
             id: "terminal-signal",
             name: "bash",
@@ -510,8 +510,8 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
     }
 
     func testTypedTerminalDetailsExportsVisibleANSISpansWithoutControlBytes() throws {
-        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.input", language: "en"))
-        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.output", language: "en"))
+        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-chat", key: "details.input", language: "en"))
+        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-chat", key: "details.output", language: "en"))
         let invocation = NativeSessionStore.ToolInvocation(
             id: "terminal-ansi-details",
             name: "bash",

@@ -175,7 +175,7 @@ struct SubagentListResponse: Codable, Sendable, Equatable {
 struct SubagentPromptRequest: Codable, Sendable, Equatable {
     let parentSessionId: String
     let childSessionId: String
-    let mode: String = "continuable"
+    var mode: String = "continuable"
     let content: [SessionPromptContent]
     let clientTimeZone: String?
 }
@@ -183,7 +183,7 @@ struct SubagentPromptResponse: Codable, Sendable, Equatable { let messageId: Str
 struct SubagentInterruptRequest: Codable, Sendable, Equatable {
     let parentSessionId: String
     let childSessionId: String
-    let mode: String = "continuable"
+    var mode: String = "continuable"
 }
 struct SubagentInterruptResponse: Codable, Sendable, Equatable { let accepted: Bool }
 

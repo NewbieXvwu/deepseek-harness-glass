@@ -126,6 +126,10 @@ actor SessionLogExporter {
             response = received
         } catch is CancellationError {
             throw DSHTransportError.cancelled
+        } catch let error as URLError where error.code == .cancelled {
+            throw DSHTransportError.cancelled
+        } catch let error as NSError where (error.domain == NSURLErrorDomain && error.code == NSURLErrorCancelled) || error.code == -999 {
+            throw DSHTransportError.cancelled
         } catch {
             throw DSHTransportError.network(error.localizedDescription)
         }
@@ -201,7 +205,8 @@ actor SessionLogExporter {
             try await withCheckedThrowingContinuation { continuation in
                 let task = session.downloadTask(with: request) { location, response, error in
                     if let error {
-                        if (error as? URLError)?.code == .cancelled {
+                        let nsError = error as NSError
+                        if (error as? URLError)?.code == .cancelled || (nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled) || nsError.code == -999 || error is CancellationError {
                             continuation.resume(throwing: DSHTransportError.cancelled)
                         } else {
                             continuation.resume(throwing: DSHTransportError.network(error.localizedDescription))

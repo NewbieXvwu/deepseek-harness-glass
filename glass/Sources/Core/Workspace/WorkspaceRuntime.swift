@@ -148,7 +148,7 @@ actor WorkspaceRuntime {
         case let .remove(workspaceID):
             current.items.removeAll { $0.workspaceId == workspaceID }
         case let .order(workspaceIDs):
-            let byID = Dictionary(uniqueKeysWithValues: current.items.map { ($0.workspaceId, $0) })
+            let byID = Dictionary(current.items.map { ($0.workspaceId, $0) }, uniquingKeysWith: { _, new in new })
             guard workspaceIDs.count == current.items.count,
                   Set(workspaceIDs) == Set(byID.keys)
             else { throw WorkspaceRuntimeError.invalidOrder }

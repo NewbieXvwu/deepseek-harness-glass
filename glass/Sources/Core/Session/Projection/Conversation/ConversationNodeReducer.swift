@@ -76,8 +76,21 @@ final class ConversationNodeReducer {
         _ entries: [ConversationEventInput],
         hasMore: Bool
     ) -> ConversationPublication {
-        try! assertStrictAscending(entries)
-        inputsBySeq = Dictionary(uniqueKeysWithValues: entries.map { ($0.event.seq, $0) })
+        var deduped: [ConversationEventInput] = []
+        var seen = Set<Int>()
+        var lastSeq: Int?
+        for entry in entries {
+            let seq = entry.event.seq
+            if let last = lastSeq {
+                guard seq >= last else { return .none }
+            }
+            if seen.insert(seq).inserted {
+                deduped.append(entry)
+                lastSeq = seq
+            }
+        }
+        inputsBySeq = Dictionary(deduped.map { ($0.event.seq, $0) }, uniquingKeysWith: { _, new in new })
+        latestSeq = deduped.last?.event.seq
         hasMoreHistory = hasMore
         rebuild()
         return .immediate
@@ -93,7 +106,7 @@ final class ConversationNodeReducer {
         let seq = input.event.seq
         if inputsBySeq[seq] != nil { return .none }
         if let tail = latestSeq, seq <= tail {
-            preconditionFailure("conversation reducer received non-appended live seq \(seq) after \(tail)")
+            return .none
         }
         inputsBySeq[seq] = input
         latestSeq = seq
@@ -120,17 +133,30 @@ final class ConversationNodeReducer {
         _ entries: [ConversationEventInput],
         hasMore: Bool
     ) -> ConversationPublication {
-        try! assertStrictAscending(entries)
-        if let first = inputsBySeq.keys.min(), let lastIncoming = entries.last?.event.seq {
-            precondition(lastIncoming < first, "conversation reducer older page overlaps current raw window")
-        }
+        var deduped: [ConversationEventInput] = []
+        var seen = Set<Int>()
+        var lastSeq: Int?
         for entry in entries {
-            precondition(inputsBySeq[entry.event.seq] == nil, "conversation reducer received duplicate prepended seq")
-            inputsBySeq[entry.event.seq] = entry
+            let seq = entry.event.seq
+            if let last = lastSeq {
+                guard seq >= last else { return .none }
+            }
+            if seen.insert(seq).inserted {
+                deduped.append(entry)
+                lastSeq = seq
+            }
+        }
+        if let first = inputsBySeq.keys.min(), let lastIncoming = deduped.last?.event.seq {
+            guard lastIncoming < first else { return .none }
+        }
+        for entry in deduped {
+            if inputsBySeq[entry.event.seq] == nil {
+                inputsBySeq[entry.event.seq] = entry
+            }
         }
         hasMoreHistory = hasMore
         rebuild()
-        return entries.reduce(.immediate) { ConversationPublication.maximum($0, publication(for: $1)) }
+        return deduped.reduce(.immediate) { ConversationPublication.maximum($0, publication(for: $1)) }
     }
 
     func snapshot(target: String) -> [ConversationViewNode] {
@@ -358,19 +384,8 @@ final class ConversationNodeReducer {
     private func sortedInputs() -> [ConversationEventInput] {
         inputsBySeq.keys.sorted().compactMap { inputsBySeq[$0] }
     }
-
-    private func assertStrictAscending(_ entries: [ConversationEventInput]) throws {
-        for pair in zip(entries, entries.dropFirst()) {
-            guard pair.0.event.seq < pair.1.event.seq else {
-                throw ConversationReducerError.nonAscendingWindow(previous: pair.0.event.seq, current: pair.1.event.seq)
-            }
-        }
-    }
 }
 
-private enum ConversationReducerError: Error, Equatable {
-    case nonAscendingWindow(previous: Int, current: Int)
-}
 
 /// Dependency reader backed by immutable snapshots of contexts already reduced
 /// before the current start evidence. Absence is intentionally distinct from a

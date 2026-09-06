@@ -25,19 +25,7 @@ actor SessionRuntime {
 
     func open() async throws -> SessionJournalSnapshot {
         if let snapshot = journal.snapshot { return snapshot }
-        let stream = try await controller.follow(.init(address: address, maxMessages: maxMessages))
-        var iterator = stream.makeAsyncIterator()
-        guard let first = try await iterator.next() else {
-            throw SessionJournalError.missingOpeningSnapshot
-        }
-        try journal.open(generation: generation, address: address, frame: first)
-        let initial = journal.snapshot!
-        publish(initial)
-        followTask = Task { [weak self] in
-            guard let self else { return }
-            await self.consume(iterator: iterator)
-        }
-        return initial
+        return try await startFollowing(isRepair: false)
     }
 
     func currentSnapshot() -> SessionJournalSnapshot? { journal.snapshot }
@@ -70,11 +58,7 @@ actor SessionRuntime {
     func resync() async throws -> SessionJournalSnapshot {
         followTask?.cancel()
         followTask = nil
-        try await repairFollowing()
-        guard let snapshot = journal.snapshot else {
-            throw SessionJournalError.missingOpeningSnapshot
-        }
-        return snapshot
+        return try await startFollowing(isRepair: true)
     }
 
     func close() {
@@ -82,37 +66,74 @@ actor SessionRuntime {
         followTask = nil
     }
 
-    private func consume(
-        iterator initialIterator: AsyncThrowingStream<RemoteSessionFollowFrame, Error>.Iterator
-    ) async {
-        var iterator = initialIterator
-        do {
-            while let frame = try await iterator.next() {
-                do {
-                    try acceptFollow(frame)
-                } catch SessionJournalError.liveGap, SessionJournalError.partiallyOverlappingEntry {
-                    try await repairFollowing()
+    private func startFollowing(isRepair: Bool) async throws -> SessionJournalSnapshot {
+        let stream = try await controller.follow(.init(address: address, maxMessages: maxMessages))
+        return try await withCheckedThrowingContinuation { continuation in
+            followTask = Task { [weak self] in
+                guard let self else {
+                    continuation.resume(throwing: CancellationError())
                     return
                 }
+                await self.runFollowLoop(initialStream: stream, initialRepair: isRepair, initialContinuation: continuation)
             }
-        } catch is CancellationError {
-            return
-        } catch {
-            // A physical carrier failure invalidates this generation upstream.
         }
     }
 
-    private func repairFollowing() async throws {
-        let stream = try await controller.follow(.init(address: address, maxMessages: maxMessages))
-        var iterator = stream.makeAsyncIterator()
-        guard let opening = try await iterator.next() else {
-            throw SessionJournalError.missingOpeningSnapshot
+    private func runFollowLoop(
+        initialStream: AsyncThrowingStream<RemoteSessionFollowFrame, Error>,
+        initialRepair: Bool,
+        initialContinuation: CheckedContinuation<SessionJournalSnapshot, Error>
+    ) async {
+        var currentStream = initialStream
+        var isRepair = initialRepair
+        var pendingContinuation: CheckedContinuation<SessionJournalSnapshot, Error>? = initialContinuation
+
+        func resumeOnce(with result: Result<SessionJournalSnapshot, Error>) {
+            if let cont = pendingContinuation {
+                pendingContinuation = nil
+                cont.resume(with: result)
+            }
         }
-        try journal.replaceOpening(generation: generation, address: address, frame: opening)
-        if let snapshot = journal.snapshot { publish(snapshot) }
-        followTask = Task { [weak self] in
-            guard let self else { return }
-            await self.consume(iterator: iterator)
+
+        while !Task.isCancelled {
+            var receivedOpening = false
+            do {
+                for try await frame in currentStream {
+                    if !receivedOpening {
+                        receivedOpening = true
+                        if isRepair {
+                            try journal.replaceOpening(generation: generation, address: address, frame: frame)
+                        } else {
+                            try journal.open(generation: generation, address: address, frame: frame)
+                        }
+                        guard let snapshot = journal.snapshot else {
+                            throw SessionJournalError.missingOpeningSnapshot
+                        }
+                        publish(snapshot)
+                        resumeOnce(with: .success(snapshot))
+                    } else {
+                        do {
+                            try acceptFollow(frame)
+                        } catch SessionJournalError.liveGap, SessionJournalError.partiallyOverlappingEntry {
+                            break
+                        }
+                    }
+                }
+                if !receivedOpening {
+                    throw SessionJournalError.missingOpeningSnapshot
+                }
+                if Task.isCancelled { return }
+                isRepair = true
+                currentStream = try await controller.follow(.init(address: address, maxMessages: maxMessages))
+            } catch is CancellationError {
+                resumeOnce(with: .failure(CancellationError()))
+                return
+            } catch {
+                if pendingContinuation != nil {
+                    resumeOnce(with: .failure(error))
+                }
+                return
+            }
         }
     }
 

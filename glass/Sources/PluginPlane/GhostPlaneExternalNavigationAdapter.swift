@@ -37,7 +37,7 @@ public final class GhostPlaneExternalNavigationAdapter {
         return true
     }
 
-    private static func confirmWithAlert(_ url: URL) -> Bool {
+    public static func confirmWithAlert(_ url: URL) -> Bool {
         let alert = NSAlert()
         alert.messageText = "Open external link?"
         alert.informativeText = url.absoluteString

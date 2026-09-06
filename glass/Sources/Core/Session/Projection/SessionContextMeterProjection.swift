@@ -1,6 +1,3 @@
-#if DEEPSEEK_HARNESS_PACKAGE
-@testable import GlassCore
-#endif
 
 /// Read-only projection of RC8 token-meter `contextPressure`. The meter is an
 /// informational Host fact, never a local billing/gating estimate: it renders
