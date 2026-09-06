@@ -21,7 +21,7 @@ struct GoalController: GoalControllerAPI, Sendable {
 
     func edit(sessionID: String, ref: RemoteGoalRef, objective: String) async throws {
         let _: RemoteJSONValue = try await remote.call(
-            RemoteProcedure("goals/edit"),
+            RemoteProcedure(.goalsEdit),
             arguments: EditArguments(
                 agentId: sessionID,
                 ref: ref,
@@ -31,18 +31,18 @@ struct GoalController: GoalControllerAPI, Sendable {
     }
 
     func pause(sessionID: String, ref: RemoteGoalRef) async throws {
-        try await mutate("goals/pause", sessionID: sessionID, ref: ref)
+        try await mutate(.goalsPause, sessionID: sessionID, ref: ref)
     }
 
     func resume(sessionID: String, ref: RemoteGoalRef) async throws {
-        try await mutate("goals/resume", sessionID: sessionID, ref: ref)
+        try await mutate(.goalsResume, sessionID: sessionID, ref: ref)
     }
 
     func clear(sessionID: String, ref: RemoteGoalRef) async throws {
-        try await mutate("goals/clear", sessionID: sessionID, ref: ref)
+        try await mutate(.goalsClear, sessionID: sessionID, ref: ref)
     }
 
-    private func mutate(_ endpoint: String, sessionID: String, ref: RemoteGoalRef) async throws {
+    private func mutate(_ endpoint: RemoteEndpoint, sessionID: String, ref: RemoteGoalRef) async throws {
         let _: RemoteJSONValue = try await remote.call(
             RemoteProcedure(endpoint),
             arguments: ReferenceArguments(agentId: sessionID, ref: ref)
