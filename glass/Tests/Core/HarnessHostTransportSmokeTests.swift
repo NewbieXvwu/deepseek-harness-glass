@@ -60,15 +60,25 @@ final class HarnessHostTransportSmokeTests: XCTestCase {
         await initialFollow.close()
 
         guard let initialPID = controller.ownedProcessIdentifier else {
-            return XCTFail("ready Host must retain an owned process before unexpected termination")
+            return XCTFail("ready Host must retain an owned process before carrier recovery")
         }
-        XCTAssertEqual(kill(initialPID, SIGTERM), 0, "the smoke test must induce a real owned-Host termination")
+        await initial.context.remote.closeStreams()
         try await waitForTransition(controller, summary: "ready -> recovering", timeout: 8)
+        let reconnected = try await waitForReady(controller, excludingPID: nil, timeout: 15)
+        XCTAssertEqual(controller.ownedProcessIdentifier, initialPID, "Remote carrier recovery must keep the owned Host process")
+        XCTAssertEqual(reconnected.endpoint, initial.endpoint, "Remote carrier recovery reuses the authenticated Host endpoint")
+        XCTAssertTrue(
+            reconnected.context.authenticatedHost.urlSession === initialSession,
+            "Remote carrier recovery must preserve the process-scoped authenticated URLSession"
+        )
+        XCTAssertNotEqual(reconnected.context.events.ready.clientId, initialClientID, "Remote carrier recovery must open a fresh $events client identity")
+        XCTAssertNotEqual(reconnected.context.generation, initial.context.generation, "Remote carrier recovery must publish a fresh authority generation")
 
+        XCTAssertEqual(kill(initialPID, SIGTERM), 0, "the smoke test must induce a real owned-Host termination")
         let recovered = try await waitForReady(controller, excludingPID: initialPID, timeout: 15)
-        XCTAssertNotEqual(recovered.endpoint, initial.endpoint, "port-zero restart must publish a fresh authenticated endpoint")
-        XCTAssertNotEqual(recovered.context.events.ready.clientId, initialClientID, "restarted Host must bootstrap a fresh $events client identity")
-        XCTAssertNotEqual(recovered.context.generation, initial.context.generation, "restarted Host must publish a fresh Remote authority generation")
+        XCTAssertNotEqual(recovered.endpoint, reconnected.endpoint, "port-zero restart must publish a fresh authenticated endpoint")
+        XCTAssertNotEqual(recovered.context.events.ready.clientId, reconnected.context.events.ready.clientId, "restarted Host must bootstrap a fresh $events client identity")
+        XCTAssertNotEqual(recovered.context.generation, reconnected.context.generation, "restarted Host must publish a fresh Remote authority generation")
         XCTAssertFalse(
             recovered.context.authenticatedHost.urlSession === initialSession,
             "restarted Host must receive a fresh authenticated URLSession"

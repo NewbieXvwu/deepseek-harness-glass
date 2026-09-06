@@ -17,10 +17,7 @@ final class HarnessHostController: ObservableObject {
             if stateTransitions.count > 200 { stateTransitions.removeFirst(stateTransitions.count - 200) }
             appendLog("[host] transition \(transition.summary)")
             if case let .ready(connection) = oldValue {
-                Task {
-                    await connection.context.remote.closeStreams()
-                    connection.context.authenticatedHost.invalidate()
-                }
+                Task { await connection.context.remote.closeStreams() }
             }
             Task { [diagnostics] in await diagnostics.recordLifecycle(state, ownedPID: process?.processIdentifier) }
         }
@@ -32,17 +29,19 @@ final class HarnessHostController: ObservableObject {
     private let verifier: HostBuildVerifier
     private let fileManager: FileManager
     private let diagnostics: HostDiagnosticRecorder
+    private var authenticatedHost: AuthenticatedHostSession?
+    private var eventTerminationTask: Task<Void, Never>?
     private var process: Process?
     private var outputPipe: Pipe?
     private var announcedOutput = ""
     private var recoveryAttempts = 0
     private static let announcementRescanLookbackUTF16 = 1_024
-    private static let announcementRegularExpression: NSRegularExpression = {
-        // This is compile-once state: Host stderr can arrive in many short
-        // chunks during startup, so compiling this expression per chunk causes
-        // avoidable work precisely on the readiness critical path.
-        try! NSRegularExpression(pattern: #"dsh web:\s+(https?://127\.0\.0\.1(?::\d+)?/?\S*)"#)
-    }()
+    // This is compile-once state: Host stderr can arrive in many short
+    // chunks during startup, so compiling this expression per chunk causes
+    // avoidable work precisely on the readiness critical path.
+    private static let announcementRegularExpression = try? NSRegularExpression(
+        pattern: #"dsh web:\s+(https?://127\.0\.0\.1(?::\d+)?/?\S*)"#
+    )
     private var verificationTask: Task<Void, Never>?
     private var startupTimeoutTask: Task<Void, Never>?
     private var suppressRecoveryForTermination = false
@@ -69,6 +68,8 @@ final class HarnessHostController: ObservableObject {
     deinit {
         verificationTask?.cancel()
         startupTimeoutTask?.cancel()
+        eventTerminationTask?.cancel()
+        authenticatedHost?.invalidate()
         outputPipe?.fileHandleForReading.readabilityHandler = nil
         try? activeLogHandle?.close()
         if process?.isRunning == true { process?.terminate() }
@@ -121,6 +122,7 @@ final class HarnessHostController: ObservableObject {
     func retryOnce() {
         guard recoveryAttempts == 0 else { return }
         recoveryAttempts = 1
+        discardAuthentication()
         state = .recovering(attempt: recoveryAttempts)
         if let process, process.isRunning {
             suppressRecoveryForTermination = false
@@ -137,6 +139,7 @@ final class HarnessHostController: ObservableObject {
         verificationTask = nil
         startupTimeoutTask?.cancel()
         startupTimeoutTask = nil
+        discardAuthentication()
         suppressRecoveryForTermination = true
         restartAfterTermination = false
         state = .stopping
@@ -226,7 +229,7 @@ final class HarnessHostController: ObservableObject {
         announcedOutput += text
         // Limit retained parsing data while preserving a complete startup line.
         let wasTrimmed: Bool
-if announcedOutput.count > 32_768 {
+        if announcedOutput.count > 32_768 {
             announcedOutput.removeFirst(announcedOutput.count - 16_384)
             wasTrimmed = true
         } else {
@@ -267,7 +270,8 @@ if announcedOutput.count > 32_768 {
         let nsOutput = output as NSString
         guard offset >= 0, offset <= nsOutput.length else { return nil }
         let range = NSRange(location: offset, length: nsOutput.length - offset)
-        guard let match = announcementRegularExpression.firstMatch(in: output, range: range),
+        guard let announcementRegularExpression,
+              let match = announcementRegularExpression.firstMatch(in: output, range: range),
               match.numberOfRanges >= 2,
               match.range(at: 1).location != NSNotFound
         else { return nil }
@@ -291,25 +295,22 @@ if announcedOutput.count > 32_768 {
         verificationTask = Task { [weak self] in
             do {
                 let authenticatedHost = try await HostAuthBootstrap.authenticate(descriptor)
-                guard !Task.isCancelled else { return }
-                self?.state = .connecting(authenticatedHost.baseURL)
-                let remote = RemoteConnection(authenticatedHost: authenticatedHost)
-                let events = try await remote.connectEvents()
                 guard !Task.isCancelled else {
-                    await remote.closeStreams()
                     authenticatedHost.invalidate()
                     return
                 }
                 guard let self else {
-                    await remote.closeStreams()
                     authenticatedHost.invalidate()
                     return
                 }
-                self.state = .classifying(authenticatedHost.baseURL)
-                // rc.1 `$events.ready` proves the authenticated Remote generation and
-                // carries Host `home`; it intentionally exposes no build/version field.
-                // Build identity therefore comes from the trusted installation source,
-                // while assurance is published only after this handshake succeeds.
+                self.authenticatedHost = authenticatedHost
+                self.state = .connecting(authenticatedHost.baseURL)
+                let remote = RemoteConnection(authenticatedHost: authenticatedHost)
+                let events = try await remote.connectEvents()
+                guard !Task.isCancelled else {
+                    await remote.closeStreams()
+                    return
+                }
                 let compatibility: HostCompatibility
                 switch verification {
                 case .verified:
@@ -319,30 +320,13 @@ if announcedOutput.count > 32_768 {
                 case let .unsupported(reason):
                     throw HostBuildClassificationError.unsupportedAfterHandshake(reason)
                 }
-                let endpoint = authenticatedHost.baseURL
-                await self.diagnostics.recordConnected(
-                    build: build,
-                    compatibility: compatibility,
-                    endpoint: endpoint,
-                    pid: self.process?.processIdentifier,
-                    generation: events.generation
-                )
-                let context = HostConnectionContext(
+                await self.publishReady(
                     authenticatedHost: authenticatedHost,
                     remote: remote,
                     events: events,
-                    compatibility: compatibility,
-                    diagnostics: self.diagnostics
-                )
-                self.state = .ready(HostConnection(
-                    endpoint: endpoint,
                     build: build,
-                    compatibility: compatibility,
-                    context: context,
-                    startedAt: Date(),
-                    diagnostics: self.diagnostics
-                ))
-                self.appendLog("[host] remote ready endpoint=\(endpoint.absoluteString) build=\(build.id)")
+                    compatibility: compatibility
+                )
             } catch {
                 guard !Task.isCancelled else { return }
                 if let self { await self.diagnostics.recordRPCError(error) }
@@ -357,6 +341,128 @@ if announcedOutput.count > 32_768 {
         }
     }
 
+    private func publishReady(
+        authenticatedHost: AuthenticatedHostSession,
+        remote: RemoteConnection,
+        events: RemoteEventChannel,
+        build: SupportedHostBuildCatalog.Build,
+        compatibility: HostCompatibility
+    ) async {
+        guard let activeHost = self.authenticatedHost,
+              activeHost.urlSession === authenticatedHost.urlSession,
+              process?.isRunning == true
+        else {
+            await remote.closeStreams()
+            return
+        }
+        state = .classifying(authenticatedHost.baseURL)
+        let endpoint = authenticatedHost.baseURL
+        await diagnostics.recordConnected(
+            build: build,
+            compatibility: compatibility,
+            endpoint: endpoint,
+            pid: process?.processIdentifier,
+            generation: events.generation
+        )
+        let context = HostConnectionContext(
+            authenticatedHost: authenticatedHost,
+            remote: remote,
+            events: events,
+            compatibility: compatibility,
+            diagnostics: diagnostics
+        )
+        let connection = HostConnection(
+            endpoint: endpoint,
+            build: build,
+            compatibility: compatibility,
+            context: context,
+            startedAt: Date(),
+            diagnostics: diagnostics
+        )
+        state = .ready(connection)
+        appendLog("[host] remote ready endpoint=\(endpoint.absoluteString) build=\(build.id) generation=\(events.generation.rawValue)")
+        monitorEventTermination(for: connection)
+    }
+
+    private func monitorEventTermination(for connection: HostConnection) {
+        eventTerminationTask?.cancel()
+        let generation = connection.context.generation
+        eventTerminationTask = Task { [weak self] in
+            let termination = await connection.context.events.termination.value
+            guard !Task.isCancelled else { return }
+            self?.handleEventTermination(termination, generation: generation)
+        }
+    }
+
+    private func handleEventTermination(
+        _ termination: RemoteEventTermination,
+        generation: RemoteConnectionGeneration
+    ) {
+        guard case let .ready(connection) = state,
+              connection.context.generation == generation,
+              process?.isRunning == true
+        else { return }
+        switch termination {
+        case .cancelled:
+            return
+        case let .failed(error) where error.category == .carrierLost:
+            state = .recovering(attempt: 1)
+            appendLog("[host] Remote carrier lost generation=\(generation.rawValue); reopening $events")
+            reconnectRemote(from: connection)
+        case .ended:
+            failRemoteGeneration("$events ended without a carrier failure")
+        case let .failed(error):
+            failRemoteGeneration("$events terminated with \(error.category.rawValue): \(error)")
+        }
+    }
+
+    private func reconnectRemote(from connection: HostConnection) {
+        verificationTask?.cancel()
+        verificationTask = Task { [weak self] in
+            guard let self,
+                  let authenticatedHost = self.authenticatedHost,
+                  authenticatedHost.urlSession === connection.context.authenticatedHost.urlSession,
+                  self.process?.isRunning == true
+            else { return }
+            do {
+                self.state = .connecting(authenticatedHost.baseURL)
+                let remote = RemoteConnection(authenticatedHost: authenticatedHost)
+                let events = try await remote.connectEvents()
+                guard !Task.isCancelled else {
+                    await remote.closeStreams()
+                    return
+                }
+                await self.publishReady(
+                    authenticatedHost: authenticatedHost,
+                    remote: remote,
+                    events: events,
+                    build: connection.build,
+                    compatibility: connection.compatibility
+                )
+            } catch {
+                guard !Task.isCancelled else { return }
+                await self.diagnostics.recordRPCError(error)
+                self.failRemoteGeneration("Remote carrier recovery failed: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private func failRemoteGeneration(_ message: String) {
+        state = .failed(HostFailure(
+            kind: .verificationFailed,
+            message: message,
+            exitStatus: nil,
+            logPath: runtime.logFile.path
+        ))
+    }
+
+    private func discardAuthentication() {
+        eventTerminationTask?.cancel()
+        eventTerminationTask = nil
+        authenticatedHost?.invalidate()
+        authenticatedHost = nil
+    }
+
     private func handleTermination(_ process: Process) {
         startupTimeoutTask?.cancel()
         startupTimeoutTask = nil
@@ -365,6 +471,7 @@ if announcedOutput.count > 32_768 {
         self.process = nil
         verificationTask?.cancel()
         verificationTask = nil
+        discardAuthentication()
         let terminationStatus = process.terminationStatus
         appendLog("[host] terminated pid=\(process.processIdentifier) code=\(terminationStatus)")
         if suppressRecoveryForTermination {
