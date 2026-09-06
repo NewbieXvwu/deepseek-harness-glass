@@ -36,8 +36,6 @@ enum RemoteConnectionError: Error, Sendable, Equatable {
     }
 
     private static let methodUnavailableCodes: Set<String> = [
-        "gateway/definition-unavailable",
-        "gateway/invocation-unavailable",
         "gateway/method-unavailable",
     ]
 }
