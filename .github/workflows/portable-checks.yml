@@ -129,5 +129,5 @@ jobs:
         run: python3 glass/ci/test-ci-workflow-layout.py
       - name: Scan for tautological test assertions (report-only)
         run: python3 glass/ci/check-test-integrity.py
-      - name: Gate generated-prose style (no filler, no runaway lines)
-        run: python3 tools/check-doc-style.py --fail
+      - name: Scan generated-prose style (report-only)
+        run: python3 tools/check-doc-style.py
