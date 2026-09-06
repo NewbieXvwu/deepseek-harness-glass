@@ -7,7 +7,7 @@
 
 ## 目录
 1. [项目工程基准与第一性原理](#1-项目工程基准与第一性原理)
-2. [十三严禁反模式与具体错误代码剖析](#2-十三严禁反模式与具体错误代码剖析)
+2. [十四严禁反模式与具体错误代码剖析](#2-十四严禁反模式与具体错误代码剖析)
    - [反模式 1：形式主义自杀式崩溃断言与强制解包](#反模式-1形式主义自杀式崩溃断言与强制解包)
    - [反模式 2：脆弱的“文本对暗号”与正则伪测试](#反模式-2脆弱的文本对暗号与正则伪测试)
    - [反模式 3：流式热路径过度抽象与多重序列化损耗](#反模式-3流式热路径过度抽象与多重序列化损耗)
@@ -21,6 +21,7 @@
    - [反模式 11：形式主义“自测套娃”与黑客式字符串抹除断言](#反模式-11形式主义自测套娃与黑客式字符串抹除断言)
    - [反模式 12：协议与契约提取病态依赖多行正则导致数据截断腐烂](#反模式-12协议与契约提取病态依赖多行正则导致数据截断腐烂)
    - [反模式 13：顺序同步帧脆弱断言导致全局桌面状态清空崩塌](#反模式-13顺序同步帧脆弱断言导致全局桌面状态清空崩塌)
+   - [反模式 14：门禁硬编码魔数对暗号与官僚自测套娃](#反模式-14门禁硬编码魔数对暗号与官僚自测套娃)
 3. [测试有效性第一性原理 (Anti-Theater Testing)](#3-测试有效性第一性原理-anti-theater-testing)
 4. [Swift 并发与架构红线](#4-swift-并发与架构红线)
 5. [提交前全量自检清单](#5-提交前全量自检清单)
@@ -36,10 +37,16 @@
    - 客户端是长时间驻留的 macOS 原生桌面容器，必须能够在后端网络波动、异常帧、重复数据、并发竞态等恶劣场景下平稳自愈，**绝对不允许非致命错误直接让生产 App 崩溃（Crash）**。
 3. **零编译警告与严格并发安全**：
    - 严格启用 Swift 6 并发检查模式，代码库必须保持 `swift build` 零警告、零错误。
+4. **增量状态机纯函数隔离（Pure State Reducer）**：
+   - 增量数据流状态机必须设计为零异常、零异步、零副作用的纯函数 `(State, Frame) -> State`。任何局部解析失败、乱序、未知 ID 均由 Reducer 内部进行无损容错对齐或单帧丢弃，**严禁向外层抛出错误，物理剥夺局部错误导致上层 Actor 触发 `invalidate()` 清空全局状态（`state = nil`）的自杀特权**。
+5. **长连接网络流双态自愈机（Two-Phase Stream Resiliency）**：
+   - 网络长连接消费 Task 必须严格区分“首帧协商期（Handshake Phase）”与“持续消费期（Runtime Phase）”：
+     - **协商期**（首次建立连接，`continuation != nil`）：首帧握手或解码失败必须立即上抛给调用方，严禁假死挂起；
+     - **消费期**（运行态持续消费，`continuation == nil`）：遭遇网络闪断、远端重置或帧解析异常时，**严禁直接消极 `return` 终结后台 Task 导致客户端沦为植物人**，必须在 Task 内部执行指数退避（200ms $\rightarrow$ 3s）自愈重连循环。
 
 ---
 
-## 2. 十一严禁反模式与具体错误代码剖析
+## 2. 十四严禁反模式与具体错误代码剖析
 
 以下反模式均来自历史审查中发现的真实严重工程缺陷。任何 AI 智能体在提交代码时若重犯以下任意一种，均视为重大质量事故。
 
@@ -253,12 +260,12 @@ guard let hostNode = ProcessInfo.processInfo.environment["DSH_GLASS_HOST_NODE"],
 ### 反模式 8：单测装载 AppKit 临时窗口未关闭系统动画导致 UAF / SIGSEGV 悬垂指针崩溃
 
 * **危害**：在单测或视图测试中，为了布局或无障碍元素检查，创建临时 `NSWindow` 并调用 `window.makeKeyAndOrderFront(nil)`，但未禁用动画（未设置 `window.animationBehavior = .none`）且未设置 `window.isReleasedWhenClosed = false`。AppKit 会默认启动异步的 `_NSWindowTransformAnimation`；单测结束窗口关闭后，CoreAnimation 观察者回调触发，动画对象析构解引用已销毁的野指针，在 `_NSWindowTransformAnimation dealloc` 中引发致命的 `EXC_BAD_ACCESS (SIGSEGV 11)` 间歇性崩溃。
-* **规则**：所有单测中创建的辅助 `NSWindow` 必须显式关闭动画并移交生命周期管理，确保无异步渲染残留。
+* **规则**：所有涉及 `NSWindow` 或 AppKit 视图容器的单测，**必须且只能通过统一的 `IsolatedTestWindowHarness` 执行**，严禁在测试方法中自行裸写 `NSWindow(...)`。
 
-#### 真实对比案例：[`glass/Tests/App/NativeMaterialIsolationRuntimeTests.swift`](glass/Tests/App/NativeMaterialIsolationRuntimeTests.swift) 与 [`glass/Tests/App/NativeAccessibilityRuntimeTests.swift`](glass/Tests/App/NativeAccessibilityRuntimeTests.swift)
+#### 真实对比案例：[`glass/Tests/App/IsolatedTestWindow.swift`](glass/Tests/App/IsolatedTestWindow.swift) 与 [`glass/Tests/App/NativeMaterialIsolationRuntimeTests.swift`](glass/Tests/App/NativeMaterialIsolationRuntimeTests.swift)
 
 ```swift
-// ❌ 错误做法：未禁用动画直接展示窗口并在单测结束立即关闭，导致 CoreAnimation 异步动画对象野指针崩溃！
+// ❌ 错误做法：测试中裸写 NSWindow 且未禁用动画，单测结束 CoreAnimation 动画对象野指针崩溃！
 let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 960, height: 720), styleMask: [.titled], backing: .buffered, defer: false)
 window.contentView = host
 window.makeKeyAndOrderFront(nil)
@@ -267,18 +274,12 @@ defer { window.close() } // 抛出 EXC_BAD_ACCESS: -[_NSWindowTransformAnimation
 ```
 
 ```swift
-// ✅ 正确做法：强制禁用动画、禁止自动析构，保证单测环境完全纯净
-let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 960, height: 720), styleMask: [.titled], backing: .buffered, defer: false)
-window.animationBehavior = .none
-window.isReleasedWhenClosed = false
-window.contentView = host
-window.makeKeyAndOrderFront(nil)
-host.layoutSubtreeIfNeeded()
-RunLoop.main.run(until: Date().addingTimeInterval(0.05))
-defer {
-    window.contentView = nil
-    window.orderOut(nil)
-    window.close()
+// ✅ 正确做法：统一收拢至 IsolatedTestWindowHarness，强行关闭动画与自动释放，确定性 defer 回收
+IsolatedTestWindowHarness.withHostedView(view) { host in
+    XCTAssertTrue(
+        visualEffects(in: host).isEmpty,
+        "D3 violation: mounted an ad-hoc NSVisualEffectView in its runtime content tree."
+    )
 }
 ```
 
@@ -432,6 +433,37 @@ case let .order(workspaceIDs):
 
 ---
 
+### 反模式 14：门禁硬编码魔数对暗号与官僚自测套娃
+
+* **危害**：在 CI 协议门禁中硬编码接口数量或错误码常量（如 `len(closedRemoteErrors) == 38`、`len(procedures) == 51`），并编写起子进程专门篡改 JSON 捕获报错字符串的“自测套娃脚本”（如 `test-official-remote-contract.py`）。当官方上游增加错误码或接口时，门禁因魔数不符假报警；而在类型定义被截断甚至残损时，却因数量凑齐而完全失明放行！自测套娃脚本不仅白白消耗 CI 资源，更给开发者制造了虚假的“门禁高覆盖率”幻觉。
+* **规则**：
+  1. 门禁严禁硬编码任何魔数常量。契约校验必须基于**官方 AST 导出的确定性全量符号集合闭包比对**或**候选产物与基线的确定性 Diff**；
+  2. 提取的任何类型定义字符串必须通过**栈式括号平衡（`{}`、`[]`、`()`、`<>`）校验**，严禁单字符残废类型（如 `{`）入库；
+  3. 坚决禁止编写子进程篡改自测套娃脚本。
+
+#### 真实对比案例：[`glass/ci/check-official-remote-contract.py`](glass/ci/check-official-remote-contract.py)
+
+```python
+# ❌ 错误做法：写死常量魔数对暗号；上游更新直接报假警，类型被截断却视而不见！
+if len(procedures) != 51:
+    fail("procedures must contain exactly the 51 reviewed rc.1 endpoints")
+if len(errors) != 38:
+    fail("closedRemoteErrors must contain exactly the 38 reviewed codes")
+```
+
+```python
+# ✅ 正确做法：去魔数化，基于动态非空校验、唯一性集合与栈式括号平衡完整性门禁
+if not isinstance(procedures, list) or not procedures:
+    fail("procedures must be a non-empty list of reviewed endpoints")
+for procedure in procedures:
+    validate_type_syntax(procedure["returnType"], f"{procedure['endpoint']} returnType")
+
+for entry in errors:
+    validate_type_syntax(entry["detailsType"], f"error '{entry['code']}' detailsType")
+```
+
+---
+
 ## 3. 测试有效性第一性原理 (Anti-Theater Testing)
 
 所有测试代码必须服务于**真实生产场景的韧性与正确性**，严禁合规演戏：
@@ -443,6 +475,9 @@ case let .order(workspaceIDs):
    - 当仅仅重构内部结构、提取私有函数或排版调整而功能保持不变时，测试必须稳定全绿。
 3. **混沌与故障注入覆盖（Chaos & Fault Injection）**：
    - 重点覆盖非 Happy Path：网络闪断自愈、流式重连退避、乱序帧重排、恶性格式报文丢弃与隔离。
+4. **混沌工程与状态不变量防线（Chaos Engineering & Invariant Proofs）**：
+   - 对于核心领域状态机（如 `WorkspaceStateReducer`、`SessionJournal`），必须编写基于伪随机数发生器（PRNG）的确定性混沌风暴注入单测（如 1,000 次连续乱序、脏数据、未知 ID、迟到 Baseline 冲击）；
+   - 必须在每次迭代后断言数学级核心不变量（如：元素 ID 严格全局唯一、集合无损守恒、无异常无崩溃），并施加严格的时间性能预算（< 50ms），确保高频极端场景下坚不可摧。
 
 ---
 
@@ -464,15 +499,24 @@ case let .order(workspaceIDs):
 在提交任何代码或宣布任务完成之前，必须依次在终端执行并确认以下检查全部通过：
 
 ```bash
-# 1. 确保构建零警告、零错误
-swift build
+# 1. 确保构建零警告、零错误（启用严格 Swift 6 并发安全）
+swift build --package-path glass
 
-# 2. 运行全部单元测试（确保 0 失败、0 错误、外部测试优雅跳过）
-swift test
+# 2. 运行全部单元测试与混沌不变量测试（确保 460+ 测试 0 失败、0 崩溃）
+swift test --package-path glass
 
-# 3. 运行宿主升级治理报告核验
-python3 tools/check-host-upgrade-report.py
+# 3. 运行官方契约去魔数与类型括号平衡门禁
+python3 glass/ci/check-official-remote-contract.py --official-root .reference/deepseek-harness
 
-# 4. 运行 Markdown 链接有效性校验
+# 4. 运行认证宿主 Fixture 门禁
+python3 glass/ci/check-authenticated-host-fixtures.py
+
+# 5. 运行测试完整性门禁（反自测套娃与虚假断言）
+python3 glass/ci/check-test-integrity.py
+
+# 6. 运行 CI 工作流拓扑门禁
+python3 glass/ci/test-ci-workflow-layout.py
+
+# 7. 运行 Markdown 链接有效性校验
 python3 tools/check-markdown-links.py
 ```
