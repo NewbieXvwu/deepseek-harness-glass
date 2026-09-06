@@ -160,7 +160,7 @@ enum DSHTransportError: LocalizedError, Equatable, Sendable {
         case let .unexpectedEnvelope(type): return "Unexpected DeepSeek Harness envelope: \(type)"
         case let .mismatchedRPCID(expected, actual): return "Mismatched RPC response id: expected \(expected), got \(actual)."
         case let .duplicateRPCID(rpcId): return "Duplicate in-flight or recently issued DeepSeek Harness rpcId: \(rpcId)."
-        case let .invalidContentType(value): return "Unexpected DeepSeek Harness content type: \(value ?? \"missing\")."
+        case let .invalidContentType(value): return "Unexpected DeepSeek Harness content type: \(value ?? "missing")."
         case let .decoding(message): return "Could not decode DeepSeek Harness response: \(message)"
         case .timeout: return "DeepSeek Harness request timed out."
         case let .network(message): return "DeepSeek Harness network request failed: \(message)"
