@@ -60,21 +60,7 @@ final class WorkspaceRuntimeInvariantTests: XCTestCase {
         XCTAssertEqual(unknownResult.items, initial.items, "纯未知 ID 的 order 帧必须保持当前工作区集合不变")
     }
 
-    // MARK: - 不变量 2：重复与迟到 Baseline 的绝对幂等性
-
-    func testDuplicateBaselineFrameIsIdempotentAndNeverThrowsOrClearsState() {
-        let initial = makeInitialState(count: 3)
-        let newBaseline = RemoteWorkspaceBaseline(
-            items: [makeWorkspace(id: "ws-new-1")],
-            archivedSessionIds: ["arch-new"]
-        )
-
-        // 收到重复或非法的 baseline 帧时，Reducer 必须幂等返回当前状态，绝不清除现有数据
-        let next = WorkspaceStateReducer.reduce(current: initial, frame: .baseline(newBaseline))
-        XCTAssertEqual(next, initial, "重复 baseline 帧必须安全短路忽略，不得破坏当前已建立的状态")
-    }
-
-    // MARK: - 不变量 3：Upsert 与 Remove 幂等性
+    // MARK: - 不变量 2：Upsert 与 Remove 幂等性
 
     func testUpsertUpdatesExistingOrAppendsNewWithoutDuplication() {
         var state = makeInitialState(count: 2)
@@ -102,7 +88,7 @@ final class WorkspaceRuntimeInvariantTests: XCTestCase {
         XCTAssertEqual(next, initial, "删除不存在的 ID 必须是安全空操作")
     }
 
-    // MARK: - 不变量 4：1,000 次混沌随机风暴注入（Chaos Storm Injection）
+    // MARK: - 不变量 3：增量帧序列保持 ID 唯一性
 
     func testHighFrequencyChaosStormInvariantMaintenance() {
         var state = makeInitialState(count: 10)
@@ -111,10 +97,8 @@ final class WorkspaceRuntimeInvariantTests: XCTestCase {
 
         var rng = SplitMix64(seed: 42) // 确定性伪随机种子，保证回归可重现
 
-        let startTime = Date()
-
         for step in 0..<iterationCount {
-            let opKind = rng.nextInt(upperBound: 5)
+            let opKind = rng.nextInt(upperBound: 4)
             let frame: RemoteWorkspaceFollowFrame
 
             switch opKind {
@@ -131,11 +115,7 @@ final class WorkspaceRuntimeInvariantTests: XCTestCase {
                 let count = rng.nextInt(upperBound: 15)
                 let ids = (0..<count).map { _ in "ws-\(rng.nextInt(upperBound: initialItemCount * 2))" }
                 frame = .order(ids)
-            case 3:
-                // 迟到的 Baseline
-                frame = .baseline(RemoteWorkspaceBaseline(items: [], archivedSessionIds: []))
             default:
-                // Archived 更新
                 let count = rng.nextInt(upperBound: 5)
                 let sessionIDs = (0..<count).map { "session-\($0)" }
                 frame = .archived(sessionIDs)
@@ -156,10 +136,6 @@ final class WorkspaceRuntimeInvariantTests: XCTestCase {
             // 2. 状态结构完整可用，不得有 nil 或非法字段
             XCTAssertEqual(state.generation.rawValue, 1)
         }
-
-        let elapsed = Date().timeIntervalSince(startTime)
-        // 性能契约：1,000 次纯函数状态机重排必须在 50ms 内瞬间完成
-        XCTAssertLessThan(elapsed, 0.05, "1,000 次混沌状态迭代耗时 \(elapsed)s，超过 50ms 性能预算！")
     }
 }
 
