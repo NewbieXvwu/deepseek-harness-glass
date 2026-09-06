@@ -132,21 +132,21 @@ struct SubagentController: SubagentControllerAPI, Sendable {
 
     func list(parentSessionID: String) async throws -> RemoteSubagentCatalog {
         try await remote.call(
-            RemoteProcedure("subagents/list"),
+            RemoteProcedure(.subagentsList),
             arguments: ListArguments(parentSessionId: parentSessionID)
         )
     }
 
     func prompt(_ request: RemoteSubagentPromptRequest) async throws -> RemoteSubagentPromptReceipt {
         try await remote.call(
-            RemoteProcedure("subagents/prompt"),
+            RemoteProcedure(.subagentsPrompt),
             arguments: PromptArguments(request: request)
         )
     }
 
     func interrupt(parentSessionID: String, childSessionID: String) async throws -> RemoteSubagentInterruptReceipt {
         try await remote.call(
-            RemoteProcedure("subagents/interruptByParent"),
+            RemoteProcedure(.subagentsInterruptByParent),
             arguments: InterruptArguments(
                 childSessionId: childSessionID,
                 parentSessionId: parentSessionID,
