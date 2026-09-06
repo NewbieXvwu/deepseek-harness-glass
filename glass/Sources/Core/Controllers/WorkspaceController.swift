@@ -74,31 +74,31 @@ struct WorkspaceController: WorkspaceControllerAPI, Sendable {
     init(remote: RemoteConnection) { self.remote = remote }
 
     func create(path: String) async throws -> RemoteWorkspaceCreateValue {
-        try await remote.call(RemoteProcedure("workspace/create"), arguments: CreateArguments(request: .init(path: path)))
+        try await remote.call(RemoteProcedure(.workspaceCreate), arguments: CreateArguments(request: .init(path: path)))
     }
 
     func rename(workspaceID: String, title: String) async throws -> RemoteWorkspaceValue {
-        try await remote.call(RemoteProcedure("workspace/rename"), arguments: RenameArguments(request: .init(workspaceId: workspaceID, title: title)))
+        try await remote.call(RemoteProcedure(.workspaceRename), arguments: RenameArguments(request: .init(workspaceId: workspaceID, title: title)))
     }
 
     func delete(workspaceID: String) async throws -> RemoteWorkspaceDeleteValue {
-        try await remote.call(RemoteProcedure("workspace/delete"), arguments: DeleteArguments(request: .init(workspaceId: workspaceID)))
+        try await remote.call(RemoteProcedure(.workspaceDelete), arguments: DeleteArguments(request: .init(workspaceId: workspaceID)))
     }
 
     func insertBefore(workspaceID: String, beforeWorkspaceID: String?) async throws -> RemoteWorkspaceOrderValue {
-        try await remote.call(RemoteProcedure("workspace/insertBefore"), arguments: InsertBeforeArguments(request: .init(workspaceId: workspaceID, beforeWorkspaceId: beforeWorkspaceID)))
+        try await remote.call(RemoteProcedure(.workspaceInsertBefore), arguments: InsertBeforeArguments(request: .init(workspaceId: workspaceID, beforeWorkspaceId: beforeWorkspaceID)))
     }
 
     func insertSessionBefore(workspaceID: String, sessionID: String, beforeSessionID: String?) async throws -> RemoteWorkspaceValue {
-        try await remote.call(RemoteProcedure("workspace/insertSessionBefore"), arguments: InsertSessionArguments(request: .init(workspaceId: workspaceID, sessionId: sessionID, beforeSessionId: beforeSessionID)))
+        try await remote.call(RemoteProcedure(.workspaceInsertSessionBefore), arguments: InsertSessionArguments(request: .init(workspaceId: workspaceID, sessionId: sessionID, beforeSessionId: beforeSessionID)))
     }
 
     func archiveSession(sessionID: String) async throws -> RemoteWorkspaceArchiveValue {
-        try await remote.call(RemoteProcedure("workspace/archiveSession"), arguments: ArchiveArguments(request: .init(sessionId: sessionID)))
+        try await remote.call(RemoteProcedure(.workspaceArchiveSession), arguments: ArchiveArguments(request: .init(sessionId: sessionID)))
     }
 
     func follow() async throws -> AsyncThrowingStream<RemoteWorkspaceFollowFrame, Error> {
-        try await remote.stream(RemoteStreamProcedure("workspace/follow"), arguments: EmptyArguments())
+        try await remote.stream(RemoteStreamProcedure(.workspaceFollow), arguments: EmptyArguments())
     }
 
     private struct CreateRequest: Codable, Sendable { let path: String }
