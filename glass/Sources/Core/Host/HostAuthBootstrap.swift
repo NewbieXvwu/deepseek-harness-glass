@@ -15,6 +15,10 @@ struct AuthenticatedHostSession: @unchecked Sendable {
         self.baseURL = baseURL
         self.urlSession = urlSession
     }
+
+    func invalidate() {
+        urlSession.invalidateAndCancel()
+    }
 }
 
 enum HostAuthBootstrapError: Error, Sendable, Equatable {
@@ -51,6 +55,10 @@ enum HostAuthBootstrap {
             delegate: HostBootstrapRedirectBlocker(),
             delegateQueue: nil
         )
+        var authenticated = false
+        defer {
+            if !authenticated { session.invalidateAndCancel() }
+        }
         var exchange = URLRequest(url: descriptor.launchURL)
         exchange.httpMethod = "GET"
         exchange.cachePolicy = .reloadIgnoringLocalCacheData
@@ -92,6 +100,7 @@ enum HostAuthBootstrap {
         else {
             throw HostAuthBootstrapError.unexpectedStatus((verifiedResponse as? HTTPURLResponse)?.statusCode ?? -1)
         }
+        authenticated = true
         return AuthenticatedHostSession(baseURL: descriptor.cleanBaseURL, urlSession: session)
     }
 }
