@@ -103,7 +103,13 @@ jobs:
         run: |
           export PATH="$NODE24_BIN:$PATH"
           cd .reference/deepseek-harness
-          NODE_OPTIONS="--max-old-space-size=8192" corepack pnpm run build
+          export DSH_CLIENT_BUILD_PROFILE=official
+          export DSH_CLIENT_COMMIT_HASH="${OFFICIAL_COMMIT:0:7}"
+          export DSH_CLIENT_VERSION="$(node -p "require('./package.json').version")"
+          export DSH_CLIENT_TITLE="DeepSeek Harness"
+          NODE_OPTIONS="--max-old-space-size=8192" corepack pnpm run build:lib:client
+          NODE_OPTIONS="--max-old-space-size=8192" corepack pnpm run build:web
+          test -s apps/web/dist/index.html
           cp "$GITHUB_WORKSPACE/tools/reference-capture/capture-official-welcome.e2e.ts" apps/web/tests/
           corepack pnpm --filter @deepseek-ai/dsh-web-frontend exec playwright install chromium
           DSH_REFERENCE_SCREENSHOT_DIR="$GITHUB_WORKSPACE/artifacts/official-webui" \
