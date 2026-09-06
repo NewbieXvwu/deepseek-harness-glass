@@ -140,7 +140,6 @@ enum DSHTransportError: LocalizedError, Equatable, Sendable {
     case decoding(String)
     case timeout
     case network(String)
-    case unverifiedHostBuild(String)
     case cancelled
 
     var disposition: RPCErrorDisposition {
@@ -148,7 +147,6 @@ enum DSHTransportError: LocalizedError, Equatable, Sendable {
         case .timeout, .network: return .retryable
         case let .invalidHTTPStatus(status, _):
             return (status == 408 || status == 425 || status == 429 || status >= 500) ? .retryable : .programFault
-        case .unverifiedHostBuild: return .unsupported
         case .cancelled: return .requiresUserCorrection
         case .invalidEndpoint, .unexpectedEnvelope, .mismatchedRPCID, .duplicateRPCID, .invalidContentType, .decoding:
             return .programFault
@@ -162,11 +160,10 @@ enum DSHTransportError: LocalizedError, Equatable, Sendable {
         case let .unexpectedEnvelope(type): return "Unexpected DeepSeek Harness envelope: \(type)"
         case let .mismatchedRPCID(expected, actual): return "Mismatched RPC response id: expected \(expected), got \(actual)."
         case let .duplicateRPCID(rpcId): return "Duplicate in-flight or recently issued DeepSeek Harness rpcId: \(rpcId)."
-        case let .invalidContentType(value): return "Unexpected DeepSeek Harness content type: \(value ?? "missing")."
+        case let .invalidContentType(value): return "Unexpected DeepSeek Harness content type: \(value ?? \"missing\")."
         case let .decoding(message): return "Could not decode DeepSeek Harness response: \(message)"
         case .timeout: return "DeepSeek Harness request timed out."
         case let .network(message): return "DeepSeek Harness network request failed: \(message)"
-        case let .unverifiedHostBuild(reason): return "DeepSeek Harness build is unverified; write operation is blocked: \(reason)"
         case .cancelled: return "DeepSeek Harness request was cancelled."
         }
     }

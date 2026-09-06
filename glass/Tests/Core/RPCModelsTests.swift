@@ -21,7 +21,6 @@ final class RPCModelsTests: XCTestCase {
             (.invalidHTTPStatus(429, body: "busy"), .retryable),
             (.invalidHTTPStatus(503, body: "down"), .retryable),
             (.invalidHTTPStatus(400, body: "invalid"), .programFault),
-            (.unverifiedHostBuild("fixture"), .unsupported),
             (.cancelled, .requiresUserCorrection),
             (.mismatchedRPCID(expected: "a", actual: "b"), .programFault),
             (.duplicateRPCID("rpc-fixture"), .programFault),
