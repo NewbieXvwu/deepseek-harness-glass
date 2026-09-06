@@ -257,42 +257,42 @@ struct SessionController: SessionControllerAPI, Sendable {
 
     func list() async throws -> RemoteSessionListValue {
         try await remote.call(
-            RemoteProcedure("session/list"),
+            RemoteProcedure(.sessionList),
             arguments: ListArguments(_request: ListRequest())
         )
     }
 
     func search(query: String) async throws -> RemoteSessionSearchValue {
         try await remote.call(
-            RemoteProcedure("session/search"),
+            RemoteProcedure(.sessionSearch),
             arguments: SearchArguments(request: SearchRequest(query: query))
         )
     }
 
     func create(_ request: RemoteSessionCreateRequest) async throws -> RemoteSessionCreateValue {
         try await remote.call(
-            RemoteProcedure("session/create"),
+            RemoteProcedure(.sessionCreate),
             arguments: CreateArguments(request: request)
         )
     }
 
     func rename(sessionID: String, title: String) async throws -> RemoteSessionRenameValue {
         try await remote.call(
-            RemoteProcedure("session/rename"),
+            RemoteProcedure(.sessionRename),
             arguments: RenameArguments(request: .init(sessionId: sessionID, title: title))
         )
     }
 
     func fork(sessionID: String, atSeq: SessionSeq? = nil) async throws -> RemoteSessionForkValue {
         try await remote.call(
-            RemoteProcedure("session/fork"),
+            RemoteProcedure(.sessionFork),
             arguments: ForkArguments(request: .init(sessionId: sessionID, atSeq: atSeq))
         )
     }
 
     func selectModel(sessionID: String, selection: RemoteModelSelection) async throws -> RemoteSessionSelectModelValue {
         try await remote.call(
-            RemoteProcedure("session/selectModel"),
+            RemoteProcedure(.sessionSelectModel),
             arguments: SelectModelArguments(request: .init(
                 sessionId: sessionID,
                 provider: selection.provider,
@@ -303,54 +303,54 @@ struct SessionController: SessionControllerAPI, Sendable {
     }
 
     func modelCatalog() async throws -> RemoteModelCatalog {
-        try await remote.call(RemoteProcedure("session/modelCatalog"), arguments: EmptyArguments())
+        try await remote.call(RemoteProcedure(.sessionModelCatalog), arguments: EmptyArguments())
     }
 
     func canOpenWorkspacePath() async throws -> Bool {
-        try await remote.call(RemoteProcedure("session/canOpenWorkspacePath"), arguments: EmptyArguments())
+        try await remote.call(RemoteProcedure(.sessionCanOpenWorkspacePath), arguments: EmptyArguments())
     }
 
     func openWorkspacePath(_ path: String) async throws -> RemoteSessionOpenWorkspacePathValue {
         try await remote.call(
-            RemoteProcedure("session/openWorkspacePath"),
+            RemoteProcedure(.sessionOpenWorkspacePath),
             arguments: OpenWorkspacePathArguments(request: .init(path: path))
         )
     }
 
     func prompt(_ request: RemoteSessionPromptRequest) async throws -> RemoteSessionAcceptedValue {
-        try await remote.call(RemoteProcedure("session/prompt"), arguments: PromptArguments(request: request))
+        try await remote.call(RemoteProcedure(.sessionPrompt), arguments: PromptArguments(request: request))
     }
 
     func cancel(sessionID: String) async throws -> RemoteSessionAcceptedValue {
         try await remote.call(
-            RemoteProcedure("session/cancel"),
+            RemoteProcedure(.sessionCancel),
             arguments: CancelArguments(request: .init(sessionId: sessionID))
         )
     }
 
     func updateQueue(sessionID: String, itemID: String, action: RemoteQueueAction) async throws -> RemoteSessionAcceptedValue {
         try await remote.call(
-            RemoteProcedure("session/updateQueue"),
+            RemoteProcedure(.sessionUpdateQueue),
             arguments: UpdateQueueArguments(request: .init(sessionId: sessionID, itemId: itemID, action: action))
         )
     }
 
     func page(_ request: RemoteSessionPageRequest) async throws -> RemoteSessionPageValue {
         try await remote.call(
-            RemoteProcedure("session/page"),
+            RemoteProcedure(.sessionPage),
             arguments: PageArguments(request: request)
         )
     }
 
     func follow(_ request: RemoteSessionFollowRequest) async throws -> AsyncThrowingStream<RemoteSessionFollowFrame, Error> {
         try await remote.stream(
-            RemoteStreamProcedure("session/follow"),
+            RemoteStreamProcedure(.sessionFollow),
             arguments: FollowArguments(request: request)
         )
     }
 
     func control() async throws -> AsyncThrowingStream<RemoteSessionControlFrame, Error> {
-        try await remote.stream(RemoteStreamProcedure("session/control"), arguments: EmptyArguments())
+        try await remote.stream(RemoteStreamProcedure(.sessionControl), arguments: EmptyArguments())
     }
 
     private struct ListRequest: Codable, Sendable {}
