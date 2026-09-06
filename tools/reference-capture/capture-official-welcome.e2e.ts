@@ -18,6 +18,9 @@ const jobsFixture = join(REPO_ROOT, 'snapshots/web/fresh-round-trip/session.json
 const workspaceSearchFixture = join(REPO_ROOT, 'snapshots/web/navigation-panes/session.jsonl')
 const approvalFixture = join(REPO_ROOT, 'snapshots/web/approval-composer/session.jsonl')
 const questionFixture = join(REPO_ROOT, 'snapshots/web/question-composer/session.jsonl')
+// Both canonical takeover recordings persist this browser-derived field. Pin it
+// so their full replay-session comparison is independent of the CI runner zone.
+const canonicalReplayTimeZone = 'Asia/Shanghai'
 const officialSourceCommit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: REPO_ROOT, encoding: 'utf8' }).trim()
 const approvalPrompt = `Write a file named notes.txt in the workspace containing exactly this text on one line: ${Array.from({ length: 220 }, (_, index) => `tok${((index + 1) * 7919 % 99991).toString(36)}`).join(' ')}. Use one bash command with the literal text inline. Then reply with the single word DONE and stop.`
 const questionPrompt = 'Use the ask_user_question tool to ask me exactly one multi-select question with id "color", question "Which color do you prefer?", header "Pick one", and two options: label "Blue" with description "A cool recessive hue that reads as calm and trustworthy in long reading sessions and dense dashboards.", and label "Green" with description "A restful mid-spectrum hue with the highest perceived brightness, easiest on the eye over long sessions." Set multi_select to true. After I answer, reply with the single word DONE and stop.'
@@ -419,7 +422,7 @@ describe('reference capture: official welcome and session Jobs action', () => {
   it('captures official approval takeover from the recorded Read Only escalation', async () => {
     const name = 'approval-composer-light'
     const approvalScaffold = await launchWebScaffold({ replayFixture: approvalFixture, paceMs: 15 })
-    const context = await browser.newContext({ viewport: { width: 1280, height: 1100 }, locale: 'en-US', colorScheme: 'light', deviceScaleFactor: 1 })
+    const context = await browser.newContext({ viewport: { width: 1280, height: 1100 }, locale: 'en-US', colorScheme: 'light', deviceScaleFactor: 1, timezoneId: canonicalReplayTimeZone })
     const page = await context.newPage()
     const consoleTripwire = watchConsole(page)
     try {
@@ -453,7 +456,7 @@ describe('reference capture: official welcome and session Jobs action', () => {
   it('captures official question takeover from the recorded ask_user_question turn', async () => {
     const name = 'question-composer-light'
     const questionScaffold = await launchWebScaffold({ replayFixture: questionFixture, paceMs: 15 })
-    const context = await browser.newContext({ viewport: { width: 1280, height: 1100 }, locale: 'en-US', colorScheme: 'light', deviceScaleFactor: 1 })
+    const context = await browser.newContext({ viewport: { width: 1280, height: 1100 }, locale: 'en-US', colorScheme: 'light', deviceScaleFactor: 1, timezoneId: canonicalReplayTimeZone })
     const page = await context.newPage()
     const consoleTripwire = watchConsole(page)
     try {
