@@ -1,0 +1,36 @@
+name: Export current development checkpoint
+
+on:
+  push:
+    branches:
+      - tmp-export-current-20260906
+
+permissions:
+  contents: write
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Export current development branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin gpt-continue-todo-20260905
+          mkdir checkpoint
+          git bundle create checkpoint/deepseek-harness-glass.bundle refs/remotes/origin/gpt-continue-todo-20260905
+          git rev-parse refs/remotes/origin/gpt-continue-todo-20260905 > checkpoint/deepseek-harness-glass.HEAD.txt
+          (cd checkpoint && sha256sum deepseek-harness-glass.bundle deepseek-harness-glass.HEAD.txt > SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: current-development-checkpoint
+          path: checkpoint/
+          retention-days: 1
+      - name: Remove temporary branch
+        if: always()
+        shell: bash
+        run: git push origin --delete tmp-export-current-20260906 || true
