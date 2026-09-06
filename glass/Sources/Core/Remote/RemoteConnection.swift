@@ -158,7 +158,7 @@ struct RemoteConnection: Sendable {
         }
         let generation = await generations.next()
         let pair = AsyncThrowingStream<RemoteEventDownlinkFrame, Error>.makeStream()
-        Task {
+        let termination = Task { () -> RemoteEventTermination in
             do {
                 while let frame = try await iterator.next() {
                     if case .ready = frame {
@@ -167,8 +167,17 @@ struct RemoteConnection: Sendable {
                     pair.continuation.yield(frame)
                 }
                 pair.continuation.finish()
-            } catch {
+                return .ended
+            } catch is CancellationError {
+                pair.continuation.finish()
+                return .cancelled
+            } catch let error as RemoteConnectionError {
                 pair.continuation.finish(throwing: error)
+                return .failed(error)
+            } catch {
+                let violation = RemoteConnectionError.protocolViolation("invalid $events frame: \(error)")
+                pair.continuation.finish(throwing: violation)
+                return .failed(violation)
             }
         }
         let clientID = ready.clientId
@@ -176,6 +185,7 @@ struct RemoteConnection: Sendable {
             generation: generation,
             ready: ready,
             events: pair.stream,
+            termination: termination,
             replyHandler: { [self] eventID, outcome in
                 try await callNoValue(
                     endpoint: "$events/result",

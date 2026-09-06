@@ -110,21 +110,30 @@ struct RemoteEventResultArguments: Encodable, Sendable, Equatable {
     let outcome: RemoteEventReplyOutcome
 }
 
+enum RemoteEventTermination: Sendable, Equatable {
+    case ended
+    case cancelled
+    case failed(RemoteConnectionError)
+}
+
 struct RemoteEventChannel: Sendable {
     let generation: RemoteConnectionGeneration
     let ready: RemoteEventReady
     let events: AsyncThrowingStream<RemoteEventDownlinkFrame, Error>
+    let termination: Task<RemoteEventTermination, Never>
     private let replyHandler: @Sendable (String, RemoteEventReplyOutcome) async throws -> Void
 
     init(
         generation: RemoteConnectionGeneration,
         ready: RemoteEventReady,
         events: AsyncThrowingStream<RemoteEventDownlinkFrame, Error>,
+        termination: Task<RemoteEventTermination, Never>,
         replyHandler: @escaping @Sendable (String, RemoteEventReplyOutcome) async throws -> Void
     ) {
         self.generation = generation
         self.ready = ready
         self.events = events
+        self.termination = termination
         self.replyHandler = replyHandler
     }
 
