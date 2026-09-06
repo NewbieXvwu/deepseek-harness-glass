@@ -6,4 +6,8 @@ struct RemoteStreamProcedure<Arguments: Encodable & Sendable, Frame: Decodable &
     init(_ endpoint: String) {
         self.endpoint = endpoint
     }
+
+    init(_ endpoint: RemoteEndpoint) {
+        self.init(endpoint.rawValue)
+    }
 }
