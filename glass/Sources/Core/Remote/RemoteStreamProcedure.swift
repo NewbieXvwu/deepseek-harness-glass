@@ -1,13 +1,9 @@
 import Foundation
 
 struct RemoteStreamProcedure<Arguments: Encodable & Sendable, Frame: Decodable & Sendable>: Sendable {
-    let endpoint: String
-
-    init(_ endpoint: String) {
-        self.endpoint = endpoint
-    }
+    let endpoint: RemoteEndpoint
 
     init(_ endpoint: RemoteEndpoint) {
-        self.init(endpoint.rawValue)
+        self.endpoint = endpoint
     }
 }

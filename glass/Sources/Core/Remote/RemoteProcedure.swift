@@ -53,15 +53,11 @@ enum RemoteEndpoint: String, Sendable {
 }
 
 struct RemoteProcedure<Arguments: Encodable & Sendable, Output: Decodable & Sendable>: Sendable {
-    let endpoint: String
+    let endpoint: RemoteEndpoint
     let timeout: TimeInterval
 
-    init(_ endpoint: String, timeout: TimeInterval = 30) {
+    init(_ endpoint: RemoteEndpoint, timeout: TimeInterval = 30) {
         self.endpoint = endpoint
         self.timeout = timeout
-    }
-
-    init(_ endpoint: RemoteEndpoint, timeout: TimeInterval = 30) {
-        self.init(endpoint.rawValue, timeout: timeout)
     }
 }

@@ -41,7 +41,7 @@ struct AgentPresetsController: NativeAgentPresetAPI, Sendable {
 
     func copy(_ request: AgentPresetCopyRequest) async throws -> AgentPresetCopyResponse {
         try await remote.callNoValue(
-            endpoint: "agentPresets/copy",
+            endpoint: .agentPresetsCopy,
             arguments: CopyArguments(from: request.from, id: request.agentPreset, name: request.name)
         )
         return AgentPresetCopyResponse(agentPreset: request.agentPreset)
@@ -56,7 +56,7 @@ struct AgentPresetsController: NativeAgentPresetAPI, Sendable {
 
     func remove(agentPreset: String) async throws -> EmptyRPCResponse {
         try await remote.callNoValue(
-            endpoint: "agentPresets/deletePreset",
+            endpoint: .agentPresetsDeletePreset,
             arguments: DeleteArguments(id: agentPreset)
         )
         return EmptyRPCResponse()

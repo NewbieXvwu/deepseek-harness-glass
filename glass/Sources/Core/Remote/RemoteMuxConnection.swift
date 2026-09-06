@@ -123,7 +123,7 @@ actor RemoteMuxConnection {
         do {
             let message = OpenMessage(
                 streamId: streamID,
-                endpoint: procedure.endpoint,
+                endpoint: procedure.endpoint.rawValue,
                 payload: .init(args: arguments)
             )
             try await send(message, on: socket)

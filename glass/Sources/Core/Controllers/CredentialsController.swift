@@ -17,7 +17,7 @@ struct CredentialsController: NativeCredentialAPI, Sendable {
 
     func set(ref: String, value: String) async throws -> EmptyRPCResponse {
         try await remote.callNoValue(
-            endpoint: "credentials/set",
+            endpoint: .credentialsSet,
             arguments: SetArguments(ref: ref, value: value)
         )
         return EmptyRPCResponse()
@@ -25,7 +25,7 @@ struct CredentialsController: NativeCredentialAPI, Sendable {
 
     func unset(ref: String) async throws -> EmptyRPCResponse {
         try await remote.callNoValue(
-            endpoint: "credentials/unset",
+            endpoint: .credentialsUnset,
             arguments: UnsetArguments(ref: ref)
         )
         return EmptyRPCResponse()

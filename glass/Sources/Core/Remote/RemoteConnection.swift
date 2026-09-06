@@ -27,15 +27,15 @@ struct RemoteConnection: Sendable {
         do {
             body = try RemoteWireCodec.request(
                 rpcID: rpcID,
-                endpoint: procedure.endpoint,
+                endpoint: procedure.endpoint.rawValue,
                 arguments: arguments,
                 encoder: encoder
             )
         } catch {
-            throw RemoteConnectionError.protocolViolation("failed to encode \(procedure.endpoint): \(error)")
+            throw RemoteConnectionError.protocolViolation("failed to encode \(procedure.endpoint.rawValue): \(error)")
         }
 
-        let url = authenticatedHost.baseURL.appending(path: "api").appending(path: procedure.endpoint)
+        let url = authenticatedHost.baseURL.appending(path: "api").appending(path: procedure.endpoint.rawValue)
         var request = URLRequest(url: url, timeoutInterval: procedure.timeout)
         request.httpMethod = "POST"
         request.httpBody = body
@@ -59,7 +59,7 @@ struct RemoteConnection: Sendable {
         } catch let error as RemoteConnectionError {
             throw error
         } catch {
-            throw RemoteConnectionError.protocolViolation("failed to decode \(procedure.endpoint): \(error)")
+            throw RemoteConnectionError.protocolViolation("failed to decode \(procedure.endpoint.rawValue): \(error)")
         }
         guard decoded.rpcID == rpcID else {
             throw RemoteConnectionError.correlationMismatch(expected: rpcID, actual: decoded.rpcID)
@@ -70,7 +70,7 @@ struct RemoteConnection: Sendable {
         }
     }
     func callNoValue<Arguments: Encodable & Sendable>(
-        endpoint: String,
+        endpoint: RemoteEndpoint,
         arguments: Arguments,
         timeout: TimeInterval = 30
     ) async throws {
@@ -79,15 +79,15 @@ struct RemoteConnection: Sendable {
         do {
             body = try RemoteWireCodec.request(
                 rpcID: rpcID,
-                endpoint: endpoint,
+                endpoint: endpoint.rawValue,
                 arguments: arguments,
                 encoder: encoder
             )
         } catch {
-            throw RemoteConnectionError.protocolViolation("failed to encode \(endpoint): \(error)")
+            throw RemoteConnectionError.protocolViolation("failed to encode \(endpoint.rawValue): \(error)")
         }
 
-        let url = authenticatedHost.baseURL.appending(path: "api").appending(path: endpoint)
+        let url = authenticatedHost.baseURL.appending(path: "api").appending(path: endpoint.rawValue)
         var request = URLRequest(url: url, timeoutInterval: timeout)
         request.httpMethod = "POST"
         request.httpBody = body
@@ -111,7 +111,7 @@ struct RemoteConnection: Sendable {
         } catch let error as RemoteConnectionError {
             throw error
         } catch {
-            throw RemoteConnectionError.protocolViolation("failed to decode \(endpoint): \(error)")
+            throw RemoteConnectionError.protocolViolation("failed to decode \(endpoint.rawValue): \(error)")
         }
         guard decoded.rpcID == rpcID else {
             throw RemoteConnectionError.correlationMismatch(expected: rpcID, actual: decoded.rpcID)
@@ -146,7 +146,7 @@ struct RemoteConnection: Sendable {
     func connectEvents() async throws -> RemoteEventChannel {
         struct EmptyArguments: Codable, Sendable {}
         let source: AsyncThrowingStream<RemoteEventDownlinkFrame, Error> = try await stream(
-            RemoteStreamProcedure("$events"),
+            RemoteStreamProcedure(.events),
             arguments: EmptyArguments()
         )
         var iterator = source.makeAsyncIterator()
@@ -188,7 +188,7 @@ struct RemoteConnection: Sendable {
             termination: termination,
             replyHandler: { [self] eventID, outcome in
                 try await callNoValue(
-                    endpoint: "$events/result",
+                    endpoint: .eventsResult,
                     arguments: RemoteEventResultArguments(
                         clientId: clientID,
                         eventId: eventID,
