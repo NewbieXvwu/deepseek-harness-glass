@@ -31,7 +31,9 @@ actor RemoteEventRuntime {
         let buffered = pendingSessionFrames
         pendingSessionFrames.removeAll(keepingCapacity: false)
         for frame in buffered { try applySessionFrame(frame) }
-        let opened = catalog!
+        guard let opened = catalog else {
+            throw RemoteConnectionError.protocolViolation("session catalog baseline unavailable")
+        }
         publishCatalog(opened)
         return opened
     }
@@ -128,12 +130,12 @@ actor RemoteEventRuntime {
 
     private func applySessionFrame(_ frame: RemoteEventDownlinkFrame) throws {
         guard var current = catalog, case let .emit(event, args) = frame else { return }
-        var byID = Dictionary(uniqueKeysWithValues: current.items.map { ($0.sessionId, $0) })
+        var byID = Dictionary(current.items.map { ($0.sessionId, $0) }, uniquingKeysWith: { _, latest in latest })
         var errors = current.errors
         switch event {
         case "api-session/added":
             guard args.count == 1 else { throw RemoteConnectionError.protocolViolation("api-session/added arguments") }
-            let summary: RemoteSessionSummary = try decode(args[0], as: RemoteSessionSummary.self)
+            let summary = try sessionSummary(args[0])
             byID[summary.sessionId] = summary
         case "api-session/removed":
             guard args.count == 1, case let .string(sessionID) = args[0] else { throw RemoteConnectionError.protocolViolation("api-session/removed arguments") }
@@ -149,10 +151,11 @@ actor RemoteEventRuntime {
         case "api-session/activity":
             guard args.count == 2,
                   case let .string(sessionID) = args[0],
-                  case let .number(updatedAt) = args[1],
+                  case let .number(rawUpdatedAt) = args[1],
+                  let updatedAt = Int64(exactly: rawUpdatedAt),
                   let item = byID[sessionID]
             else { throw RemoteConnectionError.protocolViolation("api-session/activity arguments") }
-            byID[sessionID] = replacing(item, updatedAt: Int64(updatedAt))
+            byID[sessionID] = replacing(item, updatedAt: updatedAt)
         case "api-session/error":
             guard args.count == 2,
                   case let .string(sessionID) = args[0],
@@ -190,8 +193,34 @@ actor RemoteEventRuntime {
         }
     }
 
-    private func decode<Value: Decodable>(_ value: RemoteJSONValue, as type: Value.Type) throws -> Value {
-        try JSONDecoder().decode(type, from: JSONEncoder().encode(value))
+    private func sessionSummary(_ value: RemoteJSONValue) throws -> RemoteSessionSummary {
+        guard case let .object(fields) = value,
+              case let .string(sessionID)? = fields["sessionId"],
+              case let .number(updatedAt)? = fields["updatedAt"],
+              let updatedAt = Int64(exactly: updatedAt),
+              case let .bool(running)? = fields["running"],
+              case let .bool(blank)? = fields["blank"]
+        else {
+            throw RemoteConnectionError.protocolViolation("api-session/added summary")
+        }
+        return .init(
+            sessionId: sessionID,
+            updatedAt: updatedAt,
+            running: running,
+            blank: blank,
+            parentSessionId: try optionalString(fields["parentSessionId"], field: "parentSessionId"),
+            origin: try optionalString(fields["origin"], field: "origin"),
+            cwd: try optionalString(fields["cwd"], field: "cwd"),
+            projections: fields["projections"].flatMap { $0 == .null ? nil : $0 }
+        )
+    }
+
+    private func optionalString(_ value: RemoteJSONValue?, field: String) throws -> String? {
+        switch value {
+        case nil, .null?: return nil
+        case let .string(value)?: return value
+        default: throw RemoteConnectionError.protocolViolation("api-session/added \(field)")
+        }
     }
 
     private func invalidateCatalog() {
