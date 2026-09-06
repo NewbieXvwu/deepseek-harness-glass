@@ -72,13 +72,11 @@ struct HostBuildVerifier: Sendable {
         let webManifestURL = nodeModulesRoot
             .appendingPathComponent("@deepseek-ai/dsh-web-frontend/package.json")
 
-        guard let dshVersion = packageVersion(at: dshManifestURL) else {
-            return .unsupported(reason: "Bundled dsh package manifest is missing or unreadable.")
-        }
-        guard let webVersion = packageVersion(at: webManifestURL) else {
-            return .unsupported(reason: "Bundled dsh web frontend package manifest is missing or unreadable.")
-        }
-        return classifier.classify(build: build, dshVersion: dshVersion, webFrontendVersion: webVersion)
+        return classifier.classify(
+            build: build,
+            dshVersion: packageVersion(at: dshManifestURL),
+            webFrontendVersion: packageVersion(at: webManifestURL)
+        )
     }
 
     private func packageVersion(at url: URL) -> String? {

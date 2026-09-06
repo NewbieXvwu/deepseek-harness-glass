@@ -38,12 +38,29 @@ final class HostBuildClassifierTests: XCTestCase {
         XCTAssertTrue(reason.contains("commit"))
 
         build = Self.build(verificationState: "verified")
-        guard case let .unsupported(versionReason) = HostBuildClassifier().classify(
-            build: build,
-            dshVersion: "0.1.2-incompatible",
-            webFrontendVersion: "0.1.2-rc.1"
-        ) else { return XCTFail("wrong dsh version must be unsupported") }
-        XCTAssertTrue(versionReason.contains("dsh package version"))
+        XCTAssertEqual(
+            HostBuildClassifier().classify(
+                build: build,
+                dshVersion: "0.1.2-incompatible",
+                webFrontendVersion: "0.1.2-rc.1"
+            ),
+            .bestEffort(
+                build,
+                reason: "Host package facts differ from the verified rc.1 catalog; attempting the rc.1 Remote contract best-effort."
+            )
+        )
+
+        XCTAssertEqual(
+            HostBuildClassifier().classify(
+                build: build,
+                dshVersion: nil,
+                webFrontendVersion: nil
+            ),
+            .bestEffort(
+                build,
+                reason: "Host package metadata is unavailable; attempting the rc.1 Remote contract best-effort."
+            )
+        )
     }
 
     private static func build(

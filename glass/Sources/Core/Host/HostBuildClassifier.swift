@@ -8,8 +8,8 @@ struct HostBuildClassifier: Sendable {
 
     func classify(
         build: SupportedHostBuildCatalog.Build,
-        dshVersion: String,
-        webFrontendVersion: String
+        dshVersion: String?,
+        webFrontendVersion: String?
     ) -> HostBuildVerification {
         guard build.officialSourceCommit == Self.lockedOfficialSourceCommit else {
             return .unsupported(reason: "Bundled Host catalog does not match the locked official source commit.")
@@ -22,11 +22,18 @@ struct HostBuildClassifier: Sendable {
               !build.minimumAppVersion.isEmpty else {
             return .unsupported(reason: "Bundled Host catalog is missing fixed payload support metadata.")
         }
-        guard dshVersion == build.dshPackageVersion else {
-            return .unsupported(reason: "Bundled dsh package version does not match the supported Host catalog.")
+        guard let dshVersion, let webFrontendVersion else {
+            return .bestEffort(
+                build,
+                reason: "Host package metadata is unavailable; attempting the rc.1 Remote contract best-effort."
+            )
         }
-        guard webFrontendVersion == build.webFrontendPackageVersion else {
-            return .unsupported(reason: "Bundled dsh web frontend version does not match the supported Host catalog.")
+        guard dshVersion == build.dshPackageVersion,
+              webFrontendVersion == build.webFrontendPackageVersion else {
+            return .bestEffort(
+                build,
+                reason: "Host package facts differ from the verified rc.1 catalog; attempting the rc.1 Remote contract best-effort."
+            )
         }
         if build.verificationState == "verified" { return .verified(build) }
         return .bestEffort(build, reason: "Bundled rc.1 payload matches the supported build but macOS verification is still pending.")
