@@ -627,7 +627,6 @@ final class NativeSessionStore: ObservableObject {
     private var promptTask: Task<Void, Never>?
     private var cancelTask: Task<Void, Never>?
     private var olderHistoryTask: Task<Void, Never>?
-    private var streamTask: Task<Void, Never>?
     /// A recovery is distinct from initial history loading. Its monotonic token
     /// prevents an old Host generation, endpoint, or selected session from
     /// applying models/history/projections after a newer authority request.
@@ -839,8 +838,9 @@ final class NativeSessionStore: ObservableObject {
         }
     }
 
-    /// Core-internal test seam for queue mutation fencing. Production receives
-    /// the same API from `NativeShellPresentation.connectVerifiedHost` via `open`.
+    /// Core-internal test seam for focused legacy-store regression coverage.
+    /// Production session authority is bound through `SessionRuntime`,
+    /// `SessionCommandService`, and typed Remote controllers.
     func setSessionAPIForTesting(_ api: (any NativeSessionAPI)?) {
         queueUpdateTask?.cancel()
         queueUpdateTask = nil
@@ -1373,7 +1373,6 @@ final class NativeSessionStore: ObservableObject {
         olderHistoryTask?.cancel()
         promptTask?.cancel()
         cancelTask?.cancel()
-        streamTask?.cancel()
         recoveryTask?.cancel()
         approvalSubmissionTask?.cancel()
         questionSubmissionTask?.cancel()
@@ -1445,7 +1444,6 @@ final class NativeSessionStore: ObservableObject {
     /// background; a cold session alone enters the blocking history phase.
     func open(
         sessionID: String,
-        using api: (any NativeSessionAPI)? = nil,
         endpoint: URL,
         hostPathAPI: (any NativeHostPathAPI)? = nil,
         goalAPI: (any NativeGoalAPI)? = nil,
@@ -1465,7 +1463,6 @@ final class NativeSessionStore: ObservableObject {
         olderHistoryTask?.cancel()
         promptTask?.cancel()
         cancelTask?.cancel()
-        streamTask?.cancel()
         recoveryTask?.cancel()
         recoveryLiveBuffer = []
         recoveryBufferGeneration = nil
@@ -1522,7 +1519,6 @@ final class NativeSessionStore: ObservableObject {
         // endpoint from stitching its old pending tail into the new window.
         recoveryBufferGeneration = authorityGeneration
         let directoryGeneration = modelDirectoryGeneration
-        self.api = api
         self.goalAPI = goalAPI
         self.subagentCatalogAPI = subagentCatalogAPI
         self.subagentContinuationAPI = subagentContinuationAPI
@@ -1640,7 +1636,6 @@ final class NativeSessionStore: ObservableObject {
                 self?.hasMoreHistory = response.hasMore
                 self?.phase = .ready(sessionID: sessionID)
                 self?.stitchRecoveryLiveBuffer(generation: authorityGeneration)
-                self?.observeMux(sessionID: sessionID, endpoint: endpoint)
                 if self?.consumeSubscriptionTailMismatch() == true {
                     self?.requestAuthorityRecovery(sessionID: sessionID, reason: .subscriptionWatermark)
                 }
@@ -1693,8 +1688,6 @@ final class NativeSessionStore: ObservableObject {
         Task { await previousSessionRuntime?.close() }
         olderHistoryTask?.cancel()
         olderHistoryTask = nil
-        streamTask?.cancel()
-        streamTask = nil
         recoveryTask?.cancel()
         recoveryTask = nil
         recoveryGeneration &+= 1
@@ -1785,8 +1778,6 @@ final class NativeSessionStore: ObservableObject {
         Task { await previousSessionRuntime?.close() }
         olderHistoryTask?.cancel()
         olderHistoryTask = nil
-        streamTask?.cancel()
-        streamTask = nil
         recoveryTask?.cancel()
         recoveryTask = nil
         recoveryGeneration &+= 1
@@ -2530,26 +2521,6 @@ final class NativeSessionStore: ObservableObject {
             return
         }
         requestAuthorityRecovery(sessionID: sessionID, reason: .residentResync)
-    }
-
-    private func observeMux(sessionID: String, endpoint: URL) {
-        streamTask?.cancel()
-        let client = SSEClient(baseURL: endpoint)
-        streamTask = Task { [weak self] in
-            let stream = await client.reconnectingStream(.mux)
-            do {
-                for try await frame in stream {
-                    guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
-                    self?.applyMuxFrame(frame, sessionID: sessionID)
-                }
-            } catch is CancellationError {
-                return
-            } catch {
-                // A finite retry policy can surface only after reconnect exhaustion.
-                // Existing sequence gates retain the last authoritative transcript
-                // until the verified Host lifecycle supplies a fresh endpoint.
-            }
-        }
     }
 
     private func resetConversationWindow() {

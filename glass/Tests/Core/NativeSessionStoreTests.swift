@@ -4,6 +4,34 @@ import GlassSpec
 @testable import GlassCore
 
 @MainActor
+private extension NativeSessionStore {
+    func open(
+        sessionID: String,
+        using api: any NativeSessionAPI,
+        endpoint: URL,
+        hostPathAPI: (any NativeHostPathAPI)? = nil,
+        goalAPI: (any NativeGoalAPI)? = nil,
+        subagentCatalogAPI: (any NativeSubagentCatalogAPI)? = nil,
+        subagentContinuationAPI: (any NativeSubagentContinuationAPI)? = nil,
+        messageFeedbackAPI: (any NativeMessageFeedbackAPI)? = nil,
+        sessionCWD: String? = nil,
+        sessionRuntime: SessionRuntime? = nil
+    ) {
+        setSessionAPIForTesting(api)
+        open(
+            sessionID: sessionID,
+            endpoint: endpoint,
+            hostPathAPI: hostPathAPI,
+            goalAPI: goalAPI,
+            subagentCatalogAPI: subagentCatalogAPI,
+            subagentContinuationAPI: subagentContinuationAPI,
+            messageFeedbackAPI: messageFeedbackAPI,
+            sessionCWD: sessionCWD,
+            sessionRuntime: sessionRuntime
+        )
+    }
+}
+
 final class NativeSessionStoreTests: XCTestCase {
     func testComposerIntentUsesInjectedTypedSessionFacadeAndRetainsDraftOnRejection() async {
         let promptReachedFacade = expectation(description: "typed prompt facade receives the user intent")
