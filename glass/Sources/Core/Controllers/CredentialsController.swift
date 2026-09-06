@@ -9,7 +9,7 @@ struct CredentialsController: NativeCredentialAPI, Sendable {
 
     func describe(refs: [String]) async throws -> CredentialsDescribeResponse {
         let credentials: [String: CredentialViewDTO] = try await remote.call(
-            RemoteProcedure("credentials/describe"),
+            RemoteProcedure(.credentialsDescribe),
             arguments: DescribeArguments(refs: refs)
         )
         return CredentialsDescribeResponse(credentials: credentials)
