@@ -214,7 +214,7 @@ struct MessageFeedbackController: MessageFeedbackControllerAPI, Sendable {
 
     func list(sessionID: String) async throws -> RemoteMessageFeedbackListResult {
         let result: RemoteMessageFeedbackListResult = try await remote.call(
-            RemoteProcedure("messageFeedback/list"),
+            RemoteProcedure(.messageFeedbackList),
             arguments: RequestArguments(request: ListRequest(sessionId: sessionID))
         )
         if case let .rejected(error) = result,
@@ -229,14 +229,14 @@ struct MessageFeedbackController: MessageFeedbackControllerAPI, Sendable {
 
     func put(_ request: RemoteMessageFeedbackPutRequest) async throws -> RemoteMessageFeedbackPutResult {
         try await remote.call(
-            RemoteProcedure("messageFeedback/put"),
+            RemoteProcedure(.messageFeedbackPut),
             arguments: RequestArguments(request: request)
         )
     }
 
     func delete(_ request: RemoteMessageFeedbackDeleteRequest) async throws -> RemoteMessageFeedbackDeleteResult {
         let result: RemoteMessageFeedbackDeleteResult = try await remote.call(
-            RemoteProcedure("messageFeedback/delete"),
+            RemoteProcedure(.messageFeedbackDelete),
             arguments: RequestArguments(request: request)
         )
         if case let .rejected(error) = result {
