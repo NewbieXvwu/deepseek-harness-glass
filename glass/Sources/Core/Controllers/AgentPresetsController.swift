@@ -9,11 +9,11 @@ struct AgentPresetsController: NativeAgentPresetAPI, Sendable {
 
     func list() async throws -> AgentPresetListResponse {
         async let roster: Roster = remote.call(
-            RemoteProcedure("agentPresets/list"),
+            RemoteProcedure(.agentPresetsList),
             arguments: EmptyArguments()
         )
         async let canOpenDirectory: Bool = remote.call(
-            RemoteProcedure("settings/canOpenAgentPresetDirectory"),
+            RemoteProcedure(.settingsCanOpenAgentPresetDirectory),
             arguments: EmptyArguments()
         )
         let (resolvedRoster, hasDocument) = try await (roster, canOpenDirectory)
@@ -26,7 +26,7 @@ struct AgentPresetsController: NativeAgentPresetAPI, Sendable {
 
     func select(sessionID: String, agentPreset: String) async throws -> AgentPresetSelectResponse {
         let selected: String = try await remote.call(
-            RemoteProcedure("agentPresets/select"),
+            RemoteProcedure(.agentPresetsSelect),
             arguments: SelectArguments(agentId: sessionID, agentPreset: agentPreset)
         )
         return AgentPresetSelectResponse(agentPreset: selected)
@@ -34,7 +34,7 @@ struct AgentPresetsController: NativeAgentPresetAPI, Sendable {
 
     func read(agentPreset: String) async throws -> AgentPresetReadResponse {
         try await remote.call(
-            RemoteProcedure("agentPresets/read"),
+            RemoteProcedure(.agentPresetsRead),
             arguments: ReadArguments(agentPreset: agentPreset)
         )
     }
@@ -49,7 +49,7 @@ struct AgentPresetsController: NativeAgentPresetAPI, Sendable {
 
     func openDocument(agentPreset: String) async throws -> AgentPresetOpenDocumentResponse {
         try await remote.call(
-            RemoteProcedure("settings/openAgentPresetDirectory"),
+            RemoteProcedure(.settingsOpenAgentPresetDirectory),
             arguments: ReadArguments(agentPreset: agentPreset)
         )
     }
