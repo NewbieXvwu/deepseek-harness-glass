@@ -884,7 +884,6 @@ private struct NativeInteractiveComposerCard: View {
                     .padding(.top, OfficialUISpec.Spacing.p4)
                     .frame(
                         minHeight: presentation.isHero ? OfficialUISpec.Geometry.px52 : OfficialUISpec.Geometry.px28,
-                        maxHeight: OfficialUISpec.Geometry.px336,
                         alignment: .topLeading
                     )
                     .disabled(isWorkspaceTrigger)
