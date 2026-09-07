@@ -26,6 +26,16 @@ enum SessionAddress: Codable, Hashable, Sendable {
 
     enum SubagentMode: String, Codable, Sendable { case oneShot = "one-shot", continuable }
 
+    /// Durable Session identity whose journal/control projection is addressed.
+    /// A direct subagent uses the child identity while retaining its parent and
+    /// mode in the wire address for Host authorization.
+    var sessionID: String {
+        switch self {
+        case let .session(sessionID): sessionID
+        case let .subagent(_, childSessionID, _): childSessionID
+        }
+    }
+
     private enum CodingKeys: String, CodingKey { case kind, sessionId, parentSessionId, childSessionId, mode }
     private enum Kind: String, Codable { case session, subagent }
 
