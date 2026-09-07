@@ -6,6 +6,7 @@ enum SessionJournalError: Error, Sendable, Equatable {
     case staleGeneration
     case invalidOpeningCursor(expected: SessionSeq, actual: SessionSeq)
     case discontinuousPage(previous: SessionSeq, next: SessionSeq)
+    case duplicateConflict(seq: SessionSeq)
     case partiallyOverlappingEntry(first: SessionSeq, last: SessionSeq, appliedThrough: SessionSeq)
     case liveGap(expected: SessionSeq, actual: SessionSeq)
     case discontinuousPrepend(expectedTail: SessionSeq, actualTail: SessionSeq)
@@ -26,6 +27,10 @@ struct SessionJournalSnapshot: Sendable, Equatable {
 
 struct SessionJournal: Sendable {
     private(set) var snapshot: SessionJournalSnapshot?
+    /// Exact raw durable events observed by this runtime. Packed chunk rows keep
+    /// their compact representation and therefore do not fabricate identities
+    /// for member events that were never individually received.
+    private var rawEventsBySeq: [SessionSeq: RemoteSessionWireEvent] = [:]
 
     mutating func open(
         generation: RemoteConnectionGeneration,
@@ -45,6 +50,7 @@ struct SessionJournal: Sendable {
             throw SessionJournalError.missingOpeningSnapshot
         }
         try Self.validatePage(records)
+        try validateRawEvents(in: records)
         let tail = records.last?.lastSeq ?? SessionSeq(rawValue: -1)
         guard tail == cursor else {
             throw SessionJournalError.invalidOpeningCursor(expected: cursor, actual: tail)
@@ -59,6 +65,7 @@ struct SessionJournal: Sendable {
             projections: projections,
             appliedThrough: cursor
         )
+        registerRawEvents(in: records)
     }
 
     @discardableResult
@@ -68,6 +75,11 @@ struct SessionJournal: Sendable {
     ) throws -> Bool {
         guard var current = snapshot else { throw SessionJournalError.missingOpeningSnapshot }
         guard current.generation == generation else { throw SessionJournalError.staleGeneration }
+
+        if let known = rawEventsBySeq[event.seq] {
+            guard known == event else { throw SessionJournalError.duplicateConflict(seq: event.seq) }
+            return false
+        }
 
         let entry = RemoteSessionHistoryRecord.event(event)
         let first = entry.firstSeq
@@ -97,6 +109,7 @@ struct SessionJournal: Sendable {
             projections: current.projections,
             appliedThrough: last
         )
+        rawEventsBySeq[event.seq] = event
         snapshot = current
         return true
     }
@@ -109,6 +122,7 @@ struct SessionJournal: Sendable {
         guard var current = snapshot else { throw SessionJournalError.missingOpeningSnapshot }
         guard current.generation == generation else { throw SessionJournalError.staleGeneration }
         try Self.validatePage(page.records)
+        try validateRawEvents(in: page.records)
 
         let accepted: [RemoteSessionHistoryRecord]
         if let first = current.records.first?.firstSeq {
@@ -137,7 +151,22 @@ struct SessionJournal: Sendable {
             appliedThrough: current.appliedThrough
         )
         snapshot = current
+        registerRawEvents(in: accepted)
         return accepted.count
+    }
+
+    private func validateRawEvents(in records: [RemoteSessionHistoryRecord]) throws {
+        for record in records {
+            guard case let .event(event) = record, let known = rawEventsBySeq[event.seq] else { continue }
+            guard known == event else { throw SessionJournalError.duplicateConflict(seq: event.seq) }
+        }
+    }
+
+    private mutating func registerRawEvents(in records: [RemoteSessionHistoryRecord]) {
+        for record in records {
+            guard case let .event(event) = record else { continue }
+            rawEventsBySeq[event.seq] = event
+        }
     }
 
     private static func validatePage(_ records: [RemoteSessionHistoryRecord]) throws {
