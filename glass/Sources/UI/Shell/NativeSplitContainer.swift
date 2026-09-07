@@ -282,7 +282,10 @@ final class NativeShellPresentation: ObservableObject {
                 sessionRuntime: SessionRuntime(
                     controller: controllers.sessions,
                     generation: connection.context.events.generation,
-                    address: .session(sessionID: selectedSessionID),
+                    address: NativeSessionRuntimeAddressResolver.resolve(
+                        sessionID: selectedSessionID,
+                        subagentRoute: sessionStore.subagentRoute
+                    ),
                     controlRuntime: sessionControlRuntime,
                     interactions: eventRuntime,
                     subagents: controllers.subagents
@@ -493,7 +496,10 @@ final class NativeShellPresentation: ObservableObject {
                 runtime = SessionRuntime(
                     controller: controllers.sessions,
                     generation: remoteGeneration,
-                    address: .session(sessionID: sessionID),
+                    address: NativeSessionRuntimeAddressResolver.resolve(
+                        sessionID: sessionID,
+                        subagentRoute: sessionStore.subagentRoute
+                    ),
                     controlRuntime: sessionControlRuntime,
                     interactions: eventRuntime,
                     subagents: controllers.subagents
