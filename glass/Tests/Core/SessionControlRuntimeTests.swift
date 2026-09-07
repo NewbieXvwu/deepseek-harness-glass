@@ -41,8 +41,8 @@ final class SessionControlRuntimeTests: XCTestCase {
     func testOpeningBaselineInstallsCompleteGenerationSnapshot() async throws {
         let controller = MockSessionController()
         let baseline = RemoteSessionControlBaseline(
-            queues: ["s1": [queuedItem(id: "q1")]],
-            jobs: ["s1": [job(id: "j1", status: .running)]],
+            queues: ["s1": [Self.queuedItem(id: "q1")]],
+            jobs: ["s1": [Self.job(id: "j1", status: .running)]],
             projections: ["s1": .init(asOfSeq: SessionSeq(rawValue: 4), values: ["model": .string("a")])]
         )
         await controller.queueControlStream {
@@ -61,7 +61,8 @@ final class SessionControlRuntimeTests: XCTestCase {
         XCTAssertEqual(opening.queues, baseline.queues)
         XCTAssertEqual(opening.jobs, baseline.jobs)
         XCTAssertEqual(opening.projections, baseline.projections)
-        XCTAssertEqual(await controller.controlCallCount, 1)
+        let callCount = await controller.controlCallCount
+        XCTAssertEqual(callCount, 1)
         await runtime.invalidate()
     }
 
@@ -86,7 +87,8 @@ final class SessionControlRuntimeTests: XCTestCase {
         } catch {
             XCTFail("unexpected error: \(error)")
         }
-        XCTAssertNil(await runtime.currentSnapshot())
+        let snapshot = await runtime.currentSnapshot()
+        XCTAssertNil(snapshot)
     }
 
     func testQueueJobsAndProjectionFramesReplaceHostOwnedState() async throws {
@@ -94,15 +96,15 @@ final class SessionControlRuntimeTests: XCTestCase {
         await controller.queueControlStream {
             let (stream, continuation) = AsyncThrowingStream<RemoteSessionControlFrame, Error>.makeStream()
             continuation.yield(.baseline(.init(
-                queues: ["s1": [queuedItem(id: "old-q")]],
-                jobs: ["s1": [job(id: "old-j", status: .running)]],
+                queues: ["s1": [Self.queuedItem(id: "old-q")]],
+                jobs: ["s1": [Self.job(id: "old-j", status: .running)]],
                 projections: ["s1": .init(
                     asOfSeq: SessionSeq(rawValue: 3),
                     values: ["model": .string("a"), "permissions": .string("workspace")]
                 )]
             )))
-            continuation.yield(.queue(sessionID: "s1", items: [queuedItem(id: "new-q")]))
-            continuation.yield(.jobs(sessionID: "s1", jobs: [job(id: "new-j", status: .completed)]))
+            continuation.yield(.queue(sessionID: "s1", items: [Self.queuedItem(id: "new-q")]))
+            continuation.yield(.jobs(sessionID: "s1", jobs: [Self.job(id: "new-j", status: .completed)]))
             continuation.yield(.projection(
                 sessionID: "s1",
                 key: "model",
@@ -123,8 +125,8 @@ final class SessionControlRuntimeTests: XCTestCase {
                 && snapshot.projections["s1"]?.asOfSeq == SessionSeq(rawValue: 4)
         }
 
-        XCTAssertEqual(updated.queues["s1"], [queuedItem(id: "new-q")])
-        XCTAssertEqual(updated.jobs["s1"], [job(id: "new-j", status: .completed)])
+        XCTAssertEqual(updated.queues["s1"], [Self.queuedItem(id: "new-q")])
+        XCTAssertEqual(updated.jobs["s1"], [Self.job(id: "new-j", status: .completed)])
         XCTAssertEqual(updated.projections["s1"]?.values["model"], .string("b"))
         XCTAssertEqual(updated.projections["s1"]?.values["permissions"], .string("workspace"))
         await runtime.invalidate()
@@ -135,8 +137,8 @@ final class SessionControlRuntimeTests: XCTestCase {
         await controller.queueControlStream {
             let (stream, continuation) = AsyncThrowingStream<RemoteSessionControlFrame, Error>.makeStream()
             continuation.yield(.baseline(.init(
-                queues: ["s1": [queuedItem(id: "q1")]],
-                jobs: ["s1": [job(id: "j1", status: .running)]],
+                queues: ["s1": [Self.queuedItem(id: "q1")]],
+                jobs: ["s1": [Self.job(id: "j1", status: .running)]],
                 projections: [:]
             )))
             return stream
@@ -146,11 +148,13 @@ final class SessionControlRuntimeTests: XCTestCase {
             generation: RemoteConnectionGeneration(rawValue: 5)
         )
         _ = try await runtime.open()
-        XCTAssertNotNil(await runtime.currentSnapshot())
+        let opening = await runtime.currentSnapshot()
+        XCTAssertNotNil(opening)
 
         await runtime.invalidate()
 
-        XCTAssertNil(await runtime.currentSnapshot())
+        let invalidated = await runtime.currentSnapshot()
+        XCTAssertNil(invalidated)
     }
 
     func testNormalControlStreamEndDropsGenerationAuthority() async throws {
