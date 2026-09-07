@@ -115,7 +115,9 @@ actor SessionRuntime {
                     } else {
                         do {
                             try acceptFollow(frame)
-                        } catch SessionJournalError.liveGap, SessionJournalError.partiallyOverlappingEntry {
+                        } catch SessionJournalError.liveGap,
+                                SessionJournalError.partiallyOverlappingEntry,
+                                SessionJournalError.duplicateConflict {
                             needsContinuityRepair = true
                             break
                         }
