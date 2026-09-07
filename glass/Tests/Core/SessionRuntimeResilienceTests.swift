@@ -132,7 +132,8 @@ final class SessionRuntimeResilienceTests: XCTestCase {
 
         _ = try await runtime.open()
         try await Task.sleep(nanoseconds: 100_000_000)
-        XCTAssertEqual(await mockController.followCallCount, 1)
+        let followCallCount = await mockController.followCallCount
+        XCTAssertEqual(followCallCount, 1)
         await runtime.close()
     }
 
