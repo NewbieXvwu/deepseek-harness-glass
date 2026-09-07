@@ -23,7 +23,11 @@ SCENES_PATH = ROOT / "Sources/Spec/Fixtures/visual-scenes.json"
 ASSET_DIR = ROOT / "assets"
 ICON_EXTRACTOR = PROJECT_ROOT / "tools/extract_official_icon.py"
 ICON_AST_EXTRACTOR = PROJECT_ROOT / "tools/spec-generation/extract_official_icon_ast.mjs"
-LOCKED_COMMIT = "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e"
+# The monolithic catalog is a historical, non-runtime D1 audit input until CUT1.2
+# regenerates it. Keep its real provenance explicit instead of relabeling it.
+LEGACY_UI_CATALOG_COMMIT = "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e"
+# Current visual evidence is captured from the clean-cut rc.1 source of truth.
+CURRENT_VISUAL_SCENE_COMMIT = "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
 
 
 def fail(message: str) -> None:
@@ -38,8 +42,8 @@ def load_catalog() -> dict:
         fail(f"missing catalog: {CATALOG_PATH}")
     except json.JSONDecodeError as error:
         fail(f"invalid catalog JSON: {error}")
-    if catalog.get("officialSourceCommit") != LOCKED_COMMIT:
-        fail("catalog officialSourceCommit differs from the locked baseline")
+    if catalog.get("officialSourceCommit") != LEGACY_UI_CATALOG_COMMIT:
+        fail("legacy UI catalog provenance changed; regenerate it under CUT1.2 instead of relabeling it")
     for key in ("inputs", "layout", "text", "assets"):
         if not catalog.get(key):
             fail(f"catalog is missing required non-empty key: {key}")
@@ -143,8 +147,8 @@ def verify_scenes() -> dict:
         fail(f"missing visual scene catalog: {SCENES_PATH}")
     except json.JSONDecodeError as error:
         fail(f"invalid visual scene catalog JSON: {error}")
-    if scenes.get("officialSourceCommit") != LOCKED_COMMIT:
-        fail("visual scene catalog differs from the locked official baseline")
+    if scenes.get("officialSourceCommit") != CURRENT_VISUAL_SCENE_COMMIT:
+        fail("visual scene catalog differs from the locked rc.1 baseline")
     contract = scenes.get("captureContract", {})
     if contract.get("deviceScaleFactor") != 1 or not contract.get("logicalViewport"):
         fail("visual scene catalog must pin a 1x logical viewport capture contract")
