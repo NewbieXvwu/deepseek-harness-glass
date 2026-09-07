@@ -863,24 +863,30 @@ private struct NativeInteractiveComposerCard: View {
             ZStack(alignment: .topLeading) {
                 if sessionStore.draft.isEmpty {
                     Text(presentation.placeholder)
-                        .font(OfficialUISpec.Typography.base16)
+                        .font(OfficialUISpec.Typography.s14)
                         .foregroundStyle(OfficialUISpec.Token.caption)
-                        .padding(.horizontal, OfficialUISpec.Spacing.p16)
-                        .padding(.top, OfficialUISpec.Spacing.p8)
+                        .padding(.leading, OfficialUISpec.Spacing.p16)
+                        .padding(.top, OfficialUISpec.Spacing.p4)
                         .allowsHitTesting(false)
                 }
-                TextEditor(text: $sessionStore.draft)
-                    .font(OfficialUISpec.Typography.base16)
+                // rc.1 InputBar lets the draft grow in normal flow and caps its
+                // scrollport at 14 × 24px. SwiftUI's vertical TextField supplies
+                // that native grow-then-scroll behavior without a competing
+                // always-flexible TextEditor scroll view.
+                TextField("", text: $sessionStore.draft, axis: .vertical)
+                    .textFieldStyle(.plain)
+                    .font(OfficialUISpec.Typography.s14)
                     .foregroundStyle(OfficialUISpec.Token.primary)
-                    .scrollContentBackground(.hidden)
+                    .lineLimit((presentation.isHero ? 2 : 1)...14)
                     .focused($draftFocused)
+                    .padding(.leading, OfficialUISpec.Spacing.p16)
+                    .padding(.trailing, OfficialUISpec.Spacing.p12)
+                    .padding(.top, OfficialUISpec.Spacing.p4)
                     .frame(
-                        minHeight: isWorkspaceTrigger ? 52 : OfficialUISpec.Geometry.px48,
-                        idealHeight: isWorkspaceTrigger ? 52 : nil,
-                        maxHeight: isWorkspaceTrigger ? 52 : OfficialUISpec.Geometry.px336
+                        minHeight: presentation.isHero ? OfficialUISpec.Geometry.px52 : OfficialUISpec.Geometry.px28,
+                        maxHeight: OfficialUISpec.Geometry.px336,
+                        alignment: .topLeading
                     )
-                    .padding(.horizontal, OfficialUISpec.Spacing.p10)
-                    .padding(.top, OfficialUISpec.Spacing.p2)
                     .disabled(isWorkspaceTrigger)
                     .onKeyPress { press in
                         guard !isWorkspaceTrigger, press.key == .return else { return .ignored }
@@ -971,10 +977,11 @@ private struct NativeInteractiveComposerCard: View {
                 }
             }
             .padding(.horizontal, OfficialUISpec.Spacing.p8)
+            .padding(.top, OfficialUISpec.Spacing.p2)
             .padding(.bottom, OfficialUISpec.Spacing.p6)
         }
         .padding(.top, OfficialUISpec.Spacing.p10)
-        .frame(maxWidth: .infinity, minHeight: OfficialUISpec.Geometry.px112)
+        .frame(maxWidth: .infinity)
         .background(OfficialUISpec.Token.elevated, in: RoundedRectangle(cornerRadius: OfficialUISpec.Layout.composerCornerRadius, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: OfficialUISpec.Layout.composerCornerRadius, style: .continuous)
