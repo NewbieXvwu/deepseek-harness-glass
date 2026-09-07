@@ -244,7 +244,10 @@ final class NativeShellPresentation: ObservableObject {
             guard let self, self.remoteGeneration == pathCapabilityGeneration else { return }
             self.canOpenWorkspacePath = canOpen
         }
-        sessionStore.bindCommandService(SessionCommandService(controller: controllers.sessions))
+        sessionStore.bindCommandService(SessionCommandService(
+            controller: controllers.sessions,
+            interactions: eventRuntime
+        ))
         sessionStore.bindSessionController(controllers.sessions)
         sessionStore.bindModelCatalogRepository(modelCatalogRepository)
         sessionStore.bindGoalController(controllers.goals)

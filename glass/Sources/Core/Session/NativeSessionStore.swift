@@ -3003,19 +3003,19 @@ final class NativeSessionStore: ObservableObject {
     /// only as a fallback while the old transport is still compiled.
     func answerApproval(allowOnce: Bool) {
         guard let approval = pendingApproval,
-              remoteEventRuntime != nil || (api != nil && approval.approvalID != nil),
+              sessionCommandService != nil || (api != nil && approval.approvalID != nil),
               !isSubmittingApproval
         else { return }
         isSubmittingApproval = true
         let generation = interactionGeneration
-        let eventRuntime = remoteEventRuntime
+        let commandService = sessionCommandService
         let legacyAPI = api
         approvalSubmissionTask = Task { [weak self] in
             do {
-                if let eventRuntime {
-                    try await eventRuntime.reply(
+                if let commandService {
+                    try await commandService.answerApproval(
                         eventID: approval.eventID,
-                        outcome: .result(.string(allowOnce ? "allowed-once" : "rejected"))
+                        allowOnce: allowOnce
                     )
                 } else if let legacyAPI, let approvalID = approval.approvalID {
                     let receipt = try await legacyAPI.answerApproval(
@@ -3063,28 +3063,22 @@ final class NativeSessionStore: ObservableObject {
     /// Return all answers in the rc.1 `user-questions/request` result shape.
     func answerQuestion(_ answers: [QuestionAnswer]) {
         guard let question = pendingQuestion,
-              remoteEventRuntime != nil || api != nil,
+              sessionCommandService != nil || api != nil,
               !isSubmittingQuestion,
               answers.count == question.items.count
         else { return }
         isSubmittingQuestion = true
         let generation = interactionGeneration
-        let eventRuntime = remoteEventRuntime
+        let commandService = sessionCommandService
         let legacyAPI = api
         questionSubmissionTask = Task { [weak self] in
             do {
-                if let eventRuntime {
-                    let values: [RemoteJSONValue] = answers.map { answer in
-                        var object: [String: RemoteJSONValue] = [
-                            "id": .string(answer.id),
-                            "selected": .array(answer.selected.map(RemoteJSONValue.string))
-                        ]
-                        if let custom = answer.custom { object["custom"] = .string(custom) }
-                        return .object(object)
-                    }
-                    try await eventRuntime.reply(
+                if let commandService {
+                    try await commandService.answerQuestion(
                         eventID: question.eventID,
-                        outcome: .result(.object(["answers": .array(values)]))
+                        answers: answers.map {
+                            .init(id: $0.id, selected: $0.selected, custom: $0.custom)
+                        }
                     )
                 } else if let legacyAPI {
                     let responseAnswers = answers.map {
@@ -3134,24 +3128,17 @@ final class NativeSessionStore: ObservableObject {
     /// Reject the rc.1 question waterfall with the official cancellation error.
     func cancelQuestion() {
         guard let question = pendingQuestion,
-              remoteEventRuntime != nil || api != nil,
+              sessionCommandService != nil || api != nil,
               !isSubmittingQuestion
         else { return }
         isSubmittingQuestion = true
         let generation = interactionGeneration
-        let eventRuntime = remoteEventRuntime
+        let commandService = sessionCommandService
         let legacyAPI = api
         questionSubmissionTask = Task { [weak self] in
             do {
-                if let eventRuntime {
-                    try await eventRuntime.reply(
-                        eventID: question.eventID,
-                        outcome: .rejected(.init(
-                            name: "UserQuestionError",
-                            message: "the user cancelled ask_user_question",
-                            code: "ASK_CANCELLED"
-                        ))
-                    )
+                if let commandService {
+                    try await commandService.cancelQuestion(eventID: question.eventID)
                 } else if let legacyAPI {
                     let receipt = try await legacyAPI.cancelQuestion(rpcID: question.eventID)
                     guard receipt.accepted else {
