@@ -10,6 +10,8 @@ struct HarnessControllers: Sendable {
     let credentials: CredentialsController
     let llm: LLMController
     let agentPresets: AgentPresetsController
+    let commands: CommandsController
+    let skills: SkillsController
 
     init(remote: RemoteConnection) {
         sessions = SessionController(remote: remote)
@@ -21,5 +23,7 @@ struct HarnessControllers: Sendable {
         credentials = CredentialsController(remote: remote)
         llm = LLMController(remote: remote)
         agentPresets = AgentPresetsController(remote: remote)
+        commands = CommandsController(remote: remote)
+        skills = SkillsController(remote: remote)
     }
 }
