@@ -210,7 +210,8 @@ final class SessionRuntimeResilienceTests: XCTestCase {
             if await runtime.currentSnapshot()?.appliedThrough == SessionSeq(rawValue: 3) { break }
             try await Task.sleep(nanoseconds: 5_000_000)
         }
-        XCTAssertEqual(await runtime.currentSnapshot()?.appliedThrough, SessionSeq(rawValue: 3))
+        let liveSnapshot = await runtime.currentSnapshot()
+        XCTAssertEqual(liveSnapshot?.appliedThrough, SessionSeq(rawValue: 3))
 
         _ = try await runtime.loadOlder(maxMessages: 25)
 
