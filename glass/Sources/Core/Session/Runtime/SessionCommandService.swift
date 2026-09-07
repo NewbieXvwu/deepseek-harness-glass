@@ -18,11 +18,32 @@ struct SessionPromptIntent: Sendable, Equatable {
     }
 }
 
+struct SessionQuestionCommandAnswer: Sendable, Equatable {
+    let id: String
+    let selected: [String]
+    let custom: String?
+}
+
+protocol SessionInteractionResponder: Sendable {
+    func reply(eventID: String, outcome: RemoteEventReplyOutcome) async throws
+}
+
+extension RemoteEventRuntime: SessionInteractionResponder {}
+
+enum SessionCommandServiceError: Error, Sendable, Equatable {
+    case interactionResponderUnavailable
+}
+
 struct SessionCommandService: Sendable {
     private let controller: any SessionControllerAPI
+    private let interactions: (any SessionInteractionResponder)?
 
-    init(controller: any SessionControllerAPI) {
+    init(
+        controller: any SessionControllerAPI,
+        interactions: (any SessionInteractionResponder)? = nil
+    ) {
         self.controller = controller
+        self.interactions = interactions
     }
 
     /// Creates the domain identity at the user-command boundary. The returned
@@ -78,6 +99,42 @@ struct SessionCommandService: Sendable {
 
     func updateQueue(sessionID: String, itemID: String, action: RemoteQueueAction) async throws {
         _ = try await controller.updateQueue(sessionID: sessionID, itemID: itemID, action: action)
+    }
+
+    func answerApproval(eventID: String, allowOnce: Bool) async throws {
+        guard let interactions else { throw SessionCommandServiceError.interactionResponderUnavailable }
+        try await interactions.reply(
+            eventID: eventID,
+            outcome: .result(.string(allowOnce ? "allowed-once" : "rejected"))
+        )
+    }
+
+    func answerQuestion(eventID: String, answers: [SessionQuestionCommandAnswer]) async throws {
+        guard let interactions else { throw SessionCommandServiceError.interactionResponderUnavailable }
+        let values: [RemoteJSONValue] = answers.map { answer in
+            var object: [String: RemoteJSONValue] = [
+                "id": .string(answer.id),
+                "selected": .array(answer.selected.map(RemoteJSONValue.string)),
+            ]
+            if let custom = answer.custom { object["custom"] = .string(custom) }
+            return .object(object)
+        }
+        try await interactions.reply(
+            eventID: eventID,
+            outcome: .result(.object(["answers": .array(values)]))
+        )
+    }
+
+    func cancelQuestion(eventID: String) async throws {
+        guard let interactions else { throw SessionCommandServiceError.interactionResponderUnavailable }
+        try await interactions.reply(
+            eventID: eventID,
+            outcome: .rejected(.init(
+                name: "UserQuestionError",
+                message: "the user cancelled ask_user_question",
+                code: "ASK_CANCELLED"
+            ))
+        )
     }
 
     func selectModel(sessionID: String, selection: RemoteModelSelection) async throws -> RemoteModelSelection {
