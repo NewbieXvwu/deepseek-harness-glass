@@ -282,7 +282,10 @@ final class NativeShellPresentation: ObservableObject {
                 sessionRuntime: SessionRuntime(
                     controller: controllers.sessions,
                     generation: connection.context.events.generation,
-                    address: .session(sessionID: selectedSessionID)
+                    address: .session(sessionID: selectedSessionID),
+                    controlRuntime: sessionControlRuntime,
+                    interactions: eventRuntime,
+                    subagents: controllers.subagents
                 )
             )
         }
@@ -490,7 +493,10 @@ final class NativeShellPresentation: ObservableObject {
                 runtime = SessionRuntime(
                     controller: controllers.sessions,
                     generation: remoteGeneration,
-                    address: .session(sessionID: sessionID)
+                    address: .session(sessionID: sessionID),
+                    controlRuntime: sessionControlRuntime,
+                    interactions: eventRuntime,
+                    subagents: controllers.subagents
                 )
             } else {
                 runtime = nil
