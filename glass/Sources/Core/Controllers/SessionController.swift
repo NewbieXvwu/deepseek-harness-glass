@@ -11,6 +11,7 @@ protocol SessionControllerAPI: Sendable {
     func canOpenWorkspacePath() async throws -> Bool
     func openWorkspacePath(_ path: String) async throws -> RemoteSessionOpenWorkspacePathValue
     func prompt(_ request: RemoteSessionPromptRequest) async throws -> RemoteSessionAcceptedValue
+    func attachment(sessionID: String, attachmentID: String) async throws -> RemoteSessionAttachmentValue
     func cancel(sessionID: String) async throws -> RemoteSessionAcceptedValue
     func updateQueue(sessionID: String, itemID: String, action: RemoteQueueAction) async throws -> RemoteSessionAcceptedValue
     func page(_ request: RemoteSessionPageRequest) async throws -> RemoteSessionPageValue
@@ -220,6 +221,26 @@ struct RemoteSessionAcceptedValue: Codable, Sendable, Equatable {
     let accepted: Bool
 }
 
+struct RemoteImageAttachmentRef: Codable, Sendable, Equatable {
+    struct Dimensions: Codable, Sendable, Equatable {
+        let width: Int
+        let height: Int
+    }
+
+    let attachmentId: String
+    let mediaType: String
+    let bytes: Int
+    let width: Int
+    let height: Int
+    let name: String?
+    let originalDimensions: Dimensions?
+}
+
+struct RemoteSessionAttachmentValue: Codable, Sendable, Equatable {
+    let attachment: RemoteImageAttachmentRef
+    let data: String
+}
+
 struct RemoteSessionOpenWorkspacePathValue: Codable, Sendable, Equatable {
     let opened: Bool
 }
@@ -321,6 +342,13 @@ struct SessionController: SessionControllerAPI, Sendable {
         try await remote.call(RemoteProcedure(.sessionPrompt), arguments: PromptArguments(request: request))
     }
 
+    func attachment(sessionID: String, attachmentID: String) async throws -> RemoteSessionAttachmentValue {
+        try await remote.call(
+            RemoteProcedure(.sessionAttachment),
+            arguments: AttachmentArguments(request: .init(sessionId: sessionID, attachmentId: attachmentID))
+        )
+    }
+
     func cancel(sessionID: String) async throws -> RemoteSessionAcceptedValue {
         try await remote.call(
             RemoteProcedure(.sessionCancel),
@@ -374,6 +402,8 @@ struct SessionController: SessionControllerAPI, Sendable {
     private struct OpenWorkspacePathRequest: Codable, Sendable { let path: String }
     private struct OpenWorkspacePathArguments: Codable, Sendable { let request: OpenWorkspacePathRequest }
     private struct PromptArguments: Codable, Sendable { let request: RemoteSessionPromptRequest }
+    private struct AttachmentRequest: Codable, Sendable { let sessionId: String; let attachmentId: String }
+    private struct AttachmentArguments: Codable, Sendable { let request: AttachmentRequest }
     private struct CancelRequest: Codable, Sendable { let sessionId: String }
     private struct CancelArguments: Codable, Sendable { let request: CancelRequest }
     private struct UpdateQueueRequest: Codable, Sendable {
