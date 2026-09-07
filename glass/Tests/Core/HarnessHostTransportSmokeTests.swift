@@ -48,6 +48,25 @@ final class HarnessHostTransportSmokeTests: XCTestCase {
         let initialSessions = try await initialControllers.sessions.list()
         XCTAssertTrue(initialSessions.items.contains { $0.sessionId == requestedID })
 
+        // Production downloads must use the same authenticated Host URLSession as
+        // Remote. Supplying `.shared` to the test-only exporter seam makes this
+        // fail authentication if `export(... authenticatedHost:)` ever regresses
+        // to its constructor session instead of the process-scoped cookie jar.
+        let exportDirectory = root.appendingPathComponent("exports", isDirectory: true)
+        let exported = try await SessionLogExporter(
+            session: .shared,
+            destinationDirectory: exportDirectory
+        ).export(
+            sessionID: requestedID,
+            authenticatedHost: initial.context.authenticatedHost
+        )
+        XCTAssertTrue(exported.responseContentType?.lowercased().hasPrefix("application/zip") == true)
+        XCTAssertEqual(
+            Array(try Data(contentsOf: exported.fileURL).prefix(4)),
+            [0x50, 0x4b, 0x03, 0x04],
+            "authenticated session.export must materialize the official ZIP route"
+        )
+
         let initialFollow = SessionRuntime(
             controller: initialControllers.sessions,
             generation: initial.context.events.generation,
