@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Guard the RC8 T5/T7 recertification screenshot matrix wiring.
+"""Guard the rc.1 visual recertification screenshot matrix wiring.
 
 The matrix is intentionally a source-level contract: each named scene must be
 registered by the authoritative visual scene fixture, have a review-only policy
@@ -19,9 +19,9 @@ POLICY = ROOT / "glass/Sources/Spec/Fixtures/visual-validation-policy.json"
 CAPTURE = ROOT / "tools/reference-capture/capture-official-welcome.e2e.ts"
 WORKFLOW = ROOT / ".github/workflows/native-ui.yml"
 
-# T5 (window/shell/material/accessibility) plus T7.3 (workspace management)
-# must be recaptured against the locked RC8 WebUI before their TODO rows may
-# close. Conversation/tooling scenes belong to later T8/T9 renderer work.
+# Current shell/material/accessibility and workspace-management scenes must be
+# recaptured against the locked rc.1 WebUI before their TODO rows may close.
+# Conversation/tooling scenes remain covered by their dedicated renderer work.
 CAPTURE_MARKERS = {
     "welcome-no-workspace-light": "`welcome-no-workspace-${colorScheme}`",
     "welcome-no-workspace-dark": "`welcome-no-workspace-${colorScheme}`",
@@ -82,16 +82,16 @@ def main() -> None:
     policies = policy["scenes"]
     for scene in sorted(REQUIRED_SCENES):
         entry = policies.get(scene)
-        require(entry is not None, f"RC8 recertification policy is missing scene: {scene}")
+        require(entry is not None, f"rc.1 recertification policy is missing scene: {scene}")
         require(entry.get("mode") == "report-only", f"{scene} must remain report-only until paired review closes")
         require(entry.get("mustEnforceBeforeTodoCompletion") is True, f"{scene} must block TODO completion until enforce")
         require(entry.get("humanReviewRequired") is True, f"{scene} must require human difference classification")
         require(bool(entry.get("humanReviewCriteria")), f"{scene} has no human review criteria")
         marker = CAPTURE_MARKERS[scene]
-        require(marker in capture, f"official capture script does not emit or name RC8 scene: {scene}")
-        require(scene in workflow, f"native workflow does not assert or compare RC8 scene: {scene}")
+        require(marker in capture, f"official capture script does not emit or name rc.1 scene: {scene}")
+        require(scene in workflow, f"native workflow does not assert or compare rc.1 scene: {scene}")
 
-    print(f"RC8 recertification matrix gate passed: {len(REQUIRED_SCENES)} T5/T7 scenes are wired.")
+    print(f"rc.1 visual recertification matrix gate passed: {len(REQUIRED_SCENES)} required scenes are wired.")
 
 
 if __name__ == "__main__":
