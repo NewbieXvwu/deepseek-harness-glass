@@ -513,6 +513,9 @@ final class NativeSessionStore: ObservableObject {
     /// unload, so UI resolves it through the stable Chat fallback.
     @Published private(set) var selectedViewID: String?
     @Published private(set) var isSubmittingPrompt = false
+    /// User-command identity retained across an idempotent retry. Its payload is frozen
+    /// with the request id so edited composer content always becomes a new intent.
+    @Published private(set) var pendingPromptIntent: SessionPromptIntent?
     @Published var draft = ""
     @Published private(set) var pendingImages: [PendingImage] = []
     /// Last Core-owned image admission decision. It is intentionally transient:
@@ -1439,6 +1442,7 @@ final class NativeSessionStore: ObservableObject {
         historyTask?.cancel()
         olderHistoryTask?.cancel()
         promptTask?.cancel()
+        pendingPromptIntent = nil
         cancelTask?.cancel()
         recoveryTask?.cancel()
         recoveryLiveBuffer = []
@@ -1666,6 +1670,7 @@ final class NativeSessionStore: ObservableObject {
         recoveryTask = nil
         recoveryGeneration &+= 1
         promptTask?.cancel()
+        pendingPromptIntent = nil
         promptTask = nil
         invalidateInteractions()
         recoveryLiveBuffer = []
@@ -1757,6 +1762,7 @@ final class NativeSessionStore: ObservableObject {
         recoveryTask = nil
         recoveryGeneration &+= 1
         promptTask?.cancel()
+        pendingPromptIntent = nil
         promptTask = nil
         invalidateInteractions()
         recoveryLiveBuffer = []
@@ -1953,25 +1959,42 @@ final class NativeSessionStore: ObservableObject {
             return
         }
         guard sessionCommandService != nil || api != nil else { return }
-        isSubmittingPrompt = true
-        promptTask?.cancel()
         let commandService = sessionCommandService
         let legacyAPI = api
+        let remoteContent = content.map(\.remotePromptContentPart)
+        let currentPromptIntent: SessionPromptIntent?
+        if let commandService {
+            if let retained = pendingPromptIntent,
+               retained.sessionID == sessionID,
+               retained.mode == .queue,
+               retained.content == remoteContent {
+                currentPromptIntent = retained
+            } else {
+                currentPromptIntent = commandService.makePromptIntent(
+                    sessionID: sessionID,
+                    mode: .queue,
+                    content: remoteContent,
+                    clientTimeZone: TimeZone.current.identifier
+                )
+            }
+            pendingPromptIntent = currentPromptIntent
+        } else {
+            currentPromptIntent = nil
+            pendingPromptIntent = nil
+        }
+        isSubmittingPrompt = true
+        promptTask?.cancel()
         promptTask = Task { [weak self] in
             defer { self?.isSubmittingPrompt = false }
             do {
-                if let commandService {
-                    _ = try await commandService.prompt(
-                        sessionID: sessionID,
-                        mode: .queue,
-                        content: content.map(\.remotePromptContentPart),
-                        clientTimeZone: TimeZone.current.identifier
-                    )
+                if let commandService, let currentPromptIntent {
+                    try await commandService.submitPrompt(currentPromptIntent)
                 } else if let legacyAPI {
                     let response = try await legacyAPI.prompt(sessionID: sessionID, content: content, mode: .queue)
                     guard response.accepted else { return }
                 }
                 guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
+                self?.pendingPromptIntent = nil
                 self?.draft = ""
                 self?.pendingImages = []
             } catch {
@@ -2354,6 +2377,7 @@ final class NativeSessionStore: ObservableObject {
         // becomes cancellable. Its late acceptance must not clear a draft the
         // user kept after choosing Cancel.
         promptTask?.cancel()
+        pendingPromptIntent = nil
         promptTask = nil
         isSubmittingPrompt = false
         if let route = subagentRoute {
