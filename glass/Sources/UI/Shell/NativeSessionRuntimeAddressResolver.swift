@@ -12,7 +12,7 @@ enum NativeSessionRuntimeAddressResolver {
         guard let route = subagentRoute, route.childSessionID == sessionID else {
             return .session(sessionID: sessionID)
         }
-        let mode: SessionAddress.ChildMode
+        let mode: SessionAddress.SubagentMode
         switch route.mode {
         case .oneShot: mode = .oneShot
         case .continuable: mode = .continuable
