@@ -885,6 +885,8 @@ final class NativeSessionStoreTests: XCTestCase {
 
     func testSubscriptionWatermarkRollbackRecoversFullAuthorityWindow() async {
         let recoveryReachedHistory = expectation(description: "watermark rollback triggers authority history")
+        recoveryReachedHistory.expectedFulfillmentCount = 2
+        recoveryReachedHistory.assertForOverFulfill = true
         let api = GapRecoveringSessionAPI(recoveryReachedHistory: recoveryReachedHistory)
         let store = NativeSessionStore()
         store.open(sessionID: "recovery-session", using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
@@ -896,6 +898,7 @@ final class NativeSessionStoreTests: XCTestCase {
             "lastSeq": .number(0),
         ])), sessionID: "recovery-session")
         await fulfillment(of: [recoveryReachedHistory], timeout: 1)
+        await eventually(timeout: 1) { store.modelDirectoryStatus == .ready }
         await eventually(timeout: 1) { store.items.map(\.text) == ["baseline", "recovered authority"] }
         XCTAssertEqual(store.items.map(\.sequence), [1, 2])
     }
@@ -946,6 +949,8 @@ final class NativeSessionStoreTests: XCTestCase {
 
     func testSubscriptionWatermarkRecoveryRebuildsProjectionBaselineFromHostAuthority() async {
         let recoveryReachedHistory = expectation(description: "watermark rollback refreshes history projections")
+        recoveryReachedHistory.expectedFulfillmentCount = 2
+        recoveryReachedHistory.assertForOverFulfill = true
         let api = GapRecoveringSessionAPI(recoveryReachedHistory: recoveryReachedHistory)
         let store = NativeSessionStore()
         store.open(sessionID: "recovery-session", using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
@@ -959,6 +964,7 @@ final class NativeSessionStoreTests: XCTestCase {
             "lastSeq": .number(0),
         ])), sessionID: "recovery-session")
         await fulfillment(of: [recoveryReachedHistory], timeout: 1)
+        await eventually(timeout: 1) { store.modelDirectoryStatus == .ready }
         await eventually(timeout: 1) {
             store.projections.value(sessionID: "recovery-session", key: "latest-host-value") == .string("recovered baseline")
         }
