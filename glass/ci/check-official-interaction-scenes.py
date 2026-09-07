@@ -11,6 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = ROOT.parent
 SCENES = ROOT / "Sources/Spec/Fixtures/official-interaction-scenes.json"
+VISUAL_POLICY = ROOT / "Sources/Spec/Fixtures/visual-validation-policy.json"
 EXPECTED_COMMIT = "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
 REQUIRED_SCENES = {
     "startup-empty-hero",
@@ -108,6 +109,17 @@ def main() -> None:
     missing_scenes = REQUIRED_SCENES - ids
     if missing_scenes:
         raise SystemExit("interaction scene catalog lacks required coverage: " + ", ".join(sorted(missing_scenes)))
+
+    policy = json.loads(VISUAL_POLICY.read_text(encoding="utf-8"))
+    if policy.get("schemaVersion") != 1 or policy.get("officialSourceCommit") != EXPECTED_COMMIT:
+        raise SystemExit("visual validation policy has an invalid schema or source commit")
+    deliverables = policy.get("scenes", {}).get("deliverables-light")
+    if not isinstance(deliverables, dict) or deliverables.get("viewport") != {"width": 780, "height": 900, "devicePixelRatio": 1}:
+        raise SystemExit("visual validation policy lacks the rc.1 780px deliverables contract")
+    criteria = deliverables.get("humanReviewCriteria")
+    if not isinstance(criteria, list) or not any("56px compact sidebar rail" in item for item in criteria):
+        raise SystemExit("visual validation policy retains the pre-rc.1 deliverables sidebar contract")
+
     print(f"Official interaction scene gate passed: {len(scenes)} scenarios with {len(ids & REQUIRED_SCENES)} required coverage entries.")
 
 
