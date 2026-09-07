@@ -1,0 +1,211 @@
+name: CUT5.12 legacy ingest clean cut
+
+on:
+  push:
+    branches: [gpt-continue-todo-20260905]
+    paths: [.github/workflows/cut512-clean-ingest.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  clean-cut:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: gpt-continue-todo-20260905
+          fetch-depth: 0
+
+      - name: Delete predecessor session ingest state machine
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          store_path = Path('glass/Sources/Core/Session/NativeSessionStore.swift')
+          s = store_path.read_text()
+
+          def brace_end(text, open_brace):
+              depth = 0
+              i = open_brace
+              state = 'code'
+              while i < len(text):
+                  c = text[i]
+                  n = text[i+1] if i + 1 < len(text) else ''
+                  if state == 'code':
+                      if c == '"': state = 'string'
+                      elif c == '/' and n == '/': state = 'line_comment'; i += 1
+                      elif c == '/' and n == '*': state = 'block_comment'; i += 1
+                      elif c == '{': depth += 1
+                      elif c == '}':
+                          depth -= 1
+                          if depth == 0: return i + 1
+                  elif state == 'string':
+                      if c == '\\': i += 1
+                      elif c == '"': state = 'code'
+                  elif state == 'line_comment':
+                      if c == '\n': state = 'code'
+                  elif state == 'block_comment':
+                      if c == '*' and n == '/': state = 'code'; i += 1
+                  i += 1
+              raise RuntimeError('unbalanced braces')
+
+          def function_span(text, name):
+              m = re.search(r'^    (?:private )?func ' + re.escape(name) + r'\s*\(', text, re.M)
+              if not m:
+                  raise RuntimeError(f'missing function {name}')
+              brace = text.find('{', m.start())
+              end = brace_end(text, brace)
+              start = m.start()
+              # Include directly attached doc comments, stopping at the previous blank separator.
+              line_start = start
+              while line_start > 0:
+                  prev_end = line_start - 1
+                  prev_start = text.rfind('\n', 0, prev_end) + 1
+                  line = text[prev_start:prev_end].strip()
+                  if line.startswith('///'):
+                      line_start = prev_start
+                      continue
+                  if line == '':
+                      break
+                  break
+              return line_start, end
+
+          def replace_function(text, name, replacement):
+              a, b = function_span(text, name)
+              return text[:a] + replacement.rstrip() + '\n' + text[b:]
+
+          def remove_function(text, name):
+              a, b = function_span(text, name)
+              # consume one trailing newline to avoid growing blank runs
+              if b < len(text) and text[b] == '\n': b += 1
+              return text[:a] + text[b:]
+
+          # The legacy facade remains only for focused command tests. Durable history
+          # authority has one owner after this cut: SessionRuntime/SessionJournal.
+          history_decl = '    func history(sessionID: String, beforeSeq: Int?, maxMessages: Int?) async throws -> SessionHistoryResponse\n'
+          assert s.count(history_decl) == 1
+          s = s.replace(history_decl, '')
+
+          old_fields = '''    private var olderHistoryTask: Task<Void, Never>?\n    /// A recovery is distinct from initial history loading. Its monotonic token\n    /// prevents an old Host generation, endpoint, or selected session from\n    /// applying models/history/projections after a newer authority request.\n    private var recoveryTask: Task<Void, Never>?\n    private var recoveryGeneration: UInt = 0\n    /// RC8 `Session.liveBuffer` equivalent. While a full authority recovery is\n    /// rebuilding the history window, live frames must wait to be stitched on\n    /// top of that cut rather than being discarded or folded into an old window.\n    private var recoveryLiveBuffer: [SessionHistoryEntryDTO] = []\n    private var recoveryBufferGeneration: UInt?\n    /// RC8 retains the mux subscription tail even when it arrives before the\n    /// initial history page. Once that page lands, a mismatch triggers the\n    /// second authority pull required to avoid a cold-to-live discontinuity.\n    private var subscribedLastSequence: Int?\n'''
+          new_fields = '''    private var olderHistoryTask: Task<Void, Never>?\n    /// Main-actor lifecycle fence for async UI-side work derived from the current\n    /// addressed SessionRuntime generation. Journal continuity lives in the actor.\n    private var recoveryGeneration: UInt = 0\n'''
+          assert s.count(old_fields) == 1
+          s = s.replace(old_fields, new_fields)
+
+          # Replace only the authority-loading tail of open(). The production path
+          # opens the addressed follow stream before any model-directory side read.
+          open_start = s.index('    func open(\n')
+          task_start = s.index('        modelDirectoryStatus = .loading\n        historyTask = Task { [weak self] in', open_start)
+          next_doc = '\n    /// Source: RC8 `sessions/service.ts:clear`'
+          task_end = s.index(next_doc, task_start)
+          new_open_tail = '''        modelDirectoryStatus = modelCatalogRepository == nil ? .idle : .loading\n        historyTask = Task { [weak self] in\n            do {\n                guard let sessionRuntime else {\n                    // Focused legacy command tests may bind no journal runtime. They\n                    // receive no durable/history authority from this compatibility seam.\n                    guard let api = self?.api else { throw DSHTransportError.invalidEndpoint }\n                    let models = try await api.models(sessionID: sessionID)\n                    guard !Task.isCancelled,\n                          self?.recoveryGeneration == authorityGeneration,\n                          self?.modelDirectoryGeneration == directoryGeneration,\n                          self?.activeSessionID == sessionID,\n                          self?.endpoint == endpoint\n                    else { return }\n                    self?.modelDirectory = .init(response: models)\n                    self?.modelDirectoryStatus = .ready\n                    self?.phase = .ready(sessionID: sessionID)\n                    return\n                }\n\n                // Follow-first: the journal opening is the first session-history\n                // authority operation. No page/history predecessor runs before it.\n                let opening = try await sessionRuntime.open()\n                guard !Task.isCancelled,\n                      self?.recoveryGeneration == authorityGeneration,\n                      self?.activeSessionID == sessionID,\n                      self?.endpoint == endpoint\n                else { return }\n                self?.installRemoteJournal(opening, sessionID: sessionID)\n                self?.phase = .ready(sessionID: sessionID)\n\n                if let repository = self?.modelCatalogRepository {\n                    do {\n                        let catalog = try await repository.catalog()\n                        guard !Task.isCancelled,\n                              self?.recoveryGeneration == authorityGeneration,\n                              self?.modelDirectoryGeneration == directoryGeneration,\n                              self?.activeSessionID == sessionID,\n                              self?.endpoint == endpoint\n                        else { return }\n                        if let self {\n                            let current = self.projections.remoteModelSelection(sessionID: sessionID) ?? catalog.default\n                            self.modelDirectory = .init(catalog: catalog, current: current)\n                            self.modelDirectoryStatus = .ready\n                        }\n                    } catch {\n                        guard !Task.isCancelled,\n                              self?.recoveryGeneration == authorityGeneration,\n                              self?.activeSessionID == sessionID\n                        else { return }\n                        self?.modelDirectoryStatus = .error(error.localizedDescription)\n                    }\n                } else {\n                    self?.modelDirectoryStatus = .idle\n                }\n\n                let snapshots = await sessionRuntime.snapshots()\n                for await snapshot in snapshots {\n                    guard !Task.isCancelled,\n                          self?.recoveryGeneration == authorityGeneration,\n                          self?.activeSessionID == sessionID,\n                          self?.endpoint == endpoint\n                    else { return }\n                    self?.installRemoteJournal(snapshot, sessionID: sessionID)\n                }\n            } catch let error as DSHTransportError {\n                guard !Task.isCancelled,\n                      self?.recoveryGeneration == authorityGeneration,\n                      self?.activeSessionID == sessionID,\n                      self?.endpoint == endpoint\n                else { return }\n                self?.lastError = error\n                if case .loading = self?.modelDirectoryStatus {\n                    self?.modelDirectoryStatus = .error(error.localizedDescription)\n                }\n                if !restoredResident { self?.phase = .failed(sessionID: sessionID) }\n            } catch {\n                guard !Task.isCancelled,\n                      self?.recoveryGeneration == authorityGeneration,\n                      self?.activeSessionID == sessionID,\n                      self?.endpoint == endpoint\n                else { return }\n                if case .loading = self?.modelDirectoryStatus {\n                    self?.modelDirectoryStatus = .error(error.localizedDescription)\n                }\n                if !restoredResident { self?.phase = .failed(sessionID: sessionID) }\n            }\n        }\n    }\n'''
+          s = s[:task_start] + new_open_tail + s[task_end:]
+
+          s = replace_function(s, 'loadOlderHistory', '''    /// Loads only through the addressed SessionRuntime journal. The actor freezes\n    /// the current follow cut and supplies page prepend authority.\n    func loadOlderHistory() {\n        guard hasMoreHistory,\n              !isLoadingOlderHistory,\n              let sessionID = activeSessionID,\n              let runtime = sessionRuntime\n        else { return }\n\n        isLoadingOlderHistory = true\n        olderHistoryTask?.cancel()\n        olderHistoryTask = Task { [weak self] in\n            defer { self?.isLoadingOlderHistory = false }\n            do {\n                if let snapshot = try await runtime.loadOlder() {\n                    guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }\n                    self?.installRemoteJournal(snapshot, sessionID: sessionID)\n                }\n            } catch {\n                guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }\n                self?.historyLoadError = error.localizedDescription\n            }\n        }\n    }''')
+
+          s = replace_function(s, 'resyncActiveSession', '''    /// Invalidates the selected presentation authority and asks the addressed\n    /// SessionRuntime for a fresh follow opening in its current Host generation.\n    func resyncActiveSession() {\n        guard let sessionID = activeSessionID,\n              endpoint != nil,\n              let runtime = sessionRuntime\n        else { return }\n\n        historyTask?.cancel()\n        historyTask = nil\n        olderHistoryTask?.cancel()\n        olderHistoryTask = nil\n        isLoadingOlderHistory = false\n        invalidateInteractions()\n        pendingApproval = nil\n        pendingQuestion = nil\n        isSubmittingApproval = false\n        isSubmittingQuestion = false\n        resetConversationWindow()\n        items = []\n        toolInvocations = []\n        selectedToolCallID = nil\n        appliedSequences = []\n        hasMoreHistory = false\n        lastError = nil\n        phase = .loading(sessionID: sessionID)\n        invalidateResidentHostAuthority(sessionID: sessionID)\n        refreshCurrentControlAuthority(for: sessionID)\n\n        recoveryGeneration &+= 1\n        let generation = recoveryGeneration\n        historyTask = Task { [weak self] in\n            do {\n                let snapshot = try await runtime.resync()\n                guard !Task.isCancelled,\n                      self?.recoveryGeneration == generation,\n                      self?.activeSessionID == sessionID\n                else { return }\n                self?.installRemoteJournal(snapshot, sessionID: sessionID)\n                self?.phase = .ready(sessionID: sessionID)\n                self?.resyncSubagentCatalogsAfterRecovery()\n                self?.resyncMessageFeedbackAfterRecovery()\n            } catch {\n                guard !Task.isCancelled,\n                      self?.recoveryGeneration == generation,\n                      self?.activeSessionID == sessionID\n                else { return }\n                self?.historyLoadError = error.localizedDescription\n                self?.phase = .failed(sessionID: sessionID)\n            }\n        }\n    }''')
+
+          for name in [
+              'applyMuxFrame', 'applySubscription', 'consumeSubscriptionTailMismatch',
+              'bufferRecoveryLiveEvent', 'stitchRecoveryLiveBuffer',
+              'liveEventRequiresAuthorityRecovery', 'requestAuthorityRecovery',
+              'applyProjection', 'applyQueue', 'applyJobs',
+              'applyApprovalRequest', 'applyApprovalResolution',
+              'applyQuestionRequest', 'applyQuestionResolution', 'questionItem',
+              'prependConversationWindow', 'applyHistory',
+          ]:
+              s = remove_function(s, name)
+
+          # Delete the predecessor recovery reason enum.
+          em = re.search(r'^    private enum AuthorityRecoveryReason\s*\{', s, re.M)
+          if em:
+              ee = brace_end(s, s.find('{', em.start()))
+              s = s[:em.start()] + s[ee + (1 if ee < len(s) and s[ee] == '\n' else 0):]
+
+          # Remove simple lifecycle remnants after the old recovery machine vanished.
+          s = re.sub(r'^.*(?:recoveryTask|recoveryLiveBuffer|recoveryBufferGeneration|subscribedLastSequence).*\n', '', s, flags=re.M)
+          store_path.write_text(s)
+
+          # Old subscribed DTO belonged only to the predecessor mux reducer.
+          dto = Path('glass/Sources/Core/Remote/RemoteDTOModels.swift')
+          d = dto.read_text()
+          subscribed = '''/// Source: `events.schema.ts:session/subscribed`. The stream's durable-history\n/// watermark is `-1` for an empty log and is used to evict state from a prior\n/// Host generation before its fresh transient baselines arrive.\nstruct SessionSubscribedDTO: Decodable, Sendable {\n    let sessionId: String\n    let lastSeq: Int\n}\n\n'''
+          assert d.count(subscribed) == 1
+          dto.write_text(d.replace(subscribed, ''))
+
+          ui = Path('glass/Sources/UI/Conversation/NativeConversationViews.swift')
+          u = ui.read_text()
+          old = '''/// First native transcript surface. The Store provides a session.history\n/// baseline plus official mux event deltas; the root remains visually stable\n/// for snapshot fixtures whose deterministic conversation mode has no Host.\n'''
+          new = '''/// First native transcript surface. The Store presents addressed SessionRuntime\n/// journal/control snapshots; the root remains visually stable for snapshot\n/// fixtures whose deterministic conversation mode has no Host.\n'''
+          assert u.count(old) == 1
+          ui.write_text(u.replace(old, new))
+
+          # Delete XCTest methods that explicitly exercise the retired Store mux/SSE
+          # reducer. Journal/control/interaction runtime suites now own those contracts.
+          tests = Path('glass/Tests/Core/NativeSessionStoreTests.swift')
+          t = tests.read_text()
+          starts = list(re.finditer(r'^    func test\w+\s*\(', t, re.M))
+          spans = []
+          for m in starts:
+              brace = t.find('{', m.start())
+              if brace < 0: continue
+              end = brace_end(t, brace)
+              body = t[m.start():end]
+              if 'applyMuxFrame' in body:
+                  a = m.start()
+                  # attach immediately preceding doc comments when present
+                  while a > 0:
+                      pe = a - 1
+                      ps = t.rfind('\n', 0, pe) + 1
+                      line = t[ps:pe].strip()
+                      if line.startswith('///'):
+                          a = ps
+                      else:
+                          break
+                  if end < len(t) and t[end] == '\n': end += 1
+                  spans.append((a, end))
+          assert len(spans) >= 40, len(spans)
+          for a,b in reversed(spans):
+              t = t[:a] + t[b:]
+          tests.write_text(t)
+          print(f'removed {len(spans)} retired mux/SSE Store test methods')
+          PY
+
+      - name: Prove legacy ingest symbols are gone from production
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -R -n --include='*.swift' 'applyMuxFrame' glass/Sources
+          ! grep -R -n --include='*.swift' -E '(subscribedLastSequence|requestAuthorityRecovery|recoveryLiveBuffer|recoveryBufferGeneration|SessionSubscribedDTO)' glass/Sources
+          ! grep -R -n --include='*.swift' -E '\.history\(sessionID:' glass/Sources
+          ! grep -R -n --include='*.swift' -E 'func history\(sessionID:' glass/Sources
+          ! grep -R -n --include='*.swift' 'SessionHistoryPager' glass/Sources
+
+      - name: Compile SwiftPM app
+        shell: bash
+        run: |
+          cd glass
+          swift build --configuration release --product DeepSeekHarnessGlassApp
+
+      - name: Run all XCTest suites
+        shell: bash
+        run: |
+          cd glass
+          swift test
+
+      - name: Commit clean cut and remove helper
+        shell: bash
+        run: |
+          rm .github/workflows/cut512-clean-ingest.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add glass/Sources/Core/Session/NativeSessionStore.swift \
+                  glass/Sources/Core/Remote/RemoteDTOModels.swift \
+                  glass/Sources/UI/Conversation/NativeConversationViews.swift \
+                  glass/Tests/Core/NativeSessionStoreTests.swift \
+                  .github/workflows/cut512-clean-ingest.yml
+          git commit -m 'core: delete legacy session ingest state machine'
+          git push origin HEAD:gpt-continue-todo-20260905
