@@ -21,6 +21,7 @@ enum RemoteEndpoint: String, Sendable {
     case messageFeedbackDelete = "messageFeedback/delete"
     case messageFeedbackList = "messageFeedback/list"
     case messageFeedbackPut = "messageFeedback/put"
+    case sessionAttachment = "session/attachment"
     case sessionCanOpenWorkspacePath = "session/canOpenWorkspacePath"
     case sessionCancel = "session/cancel"
     case sessionControl = "session/control"
