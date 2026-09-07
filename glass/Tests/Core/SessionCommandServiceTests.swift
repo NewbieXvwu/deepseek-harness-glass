@@ -39,6 +39,19 @@ final class SessionCommandServiceTests: XCTestCase {
         func control() async throws -> AsyncThrowingStream<RemoteSessionControlFrame, Error> { fatalError() }
     }
 
+    private final actor MockInteractionResponder: SessionInteractionResponder {
+        struct Reply: Sendable, Equatable {
+            let eventID: String
+            let outcome: RemoteEventReplyOutcome
+        }
+
+        private(set) var replies: [Reply] = []
+
+        func reply(eventID: String, outcome: RemoteEventReplyOutcome) async throws {
+            replies.append(.init(eventID: eventID, outcome: outcome))
+        }
+    }
+
     func testPromptIntentOwnsExactRequestPayload() {
         let controller = MockSessionController()
         let service = SessionCommandService(controller: controller)
@@ -98,5 +111,76 @@ final class SessionCommandServiceTests: XCTestCase {
 
         XCTAssertNotEqual(first.requestID, second.requestID)
         XCTAssertNotEqual(first.content, second.content)
+    }
+
+    func testApprovalCommandMapsToOfficialWaterfallResult() async throws {
+        let controller = MockSessionController()
+        let interactions = MockInteractionResponder()
+        let service = SessionCommandService(controller: controller, interactions: interactions)
+
+        try await service.answerApproval(eventID: "approval-1", allowOnce: true)
+        try await service.answerApproval(eventID: "approval-2", allowOnce: false)
+
+        let replies = await interactions.replies
+        XCTAssertEqual(replies, [
+            .init(eventID: "approval-1", outcome: .result(.string("allowed-once"))),
+            .init(eventID: "approval-2", outcome: .result(.string("rejected"))),
+        ])
+    }
+
+    func testQuestionAnswerCommandMapsAllAnswersToOfficialResultShape() async throws {
+        let controller = MockSessionController()
+        let interactions = MockInteractionResponder()
+        let service = SessionCommandService(controller: controller, interactions: interactions)
+
+        try await service.answerQuestion(eventID: "question-1", answers: [
+            .init(id: "q1", selected: ["A", "B"], custom: nil),
+            .init(id: "q2", selected: [], custom: "custom"),
+        ])
+
+        let replies = await interactions.replies
+        XCTAssertEqual(replies, [
+            .init(
+                eventID: "question-1",
+                outcome: .result(.object(["answers": .array([
+                    .object(["id": .string("q1"), "selected": .array([.string("A"), .string("B")])]),
+                    .object(["id": .string("q2"), "selected": .array([]), "custom": .string("custom")]),
+                ])]))
+            ),
+        ])
+    }
+
+    func testQuestionCancelMapsToOfficialRejectedOutcome() async throws {
+        let controller = MockSessionController()
+        let interactions = MockInteractionResponder()
+        let service = SessionCommandService(controller: controller, interactions: interactions)
+
+        try await service.cancelQuestion(eventID: "question-2")
+
+        let replies = await interactions.replies
+        XCTAssertEqual(replies, [
+            .init(
+                eventID: "question-2",
+                outcome: .rejected(.init(
+                    name: "UserQuestionError",
+                    message: "the user cancelled ask_user_question",
+                    code: "ASK_CANCELLED"
+                ))
+            ),
+        ])
+    }
+
+    func testInteractionCommandsRequireGenerationBoundResponder() async {
+        let controller = MockSessionController()
+        let service = SessionCommandService(controller: controller)
+
+        do {
+            try await service.answerApproval(eventID: "approval", allowOnce: true)
+            XCTFail("interaction command without responder must fail")
+        } catch let error as SessionCommandServiceError {
+            XCTAssertEqual(error, .interactionResponderUnavailable)
+        } catch {
+            XCTFail("unexpected error: \(error)")
+        }
     }
 }
