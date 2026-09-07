@@ -12,7 +12,8 @@ final class WorkspaceRuntimeLifecycleTests: XCTestCase {
 
         source.continuation.yield(.baseline(.init(items: [], archivedSessionIds: [])))
         try await starting.value
-        XCTAssertEqual(await runtime.current()?.generation, generation)
+        let currentGeneration = await runtime.current()?.generation
+        XCTAssertEqual(currentGeneration, generation)
 
         source.continuation.finish()
         try await assertEventuallyInvalid(runtime)
@@ -51,7 +52,8 @@ final class WorkspaceRuntimeLifecycleTests: XCTestCase {
 
         source.continuation.yield(.baseline(.init(items: [], archivedSessionIds: [])))
         try await starting.value
-        XCTAssertEqual(await runtime.current()?.generation, generation)
+        let currentGeneration = await runtime.current()?.generation
+        XCTAssertEqual(currentGeneration, generation)
 
         source.continuation.yield(.baseline(.init(items: [], archivedSessionIds: [])))
         try await assertEventuallyInvalid(runtime)
