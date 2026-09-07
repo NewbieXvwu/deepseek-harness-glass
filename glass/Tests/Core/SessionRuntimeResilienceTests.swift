@@ -36,6 +36,7 @@ final class SessionRuntimeResilienceTests: XCTestCase {
         func canOpenWorkspacePath() async throws -> Bool { false }
         func openWorkspacePath(_ path: String) async throws -> RemoteSessionOpenWorkspacePathValue { fatalError() }
         func prompt(_ request: RemoteSessionPromptRequest) async throws -> RemoteSessionAcceptedValue { fatalError() }
+        func attachment(sessionID: String, attachmentID: String) async throws -> RemoteSessionAttachmentValue { throw MockError() }
         func cancel(sessionID: String) async throws -> RemoteSessionAcceptedValue { fatalError() }
         func updateQueue(sessionID: String, itemID: String, action: RemoteQueueAction) async throws -> RemoteSessionAcceptedValue { fatalError() }
         func page(_ request: RemoteSessionPageRequest) async throws -> RemoteSessionPageValue { fatalError() }
