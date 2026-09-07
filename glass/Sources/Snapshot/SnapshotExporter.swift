@@ -170,9 +170,6 @@ enum SnapshotExporter {
             // The historical produced-files capture exercised an authenticated
             // Host state with `session/canOpenWorkspacePath=true`.
             snapshotCanOpenProjectPath: requestedMode == "deliverables",
-            // RC8 selected that session wide, then retained an explicit narrow
-            // sidebar expansion at the capture's 780px lane viewport.
-            snapshotSidebarNarrowExpanded: requestedMode == "deliverables"
         )
         let shellController = NativeShellRootController(presentation: presentation)
         let size = snapshotSize(environment: ProcessInfo.processInfo.environment)

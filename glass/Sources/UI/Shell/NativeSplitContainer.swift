@@ -73,10 +73,6 @@ final class NativeShellPresentation: ObservableObject {
     /// Snapshot exports normally have no Host. This opt-in exists only for a
     /// recorded official state that includes path-open capability; production never sets it.
     private let snapshotCanOpenProjectPath: Bool
-    /// The recorded RC8 Deliverables capture selects the session at a wide
-    /// viewport, then shrinks to 780px while retaining the user's explicit
-    /// narrow-sidebar expansion. Production has no snapshot override.
-    private let snapshotSidebarNarrowExpanded: Bool
     private let releaseFeaturePolicy: NativeReleaseFeaturePolicy
 
     var canOpenProjectPath: Bool {
@@ -139,7 +135,6 @@ final class NativeShellPresentation: ObservableObject {
         jobsPopoverInitiallyOpen: Bool = false,
         jobsSnapshotLanguageCode: String? = nil,
         snapshotCanOpenProjectPath: Bool = false,
-        snapshotSidebarNarrowExpanded: Bool = false,
         releaseFeaturePolicy: NativeReleaseFeaturePolicy = .releaseCandidate
     ) {
         self.mode = mode
@@ -154,7 +149,6 @@ final class NativeShellPresentation: ObservableObject {
         self.jobsPopoverInitiallyOpen = jobsPopoverInitiallyOpen
         self.jobsSnapshotLanguageCode = jobsSnapshotLanguageCode
         self.snapshotCanOpenProjectPath = snapshotCanOpenProjectPath
-        self.snapshotSidebarNarrowExpanded = snapshotSidebarNarrowExpanded
         self.releaseFeaturePolicy = releaseFeaturePolicy
         self.detailsVisible = self.sessionStore.selectedToolCallID != nil
         if releaseFeaturePolicy.permits(.trajectoryTab) {
@@ -294,11 +288,6 @@ final class NativeShellPresentation: ObservableObject {
     func setSidebarViewportNarrow(_ isNarrow: Bool) {
         var updated = sidebarLayout
         updated.setNarrow(isNarrow)
-        // Equivalent to RC8's user toggle after AppFrame's narrow breakpoint
-        // computed the rail. It is present only in an evidence fixture.
-        if isNarrow, snapshotSidebarNarrowExpanded {
-            updated.setCollapsed(false)
-        }
         guard updated != sidebarLayout else { return }
         sidebarLayout = updated
     }
