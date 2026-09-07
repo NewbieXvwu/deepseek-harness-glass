@@ -418,11 +418,14 @@ final class HarnessHostController: ObservableObject {
 
     private func reconnectRemote(from connection: HostConnection) {
         verificationTask?.cancel()
-        verificationTask = Task { [weak self] in
+        guard let ownedProcess = process else { return }
+        verificationTask = Task { [weak self, weak ownedProcess] in
             guard let self,
+                  let ownedProcess,
+                  self.process === ownedProcess,
                   let authenticatedHost = self.authenticatedHost,
                   authenticatedHost.urlSession === connection.context.authenticatedHost.urlSession,
-                  self.process?.isRunning == true
+                  ownedProcess.isRunning
             else { return }
             do {
                 self.state = .connecting(authenticatedHost.baseURL)
@@ -440,9 +443,24 @@ final class HarnessHostController: ObservableObject {
                     compatibility: connection.compatibility
                 )
             } catch {
-                guard !Task.isCancelled else { return }
+                guard !Task.isCancelled,
+                      self.process === ownedProcess
+                else { return }
                 await self.diagnostics.recordRPCError(error)
-                self.failRemoteGeneration("Remote carrier recovery failed: \(error.localizedDescription)")
+                guard ownedProcess.isRunning else {
+                    // The process termination handler owns restart once the
+                    // local Host has exited; do not publish a competing failure.
+                    return
+                }
+                guard self.recoveryAttempts == 0 else {
+                    self.failRemoteGeneration("Remote carrier recovery failed: \(error.localizedDescription)")
+                    return
+                }
+                self.recoveryAttempts = 1
+                self.restartAfterTermination = true
+                self.state = .recovering(attempt: self.recoveryAttempts)
+                self.appendLog("[host] Remote reopen failed; restarting owned pid=\(ownedProcess.processIdentifier)")
+                ownedProcess.terminate()
             }
         }
     }
