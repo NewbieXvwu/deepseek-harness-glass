@@ -1,0 +1,33 @@
+name: CUT4.6 one-shot explicit capability cut
+
+on:
+  push:
+    branches: [gpt-continue-todo-20260905]
+    paths:
+      - tools/cut46-explicit-capabilities.patch
+      - .github/workflows/cut46-self-apply.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-cut:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: gpt-continue-todo-20260905
+      - name: Apply verified CUT4.6 patch and remove one-shot helpers
+        shell: bash
+        run: |
+          set -euo pipefail
+          git apply --check tools/cut46-explicit-capabilities.patch
+          git apply tools/cut46-explicit-capabilities.patch
+          rm tools/cut46-explicit-capabilities.patch .github/workflows/cut46-self-apply.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add glass/Sources/Core/Session/NativeSessionStore.swift glass/Tests/Core/NativeSessionStoreTests.swift tools/cut46-explicit-capabilities.patch .github/workflows/cut46-self-apply.yml
+          git diff --cached --check
+          git commit -m "core: require explicit legacy session capabilities"
+          git push origin HEAD:gpt-continue-todo-20260905
