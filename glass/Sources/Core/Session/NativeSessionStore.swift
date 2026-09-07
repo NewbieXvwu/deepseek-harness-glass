@@ -20,20 +20,6 @@ protocol NativeSessionAPI: Sendable {
     func cancelQuestion(rpcID: String) async throws -> RPCReceipt
 }
 
-extension NativeSessionAPI {
-    /// Test fakes must opt in explicitly to queue mutation. Treat omitted seams
-    /// as an unavailable Host rather than manufacturing an accepted response.
-    func updateQueue(_: SessionUpdateQueueRequest) async throws -> SessionUpdateQueueResponse {
-        throw DSHTransportError.invalidEndpoint
-    }
-
-    /// Model selection is unavailable unless a verified Host facade implements
-    /// the RC8 `session.selectModel` operation.
-    func selectModel(_: SessionSelectModelRequest) async throws -> SessionSelectModelResponse {
-        throw DSHTransportError.invalidEndpoint
-    }
-}
-
 /// Legacy GoalBar action seam retained for focused store tests. Production
 /// mutations run through the typed `GoalController`.
 @MainActor
@@ -64,18 +50,6 @@ protocol NativeMessageFeedbackAPI: Sendable {
     func list(sessionID: String) async throws -> MessageFeedbackListResponse
     func put(_ request: MessageFeedbackPutRequest) async throws -> MessageFeedbackPutResponse
     func delete(_ request: MessageFeedbackDeleteRequest) async throws -> MessageFeedbackDeleteResponse
-}
-
-extension NativeMessageFeedbackAPI {
-    /// Read-only/absent feedback plugins must fail closed for a mutation rather
-    /// than letting a local row pretend the rating was accepted.
-    func put(_: MessageFeedbackPutRequest) async throws -> MessageFeedbackPutResponse {
-        throw DSHTransportError.invalidEndpoint
-    }
-
-    func delete(_: MessageFeedbackDeleteRequest) async throws -> MessageFeedbackDeleteResponse {
-        throw DSHTransportError.invalidEndpoint
-    }
 }
 
 private extension RemoteMessageFeedbackItem {
