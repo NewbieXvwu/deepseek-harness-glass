@@ -21,7 +21,7 @@ actor SessionRuntime {
     private let address: SessionAddress
     private let maxMessages: Int?
     private let controlRuntime: SessionControlRuntime?
-    private let commands: SessionCommandService
+    private let commands: AddressedSessionCommandService
     private var journal = SessionJournal()
     private var followTask: Task<Void, Never>?
     private var controlObservationTask: Task<Void, Never>?
@@ -35,14 +35,20 @@ actor SessionRuntime {
         address: SessionAddress,
         maxMessages: Int? = nil,
         controlRuntime: SessionControlRuntime? = nil,
-        interactions: (any SessionInteractionResponder)? = nil
+        interactions: (any SessionInteractionResponder)? = nil,
+        subagents: (any SubagentControllerAPI)? = nil
     ) {
         self.controller = controller
         self.generation = generation
         self.address = address
         self.maxMessages = maxMessages
         self.controlRuntime = controlRuntime
-        self.commands = SessionCommandService(controller: controller, interactions: interactions)
+        self.commands = AddressedSessionCommandService(
+            address: address,
+            controller: controller,
+            interactions: interactions,
+            subagents: subagents
+        )
     }
 
     deinit {
@@ -121,29 +127,28 @@ actor SessionRuntime {
         mode: RemoteSessionPromptMode,
         content: [RemotePromptContentPart],
         clientTimeZone: String? = nil
-    ) -> SessionPromptIntent {
-        commands.makePromptIntent(
-            sessionID: address.sessionID,
+    ) throws -> AddressedSessionPromptIntent {
+        try commands.makePromptIntent(
             mode: mode,
             content: content,
             clientTimeZone: clientTimeZone
         )
     }
 
-    func submitPrompt(_ intent: SessionPromptIntent) async throws {
+    func submitPrompt(_ intent: AddressedSessionPromptIntent) async throws {
         try await commands.submitPrompt(intent)
     }
 
-    func retryPrompt(_ intent: SessionPromptIntent) async throws {
+    func retryPrompt(_ intent: AddressedSessionPromptIntent) async throws {
         try await commands.retryPrompt(intent)
     }
 
     func cancel() async throws {
-        try await commands.cancel(sessionID: address.sessionID)
+        try await commands.cancel()
     }
 
     func updateQueue(itemID: String, action: RemoteQueueAction) async throws {
-        try await commands.updateQueue(sessionID: address.sessionID, itemID: itemID, action: action)
+        try await commands.updateQueue(itemID: itemID, action: action)
     }
 
     func answerApproval(eventID: String, allowOnce: Bool) async throws {
@@ -159,7 +164,7 @@ actor SessionRuntime {
     }
 
     func selectModel(_ selection: RemoteModelSelection) async throws -> RemoteModelSelection {
-        try await commands.selectModel(sessionID: address.sessionID, selection: selection)
+        try await commands.selectModel(selection)
     }
 
     // MARK: - Journal follow
