@@ -30,6 +30,26 @@ final class SessionLogExporterTests: XCTestCase {
         XCTAssertEqual(requests.map(\.httpMethod), ["HEAD", "GET", "HEAD", "GET"])
     }
 
+    func testAttachmentFilenameCannotEscapeDestinationDirectory() async throws {
+        ExportURLProtocol.state.configure(status: 200, headers: [
+            "Content-Type": "application/zip",
+            "Content-Disposition": "attachment; filename=../../outside.zip",
+        ], body: Data("zip-contract".utf8))
+        let destination = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: destination) }
+        let outside = destination.deletingLastPathComponent().appendingPathComponent("outside.zip")
+        try? FileManager.default.removeItem(at: outside)
+        let exporter = SessionLogExporter(session: makeSession(), destinationDirectory: destination)
+        let url = URL(string: "http://127.0.0.1:9281/api/session.export?sessionId=contract-session&includeDescendants=true")!
+
+        let result = try await exporter.export(url: url, fallbackFilename: "fallback.zip")
+
+        XCTAssertEqual(result.suggestedFilename, "outside.zip")
+        XCTAssertEqual(result.fileURL.deletingLastPathComponent(), destination)
+        XCTAssertEqual(try Data(contentsOf: result.fileURL), Data("zip-contract".utf8))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: outside.path))
+    }
+
     func testTaskCancellationMapsToCancelledTransportError() async throws {
         ExportURLProtocol.state.configure(status: 200, headers: [:], body: Data(), stalls: true)
         let destination = try temporaryDirectory()
