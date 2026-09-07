@@ -2164,7 +2164,7 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.items.map(\.sequence), [4])
     }
 
-    func testResidentResyncRetainsQueueAndJobsUntilFreshSubscriptionBoundary() async {
+    func testResidentResyncDropsCachedQueueAndJobsBeforeFreshAuthority() async {
         let resyncHistoryReached = expectation(description: "resident resync is held before fresh subscription")
         let api = GatedResidentResyncSessionAPI(resyncHistoryReached: resyncHistoryReached)
         let store = NativeSessionStore()
@@ -2183,8 +2183,8 @@ final class NativeSessionStoreTests: XCTestCase {
 
         store.resyncActiveSession()
         await fulfillment(of: [resyncHistoryReached], timeout: 1)
-        XCTAssertEqual(store.queuedMessages.map(\.id), ["prior-queue"], "RC8 preserves the mirror until the ordered subscription baseline")
-        XCTAssertEqual(store.backgroundJobs.map(\.id), ["prior-job"])
+        XCTAssertTrue(store.queuedMessages.isEmpty, "resident resync must not retain prior-generation queue authority")
+        XCTAssertTrue(store.backgroundJobs.isEmpty, "resident resync must not retain prior-generation jobs authority")
 
         store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "fresh-subscription", method: "session/subscribed", payload: .object([
             "type": .string("session/subscribed"),

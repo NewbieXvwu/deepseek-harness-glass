@@ -1387,6 +1387,45 @@ final class NativeSessionStore: ObservableObject {
         )
     }
 
+    /// Invalidate every Host-authoritative value cached by a prior resident
+    /// generation while retaining the already-rendered local snapshot. The current
+    /// generation must repopulate these fields from SessionRuntime/control authority.
+    private func invalidateResidentHostAuthority(sessionID: String) {
+        let cachedChatNodes = chatNodes
+        let cachedTrajectoryNodes = trajectoryNodes
+        hasMoreHistory = false
+        isLoadingOlderHistory = false
+        isRunning = false
+        queuedMessages = []
+        backgroundJobs = []
+        pendingApproval = nil
+        pendingQuestion = nil
+        isSubmittingApproval = false
+        isSubmittingQuestion = false
+        lastError = nil
+        appliedSequences = []
+        subscribedLastSequence = nil
+        projections.remove(sessionID: sessionID)
+        resetConversationWindow()
+        chatNodes = cachedChatNodes
+        trajectoryNodes = cachedTrajectoryNodes
+    }
+
+    /// Reapply only the currently bound Host generation's shared control snapshot.
+    /// A resident cache is never itself allowed to restore queue/jobs/projections.
+    private func refreshCurrentControlAuthority(for sessionID: String) {
+        guard let runtime = sessionControlRuntime else { return }
+        let bindingGeneration = controlBindingGeneration
+        Task { [weak self] in
+            guard let snapshot = await runtime.currentSnapshot(),
+                  !Task.isCancelled,
+                  self?.controlBindingGeneration == bindingGeneration,
+                  self?.activeSessionID == sessionID
+            else { return }
+            self?.installRemoteControl(snapshot)
+        }
+    }
+
     /// Core-internal resident-window restore seam used by regression tests.
     @discardableResult
     func restoreResidentState(for sessionID: String) -> Bool {
@@ -1416,6 +1455,7 @@ final class NativeSessionStore: ObservableObject {
         // tab presentation. Both targets are snapshot-only UI projections.
         chatNodes = state.chatNodes
         trajectoryNodes = state.trajectoryNodes
+        invalidateResidentHostAuthority(sessionID: sessionID)
         return true
     }
 
@@ -1547,9 +1587,10 @@ final class NativeSessionStore: ObservableObject {
             lastError = nil
             phase = .loading(sessionID: sessionID)
         } else {
-            // The render tree remains on the resident window while the next
-            // history authority baseline arrives; this is not a new blank UI.
-            phase = .ready(sessionID: sessionID)
+            // Keep the resident render tree visible while authority is absent.
+            // Host-owned state remains loading until this generation installs it.
+            phase = .loading(sessionID: sessionID)
+            refreshCurrentControlAuthority(for: sessionID)
         }
 
         modelDirectoryStatus = .loading
@@ -2469,8 +2510,8 @@ final class NativeSessionStore: ObservableObject {
     /// Source: RC8 `Session.resync`. A resident session discards its old
     /// history window and pending server requests, then reopens against a new
     /// Host authority baseline. Cold instances have no transport to rebuild.
-    /// Queue/jobs deliberately remain until the fresh `session/subscribed`
-    /// mux boundary supplies their ordered whole snapshots.
+    /// Cached Host authority is dropped immediately; the bound generation alone
+    /// may repopulate control state while the durable journal is reopening.
     func resyncActiveSession() {
         guard let sessionID = activeSessionID,
               endpoint != nil,
@@ -2498,6 +2539,8 @@ final class NativeSessionStore: ObservableObject {
         hasMoreHistory = false
         lastError = nil
         phase = .loading(sessionID: sessionID)
+        invalidateResidentHostAuthority(sessionID: sessionID)
+        refreshCurrentControlAuthority(for: sessionID)
         if let runtime = sessionRuntime {
             recoveryGeneration &+= 1
             let generation = recoveryGeneration
