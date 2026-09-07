@@ -17,6 +17,7 @@ enum OfficialAuthenticatedHostFixtureCatalog {
         let unary: RemoteRecord
         let streamOpening: StreamOpening
         let streamDelta: StreamDelta
+        let controllerCatalogs: ControllerCatalogs
         let businessError: RemoteRecord
         let download: Download
     }
@@ -61,6 +62,11 @@ enum OfficialAuthenticatedHostFixtureCatalog {
         let frames: [MuxFrame]
     }
 
+    struct ControllerCatalogs: Decodable, Sendable {
+        let commands: RemoteRecord
+        let skills: RemoteRecord
+    }
+
     struct MuxFrame: Decodable, Sendable {
         let type: String
         let streamId: String
@@ -95,7 +101,7 @@ enum OfficialAuthenticatedHostFixtureCatalog {
         let fixture = try JSONDecoder().decode(Fixture.self, from: Data(contentsOf: url))
         guard fixture.schemaVersion == 1,
               fixture.officialSourceCommit == OfficialUISpec.Build.sourceCommit,
-              fixture.fixtureRevision == "official-a66e470-authenticated-host-r1",
+              fixture.fixtureRevision == "official-a66e470-authenticated-host-r2",
               fixture.payload.dshVersion == "0.1.2-rc.1"
         else {
             throw FixtureError.incompatibleRevision

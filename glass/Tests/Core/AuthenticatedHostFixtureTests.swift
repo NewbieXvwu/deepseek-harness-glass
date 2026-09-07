@@ -11,7 +11,7 @@ final class AuthenticatedHostFixtureTests: XCTestCase {
     func testFixtureMetadataAndSecretPolicyAreRc1Only() throws {
         let fixture = try OfficialAuthenticatedHostFixtureCatalog.load()
         XCTAssertEqual(fixture.officialSourceCommit, OfficialUISpec.Build.sourceCommit)
-        XCTAssertEqual(fixture.fixtureRevision, "official-a66e470-authenticated-host-r1")
+        XCTAssertEqual(fixture.fixtureRevision, "official-a66e470-authenticated-host-r2")
         XCTAssertEqual(fixture.payload.dshVersion, "0.1.2-rc.1")
         XCTAssertFalse(fixture.secretPolicy.persistedLaunchToken)
         XCTAssertFalse(fixture.secretPolicy.persistedCookie)
@@ -46,6 +46,34 @@ final class AuthenticatedHostFixtureTests: XCTestCase {
             return XCTFail("authenticated fixture session/list must succeed")
         }
         XCTAssertTrue(value.items.isEmpty)
+    }
+
+    func testControllerCatalogsDecodeWithProductionModels() throws {
+        let fixture = try OfficialAuthenticatedHostFixtureCatalog.load()
+
+        let commands = try RemoteWireCodec.response(
+            [RemoteCommandDescriptor].self,
+            data: encoderData(fixture.controllerCatalogs.commands.response),
+            decoder: decoder
+        )
+        XCTAssertEqual(commands.rpcID, "fixture-commands-list")
+        guard case let .value(commandValues) = commands.result else {
+            return XCTFail("authenticated commands/list fixture must succeed")
+        }
+        XCTAssertEqual(commandValues.map(\.name), ["compact", "export", "feedback", "goal", "permission", "plan"])
+        XCTAssertEqual(commandValues.first(where: { $0.name == "goal" })?.input?.images, true)
+        XCTAssertEqual(commandValues.first(where: { $0.name == "feedback" })?.input?.hint, "<text>")
+
+        let skills = try RemoteWireCodec.response(
+            RemoteSkillCatalog.self,
+            data: encoderData(fixture.controllerCatalogs.skills.response),
+            decoder: decoder
+        )
+        XCTAssertEqual(skills.rpcID, "fixture-skills-list")
+        guard case let .value(skillCatalog) = skills.result else {
+            return XCTFail("authenticated skills/list fixture must succeed")
+        }
+        XCTAssertTrue(skillCatalog.skills.isEmpty)
     }
 
     func testBusinessErrorCaptureUsesClosedRemoteFailure() throws {
