@@ -188,6 +188,42 @@ final class SessionRuntimeResilienceTests: XCTestCase {
         XCTFail("A journal continuity gap did not trigger one fresh authoritative opening cut")
     }
 
+    func testConflictingDuplicatePerformsOneAuthoritativeContinuityResync() async throws {
+        let mockController = MockSessionController()
+
+        await mockController.queueFollowStream {
+            let (stream, continuation) = AsyncThrowingStream<RemoteSessionFollowFrame, Error>.makeStream()
+            continuation.yield(Self.makeOpeningSnapshot(sessionID: "test-session", cursor: 1))
+            // Opening seq 1 is a user/message; this is a conflicting durable event
+            // at the same sequence and must force an authoritative replacement.
+            continuation.yield(Self.makeEventFrame(seq: 1))
+            return stream
+        }
+        await mockController.queueFollowStream {
+            let (stream, continuation) = AsyncThrowingStream<RemoteSessionFollowFrame, Error>.makeStream()
+            continuation.yield(Self.makeOpeningSnapshot(sessionID: "test-session", cursor: 2))
+            return stream
+        }
+
+        let runtime = SessionRuntime(
+            controller: mockController,
+            generation: RemoteConnectionGeneration(rawValue: 1),
+            address: .session(sessionID: "test-session")
+        )
+
+        _ = try await runtime.open()
+        for _ in 0..<100 {
+            if await mockController.followCallCount == 2,
+               await runtime.currentSnapshot()?.openingCut == SessionSeq(rawValue: 2) {
+                await runtime.close()
+                return
+            }
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        await runtime.close()
+        XCTFail("A conflicting duplicate did not trigger one fresh authoritative opening cut")
+    }
+
     func testLoadOlderKeepsPageBoundToOpeningCutAfterLiveTailAdvances() async throws {
         let mockController = MockSessionController()
         await mockController.queueFollowStream {
