@@ -1,0 +1,33 @@
+name: Stabilize recovery watermark teardown tests
+
+on:
+  push:
+    branches: [gpt-continue-todo-20260905]
+    paths:
+      - tools/stabilize-recovery-watermark-tests.patch
+      - .github/workflows/stabilize-recovery-watermark-tests.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-test-fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: gpt-continue-todo-20260905
+      - name: Apply verified recovery teardown test patch and remove helpers
+        shell: bash
+        run: |
+          set -euo pipefail
+          git apply --check tools/stabilize-recovery-watermark-tests.patch
+          git apply tools/stabilize-recovery-watermark-tests.patch
+          rm tools/stabilize-recovery-watermark-tests.patch .github/workflows/stabilize-recovery-watermark-tests.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add glass/Tests/Core/NativeSessionStoreTests.swift tools/stabilize-recovery-watermark-tests.patch .github/workflows/stabilize-recovery-watermark-tests.yml
+          git diff --cached --check
+          git commit -m "test: drain watermark recovery before teardown"
+          git push origin HEAD:gpt-continue-todo-20260905
