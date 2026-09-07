@@ -1,9 +1,10 @@
-name: CUT5.9 retain prompt intent across retries
+name: CUT5.9 prompt intent one-shot
 
 on:
   push:
     branches: [gpt-continue-todo-20260905]
     paths:
+      - tools/cut59_prompt_intent.py
       - .github/workflows/cut59-prompt-intent.yml
 
 permissions:
@@ -17,135 +18,16 @@ jobs:
         with:
           fetch-depth: 0
           ref: gpt-continue-todo-20260905
-      - name: Apply exact prompt intent lifecycle edit
+      - name: Apply exact Store edit
+        run: python3 tools/cut59_prompt_intent.py
+      - name: Commit result and remove helpers
         shell: bash
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path("glass/Sources/Core/Session/NativeSessionStore.swift")
-          text = path.read_text()
-
-          def replace_once(source: str, target: str, label: str) -> None:
-              global text
-              count = text.count(source)
-              if count != 1:
-                  raise SystemExit(f"{label}: expected one anchor, found {count}")
-              text = text.replace(source, target, 1)
-
-          replace_once(
-              '    @Published private(set) var isSubmittingPrompt = false\n    @Published var draft = ""\n',
-              '    @Published private(set) var isSubmittingPrompt = false\n'
-              '    /// User-command identity retained across an idempotent retry. Its payload is frozen\n'
-              '    /// with the request id so edited composer content always becomes a new intent.\n'
-              '    @Published private(set) var pendingPromptIntent: SessionPromptIntent?\n'
-              '    @Published var draft = ""\n',
-              'pending prompt property',
-          )
-
-          def insert_clear(function_marker: str, label: str) -> None:
-              global text
-              start = text.find(function_marker)
-              if start < 0:
-                  raise SystemExit(f"{label}: function marker missing")
-              end = text.find('\n    func ', start + len(function_marker))
-              if end < 0:
-                  end = len(text)
-              block = text[start:end]
-              anchor = '        promptTask?.cancel()\n'
-              if anchor not in block:
-                  raise SystemExit(f"{label}: prompt cancellation anchor missing")
-              block = block.replace(anchor, anchor + '        pendingPromptIntent = nil\n', 1)
-              text = text[:start] + block + text[end:]
-
-          insert_clear('    func open(\n', 'open')
-          insert_clear('    func clearActiveSelection() {\n', 'clearActiveSelection')
-          insert_clear('    func disconnect() {\n', 'disconnect')
-          insert_clear('    func cancelRunningTurn() {\n', 'cancelRunningTurn')
-
-          start = text.find('    func submitDraft() {\n')
-          end = text.find('\n    // MARK: - Permission selection face', start)
-          if start < 0 or end < 0:
-              raise SystemExit('submitDraft bounds missing')
-          block = text[start:end]
-
-          setup_source = '''        guard sessionCommandService != nil || api != nil else { return }
-        isSubmittingPrompt = true
-        promptTask?.cancel()
-        let commandService = sessionCommandService
-        let legacyAPI = api
-        promptTask = Task { [weak self] in
-'''
-          setup_target = '''        guard sessionCommandService != nil || api != nil else { return }
-        let commandService = sessionCommandService
-        let legacyAPI = api
-        let remoteContent = content.map(\\.remotePromptContentPart)
-        let currentPromptIntent: SessionPromptIntent?
-        if let commandService {
-            if let retained = pendingPromptIntent,
-               retained.sessionID == sessionID,
-               retained.mode == .queue,
-               retained.content == remoteContent {
-                currentPromptIntent = retained
-            } else {
-                currentPromptIntent = commandService.makePromptIntent(
-                    sessionID: sessionID,
-                    mode: .queue,
-                    content: remoteContent,
-                    clientTimeZone: TimeZone.current.identifier
-                )
-            }
-            pendingPromptIntent = currentPromptIntent
-        } else {
-            currentPromptIntent = nil
-            pendingPromptIntent = nil
-        }
-        isSubmittingPrompt = true
-        promptTask?.cancel()
-        promptTask = Task { [weak self] in
-'''
-          if block.count(setup_source) != 1:
-              raise SystemExit(f'submitDraft setup anchor count: {block.count(setup_source)}')
-          block = block.replace(setup_source, setup_target, 1)
-
-          call_source = '''                if let commandService {
-                    _ = try await commandService.prompt(
-                        sessionID: sessionID,
-                        mode: .queue,
-                        content: content.map(\\.remotePromptContentPart),
-                        clientTimeZone: TimeZone.current.identifier
-                    )
-                } else if let legacyAPI {
-'''
-          call_target = '''                if let commandService, let currentPromptIntent {
-                    try await commandService.submitPrompt(currentPromptIntent)
-                } else if let legacyAPI {
-'''
-          if block.count(call_source) != 1:
-              raise SystemExit(f'submitDraft call anchor count: {block.count(call_source)}')
-          block = block.replace(call_source, call_target, 1)
-
-          success_source = '''                guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
-                self?.draft = ""
-                self?.pendingImages = []
-'''
-          success_target = '''                guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
-                self?.pendingPromptIntent = nil
-                self?.draft = ""
-                self?.pendingImages = []
-'''
-          if block.count(success_source) != 1:
-              raise SystemExit(f'submitDraft success anchor count: {block.count(success_source)}')
-          block = block.replace(success_source, success_target, 1)
-          text = text[:start] + block + text[end:]
-
-          path.write_text(text)
-          PY
-          rm .github/workflows/cut59-prompt-intent.yml
+          rm tools/cut59_prompt_intent.py .github/workflows/cut59-prompt-intent.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add glass/Sources/Core/Session/NativeSessionStore.swift .github/workflows/cut59-prompt-intent.yml
+          git add glass/Sources/Core/Session/NativeSessionStore.swift tools/cut59_prompt_intent.py .github/workflows/cut59-prompt-intent.yml
           git diff --cached --check
           git diff --cached -- glass/Sources/Core/Session/NativeSessionStore.swift
           git commit -m "core: retain session prompt identity across retry"
