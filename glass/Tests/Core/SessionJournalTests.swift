@@ -50,11 +50,37 @@ final class SessionJournalTests: XCTestCase {
         ])
     }
 
-    func testReplayAtOrBehindAppliedCursorDoesNotMutateJournal() throws {
+    func testIdenticalReplayAtOrBehindAppliedCursorDoesNotMutateJournal() throws {
         var journal = try openedJournal(cursor: 2, records: [record(1), record(2)])
         let before = journal.snapshot
 
-        XCTAssertFalse(try journal.append(generation: generation, event: event(2, text: "replayed")))
+        XCTAssertFalse(try journal.append(generation: generation, event: event(2)))
+        XCTAssertEqual(journal.snapshot, before)
+    }
+
+    func testConflictingReplayForKnownSequenceIsRejectedWithoutMutation() throws {
+        var journal = try openedJournal(cursor: 2, records: [record(1), record(2)])
+        let before = journal.snapshot
+
+        XCTAssertThrowsError(try journal.append(
+            generation: generation,
+            event: event(2, text: "conflicting-payload")
+        )) { error in
+            XCTAssertEqual(error as? SessionJournalError, .duplicateConflict(seq: SessionSeq(rawValue: 2)))
+        }
+        XCTAssertEqual(journal.snapshot, before)
+    }
+
+    func testConflictingOverlappingPageForKnownSequenceIsRejectedWithoutMutation() throws {
+        var journal = try openedJournal(cursor: 4, records: [record(3), record(4)], hasMore: true)
+        let before = journal.snapshot
+
+        XCTAssertThrowsError(try journal.prepend(
+            generation: generation,
+            page: .init(records: [record(1), record(2), .event(event(3, text: "conflict"))], hasMore: false)
+        )) { error in
+            XCTAssertEqual(error as? SessionJournalError, .duplicateConflict(seq: SessionSeq(rawValue: 3)))
+        }
         XCTAssertEqual(journal.snapshot, before)
     }
 
