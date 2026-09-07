@@ -310,8 +310,8 @@ jobs:
           python3 glass/ci/test-package-target-graph.py
           python3 glass/ci/check-package-target-graph.py
           echo "::endgroup::"
-          echo "::group::RC8 visual recertification matrix"
-          python3 glass/ci/test_rc8_recapture_matrix.py
+          echo "::group::rc.1 visual recertification matrix"
+          python3 glass/ci/test_rc1_recapture_matrix.py
           echo "::endgroup::"
 
       - name: Assemble native macOS app
@@ -497,7 +497,7 @@ jobs:
               workspace-delete-dark) native="workspace-delete-official-viewport-dark.png" ;;
               approval-composer-light) native="approval-panel-official-viewport.png" ;;
               question-composer-light) native="question-composer-official-viewport.png" ;;
-              *) echo "unknown RC8 visual scene: $scene" >&2; exit 1 ;;
+              *) echo "unknown rc.1 visual scene: $scene" >&2; exit 1 ;;
             esac
             python glass/ci/compare_visual_pair.py \
               --official "artifacts/official-webui/${scene}.png" \
