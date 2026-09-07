@@ -10,10 +10,16 @@ final class SessionRuntimeResilienceTests: XCTestCase {
 
     private final actor MockSessionController: SessionControllerAPI {
         private var followStreams: [StreamProvider] = []
+        private var pageResponses: [RemoteSessionPageValue] = []
         private(set) var followCallCount = 0
+        private(set) var pageRequests: [RemoteSessionPageRequest] = []
 
         func queueFollowStream(_ provider: @escaping StreamProvider) {
             followStreams.append(provider)
+        }
+
+        func queuePageResponse(_ value: RemoteSessionPageValue) {
+            pageResponses.append(value)
         }
 
         func follow(_ request: RemoteSessionFollowRequest) async throws -> AsyncThrowingStream<RemoteSessionFollowFrame, Error> {
@@ -39,11 +45,19 @@ final class SessionRuntimeResilienceTests: XCTestCase {
         func attachment(sessionID: String, attachmentID: String) async throws -> RemoteSessionAttachmentValue { throw MockError() }
         func cancel(sessionID: String) async throws -> RemoteSessionAcceptedValue { fatalError() }
         func updateQueue(sessionID: String, itemID: String, action: RemoteQueueAction) async throws -> RemoteSessionAcceptedValue { fatalError() }
-        func page(_ request: RemoteSessionPageRequest) async throws -> RemoteSessionPageValue { fatalError() }
+        func page(_ request: RemoteSessionPageRequest) async throws -> RemoteSessionPageValue {
+            pageRequests.append(request)
+            guard !pageResponses.isEmpty else { throw MockError() }
+            return pageResponses.removeFirst()
+        }
         func control() async throws -> AsyncThrowingStream<RemoteSessionControlFrame, Error> { fatalError() }
     }
 
-    private static func makeOpeningSnapshot(sessionID: String = "test-session", cursor: Int = 1) -> RemoteSessionFollowFrame {
+    private static func makeOpeningSnapshot(
+        sessionID: String = "test-session",
+        cursor: Int = 1,
+        hasMore: Bool = false
+    ) -> RemoteSessionFollowFrame {
         .snapshot(
             header: RemoteSessionWireHeader(
                 version: 1,
@@ -57,23 +71,25 @@ final class SessionRuntimeResilienceTests: XCTestCase {
                 agentPreset: nil
             ),
             cursor: SessionSeq(rawValue: cursor),
-            records: [
-                .event(RemoteSessionWireEvent(
-                    type: "user/message",
-                    seq: SessionSeq(rawValue: cursor),
-                    time: 1000,
-                    data: .object(["content": .string("hello")]),
-                    ignorable: false,
-                    sourceEventSeqs: nil,
-                    surfaceOp: .string("append")
-                ))
-            ],
-            hasMore: false,
+            records: [makeRecord(seq: cursor)],
+            hasMore: hasMore,
             projections: RemoteSessionProjectionBaseline(
                 asOfSeq: SessionSeq(rawValue: cursor),
                 values: [:]
             )
         )
+    }
+
+    private static func makeRecord(seq: Int) -> RemoteSessionHistoryRecord {
+        .event(RemoteSessionWireEvent(
+            type: "user/message",
+            seq: SessionSeq(rawValue: seq),
+            time: 1000 + Int64(seq),
+            data: .object(["content": .string("message \(seq)")]),
+            ignorable: false,
+            sourceEventSeqs: nil,
+            surfaceOp: .string("append")
+        ))
     }
 
     private static func makeEventFrame(seq: Int) -> RemoteSessionFollowFrame {
@@ -170,5 +186,46 @@ final class SessionRuntimeResilienceTests: XCTestCase {
         }
         await runtime.close()
         XCTFail("A journal continuity gap did not trigger one fresh authoritative opening cut")
+    }
+
+    func testLoadOlderKeepsPageBoundToOpeningCutAfterLiveTailAdvances() async throws {
+        let mockController = MockSessionController()
+        await mockController.queueFollowStream {
+            let (stream, continuation) = AsyncThrowingStream<RemoteSessionFollowFrame, Error>.makeStream()
+            continuation.yield(Self.makeOpeningSnapshot(sessionID: "test-session", cursor: 2, hasMore: true))
+            continuation.yield(Self.makeEventFrame(seq: 3))
+            return stream
+        }
+        await mockController.queuePageResponse(.init(records: [Self.makeRecord(seq: 1)], hasMore: false))
+
+        let runtime = SessionRuntime(
+            controller: mockController,
+            generation: RemoteConnectionGeneration(rawValue: 9),
+            address: .session(sessionID: "test-session"),
+            maxMessages: 50
+        )
+
+        _ = try await runtime.open()
+        for _ in 0..<100 {
+            if await runtime.currentSnapshot()?.appliedThrough == SessionSeq(rawValue: 3) { break }
+            try await Task.sleep(nanoseconds: 5_000_000)
+        }
+        XCTAssertEqual(await runtime.currentSnapshot()?.appliedThrough, SessionSeq(rawValue: 3))
+
+        _ = try await runtime.loadOlder(maxMessages: 25)
+
+        let requests = await mockController.pageRequests
+        XCTAssertEqual(requests, [RemoteSessionPageRequest(
+            address: .session(sessionID: "test-session"),
+            throughSeq: SessionSeq(rawValue: 2),
+            beforeSeq: SessionLogOffset(rawValue: 2),
+            maxMessages: 25
+        )])
+        let snapshot = await runtime.currentSnapshot()
+        XCTAssertEqual(snapshot?.records.map(\.firstSeq), [
+            SessionSeq(rawValue: 1), SessionSeq(rawValue: 2), SessionSeq(rawValue: 3),
+        ])
+        XCTAssertEqual(snapshot?.openingCut, SessionSeq(rawValue: 2))
+        await runtime.close()
     }
 }
