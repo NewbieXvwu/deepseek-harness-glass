@@ -4,9 +4,11 @@ import Combine
 @testable import GlassCore
 #endif
 
-/// Observable Host directory for the Models settings page. The store never
-/// maintains a client-side provider catalog: every visible provider, group, and
-/// failure comes from the current typed Host response.
+extension LLMController: NativeLLMDirectoryAPI {}
+
+/// Observable Host directory for the Models settings page. RC.1 owns the
+/// provider directory through the joined configurable/live provider responses;
+/// legacy model-group and failure seats remain empty in this build.
 @MainActor
 final class NativeModelDirectoryStore: ObservableObject {
     enum Phase: Equatable {
@@ -31,14 +33,12 @@ final class NativeModelDirectoryStore: ObservableObject {
         }
         phase = .loading
         do {
-            async let providerResponse = api.providers()
-            async let modelResponse = api.models()
-            let (providerDirectory, modelDirectory) = try await (providerResponse, modelResponse)
-            // Preserve response ordering: a native sort would incorrectly
-            // substitute client preference for Host directory authority.
+            let providerDirectory = try await api.providers()
+            // RC.1 settings models renders the joined configurable/live provider
+            // directory. There is no Remote `llm/models` authority in this build.
             providers = providerDirectory.providers
-            groups = modelDirectory.groups
-            failures = NativeModelDirectoryFailurePresentation.project(modelDirectory.failures)
+            groups = []
+            failures = []
             phase = .ready
         } catch {
             providers = []

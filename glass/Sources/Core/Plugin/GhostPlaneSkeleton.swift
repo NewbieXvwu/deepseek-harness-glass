@@ -64,9 +64,9 @@ struct GhostPlaneSkeleton: Equatable, Sendable {
         let chatFlowID: String
         let composerSeatID: String
         let turnTailID: String
-        let toolviewID: String
         let detailsToolID: String
         let anchorElementIDs: [String: String]
+        let slotSeatIDs: [String: String]
     }
 
     /// Contract inventory consumed by future T11.8 drift checks. Each selector
@@ -81,14 +81,8 @@ struct GhostPlaneSkeleton: Equatable, Sendable {
         "[data-streaming]",
         "[data-phase]",
         "[data-composer-seat]",
-        "[data-slot=conversation.session]",
-        "[data-slot=conversation.session.header]",
-        "[data-slot=conversation.chat.node]",
-        "[data-slot=conversation.chat.turnTail]",
-        "[data-slot=conversation.details.tool]",
-        "[data-slot=conversation.composer]",
-        "[data-slot=tool.call.toolview]",
     ]
+
 
     let html: String
     let layout: Layout
@@ -118,6 +112,12 @@ struct GhostPlaneSkeleton: Equatable, Sendable {
         let anchorElementIDs = Dictionary(uniqueKeysWithValues: input.anchors.map {
             ($0.key, "ghost-chat-anchor-\(elementSuffix($0.key))")
         })
+        let registry: GhostPlaneSlotRegistry
+        do { registry = try GhostPlaneSlotRegistry() }
+        catch { throw Error.slotContractUnavailable }
+        let slotSeatIDs = Dictionary(uniqueKeysWithValues: registry.greenSlots.map { slot in
+            (slot.name, "ghost-slot-\(elementSuffix(slot.name))")
+        })
         let elements = ElementMap(
             rootID: "ghost-plane-root",
             sessionHeaderID: "ghost-session-header",
@@ -126,14 +126,31 @@ struct GhostPlaneSkeleton: Equatable, Sendable {
             chatFlowID: "ghost-chat-flow",
             composerSeatID: "ghost-composer-seat",
             turnTailID: "ghost-turn-tail",
-            toolviewID: "ghost-toolview",
             detailsToolID: "ghost-details-tool",
-            anchorElementIDs: anchorElementIDs
+            anchorElementIDs: anchorElementIDs,
+            slotSeatIDs: slotSeatIDs
         )
+        let chatSlots = registry.greenSlots.filter { $0.anchor == .chat && $0.name != "conversation.chat.turnTail" }
         let rows = input.anchors.map { anchor in
             let id = anchorElementIDs[anchor.key]!
-            return "<div id=\"\(id)\" data-chat-anchor-key=\"\(escape(anchor.key))\" data-chat-flow-key=\"\(escape(anchor.key))\" data-chat-flow-kind=\"\(anchor.kind.rawValue)\" data-slot=\"conversation.chat.node\" data-streaming=\"false\"></div>"
+            let seats = chatSlots.map { slot in
+                "<div data-ghost-slot=\"\(escape(slot.name))\" data-ghost-owner-key=\"\(escape(anchor.key))\"></div>"
+            }.joined()
+            return "<div id=\"\(id)\" data-chat-anchor-key=\"\(escape(anchor.key))\" data-chat-flow-key=\"\(escape(anchor.key))\" data-chat-flow-kind=\"\(anchor.kind.rawValue)\" data-streaming=\"false\">\(seats)</div>"
         }.joined(separator: "\n")
+        func seats(for anchor: GhostPlaneSlotRegistry.Slot.Anchor, excluding excluded: Set<String> = []) -> String {
+            registry.greenSlots
+                .filter { $0.anchor == anchor && !excluded.contains($0.name) }
+                .map { slot in
+                    let id = slotSeatIDs[slot.name]!
+                    return "<div id=\"\(id)\" data-ghost-slot=\"\(escape(slot.name))\"></div>"
+                }
+                .joined(separator: "\n")
+        }
+        let headerSeats = seats(for: .header)
+        let heroSeats = seats(for: .hero)
+        let composerSeats = seats(for: .composer)
+        let detailsSeats = seats(for: .details, excluding: ["conversation.details.tool"])
         let html = """
         <!doctype html>
         <html lang="en">
@@ -142,22 +159,23 @@ struct GhostPlaneSkeleton: Equatable, Sendable {
           <div id="\(elements.rootID)" data-ghost-plane="skeleton" data-phase="\(input.phase.rawValue)" style="display:grid;grid-template-columns:\(cssPixels(layout.sidebarWidth)) \(cssPixels(layout.centerWidth)) \(cssPixels(layout.detailsWidth));">
             <aside id="ghost-sidebar" data-ghost-zone="sidebar"></aside>
             <main id="ghost-conversation" data-ghost-zone="conversation">
-              <header id="\(elements.sessionHeaderID)" data-slot="conversation.session.header"></header>
+              <header id="\(elements.sessionHeaderID)">\(headerSeats)</header>
+              <section id="ghost-hero-seats">\(heroSeats)</section>
               <div id="\(elements.conversationScrollID)" data-conversation-scroll="">
                 <div id="\(elements.scrollContentID)" data-ghost-scroll-content="">
-                  <section id="ghost-session" data-slot="conversation.session">
+                  <section id="ghost-session">
                     <div id="\(elements.chatFlowID)" data-chat-flow="">
                       \(rows)
-                      <div id="\(elements.turnTailID)" data-slot="conversation.chat.turnTail"></div>
-                      <div id="\(elements.toolviewID)" data-slot="tool.call.toolview"></div>
+                      <div id="\(elements.turnTailID)" data-ghost-slot="conversation.chat.turnTail"></div>
                     </div>
                   </section>
-                  <div id="\(elements.composerSeatID)" data-composer-seat="" data-slot="conversation.composer"></div>
                 </div>
               </div>
+              <div id="\(elements.composerSeatID)" data-composer-seat="">\(composerSeats)</div>
             </main>
             <aside id="ghost-details" data-ghost-zone="details">
-              <div id="\(elements.detailsToolID)" data-slot="conversation.details.tool"></div>
+              <div id="\(elements.detailsToolID)" data-ghost-slot="conversation.details.tool"></div>
+              \(detailsSeats)
             </aside>
           </div>
         </body>
@@ -170,6 +188,7 @@ struct GhostPlaneSkeleton: Equatable, Sendable {
         case invalidGeometry
         case duplicateAnchorKey
         case invalidAnchorKey
+        case slotContractUnavailable
     }
 
     private static func validAnchorKey(_ key: String) -> Bool {

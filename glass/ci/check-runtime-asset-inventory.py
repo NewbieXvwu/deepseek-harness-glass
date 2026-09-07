@@ -11,6 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 INVENTORY_PATH = ROOT / "Sources/Spec/RuntimeAssetInventory.json"
 VALID_DECISIONS = {"preserved", "migrated", "replaced", "deleted"}
+LOCKED_SUPPORT_BUILD = "dsh-0.1.2-rc.1-official-a66e470"
 REQUIRED_IDS = {
     "legacy-app-entry",
     "window-lifecycle",
@@ -84,7 +85,7 @@ def validate_inventory_document(document: object, repo_root: Path | None = None)
         return ["runtime asset inventory must be a JSON object"]
     if document.get("schemaVersion") != 1:
         return ["runtime asset inventory schemaVersion must be 1"]
-    if document.get("supportBuild") != "dsh-0.1.1-rc.2-official-b150a55":
+    if document.get("supportBuild") != LOCKED_SUPPORT_BUILD:
         return ["runtime asset inventory must name the verified fixed Host build"]
     assets = document.get("assets")
     if not isinstance(assets, list):

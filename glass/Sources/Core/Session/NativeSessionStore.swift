@@ -5,9 +5,8 @@ import Foundation
 @testable import GlassSpec
 #endif
 
-/// Typed domain-intent boundary injected into the session feature. It carries
-/// only session operations; wire envelopes, URL requests and transport clients
-/// remain behind the production `SessionsAPI` implementation.
+/// Legacy session seam retained for focused store tests while production
+/// conversation authority runs through `SessionRuntime` and typed controllers.
 @MainActor
 protocol NativeSessionAPI: Sendable {
     func history(sessionID: String, beforeSeq: Int?, maxMessages: Int?) async throws -> SessionHistoryResponse
@@ -20,8 +19,6 @@ protocol NativeSessionAPI: Sendable {
     func answerQuestion(rpcID: String, sessionID: String, answers: [QuestionAnswerResponse]) async throws -> RPCReceipt
     func cancelQuestion(rpcID: String) async throws -> RPCReceipt
 }
-
-extension SessionsAPI: NativeSessionAPI {}
 
 extension NativeSessionAPI {
     /// Test fakes must opt in explicitly to queue mutation. Treat omitted seams
@@ -37,9 +34,8 @@ extension NativeSessionAPI {
     }
 }
 
-/// Typed Host action seam for RC8 GoalBar. A successful RPC returns only a
-/// compare-and-set reference (or clear receipt); visible state must still wait
-/// for the authoritative `goal` whole projection update.
+/// Legacy GoalBar action seam retained for focused store tests. Production
+/// mutations run through the typed `GoalController`.
 @MainActor
 protocol NativeGoalAPI: Sendable {
     func edit(_ request: GoalEditRequest) async throws -> GoalReferenceResponse
@@ -48,10 +44,8 @@ protocol NativeGoalAPI: Sendable {
     func clear(_ request: GoalReferenceRequest) async throws -> GoalClearResponse
 }
 
-extension CommandsAPI: NativeGoalAPI {}
-
-/// Typed complete direct-child catalog boundary. UI requests refresh explicitly;
-/// no local session summary may manufacture descendants when this API is absent.
+/// Legacy direct-child catalog seam retained for focused store tests. Production
+/// catalog and continuation calls run through `SubagentController`.
 @MainActor
 protocol NativeSubagentCatalogAPI: Sendable {
     func list(parentSessionID: String) async throws -> SubagentListResponse
@@ -63,10 +57,8 @@ protocol NativeSubagentContinuationAPI: Sendable {
     func interrupt(_ request: SubagentInterruptRequest) async throws -> SubagentInterruptResponse
 }
 
-extension SubagentsAPI: NativeSubagentCatalogAPI, NativeSubagentContinuationAPI {}
-
-/// Read-only phase of the RC8 feedback controller. Items are always supplied by
-/// the Host list response; mutations are added only behind the same typed seam.
+/// Legacy feedback seam retained for focused store tests. Production list and
+/// mutations run through the typed `MessageFeedbackController`.
 @MainActor
 protocol NativeMessageFeedbackAPI: Sendable {
     func list(sessionID: String) async throws -> MessageFeedbackListResponse
@@ -86,16 +78,48 @@ extension NativeMessageFeedbackAPI {
     }
 }
 
-extension MessageFeedbackAPI: NativeMessageFeedbackAPI {}
+private extension RemoteMessageFeedbackItem {
+    var legacyPresentationDTO: MessageFeedbackItemDTO {
+        .init(
+            messageId: messageId,
+            rating: rating == .positive ? .positive : .negative,
+            note: note,
+            version: version.rawValue,
+            createdAt: createdAt,
+            updatedAt: updatedAt
+        )
+    }
+}
 
-/// Typed desktop-action boundary for settled Markdown file mentions. The Host
-/// keeps both path opening authority and loopback/build-trust enforcement.
+private extension MessageFeedbackRatingDTO {
+    var remoteMessageFeedbackRating: RemoteMessageFeedbackRating {
+        self == .positive ? .positive : .negative
+    }
+}
+
+private extension RemoteMessageFeedbackFailure {
+    var stableCode: String {
+        switch self {
+        case .sessionNotFound: "session-not-found"
+        case .targetNotFound: "target-not-found"
+        case .versionConflict: "version-conflict"
+        case .noteBlank: "note-blank"
+        case .noteTooLarge: "note-too-large"
+        }
+    }
+
+    var currentLegacyPresentationDTO: MessageFeedbackItemDTO? {
+        guard case let .versionConflict(current) = self else { return nil }
+        return current?.legacyPresentationDTO
+    }
+}
+
+/// Legacy desktop-action seam retained for focused store tests. Production
+/// path opening is owned by `SessionController.openWorkspacePath`.
 @MainActor
 protocol NativeHostPathAPI: Sendable {
     func openPath(_ path: String) async throws -> HostOpenPathResponse
 }
-
-extension HostAPI: NativeHostPathAPI {}
 
 /// Source: RC8 `resolveWorkspacePath`. This only constructs the Host-facing
 /// spelling; it neither touches the local filesystem nor interprets a URL.
@@ -250,18 +274,53 @@ final class NativeSessionStore: ObservableObject {
     /// Source: `SessionEventMap['tool/call'|'tool/result']`. This generic native
     /// model preserves raw Host fields and optional view carrier without guessing
     /// a plugin-specific card schema.
-    /// Source: `events.schema.ts:approval/requested`; rpcID is the stable
-    /// answerable ServerRequest correlation identity and must be echoed on
-    /// `/api/respond`, while approvalID identifies the business request.
+    /// RC1 approval waterfall projected from `$events`. `eventID` is the
+    /// answerable correlation identity; legacy `approvalID` remains optional
+    /// only while the old SSE fallback is still compiled.
     struct PendingApproval: Identifiable, Equatable {
-        let rpcID: String
+        let eventID: String
         let sessionID: String
-        let approvalID: String
+        let approvalID: String?
         let toolName: String
         let callID: String?
         let reason: String?
 
-        var id: String { approvalID }
+        var id: String { eventID }
+        var rpcID: String { eventID }
+
+        init(
+            eventID: String,
+            sessionID: String,
+            approvalID: String? = nil,
+            toolName: String,
+            callID: String?,
+            reason: String?
+        ) {
+            self.eventID = eventID
+            self.sessionID = sessionID
+            self.approvalID = approvalID
+            self.toolName = toolName
+            self.callID = callID
+            self.reason = reason
+        }
+
+        init(
+            rpcID: String,
+            sessionID: String,
+            approvalID: String,
+            toolName: String,
+            callID: String?,
+            reason: String?
+        ) {
+            self.init(
+                eventID: rpcID,
+                sessionID: sessionID,
+                approvalID: approvalID,
+                toolName: toolName,
+                callID: callID,
+                reason: reason
+            )
+        }
     }
 
     /// Source: `events.schema.ts:askUserQuestionItemSchema`.
@@ -307,11 +366,22 @@ final class NativeSessionStore: ObservableObject {
             }
         }
 
-        let rpcID: String
+        let eventID: String
         let sessionID: String
         let items: [Item]
 
-        var id: String { rpcID }
+        var id: String { eventID }
+        var rpcID: String { eventID }
+
+        init(eventID: String, sessionID: String, items: [Item]) {
+            self.eventID = eventID
+            self.sessionID = sessionID
+            self.items = items
+        }
+
+        init(rpcID: String, sessionID: String, items: [Item]) {
+            self.init(eventID: rpcID, sessionID: sessionID, items: items)
+        }
     }
 
     /// Source: `dsh-user-questions/types:QuestionAnswer`.
@@ -333,22 +403,53 @@ final class NativeSessionStore: ObservableObject {
         let name: String
         let arguments: String
         var output: String?
-        /// Text-only result flatten used by rc.2 search-card recovery when a
-        /// typed search result is truncated. Unlike `output`, it never includes
-        /// non-text pretty JSON or an error fallback.
+        /// Text-only flatten of the rc.1 inner `tool-result.content` array.
         var textOutput: String?
-        /// Structured result error is retained for the rc.2 `resultText` empty
-        /// fallback (`name: code`); it is not synthesized from transport state.
+        /// Structured error is retained for generic fallback and stopped state.
         var errorName: String?
         var errorCode: String?
         var state: State
         let sequence: Int
-        /// The Host presents call and settled-result sides independently. They
-        /// cannot share one field: a terminal result needs both views, while a
-        /// terminal call followed by a generic result must take the raw generic
-        /// fallback rather than inherit the earlier terminal card.
-        var callView: ToolEventViewDTO?
-        var resultView: ToolEventViewDTO?
+        /// Raw rc.1 facts consumed by native card projectors. `resultContent` is
+        /// the inner content of the durable `tool-result` wrapper; metadata is
+        /// the top-level `tool/result.data.meta` value.
+        var resultContent: [JSONValue]?
+        var resultMeta: JSONValue?
+        var resultIsError: Bool?
+        var parentCallID: String?
+        var sessionCWD: String?
+
+        init(
+            id: String,
+            name: String,
+            arguments: String,
+            output: String?,
+            textOutput: String?,
+            errorName: String?,
+            errorCode: String?,
+            state: State,
+            sequence: Int,
+            resultContent: [JSONValue]? = nil,
+            resultMeta: JSONValue? = nil,
+            resultIsError: Bool? = nil,
+            parentCallID: String? = nil,
+            sessionCWD: String? = nil
+        ) {
+            self.id = id
+            self.name = name
+            self.arguments = arguments
+            self.output = output
+            self.textOutput = textOutput
+            self.errorName = errorName
+            self.errorCode = errorCode
+            self.state = state
+            self.sequence = sequence
+            self.resultContent = resultContent
+            self.resultMeta = resultMeta
+            self.resultIsError = resultIsError
+            self.parentCallID = parentCallID
+            self.sessionCWD = sessionCWD
+        }
     }
 
     /// Host `session/queue` whole-snapshot row. It is transient and therefore
@@ -363,9 +464,9 @@ final class NativeSessionStore: ObservableObject {
         let id: String
         let messageID: String
         let placement: Placement
-        let role: String
+        let role: String?
         let content: [JSONValue]
-        let source: JSONValue
+        let source: JSONValue?
         let preview: String
         let text: String?
     }
@@ -511,10 +612,21 @@ final class NativeSessionStore: ObservableObject {
     }
 
     private var historyTask: Task<Void, Never>?
+    private var sessionRuntime: SessionRuntime?
+    private var sessionControlRuntime: SessionControlRuntime?
+    private var remoteEventRuntime: RemoteEventRuntime?
+    private var remoteInteractionTask: Task<Void, Never>?
+    private var remoteInteractionBindingGeneration: UInt = 0
+    private var goalController: (any GoalControllerAPI)?
+    private var subagentController: (any SubagentControllerAPI)?
+    private var sessionCommandService: SessionCommandService?
+    private var sessionController: (any SessionControllerAPI)?
+    private var modelCatalogRepository: ModelCatalogRepository?
+    private var controlTask: Task<Void, Never>?
+    private var controlBindingGeneration: UInt = 0
     private var promptTask: Task<Void, Never>?
     private var cancelTask: Task<Void, Never>?
     private var olderHistoryTask: Task<Void, Never>?
-    private var streamTask: Task<Void, Never>?
     /// A recovery is distinct from initial history loading. Its monotonic token
     /// prevents an old Host generation, endpoint, or selected session from
     /// applying models/history/projections after a newer authority request.
@@ -535,6 +647,7 @@ final class NativeSessionStore: ObservableObject {
     private var subagentCatalogAPI: (any NativeSubagentCatalogAPI)?
     private var subagentContinuationAPI: (any NativeSubagentContinuationAPI)?
     private var messageFeedbackAPI: (any NativeMessageFeedbackAPI)?
+    private var messageFeedbackController: (any MessageFeedbackControllerAPI)?
     private var messageFeedbackTask: Task<Void, Never>?
     /// RC8 reconnect resync waits behind any admitted feedback mutation before
     /// taking a fresh complete list, so an older list cannot revive a stale CAS
@@ -600,8 +713,137 @@ final class NativeSessionStore: ObservableObject {
             .paths(forClosingSequence: assistant.seq) ?? []
     }
 
-    /// Core-internal test seam for queue mutation fencing. Production receives
-    /// the same API from `NativeShellPresentation.connectVerifiedHost` via `open`.
+    func bindCommandService(_ service: SessionCommandService?) {
+        sessionCommandService = service
+    }
+
+    func bindSessionController(_ controller: (any SessionControllerAPI)?) {
+        sessionController = controller
+    }
+
+    func bindModelCatalogRepository(_ repository: ModelCatalogRepository?) {
+        modelCatalogRepository = repository
+    }
+
+    func bindGoalController(_ controller: (any GoalControllerAPI)?) {
+        goalController = controller
+    }
+
+    func bindSubagentController(_ controller: (any SubagentControllerAPI)?) {
+        subagentController = controller
+    }
+
+    func bindMessageFeedbackController(_ controller: (any MessageFeedbackControllerAPI)?) {
+        messageFeedbackController = controller
+        isMessageFeedbackAvailable = activeSessionID != nil && (controller != nil || messageFeedbackAPI != nil)
+    }
+
+    func bindEventRuntime(_ runtime: RemoteEventRuntime?) {
+        remoteInteractionTask?.cancel()
+        remoteInteractionTask = nil
+        invalidateInteractions()
+        pendingApproval = nil
+        pendingQuestion = nil
+        remoteEventRuntime = runtime
+        remoteInteractionBindingGeneration &+= 1
+        let generation = remoteInteractionBindingGeneration
+        guard let runtime else { return }
+        remoteInteractionTask = Task { [weak self] in
+            let interactions = await runtime.interactions()
+            for await interaction in interactions {
+                guard !Task.isCancelled,
+                      self?.remoteInteractionBindingGeneration == generation
+                else { return }
+                self?.applyRemoteInteraction(interaction)
+            }
+        }
+    }
+
+    private func applyRemoteInteraction(_ update: RemoteSessionInteractionUpdate) {
+        switch update {
+        case let .approval(approval):
+            guard approval.sessionID == activeSessionID else { return }
+            invalidateInteractions()
+            pendingApproval = PendingApproval(
+                eventID: approval.eventID,
+                sessionID: approval.sessionID,
+                toolName: approval.toolName,
+                callID: approval.callID,
+                reason: approval.reason
+            )
+        case let .question(question):
+            guard question.sessionID == activeSessionID else { return }
+            invalidateInteractions()
+            pendingQuestion = PendingQuestion(
+                eventID: question.eventID,
+                sessionID: question.sessionID,
+                items: question.questions.map { item in
+                    PendingQuestion.Item(
+                        id: item.id,
+                        question: item.question,
+                        header: item.header,
+                        detail: item.detail,
+                        options: item.options.map { .init(label: $0.label, detail: $0.description) },
+                        multiSelect: item.multiSelect,
+                        intent: item.intent.map { intent in
+                            switch intent {
+                            case let .planReview(approve): return .planReview(approve: approve)
+                            }
+                        }
+                    )
+                }
+            )
+        case let .cancelled(eventID):
+            if pendingApproval?.eventID == eventID {
+                pendingApproval = nil
+                invalidateApprovalSubmission()
+            }
+            if pendingQuestion?.eventID == eventID {
+                pendingQuestion = nil
+                invalidateQuestionSubmission()
+            }
+        }
+    }
+
+    func bindControlRuntime(_ runtime: SessionControlRuntime?) {
+        controlTask?.cancel()
+        controlTask = nil
+        sessionControlRuntime = runtime
+        controlBindingGeneration &+= 1
+        let generation = controlBindingGeneration
+        guard let runtime else {
+            queuedMessages = []
+            backgroundJobs = []
+            return
+        }
+        controlTask = Task { [weak self] in
+            do {
+                let opening = try await runtime.open()
+                guard !Task.isCancelled, self?.controlBindingGeneration == generation else { return }
+                self?.installRemoteControl(opening)
+                let snapshots = await runtime.snapshots()
+                for await snapshot in snapshots {
+                    guard !Task.isCancelled, self?.controlBindingGeneration == generation else { return }
+                    guard let snapshot else {
+                        self?.queuedMessages = []
+                        self?.backgroundJobs = []
+                        continue
+                    }
+                    self?.installRemoteControl(snapshot)
+                }
+            } catch is CancellationError {
+                return
+            } catch {
+                guard !Task.isCancelled, self?.controlBindingGeneration == generation else { return }
+                self?.queuedMessages = []
+                self?.backgroundJobs = []
+            }
+        }
+    }
+
+    /// Core-internal test seam for focused legacy-store regression coverage.
+    /// Production session authority is bound through `SessionRuntime`,
+    /// `SessionCommandService`, and typed Remote controllers.
     func setSessionAPIForTesting(_ api: (any NativeSessionAPI)?) {
         queueUpdateTask?.cancel()
         queueUpdateTask = nil
@@ -660,12 +902,14 @@ final class NativeSessionStore: ObservableObject {
     /// Fetches a complete sidecar snapshot. A business or carrier failure clears
     /// visible feedback rather than retaining stale ratings from another session.
     func refreshMessageFeedback() {
-        guard let api = messageFeedbackAPI, let sessionID = activeSessionID else {
+        guard let sessionID = activeSessionID, messageFeedbackController != nil || messageFeedbackAPI != nil else {
             messageFeedbackItems = [:]
             return
         }
         messageFeedbackTask?.cancel()
         let generation = recoveryGeneration
+        let controller = messageFeedbackController
+        let legacyAPI = messageFeedbackAPI
         isLoadingMessageFeedback = true
         failedMessageFeedbackLoad = false
         messageFeedbackTask = Task { [weak self] in
@@ -676,17 +920,43 @@ final class NativeSessionStore: ObservableObject {
                 }
             }
             do {
-                let response = try await api.list(sessionID: sessionID)
+                let items: [MessageFeedbackItemDTO]
+                if let controller {
+                    switch try await controller.list(sessionID: sessionID) {
+                    case let .success(value):
+                        items = value.items.map(\.legacyPresentationDTO)
+                    case .rejected(.sessionNotFound):
+                        guard !Task.isCancelled,
+                              self?.recoveryGeneration == generation,
+                              self?.activeSessionID == sessionID
+                        else { return }
+                        self?.messageFeedbackItems = [:]
+                        self?.hasLoadedMessageFeedback = false
+                        self?.failedMessageFeedbackLoad = true
+                        return
+                    case .rejected:
+                        throw RemoteConnectionError.protocolViolation("messageFeedback/list unsupported business failure")
+                    }
+                } else if let legacyAPI {
+                    let response = try await legacyAPI.list(sessionID: sessionID)
+                    guard response.ok, let legacyItems = response.value?.items else {
+                        guard !Task.isCancelled,
+                              self?.recoveryGeneration == generation,
+                              self?.activeSessionID == sessionID
+                        else { return }
+                        self?.messageFeedbackItems = [:]
+                        self?.hasLoadedMessageFeedback = false
+                        self?.failedMessageFeedbackLoad = true
+                        return
+                    }
+                    items = legacyItems
+                } else {
+                    return
+                }
                 guard !Task.isCancelled,
                       self?.recoveryGeneration == generation,
                       self?.activeSessionID == sessionID
                 else { return }
-                guard response.ok, let items = response.value?.items else {
-                    self?.messageFeedbackItems = [:]
-                    self?.hasLoadedMessageFeedback = false
-                    self?.failedMessageFeedbackLoad = true
-                    return
-                }
                 self?.messageFeedbackItems = Dictionary(uniqueKeysWithValues: items.map { ($0.messageId, $0) })
                 self?.hasLoadedMessageFeedback = true
             } catch {
@@ -706,7 +976,7 @@ final class NativeSessionStore: ObservableObject {
     /// state, so this Store treats its keyed complete Host snapshots as the only
     /// durable observation set; it never derives descriptors from summaries.
     private func resyncSubagentCatalogsAfterRecovery() {
-        guard let rootSessionID = activeSessionID, subagentCatalogAPI != nil else { return }
+        guard let rootSessionID = activeSessionID, subagentController != nil || subagentCatalogAPI != nil else { return }
         let selectedAddressParent = subagentRoute?.childSessionID == rootSessionID
             ? subagentRoute?.parentSessionID
             : nil
@@ -722,7 +992,7 @@ final class NativeSessionStore: ObservableObject {
     /// behind the prior mutation tail. The completed Host list remains the only
     /// source that replaces the sidecar; no local version is synthesized.
     private func resyncMessageFeedbackAfterRecovery() {
-        guard messageFeedbackAPI != nil, let sessionID = activeSessionID else { return }
+        guard messageFeedbackController != nil || messageFeedbackAPI != nil, let sessionID = activeSessionID else { return }
         messageFeedbackResyncTask?.cancel()
         let generation = recoveryGeneration
         let priorMutation = messageFeedbackMutationTask
@@ -774,9 +1044,11 @@ final class NativeSessionStore: ObservableObject {
     }
 
     private func enqueueMessageFeedbackMutation(_ action: MessageFeedbackAction) {
-        guard let api = messageFeedbackAPI, let sessionID = activeSessionID else { return }
+        guard messageFeedbackController != nil || messageFeedbackAPI != nil, let sessionID = activeSessionID else { return }
         let generation = messageFeedbackSessionGeneration
         let actionMessageID = action.messageID
+        let controller = messageFeedbackController
+        let legacyAPI = messageFeedbackAPI
         messageFeedbackMutationGeneration &+= 1
         let mutationGeneration = messageFeedbackMutationGeneration
         let previous = messageFeedbackMutationTask
@@ -807,53 +1079,135 @@ final class NativeSessionStore: ObservableObject {
                 return
             }
 
-            let messageID: String
-            let observed: MessageFeedbackItemDTO?
-            switch action {
-            case let .toggle(id, _), let .rate(id, _, _), let .clear(id):
-                messageID = id
-                observed = self?.messageFeedbackItems[id]
-            }
+            let messageID = action.messageID
+            let observed = self?.messageFeedbackItems[messageID]
             do {
-                switch action {
-                case let .toggle(_, rating):
-                    if observed?.rating == rating, let observed {
-                        let response = try await api.delete(.init(sessionId: sessionID, messageId: messageID, ifVersion: observed.version))
-                        self?.applyMessageFeedbackDelete(response, messageID: messageID, generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration)
-                    } else {
-                        let response = try await api.put(.init(
+                if let controller {
+                    switch action {
+                    case let .toggle(_, rating):
+                        if observed?.rating == rating, let observed {
+                            let result = try await controller.delete(.init(
+                                sessionId: sessionID,
+                                messageId: messageID,
+                                ifVersion: .init(rawValue: observed.version)
+                            ))
+                            self?.applyRemoteMessageFeedbackDelete(result, messageID: messageID, generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration)
+                        } else {
+                            let result = try await controller.put(.init(
+                                sessionId: sessionID,
+                                messageId: messageID,
+                                rating: rating.remoteMessageFeedbackRating,
+                                note: observed?.note,
+                                ifVersion: observed.map { .init(rawValue: $0.version) }
+                            ))
+                            self?.applyRemoteMessageFeedbackPut(result, messageID: messageID, generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration)
+                        }
+                    case let .rate(_, rating, note):
+                        guard let observed else {
+                            self?.settleMessageFeedbackMutation(generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration, failureCode: nil)
+                            return
+                        }
+                        let result = try await controller.put(.init(
+                            sessionId: sessionID,
+                            messageId: messageID,
+                            rating: rating.remoteMessageFeedbackRating,
+                            note: note,
+                            ifVersion: .init(rawValue: observed.version)
+                        ))
+                        self?.applyRemoteMessageFeedbackPut(result, messageID: messageID, generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration)
+                    case .clear:
+                        guard let observed else {
+                            self?.settleMessageFeedbackMutation(generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration, failureCode: nil)
+                            return
+                        }
+                        let result = try await controller.delete(.init(
+                            sessionId: sessionID,
+                            messageId: messageID,
+                            ifVersion: .init(rawValue: observed.version)
+                        ))
+                        self?.applyRemoteMessageFeedbackDelete(result, messageID: messageID, generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration)
+                    }
+                } else if let legacyAPI {
+                    switch action {
+                    case let .toggle(_, rating):
+                        if observed?.rating == rating, let observed {
+                            let response = try await legacyAPI.delete(.init(sessionId: sessionID, messageId: messageID, ifVersion: observed.version))
+                            self?.applyMessageFeedbackDelete(response, messageID: messageID, generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration)
+                        } else {
+                            let response = try await legacyAPI.put(.init(
+                                sessionId: sessionID,
+                                messageId: messageID,
+                                rating: rating,
+                                note: observed?.note,
+                                ifVersion: observed?.version
+                            ))
+                            self?.applyMessageFeedbackPut(response, messageID: messageID, generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration)
+                        }
+                    case let .rate(_, rating, note):
+                        guard let observed else {
+                            self?.settleMessageFeedbackMutation(generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration, failureCode: nil)
+                            return
+                        }
+                        let response = try await legacyAPI.put(.init(
                             sessionId: sessionID,
                             messageId: messageID,
                             rating: rating,
-                            note: observed?.note,
-                            ifVersion: observed?.version
+                            note: note,
+                            ifVersion: observed.version
                         ))
                         self?.applyMessageFeedbackPut(response, messageID: messageID, generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration)
+                    case .clear:
+                        guard let observed else {
+                            self?.settleMessageFeedbackMutation(generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration, failureCode: nil)
+                            return
+                        }
+                        let response = try await legacyAPI.delete(.init(sessionId: sessionID, messageId: messageID, ifVersion: observed.version))
+                        self?.applyMessageFeedbackDelete(response, messageID: messageID, generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration)
                     }
-                case let .rate(_, rating, note):
-                    guard let observed else {
-                        self?.settleMessageFeedbackMutation(generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration, failureCode: nil)
-                        return
-                    }
-                    let response = try await api.put(.init(
-                        sessionId: sessionID,
-                        messageId: messageID,
-                        rating: rating,
-                        note: note,
-                        ifVersion: observed.version
-                    ))
-                    self?.applyMessageFeedbackPut(response, messageID: messageID, generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration)
-                case .clear:
-                    guard let observed else {
-                        self?.settleMessageFeedbackMutation(generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration, failureCode: nil)
-                        return
-                    }
-                    let response = try await api.delete(.init(sessionId: sessionID, messageId: messageID, ifVersion: observed.version))
-                    self?.applyMessageFeedbackDelete(response, messageID: messageID, generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration)
                 }
             } catch {
                 self?.settleMessageFeedbackMutation(generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration, failureCode: "transport")
             }
+        }
+    }
+
+    private func applyRemoteMessageFeedbackPut(
+        _ result: RemoteMessageFeedbackPutResult,
+        messageID: String,
+        generation: UInt,
+        sessionID: String,
+        mutationGeneration: UInt
+    ) {
+        guard messageFeedbackSessionGeneration == generation, activeSessionID == sessionID else { return }
+        switch result {
+        case let .success(item):
+            messageFeedbackItems[messageID] = item.legacyPresentationDTO
+            settleMessageFeedbackMutation(generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration, failureCode: nil)
+        case let .rejected(error):
+            if case .versionConflict = error {
+                commitMessageFeedbackCurrent(error.currentLegacyPresentationDTO, messageID: messageID)
+            }
+            settleMessageFeedbackMutation(generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration, failureCode: error.stableCode)
+        }
+    }
+
+    private func applyRemoteMessageFeedbackDelete(
+        _ result: RemoteMessageFeedbackDeleteResult,
+        messageID: String,
+        generation: UInt,
+        sessionID: String,
+        mutationGeneration: UInt
+    ) {
+        guard messageFeedbackSessionGeneration == generation, activeSessionID == sessionID else { return }
+        switch result {
+        case .success:
+            messageFeedbackItems[messageID] = nil
+            settleMessageFeedbackMutation(generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration, failureCode: nil)
+        case let .rejected(error):
+            if case .versionConflict = error {
+                commitMessageFeedbackCurrent(error.currentLegacyPresentationDTO, messageID: messageID)
+            }
+            settleMessageFeedbackMutation(generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration, failureCode: error.stableCode)
         }
     }
 
@@ -883,7 +1237,7 @@ final class NativeSessionStore: ObservableObject {
         sessionID: String,
         mutationGeneration: UInt
     ) {
-        guard recoveryGeneration == generation, activeSessionID == sessionID else { return }
+        guard messageFeedbackSessionGeneration == generation, activeSessionID == sessionID else { return }
         if response.ok, response.value?.absent == true {
             messageFeedbackItems[messageID] = nil
             settleMessageFeedbackMutation(generation: generation, sessionID: sessionID, mutationGeneration: mutationGeneration, failureCode: nil)
@@ -937,7 +1291,9 @@ final class NativeSessionStore: ObservableObject {
     /// fenced by the same selected-root generation; no summary-derived child
     /// may be inserted while a catalog request is pending or failed.
     func refreshSubagentCatalog(parentSessionID: String) {
-        guard let api = subagentCatalogAPI, let rootSessionID = activeSessionID else { return }
+        guard subagentController != nil || subagentCatalogAPI != nil, let rootSessionID = activeSessionID else { return }
+        let controller = subagentController
+        let legacyAPI = subagentCatalogAPI
         subagentCatalogTasks[parentSessionID]?.cancel()
         let generation = recoveryGeneration
         failedSubagentCatalogIDs.remove(parentSessionID)
@@ -952,7 +1308,14 @@ final class NativeSessionStore: ObservableObject {
                 }
             }
             do {
-                let catalog = try await api.list(parentSessionID: parentSessionID)
+                let catalog: SubagentListResponse
+                if let controller {
+                    catalog = try await controller.list(parentSessionID: parentSessionID).legacyCatalog
+                } else if let legacyAPI {
+                    catalog = try await legacyAPI.list(parentSessionID: parentSessionID)
+                } else {
+                    return
+                }
                 guard !Task.isCancelled,
                       self?.recoveryGeneration == generation,
                       self?.activeSessionID == rootSessionID
@@ -1013,10 +1376,10 @@ final class NativeSessionStore: ObservableObject {
         olderHistoryTask?.cancel()
         promptTask?.cancel()
         cancelTask?.cancel()
-        streamTask?.cancel()
         recoveryTask?.cancel()
         approvalSubmissionTask?.cancel()
         questionSubmissionTask?.cancel()
+        remoteInteractionTask?.cancel()
         subagentCatalogTask?.cancel()
     }
 
@@ -1084,23 +1447,25 @@ final class NativeSessionStore: ObservableObject {
     /// background; a cold session alone enters the blocking history phase.
     func open(
         sessionID: String,
-        using api: any NativeSessionAPI,
         endpoint: URL,
         hostPathAPI: (any NativeHostPathAPI)? = nil,
         goalAPI: (any NativeGoalAPI)? = nil,
         subagentCatalogAPI: (any NativeSubagentCatalogAPI)? = nil,
         subagentContinuationAPI: (any NativeSubagentContinuationAPI)? = nil,
         messageFeedbackAPI: (any NativeMessageFeedbackAPI)? = nil,
-        sessionCWD: String? = nil
+        sessionCWD: String? = nil,
+        sessionRuntime: SessionRuntime? = nil
     ) {
         guard activeSessionID != sessionID || self.endpoint != endpoint else { return }
         let selectedSubagentRoute = subagentRoute?.childSessionID == sessionID ? subagentRoute : nil
         preserveActiveState()
+        let previousSessionRuntime = self.sessionRuntime
+        self.sessionRuntime = sessionRuntime
+        Task { await previousSessionRuntime?.close() }
         historyTask?.cancel()
         olderHistoryTask?.cancel()
         promptTask?.cancel()
         cancelTask?.cancel()
-        streamTask?.cancel()
         recoveryTask?.cancel()
         recoveryLiveBuffer = []
         recoveryBufferGeneration = nil
@@ -1157,16 +1522,26 @@ final class NativeSessionStore: ObservableObject {
         // endpoint from stitching its old pending tail into the new window.
         recoveryBufferGeneration = authorityGeneration
         let directoryGeneration = modelDirectoryGeneration
-        self.api = api
         self.goalAPI = goalAPI
         self.subagentCatalogAPI = subagentCatalogAPI
         self.subagentContinuationAPI = subagentContinuationAPI
         self.messageFeedbackAPI = messageFeedbackAPI
-        self.isMessageFeedbackAvailable = messageFeedbackAPI != nil
+        self.isMessageFeedbackAvailable = messageFeedbackController != nil || messageFeedbackAPI != nil
         self.hostPathAPI = hostPathAPI
         self.activeSessionCWD = sessionCWD
         self.endpoint = endpoint
         activeSessionID = sessionID
+        if let sessionControlRuntime {
+            let controlGeneration = controlBindingGeneration
+            Task { [weak self] in
+                guard let snapshot = await sessionControlRuntime.currentSnapshot(),
+                      !Task.isCancelled,
+                      self?.controlBindingGeneration == controlGeneration,
+                      self?.activeSessionID == sessionID
+                else { return }
+                self?.installRemoteControl(snapshot)
+            }
+        }
         if subagentRoute?.childSessionID != sessionID { subagentRoute = nil }
         refreshMessageFeedback()
         let restoredResident = restoreResidentState(for: sessionID)
@@ -1202,10 +1577,43 @@ final class NativeSessionStore: ObservableObject {
         modelDirectoryStatus = .loading
         historyTask = Task { [weak self] in
             do {
-                // The locked Host's `agentFor` resolver is the official
-                // read-only cold-resume path. After a Host restart, models()
-                // reattaches a persisted selected session before mux opens;
-                // history() alone intentionally serves detached logs.
+                if let sessionRuntime, let modelCatalogRepository = self?.modelCatalogRepository {
+                    let catalog = try await modelCatalogRepository.catalog()
+                    guard !Task.isCancelled,
+                          self?.recoveryGeneration == authorityGeneration,
+                          self?.modelDirectoryGeneration == directoryGeneration,
+                          self?.activeSessionID == sessionID,
+                          self?.endpoint == endpoint
+                    else { return }
+
+                    let opening = try await sessionRuntime.open()
+                    guard !Task.isCancelled,
+                          self?.recoveryGeneration == authorityGeneration,
+                          self?.activeSessionID == sessionID,
+                          self?.endpoint == endpoint
+                    else { return }
+                    self?.installRemoteJournal(opening, sessionID: sessionID)
+                    if let self {
+                        let current = self.projections.remoteModelSelection(sessionID: sessionID) ?? catalog.default
+                        self.modelDirectory = .init(catalog: catalog, current: current)
+                    }
+                    self?.modelDirectoryStatus = .ready
+                    self?.phase = .ready(sessionID: sessionID)
+                    let snapshots = await sessionRuntime.snapshots()
+                    for await snapshot in snapshots {
+                        guard !Task.isCancelled,
+                              self?.recoveryGeneration == authorityGeneration,
+                              self?.activeSessionID == sessionID,
+                              self?.endpoint == endpoint
+                        else { return }
+                        self?.installRemoteJournal(snapshot, sessionID: sessionID)
+                    }
+                    return
+                }
+
+                // Legacy/test fallback while the remaining facade-only domains
+                // are cut over to rc.1 Remote.
+                guard let api = self?.api else { throw DSHTransportError.invalidEndpoint }
                 let models = try await api.models(sessionID: sessionID)
                 guard !Task.isCancelled,
                       self?.recoveryGeneration == authorityGeneration,
@@ -1215,6 +1623,7 @@ final class NativeSessionStore: ObservableObject {
                 else { return }
                 self?.modelDirectory = .init(response: models)
                 self?.modelDirectoryStatus = .ready
+
                 let response = try await api.history(sessionID: sessionID, beforeSeq: nil, maxMessages: nil)
                 guard !Task.isCancelled,
                       self?.recoveryGeneration == authorityGeneration,
@@ -1227,7 +1636,6 @@ final class NativeSessionStore: ObservableObject {
                 self?.hasMoreHistory = response.hasMore
                 self?.phase = .ready(sessionID: sessionID)
                 self?.stitchRecoveryLiveBuffer(generation: authorityGeneration)
-                self?.observeMux(sessionID: sessionID, endpoint: endpoint)
                 if self?.consumeSubscriptionTailMismatch() == true {
                     self?.requestAuthorityRecovery(sessionID: sessionID, reason: .subscriptionWatermark)
                 }
@@ -1275,10 +1683,11 @@ final class NativeSessionStore: ObservableObject {
         preserveActiveState()
         historyTask?.cancel()
         historyTask = nil
+        let previousSessionRuntime = sessionRuntime
+        sessionRuntime = nil
+        Task { await previousSessionRuntime?.close() }
         olderHistoryTask?.cancel()
         olderHistoryTask = nil
-        streamTask?.cancel()
-        streamTask = nil
         recoveryTask?.cancel()
         recoveryTask = nil
         recoveryGeneration &+= 1
@@ -1355,12 +1764,21 @@ final class NativeSessionStore: ObservableObject {
     }
 
     func disconnect() {
+        bindCommandService(nil)
+        bindSessionController(nil)
+        bindModelCatalogRepository(nil)
+        bindGoalController(nil)
+        bindSubagentController(nil)
+        bindMessageFeedbackController(nil)
+        bindEventRuntime(nil)
+        bindControlRuntime(nil)
         historyTask?.cancel()
         historyTask = nil
+        let previousSessionRuntime = sessionRuntime
+        sessionRuntime = nil
+        Task { await previousSessionRuntime?.close() }
         olderHistoryTask?.cancel()
         olderHistoryTask = nil
-        streamTask?.cancel()
-        streamTask = nil
         recoveryTask?.cancel()
         recoveryTask = nil
         recoveryGeneration &+= 1
@@ -1476,19 +1894,27 @@ final class NativeSessionStore: ObservableObject {
     /// destinations. This method is intentionally inert until the caller passes
     /// an already-recognized path token from that Host-backed vocabulary.
     func openKnownProjectPath(_ path: String) {
-        guard let hostPathAPI,
+        guard (sessionController != nil || hostPathAPI != nil),
               let sessionID = activeSessionID,
               Self.isProjectPathToken(path)
         else { return }
         let resolved = NativeProjectPathResolver.resolve(cwd: activeSessionCWD, path: path)
+        let controller = sessionController
+        let legacyHostPathAPI = hostPathAPI
         Task { [weak self] in
             do {
-                let response = try await hostPathAPI.openPath(resolved)
-                guard response.opened, self?.activeSessionID == sessionID else { return }
+                let opened: Bool
+                if let controller {
+                    opened = try await controller.openWorkspacePath(resolved).opened
+                } else if let legacyHostPathAPI {
+                    opened = try await legacyHostPathAPI.openPath(resolved).opened
+                } else {
+                    return
+                }
+                guard opened, self?.activeSessionID == sessionID else { return }
             } catch {
-                // RC8 chat rows intentionally keep Host desktop-open failure
-                // silent; no local path or transport-private error leaks into
-                // untrusted assistant Markdown.
+                // Chat rows intentionally keep Host desktop-open failure silent;
+                // no local path or transport-private error leaks into assistant Markdown.
             }
         }
     }
@@ -1514,19 +1940,33 @@ final class NativeSessionStore: ObservableObject {
         if let route = subagentRoute {
             guard route.mode == .continuable,
                   route.parentAvailable,
-                  let subagentContinuationAPI
+                  subagentController != nil || subagentContinuationAPI != nil
             else { return }
+            let controller = subagentController
+            let legacyAPI = subagentContinuationAPI
             isSubmittingPrompt = true
             promptTask?.cancel()
             promptTask = Task { [weak self] in
                 defer { self?.isSubmittingPrompt = false }
                 do {
-                    _ = try await subagentContinuationAPI.prompt(.init(
-                        parentSessionId: route.parentSessionID,
-                        childSessionId: route.childSessionID,
-                        content: content,
-                        clientTimeZone: TimeZone.current.identifier
-                    ))
+                    if let controller {
+                        _ = try await controller.prompt(.init(
+                            requestId: .fresh(),
+                            parentSessionId: route.parentSessionID,
+                            childSessionId: route.childSessionID,
+                            content: content.map(\.remotePromptContentPart),
+                            clientTimeZone: TimeZone.current.identifier
+                        ))
+                    } else if let legacyAPI {
+                        _ = try await legacyAPI.prompt(.init(
+                            parentSessionId: route.parentSessionID,
+                            childSessionId: route.childSessionID,
+                            content: content,
+                            clientTimeZone: TimeZone.current.identifier
+                        ))
+                    } else {
+                        return
+                    }
                     guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
                     self?.draft = ""
                     self?.pendingImages = []
@@ -1538,14 +1978,26 @@ final class NativeSessionStore: ObservableObject {
             }
             return
         }
-        guard let api else { return }
+        guard sessionCommandService != nil || api != nil else { return }
         isSubmittingPrompt = true
         promptTask?.cancel()
+        let commandService = sessionCommandService
+        let legacyAPI = api
         promptTask = Task { [weak self] in
             defer { self?.isSubmittingPrompt = false }
             do {
-                let response = try await api.prompt(sessionID: sessionID, content: content, mode: .queue)
-                guard !Task.isCancelled, response.accepted, self?.activeSessionID == sessionID else { return }
+                if let commandService {
+                    _ = try await commandService.prompt(
+                        sessionID: sessionID,
+                        mode: .queue,
+                        content: content.map(\.remotePromptContentPart),
+                        clientTimeZone: TimeZone.current.identifier
+                    )
+                } else if let legacyAPI {
+                    let response = try await legacyAPI.prompt(sessionID: sessionID, content: content, mode: .queue)
+                    guard response.accepted else { return }
+                }
+                guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
                 self?.draft = ""
                 self?.pendingImages = []
             } catch {
@@ -1566,7 +2018,7 @@ final class NativeSessionStore: ObservableObject {
     func selectPermissionPreset(_ preset: String) {
         guard !isSubmittingPermission,
               preset != "custom",
-              let api,
+              sessionCommandService != nil || api != nil,
               let sessionID = activeSessionID,
               let permissions = extensionState?.permissions,
               permissions.currentValue != preset,
@@ -1577,6 +2029,8 @@ final class NativeSessionStore: ObservableObject {
         permissionSelectionGeneration &+= 1
         let mutationGeneration = permissionSelectionGeneration
         let currentRecoveryGeneration = recoveryGeneration
+        let commandService = sessionCommandService
+        let legacyAPI = api
         isSubmittingPermission = true
         permissionSelectionTask = Task { [weak self] in
             defer {
@@ -1588,13 +2042,22 @@ final class NativeSessionStore: ObservableObject {
                 }
             }
             do {
-                let response = try await api.prompt(
-                    sessionID: sessionID,
-                    content: [.text(text: "/permission \(preset)")],
-                    mode: .queue
-                )
-                guard response.accepted,
-                      !Task.isCancelled,
+                if let commandService {
+                    _ = try await commandService.prompt(
+                        sessionID: sessionID,
+                        mode: .queue,
+                        content: [.text("/permission \(preset)")],
+                        clientTimeZone: TimeZone.current.identifier
+                    )
+                } else if let legacyAPI {
+                    let response = try await legacyAPI.prompt(
+                        sessionID: sessionID,
+                        content: [.text(text: "/permission \(preset)")],
+                        mode: .queue
+                    )
+                    guard response.accepted else { return }
+                }
+                guard !Task.isCancelled,
                       self?.activeSessionID == sessionID,
                       self?.recoveryGeneration == currentRecoveryGeneration,
                       self?.permissionSelectionGeneration == mutationGeneration
@@ -1614,13 +2077,15 @@ final class NativeSessionStore: ObservableObject {
     /// Host-confirmed `selected` value and does not edit provider catalog facts.
     func selectModel(provider: String, model: String, reasoningEffort: String?) {
         guard !isSelectingModel,
-              let api,
+              sessionCommandService != nil || api != nil,
               let sessionID = activeSessionID,
               let directory = modelDirectory,
               directory.routable,
               directory.contains(provider: provider, model: model, reasoningEffort: reasoningEffort)
         else { return }
 
+        let commandService = sessionCommandService
+        let legacyAPI = api
         modelSelectionTask?.cancel()
         modelDirectoryGeneration &+= 1
         modelSelectionGeneration &+= 1
@@ -1639,19 +2104,41 @@ final class NativeSessionStore: ObservableObject {
                 }
             }
             do {
-                let response = try await api.selectModel(.init(
-                    sessionId: sessionID,
+                let remoteSelection = RemoteModelSelection(
                     provider: provider,
                     model: model,
                     reasoningEffort: reasoningEffort
-                ))
-                guard !Task.isCancelled,
-                      self?.activeSessionID == sessionID,
-                      self?.recoveryGeneration == currentRecoveryGeneration,
-                      self?.modelDirectoryGeneration == directoryGeneration,
-                      self?.modelSelectionGeneration == mutationGeneration
-                else { return }
-                self?.modelDirectory = self?.modelDirectory?.applying(response.selected)
+                )
+                if let commandService {
+                    _ = try await commandService.selectModel(
+                        sessionID: sessionID,
+                        selection: remoteSelection
+                    )
+                    guard !Task.isCancelled,
+                          self?.activeSessionID == sessionID,
+                          self?.recoveryGeneration == currentRecoveryGeneration,
+                          self?.modelDirectoryGeneration == directoryGeneration,
+                          self?.modelSelectionGeneration == mutationGeneration
+                    else { return }
+                    // rc.1 publishes the effective selection through the
+                    // durable `model/selection` projection. Keep the prior
+                    // projection visible until that authoritative row arrives.
+                } else {
+                    guard let legacyAPI else { return }
+                    let response = try await legacyAPI.selectModel(.init(
+                        sessionId: sessionID,
+                        provider: provider,
+                        model: model,
+                        reasoningEffort: reasoningEffort
+                    ))
+                    guard !Task.isCancelled,
+                          self?.activeSessionID == sessionID,
+                          self?.recoveryGeneration == currentRecoveryGeneration,
+                          self?.modelDirectoryGeneration == directoryGeneration,
+                          self?.modelSelectionGeneration == mutationGeneration
+                    else { return }
+                    self?.modelDirectory = self?.modelDirectory?.applying(response.selected)
+                }
                 self?.modelDirectoryStatus = .ready
             } catch {
                 guard !Task.isCancelled,
@@ -1671,7 +2158,9 @@ final class NativeSessionStore: ObservableObject {
     /// Host `session.models` directory; it never replays or edits conversation
     /// history and is fenced against selection/recovery responses.
     func reloadModelDirectory() {
-        guard let api, let sessionID = activeSessionID else { return }
+        guard modelCatalogRepository != nil || api != nil, let sessionID = activeSessionID else { return }
+        let modelCatalogRepository = modelCatalogRepository
+        let legacyAPI = api
         modelSelectionTask?.cancel()
         modelSelectionGeneration &+= 1
         isSelectingModel = false
@@ -1681,13 +2170,27 @@ final class NativeSessionStore: ObservableObject {
         modelDirectoryStatus = .loading
         modelSelectionTask = Task { [weak self] in
             do {
-                let response = try await api.models(sessionID: sessionID)
-                guard !Task.isCancelled,
-                      self?.activeSessionID == sessionID,
-                      self?.recoveryGeneration == currentRecoveryGeneration,
-                      self?.modelDirectoryGeneration == directoryGeneration
-                else { return }
-                self?.modelDirectory = .init(response: response)
+                if let modelCatalogRepository {
+                    let catalog = try await modelCatalogRepository.catalog(forceReload: true)
+                    guard !Task.isCancelled,
+                          self?.activeSessionID == sessionID,
+                          self?.recoveryGeneration == currentRecoveryGeneration,
+                          self?.modelDirectoryGeneration == directoryGeneration
+                    else { return }
+                    if let self {
+                        let current = self.projections.remoteModelSelection(sessionID: sessionID) ?? catalog.default
+                        self.modelDirectory = .init(catalog: catalog, current: current)
+                    }
+                } else {
+                    guard let legacyAPI else { return }
+                    let response = try await legacyAPI.models(sessionID: sessionID)
+                    guard !Task.isCancelled,
+                          self?.activeSessionID == sessionID,
+                          self?.recoveryGeneration == currentRecoveryGeneration,
+                          self?.modelDirectoryGeneration == directoryGeneration
+                    else { return }
+                    self?.modelDirectory = .init(response: response)
+                }
                 self?.modelDirectoryStatus = .ready
             } catch {
                 guard !Task.isCancelled,
@@ -1707,7 +2210,7 @@ final class NativeSessionStore: ObservableObject {
     /// snapshot retires or replaces them.
     func updateQueuedMessage(itemID: String, action: SessionQueueAction) {
         guard updatingQueueItemID == nil,
-              let api,
+              sessionCommandService != nil || api != nil,
               let sessionID = activeSessionID,
               queuedMessages.contains(where: { $0.id == itemID && $0.placement == .queued })
         else { return }
@@ -1715,6 +2218,8 @@ final class NativeSessionStore: ObservableObject {
         queueActionFailure = nil
         queueActionCompletion = nil
         queueUpdateTask?.cancel()
+        let commandService = sessionCommandService
+        let legacyAPI = api
         queueUpdateTask = Task { [weak self] in
             defer {
                 if !Task.isCancelled,
@@ -1724,9 +2229,19 @@ final class NativeSessionStore: ObservableObject {
                 }
             }
             do {
-                let response = try await api.updateQueue(.init(sessionId: sessionID, itemId: itemID, action: action))
-                guard response.accepted,
-                      !Task.isCancelled,
+                if let commandService {
+                    try await commandService.updateQueue(
+                        sessionID: sessionID,
+                        itemID: itemID,
+                        action: action.remoteQueueAction
+                    )
+                } else if let legacyAPI {
+                    let response = try await legacyAPI.updateQueue(
+                        .init(sessionId: sessionID, itemId: itemID, action: action)
+                    )
+                    guard response.accepted else { return }
+                }
+                guard !Task.isCancelled,
                       self?.activeSessionID == sessionID,
                       self?.queuedMessages.contains(where: { $0.id == itemID && $0.placement == .queued }) == true
                 else { return }
@@ -1740,54 +2255,94 @@ final class NativeSessionStore: ObservableObject {
 
     // MARK: - Goal action face
 
-    /// Source: RC8 `GoalBar.onEdit`. The Host compares the active projection ref;
-    /// this method never writes the returned ref into `goal` state.
     func editGoal(objective: String) {
         let trimmed = objective.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        submitGoalAction { api, sessionID, goal in
-            _ = try await api.edit(.init(
-                sessionId: sessionID,
-                ref: .init(id: goal.id, revision: goal.revision),
-                objective: trimmed,
-                maxGoalRounds: nil
-            ))
-        }
+        submitGoalAction(
+            remote: { controller, sessionID, goal in
+                try await controller.edit(
+                    sessionID: sessionID,
+                    ref: .init(id: goal.id, revision: goal.revision),
+                    objective: trimmed
+                )
+            },
+            legacy: { api, sessionID, goal in
+                _ = try await api.edit(.init(
+                    sessionId: sessionID,
+                    ref: .init(id: goal.id, revision: goal.revision),
+                    objective: trimmed,
+                    maxGoalRounds: nil
+                ))
+            }
+        )
     }
 
-    /// Source: RC8 `GoalBar.onPause`.
     func pauseGoal() {
-        submitGoalAction { api, sessionID, goal in
-            _ = try await api.pause(.init(sessionId: sessionID, ref: .init(id: goal.id, revision: goal.revision)))
-        }
+        submitGoalAction(
+            remote: { controller, sessionID, goal in
+                try await controller.pause(
+                    sessionID: sessionID,
+                    ref: .init(id: goal.id, revision: goal.revision)
+                )
+            },
+            legacy: { api, sessionID, goal in
+                _ = try await api.pause(.init(
+                    sessionId: sessionID,
+                    ref: .init(id: goal.id, revision: goal.revision)
+                ))
+            }
+        )
     }
 
-    /// Source: RC8 `GoalBar.onResume`.
     func resumeGoal() {
-        submitGoalAction { api, sessionID, goal in
-            _ = try await api.resume(.init(sessionId: sessionID, ref: .init(id: goal.id, revision: goal.revision)))
-        }
+        submitGoalAction(
+            remote: { controller, sessionID, goal in
+                try await controller.resume(
+                    sessionID: sessionID,
+                    ref: .init(id: goal.id, revision: goal.revision)
+                )
+            },
+            legacy: { api, sessionID, goal in
+                _ = try await api.resume(.init(
+                    sessionId: sessionID,
+                    ref: .init(id: goal.id, revision: goal.revision)
+                ))
+            }
+        )
     }
 
-    /// Source: RC8 `GoalBar.onClear`. Success records only the same-goal
-    /// presentation marker until the Host tombstone projection catches up.
     func clearGoal() {
-        submitGoalAction(hideGoalOnSuccess: true) { api, sessionID, goal in
-            _ = try await api.clear(.init(sessionId: sessionID, ref: .init(id: goal.id, revision: goal.revision)))
-        }
+        submitGoalAction(
+            hideGoalOnSuccess: true,
+            remote: { controller, sessionID, goal in
+                try await controller.clear(
+                    sessionID: sessionID,
+                    ref: .init(id: goal.id, revision: goal.revision)
+                )
+            },
+            legacy: { api, sessionID, goal in
+                _ = try await api.clear(.init(
+                    sessionId: sessionID,
+                    ref: .init(id: goal.id, revision: goal.revision)
+                ))
+            }
+        )
     }
 
     private func submitGoalAction(
         hideGoalOnSuccess: Bool = false,
-        _ operation: @escaping @MainActor (any NativeGoalAPI, String, CoreGoalProjection) async throws -> Void
+        remote: @escaping @MainActor (any GoalControllerAPI, String, CoreGoalProjection) async throws -> Void,
+        legacy: @escaping @MainActor (any NativeGoalAPI, String, CoreGoalProjection) async throws -> Void
     ) {
         guard !isSubmittingGoal,
-              let goalAPI,
+              goalController != nil || goalAPI != nil,
               let sessionID = activeSessionID,
               let goal = extensionState?.goal
         else { return }
         isSubmittingGoal = true
         goalActionFailure = nil
+        let controller = goalController
+        let legacyAPI = goalAPI
         goalTask?.cancel()
         goalTask = Task { [weak self] in
             defer {
@@ -1796,15 +2351,23 @@ final class NativeSessionStore: ObservableObject {
                 }
             }
             do {
-                try await operation(goalAPI, sessionID, goal)
+                if let controller {
+                    try await remote(controller, sessionID, goal)
+                } else if let legacyAPI {
+                    try await legacy(legacyAPI, sessionID, goal)
+                }
                 guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
                 if hideGoalOnSuccess { self?.locallyClearedGoalID = goal.id }
             } catch let error as RPCBusinessError {
                 guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
                 self?.goalActionFailure = .init(message: error.message, code: error.code)
+            } catch let error as RemoteConnectionError {
+                guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
+                if case let .remote(payload) = error {
+                    self?.goalActionFailure = .init(message: payload.message, code: payload.code)
+                }
             } catch {
-                // Transport and cancellation remain handled by the existing
-                // session recovery surfaces; GoalBar never manufactures copy.
+                // Transport failures remain owned by the session/Host recovery surfaces.
             }
         }
     }
@@ -1820,14 +2383,27 @@ final class NativeSessionStore: ObservableObject {
         promptTask = nil
         isSubmittingPrompt = false
         if let route = subagentRoute {
-            guard route.mode == .continuable, let subagentContinuationAPI else { return }
+            guard route.mode == .continuable,
+                  subagentController != nil || subagentContinuationAPI != nil
+            else { return }
+            let controller = subagentController
+            let legacyAPI = subagentContinuationAPI
             cancelTask?.cancel()
             cancelTask = Task { [weak self] in
                 do {
-                    _ = try await subagentContinuationAPI.interrupt(.init(
-                        parentSessionId: route.parentSessionID,
-                        childSessionId: route.childSessionID
-                    ))
+                    if let controller {
+                        _ = try await controller.interrupt(
+                            parentSessionID: route.parentSessionID,
+                            childSessionID: route.childSessionID
+                        )
+                    } else if let legacyAPI {
+                        _ = try await legacyAPI.interrupt(.init(
+                            parentSessionId: route.parentSessionID,
+                            childSessionId: route.childSessionID
+                        ))
+                    } else {
+                        return
+                    }
                 } catch {
                     // 取消失败保留运行状态
                     self?.cancelAttemptError = error.localizedDescription
@@ -1835,11 +2411,17 @@ final class NativeSessionStore: ObservableObject {
             }
             return
         }
-        guard let api else { return }
+        guard sessionCommandService != nil || api != nil else { return }
         cancelTask?.cancel()
+        let commandService = sessionCommandService
+        let legacyAPI = api
         cancelTask = Task { [weak self] in
             do {
-                _ = try await api.cancel(sessionID: sessionID)
+                if let commandService {
+                    try await commandService.cancel(sessionID: sessionID)
+                } else if let legacyAPI {
+                    _ = try await legacyAPI.cancel(sessionID: sessionID)
+                }
             } catch {
                 // 取消失败保留运行状态
                 self?.cancelAttemptError = error.localizedDescription
@@ -1852,17 +2434,27 @@ final class NativeSessionStore: ObservableObject {
     func loadOlderHistory() {
         guard hasMoreHistory,
               !isLoadingOlderHistory,
-              let api,
               let sessionID = activeSessionID,
-              let beforeSeq = appliedSequences.min()
+              sessionRuntime != nil || (api != nil && appliedSequences.min() != nil)
         else { return }
 
+        let runtime = sessionRuntime
+        let legacyAPI = api
+        let legacyBeforeSeq = appliedSequences.min()
         isLoadingOlderHistory = true
         olderHistoryTask?.cancel()
         olderHistoryTask = Task { [weak self] in
             defer { self?.isLoadingOlderHistory = false }
             do {
-                let response = try await api.history(sessionID: sessionID, beforeSeq: beforeSeq, maxMessages: nil)
+                if let runtime {
+                    if let snapshot = try await runtime.loadOlder() {
+                        guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
+                        self?.installRemoteJournal(snapshot, sessionID: sessionID)
+                    }
+                    return
+                }
+                guard let legacyAPI, let legacyBeforeSeq else { return }
+                let response = try await legacyAPI.history(sessionID: sessionID, beforeSeq: legacyBeforeSeq, maxMessages: nil)
                 guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
                 self?.prependConversationWindow(response.events.map(ConversationEventInput.init(entry:)), hasMore: response.hasMore)
                 self?.applyHistory(response.events)
@@ -1883,8 +2475,8 @@ final class NativeSessionStore: ObservableObject {
     /// mux boundary supplies their ordered whole snapshots.
     func resyncActiveSession() {
         guard let sessionID = activeSessionID,
-              api != nil,
-              endpoint != nil
+              endpoint != nil,
+              sessionRuntime != nil || api != nil
         else { return }
 
         historyTask?.cancel()
@@ -1908,27 +2500,30 @@ final class NativeSessionStore: ObservableObject {
         hasMoreHistory = false
         lastError = nil
         phase = .loading(sessionID: sessionID)
-        requestAuthorityRecovery(sessionID: sessionID, reason: .residentResync)
-    }
-
-    private func observeMux(sessionID: String, endpoint: URL) {
-        streamTask?.cancel()
-        let client = SSEClient(baseURL: endpoint)
-        streamTask = Task { [weak self] in
-            let stream = await client.reconnectingStream(.mux)
-            do {
-                for try await frame in stream {
-                    guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
-                    self?.applyMuxFrame(frame, sessionID: sessionID)
+        if let runtime = sessionRuntime {
+            recoveryGeneration &+= 1
+            let generation = recoveryGeneration
+            historyTask = Task { [weak self] in
+                do {
+                    let snapshot = try await runtime.resync()
+                    guard !Task.isCancelled,
+                          self?.recoveryGeneration == generation,
+                          self?.activeSessionID == sessionID
+                    else { return }
+                    self?.installRemoteJournal(snapshot, sessionID: sessionID)
+                    self?.phase = .ready(sessionID: sessionID)
+                } catch {
+                    guard !Task.isCancelled,
+                          self?.recoveryGeneration == generation,
+                          self?.activeSessionID == sessionID
+                    else { return }
+                    self?.historyLoadError = error.localizedDescription
+                    self?.phase = .failed(sessionID: sessionID)
                 }
-            } catch is CancellationError {
-                return
-            } catch {
-                // A finite retry policy can surface only after reconnect exhaustion.
-                // Existing sequence gates retain the last authoritative transcript
-                // until the verified Host lifecycle supplies a fresh endpoint.
             }
+            return
         }
+        requestAuthorityRecovery(sessionID: sessionID, reason: .residentResync)
     }
 
     private func resetConversationWindow() {
@@ -1962,8 +2557,28 @@ final class NativeSessionStore: ObservableObject {
 
     private func applyHistory(_ entries: [SessionHistoryEntryDTO]) {
         for entry in entries.sorted(by: { $0.event.seq < $1.event.seq }) {
-            apply(event: entry.event, view: entry.view)
+            apply(event: entry.event)
         }
+    }
+
+    private func installRemoteJournal(_ snapshot: SessionJournalSnapshot, sessionID: String) {
+        let inputs = snapshot.records.map(ConversationEventInput.init(remoteRecord:))
+        replaceConversationWindow(inputs, hasMore: snapshot.hasMore)
+        items = []
+        toolInvocations = []
+        appliedSequences = []
+        for record in snapshot.records {
+            let input = ConversationEventInput(remoteRecord: record)
+            apply(event: input.event)
+        }
+        projections.seed(sessionID: sessionID, remoteBaseline: snapshot.projections)
+        refreshRemoteModelDirectory(sessionID: sessionID)
+        hasMoreHistory = snapshot.hasMore
+    }
+
+    private func refreshRemoteModelDirectory(sessionID: String) {
+        guard let current = projections.remoteModelSelection(sessionID: sessionID) else { return }
+        modelDirectory = modelDirectory?.applying(current)
     }
 
     /// Source: `events.ts:MuxFrame` uses frame.method as the event discriminant
@@ -1981,9 +2596,8 @@ final class NativeSessionStore: ObservableObject {
             guard let eventValue = object["event"],
                   let event = decode(SessionEventDTO.self, from: eventValue)
             else { return }
-            let view = object["view"].flatMap { decode(ToolEventViewDTO.self, from: $0) }
             if recoveryBufferGeneration != nil {
-                bufferRecoveryLiveEvent(event, view: view)
+                bufferRecoveryLiveEvent(event)
                 return
             }
             // Source: RC8 `Session.acceptLiveEvent`: only an open authority
@@ -1991,12 +2605,12 @@ final class NativeSessionStore: ObservableObject {
             // a later history baseline instead of manufacturing a partial log.
             guard case .ready(sessionID: sessionID) = phase else { return }
             guard !liveEventRequiresAuthorityRecovery(event) else {
-                bufferRecoveryLiveEvent(event, view: view)
+                bufferRecoveryLiveEvent(event)
                 requestAuthorityRecovery(sessionID: sessionID, reason: .eventGap)
                 return
             }
-            appendConversationEvent(.init(event: event, view: view))
-            apply(event: event, view: view)
+            appendConversationEvent(.init(event: event))
+            apply(event: event)
         case "session/subscribed":
             applySubscription(object, sessionID: sessionID)
         case "session/projection":
@@ -2069,8 +2683,8 @@ final class NativeSessionStore: ObservableObject {
         return true
     }
 
-    private func bufferRecoveryLiveEvent(_ event: SessionEventDTO, view: ToolEventViewDTO?) {
-        recoveryLiveBuffer.append(.init(event: event, view: view))
+    private func bufferRecoveryLiveEvent(_ event: SessionEventDTO) {
+        recoveryLiveBuffer.append(.init(event: event))
     }
 
     /// RC8 `installWindow` stitches the buffered live tail only after the Host
@@ -2086,7 +2700,7 @@ final class NativeSessionStore: ObservableObject {
             let tail = conversationReducer.rawWindow().map(\.event.seq).max()
             guard tail == nil || entry.event.seq > tail! else { continue }
             appendConversationEvent(.init(entry: entry))
-            apply(event: entry.event, view: entry.view)
+            apply(event: entry.event)
         }
     }
 
@@ -2164,6 +2778,60 @@ final class NativeSessionStore: ObservableObject {
                 // user-facing transport error policy; stale recovery errors do
                 // not replace a selected resident transcript.
             }
+        }
+    }
+
+    private func installRemoteControl(_ snapshot: SessionControlSnapshot) {
+        guard let sessionID = activeSessionID else {
+            queuedMessages = []
+            backgroundJobs = []
+            return
+        }
+        queuedMessages = (snapshot.queues[sessionID] ?? []).map { item in
+            let content = item.message.content.map(\.conversationJSONValue)
+            let texts = content.map { contentText($0) }
+            let allText = texts.allSatisfy(\.isText)
+            let flat = texts.map(\.value).joined(separator: " ")
+                .split(whereSeparator: { $0.isWhitespace })
+                .joined(separator: " ")
+            let preview = String(flat.prefix(200)) + (flat.count > 200 ? "…" : "")
+            let placement: QueuedMessage.Placement = switch item.placement {
+            case .queued: .queued
+            case .steering: .steering
+            case .context: .context
+            }
+            return QueuedMessage(
+                id: item.id,
+                messageID: item.message.id,
+                placement: placement,
+                role: nil,
+                content: content,
+                source: nil,
+                preview: preview,
+                text: allText ? content.compactMap { $0.objectValue?["text"]?.stringValue }.joined() : nil
+            )
+        }
+        backgroundJobs = (snapshot.jobs[sessionID] ?? []).map { job in
+            let status: BackgroundJob.Status = switch job.status {
+            case .running: .running
+            case .stopping: .stopping
+            case .completed: .completed
+            case .killed: .killed
+            case .failed: .failed
+            }
+            return BackgroundJob(
+                id: job.id,
+                kind: job.kind,
+                label: job.label,
+                status: status,
+                detail: job.detail,
+                startedAt: Int(job.startedAt),
+                finishedAt: job.finishedAt.map(Int.init)
+            )
+        }
+        if let baseline = snapshot.projections[sessionID] {
+            projections.seed(sessionID: sessionID, remoteBaseline: baseline)
+            refreshRemoteModelDirectory(sessionID: sessionID)
         }
     }
 
@@ -2333,42 +3001,60 @@ final class NativeSessionStore: ObservableObject {
         invalidateQuestionSubmission()
     }
 
-    /// Source: `PendingApproval.answer`; a panel remains mounted until the Host
-    /// broadcasts `approval/resolved`, even after an accepted carrier receipt.
+    /// Answer the current rc.1 approval waterfall. The legacy facade remains
+    /// only as a fallback while the old transport is still compiled.
     func answerApproval(allowOnce: Bool) {
         guard let approval = pendingApproval,
-              let api,
+              remoteEventRuntime != nil || (api != nil && approval.approvalID != nil),
               !isSubmittingApproval
         else { return }
         isSubmittingApproval = true
-        let outcome: ApprovalOutcome = allowOnce ? .allowedOnce : .rejected
         let generation = interactionGeneration
+        let eventRuntime = remoteEventRuntime
+        let legacyAPI = api
         approvalSubmissionTask = Task { [weak self] in
             do {
-                let receipt = try await api.answerApproval(
-                    rpcID: approval.rpcID,
-                    sessionID: approval.sessionID,
-                    approvalID: approval.approvalID,
-                    outcome: outcome
-                )
+                if let eventRuntime {
+                    try await eventRuntime.reply(
+                        eventID: approval.eventID,
+                        outcome: .result(.string(allowOnce ? "allowed-once" : "rejected"))
+                    )
+                } else if let legacyAPI, let approvalID = approval.approvalID {
+                    let receipt = try await legacyAPI.answerApproval(
+                        rpcID: approval.eventID,
+                        sessionID: approval.sessionID,
+                        approvalID: approvalID,
+                        outcome: allowOnce ? .allowedOnce : .rejected
+                    )
+                    guard receipt.accepted else {
+                        guard !Task.isCancelled,
+                              let self,
+                              self.interactionGeneration == generation,
+                              self.pendingApproval?.eventID == approval.eventID
+                        else { return }
+                        self.approvalSubmissionTask = nil
+                        self.isSubmittingApproval = false
+                        return
+                    }
+                } else {
+                    return
+                }
+
                 guard !Task.isCancelled,
                       let self,
                       self.interactionGeneration == generation,
-                      let current = self.pendingApproval,
-                      current.rpcID == approval.rpcID,
-                      current.sessionID == approval.sessionID,
-                      current.approvalID == approval.approvalID
+                      self.pendingApproval?.eventID == approval.eventID,
+                      self.pendingApproval?.sessionID == approval.sessionID
                 else { return }
+                self.pendingApproval = nil
                 self.approvalSubmissionTask = nil
-                if !receipt.accepted { self.isSubmittingApproval = false }
+                self.isSubmittingApproval = false
             } catch {
                 guard !Task.isCancelled,
                       let self,
                       self.interactionGeneration == generation,
-                      let current = self.pendingApproval,
-                      current.rpcID == approval.rpcID,
-                      current.sessionID == approval.sessionID,
-                      current.approvalID == approval.approvalID
+                      self.pendingApproval?.eventID == approval.eventID,
+                      self.pendingApproval?.sessionID == approval.sessionID
                 else { return }
                 self.approvalSubmissionTask = nil
                 self.isSubmittingApproval = false
@@ -2376,36 +3062,70 @@ final class NativeSessionStore: ObservableObject {
         }
     }
 
-    /// Source: `PendingQuestion.answer`; all items in the non-empty Host batch
-    /// are returned together in the approved `QuestionAnswer` value shape.
+    /// Return all answers in the rc.1 `user-questions/request` result shape.
     func answerQuestion(_ answers: [QuestionAnswer]) {
         guard let question = pendingQuestion,
-              let api,
+              remoteEventRuntime != nil || api != nil,
               !isSubmittingQuestion,
               answers.count == question.items.count
         else { return }
         isSubmittingQuestion = true
-        let responseAnswers = answers.map { QuestionAnswerResponse(id: $0.id, selected: $0.selected, custom: $0.custom) }
         let generation = interactionGeneration
+        let eventRuntime = remoteEventRuntime
+        let legacyAPI = api
         questionSubmissionTask = Task { [weak self] in
             do {
-                let receipt = try await api.answerQuestion(rpcID: question.rpcID, sessionID: question.sessionID, answers: responseAnswers)
+                if let eventRuntime {
+                    let values: [RemoteJSONValue] = answers.map { answer in
+                        var object: [String: RemoteJSONValue] = [
+                            "id": .string(answer.id),
+                            "selected": .array(answer.selected.map(RemoteJSONValue.string))
+                        ]
+                        if let custom = answer.custom { object["custom"] = .string(custom) }
+                        return .object(object)
+                    }
+                    try await eventRuntime.reply(
+                        eventID: question.eventID,
+                        outcome: .result(.object(["answers": .array(values)]))
+                    )
+                } else if let legacyAPI {
+                    let responseAnswers = answers.map {
+                        QuestionAnswerResponse(id: $0.id, selected: $0.selected, custom: $0.custom)
+                    }
+                    let receipt = try await legacyAPI.answerQuestion(
+                        rpcID: question.eventID,
+                        sessionID: question.sessionID,
+                        answers: responseAnswers
+                    )
+                    guard receipt.accepted else {
+                        guard !Task.isCancelled,
+                              let self,
+                              self.interactionGeneration == generation,
+                              self.pendingQuestion?.eventID == question.eventID
+                        else { return }
+                        self.questionSubmissionTask = nil
+                        self.isSubmittingQuestion = false
+                        return
+                    }
+                } else {
+                    return
+                }
+
                 guard !Task.isCancelled,
                       let self,
                       self.interactionGeneration == generation,
-                      let current = self.pendingQuestion,
-                      current.rpcID == question.rpcID,
-                      current.sessionID == question.sessionID
+                      self.pendingQuestion?.eventID == question.eventID,
+                      self.pendingQuestion?.sessionID == question.sessionID
                 else { return }
+                self.pendingQuestion = nil
                 self.questionSubmissionTask = nil
-                if !receipt.accepted { self.isSubmittingQuestion = false }
+                self.isSubmittingQuestion = false
             } catch {
                 guard !Task.isCancelled,
                       let self,
                       self.interactionGeneration == generation,
-                      let current = self.pendingQuestion,
-                      current.rpcID == question.rpcID,
-                      current.sessionID == question.sessionID
+                      self.pendingQuestion?.eventID == question.eventID,
+                      self.pendingQuestion?.sessionID == question.sessionID
                 else { return }
                 self.questionSubmissionTask = nil
                 self.isSubmittingQuestion = false
@@ -2413,34 +3133,58 @@ final class NativeSessionStore: ObservableObject {
         }
     }
 
-    /// Source: `PendingQuestion.cancel`; cancellation is a failure result, not
-    /// an invented success outcome, and is resolved by the Host broadcast.
+    /// Reject the rc.1 question waterfall with the official cancellation error.
     func cancelQuestion() {
         guard let question = pendingQuestion,
-              let api,
+              remoteEventRuntime != nil || api != nil,
               !isSubmittingQuestion
         else { return }
         isSubmittingQuestion = true
         let generation = interactionGeneration
+        let eventRuntime = remoteEventRuntime
+        let legacyAPI = api
         questionSubmissionTask = Task { [weak self] in
             do {
-                let receipt = try await api.cancelQuestion(rpcID: question.rpcID)
+                if let eventRuntime {
+                    try await eventRuntime.reply(
+                        eventID: question.eventID,
+                        outcome: .rejected(.init(
+                            name: "UserQuestionError",
+                            message: "the user cancelled ask_user_question",
+                            code: "ASK_CANCELLED"
+                        ))
+                    )
+                } else if let legacyAPI {
+                    let receipt = try await legacyAPI.cancelQuestion(rpcID: question.eventID)
+                    guard receipt.accepted else {
+                        guard !Task.isCancelled,
+                              let self,
+                              self.interactionGeneration == generation,
+                              self.pendingQuestion?.eventID == question.eventID
+                        else { return }
+                        self.questionSubmissionTask = nil
+                        self.isSubmittingQuestion = false
+                        return
+                    }
+                } else {
+                    return
+                }
+
                 guard !Task.isCancelled,
                       let self,
                       self.interactionGeneration == generation,
-                      let current = self.pendingQuestion,
-                      current.rpcID == question.rpcID,
-                      current.sessionID == question.sessionID
+                      self.pendingQuestion?.eventID == question.eventID,
+                      self.pendingQuestion?.sessionID == question.sessionID
                 else { return }
+                self.pendingQuestion = nil
                 self.questionSubmissionTask = nil
-                if !receipt.accepted { self.isSubmittingQuestion = false }
+                self.isSubmittingQuestion = false
             } catch {
                 guard !Task.isCancelled,
                       let self,
                       self.interactionGeneration == generation,
-                      let current = self.pendingQuestion,
-                      current.rpcID == question.rpcID,
-                      current.sessionID == question.sessionID
+                      self.pendingQuestion?.eventID == question.eventID,
+                      self.pendingQuestion?.sessionID == question.sessionID
                 else { return }
                 self.questionSubmissionTask = nil
                 self.isSubmittingQuestion = false
@@ -2448,7 +3192,7 @@ final class NativeSessionStore: ObservableObject {
         }
     }
 
-    private func apply(event: SessionEventDTO, view: ToolEventViewDTO? = nil) {
+    private func apply(event: SessionEventDTO) {
         if event.type != "assistant/chunk" {
             guard appliedSequences.insert(event.seq).inserted else { return }
         }
@@ -2487,12 +3231,9 @@ final class NativeSessionStore: ObservableObject {
             isRunning = true
             applyAssistantChunk(event)
         case "tool/call":
-            // The `for` discriminator is part of the official ToolEventView
-            // contract. A mismatched or unknown target receives no specialized
-            // renderer and safely retains the generic arguments/output path.
-            applyToolCall(event, view: view?.for == "call" ? view : nil)
+            applyToolCall(event)
         case "tool/result":
-            applyToolResult(event, view: view?.for == "result" ? view : nil)
+            applyToolResult(event)
         case "turn/end":
             isRunning = false
             settleStreaming()
@@ -2529,7 +3270,7 @@ final class NativeSessionStore: ObservableObject {
         }
     }
 
-    private func applyToolCall(_ event: SessionEventDTO, view: ToolEventViewDTO?) {
+    private func applyToolCall(_ event: SessionEventDTO) {
         guard let data = event.data.objectValue,
               let callID = data["callId"]?.stringValue,
               let name = data["name"]?.stringValue,
@@ -2546,8 +3287,8 @@ final class NativeSessionStore: ObservableObject {
             errorCode: nil,
             state: .running,
             sequence: event.seq,
-            callView: view,
-            resultView: nil
+            parentCallID: data["parentCallId"]?.stringValue,
+            sessionCWD: activeSessionCWD
         )
         // Sorted-insert by sequence; keeps the timeline merge linear and avoids
         // re-sorting the whole array on every tool call.
@@ -2564,7 +3305,7 @@ final class NativeSessionStore: ObservableObject {
         toolInvocations.insert(invocation, at: lower)
     }
 
-    private func applyToolResult(_ event: SessionEventDTO, view: ToolEventViewDTO?) {
+    private func applyToolResult(_ event: SessionEventDTO) {
         guard let data = event.data.objectValue,
               let message = data["message"]?.objectValue,
               let source = message["source"]?.objectValue,
@@ -2573,15 +3314,20 @@ final class NativeSessionStore: ObservableObject {
         let error = data["error"]?.objectValue
         let errorName = error?["name"]?.stringValue
         let errorCode = error?["code"]?.stringValue
-        let output = resultText(in: message, errorName: errorName, errorCode: errorCode)
-        let textOutput = textResult(in: message)
+        let wrapper = toolResultWrapper(in: message, callID: callID)
+        let content = wrapper?.content ?? []
+        let isError = wrapper?.isError ?? (errorCode != nil)
+        let output = resultText(in: content, errorName: errorName, errorCode: errorCode)
+        let textOutput = textResult(in: content)
         guard let index = toolInvocations.firstIndex(where: { $0.id == callID }) else { return }
         toolInvocations[index].output = output
         toolInvocations[index].textOutput = textOutput
         toolInvocations[index].errorName = errorName
         toolInvocations[index].errorCode = errorCode
-        toolInvocations[index].state = errorCode == "interrupted" ? .stopped : (errorCode == nil ? .completed : .failed)
-        toolInvocations[index].resultView = view ?? toolInvocations[index].resultView
+        toolInvocations[index].resultContent = content
+        toolInvocations[index].resultMeta = data["meta"]
+        toolInvocations[index].resultIsError = isError
+        toolInvocations[index].state = errorCode == "interrupted" ? .stopped : (isError ? .failed : .completed)
     }
 
     func selectToolCall(_ callID: String?) {
@@ -2949,8 +3695,6 @@ final class NativeSessionStore: ObservableObject {
                 errorCode: nil,
                 state: .completed,
                 sequence: 102,
-                callView: nil,
-                resultView: nil
             ),
             ToolInvocation(
                 id: "snapshot-bash",
@@ -2962,8 +3706,6 @@ final class NativeSessionStore: ObservableObject {
                 errorCode: nil,
                 state: .running,
                 sequence: 103,
-                callView: nil,
-                resultView: nil
             )
         ]
         queuedMessages = []
@@ -3001,24 +3743,18 @@ final class NativeSessionStore: ObservableObject {
             let callSequence = 303 + index * 2
             let arguments = "{\"file_path\":\"\(path)\",\"content\":\"content of \(path)\"}"
             return [
-                ConversationEventInput(
-                    event: SessionEventDTO(
-                        type: "tool/call",
-                        seq: callSequence,
-                        time: Double(callSequence),
-                        data: .object([
-                            "turn": .number(1),
-                            "callId": .string(callID),
-                            "name": .string("write"),
-                            "arguments": .string(arguments),
-                        ]),
-                        surfaceOp: .string("append")
-                    ),
-                    view: ToolEventViewDTO(for: "call", view: .object([
-                        "card": .string("diff"),
-                        "locations": .array([.object(["path": .string(path)])]),
-                    ]))
-                ),
+                ConversationEventInput(event: SessionEventDTO(
+                    type: "tool/call",
+                    seq: callSequence,
+                    time: Double(callSequence),
+                    data: .object([
+                        "turn": .number(1),
+                        "callId": .string(callID),
+                        "name": .string("write"),
+                        "arguments": .string(arguments),
+                    ]),
+                    surfaceOp: .string("append")
+                )),
                 ConversationEventInput(event: SessionEventDTO(
                     type: "tool/result",
                     seq: callSequence + 1,
@@ -3102,8 +3838,6 @@ final class NativeSessionStore: ObservableObject {
                 errorCode: nil,
                 state: .completed,
                 sequence: 303 + index * 2,
-                callView: nil,
-                resultView: nil
             )
         }
         queuedMessages = []
@@ -3324,16 +4058,34 @@ final class NativeSessionStore: ObservableObject {
         lhs.sequence < rhs.sequence || (lhs.sequence == rhs.sequence && lhs.id < rhs.id)
     }
 
-    /// Mirrors rc.2 `resultText`: each text content block stays verbatim, every
-    /// non-text block is rendered as its own pretty JSON object, and parts retain
-    /// their original order with one newline between them. An empty result uses
-    /// only a Host-provided `name: code` error fallback.
+    private struct ToolResultWrapper {
+        let content: [JSONValue]
+        let isError: Bool
+    }
+
+    /// rc.1 durable tool results are one `tool-result` wrapper inside the user
+    /// message. The wrapper, not the outer message, owns result content/error.
+    private func toolResultWrapper(in message: [String: JSONValue], callID: String) -> ToolResultWrapper? {
+        guard let values = message["content"]?.arrayValue else { return nil }
+        if values.count == 1,
+           let wrapper = values[0].objectValue,
+           wrapper["type"]?.stringValue == "tool-result",
+           wrapper["toolCallId"]?.stringValue == callID,
+           let content = wrapper["content"]?.arrayValue {
+            if wrapper["isError"] != nil && wrapper["isError"]?.boolValue == nil { return nil }
+            return .init(content: content, isError: wrapper["isError"]?.boolValue ?? false)
+        }
+        return .init(content: values, isError: false)
+    }
+
+    /// rc.1 generic result text flattens the inner tool-result content. Text is
+    /// verbatim; non-text blocks retain their JSON shape for the generic card.
     private func resultText(
-        in message: [String: JSONValue],
+        in content: [JSONValue],
         errorName: String?,
         errorCode: String?
     ) -> String? {
-        let parts = (message["content"]?.arrayValue ?? []).compactMap { block -> String? in
+        let parts = content.compactMap { block -> String? in
             if let object = block.objectValue,
                object["type"]?.stringValue == "text",
                let text = object["text"]?.stringValue {
@@ -3353,10 +4105,8 @@ final class NativeSessionStore: ObservableObject {
         )
     }
 
-    /// Search-card recovery mirrors `flattenContent`: only valid text blocks
-    /// participate, in original order; an empty joined value is absent.
-    private func textResult(in message: [String: JSONValue]) -> String? {
-        let text = (message["content"]?.arrayValue ?? []).compactMap { block -> String? in
+    private func textResult(in content: [JSONValue]) -> String? {
+        let text = content.compactMap { block -> String? in
             guard let object = block.objectValue,
                   object["type"]?.stringValue == "text",
                   let value = object["text"]?.stringValue
@@ -3384,12 +4134,79 @@ final class NativeSessionStore: ObservableObject {
     }
 }
 
+private extension SessionPromptContent {
+    var remotePromptContentPart: RemotePromptContentPart {
+        switch self {
+        case let .text(text):
+            return .text(text)
+        case let .image(mediaType, data, name):
+            return .image(mediaType: mediaType, data: data, name: name)
+        }
+    }
+
+    var remoteJSONValue: RemoteJSONValue {
+        switch self {
+        case let .text(text):
+            return .object(["type": .string("text"), "text": .string(text)])
+        case let .image(mediaType, data, name):
+            var object: [String: RemoteJSONValue] = [
+                "type": .string("image"),
+                "mediaType": .string(mediaType),
+                "data": .string(data),
+            ]
+            if let name { object["name"] = .string(name) }
+            return .object(object)
+        }
+    }
+}
+
 private extension SessionQueueAction {
+    var remoteQueueAction: RemoteQueueAction {
+        switch self {
+        case let .edit(content): .edit(content: content.map(\.remoteJSONValue))
+        case .remove: .remove
+        case .steer: .steer
+        }
+    }
+
     var failureKind: NativeSessionStore.QueueActionFailure.Kind {
         switch self {
         case .edit: .edit
         case .remove: .remove
         case .steer: .steer
         }
+    }
+}
+
+
+private extension RemoteSubagentCatalog {
+    var legacyCatalog: SubagentListResponse {
+        .init(
+            entries: entries.map { entry in
+                switch entry {
+                case let .child(child):
+                    return .init(
+                        kind: "child",
+                        id: child.id,
+                        activity: child.activity.rawValue,
+                        hasChildren: child.hasChildren,
+                        mode: child.mode.rawValue,
+                        label: child.label,
+                        reason: nil
+                    )
+                case let .diagnostic(diagnostic):
+                    return .init(
+                        kind: "diagnostic",
+                        id: diagnostic.id,
+                        activity: nil,
+                        hasChildren: nil,
+                        mode: nil,
+                        label: nil,
+                        reason: diagnostic.reason.rawValue
+                    )
+                }
+            },
+            parentAvailable: parentAvailable
+        )
     }
 }

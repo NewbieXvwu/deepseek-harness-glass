@@ -4,18 +4,19 @@ import Foundation
 @testable import GlassSpec
 #endif
 
-/// The copy-safe Host diagnostics payload. It deliberately records only an
-/// endpoint port, never a full URL with possible query/user-info credentials.
+/// Copy-safe Host diagnostics. Endpoint data is reduced to a port and every
+/// free-form error/compatibility reason is redacted before it enters storage.
 struct HostDiagnosticSnapshot: Equatable, Sendable {
     let hostBuildID: String?
     let port: Int?
     let dshHome: String
     let ownedProcessID: Int32?
     let ownership: String
-    let lastSSEAt: Date?
+    let remoteGeneration: UInt64?
+    let streamState: String
     let lastRPCError: String?
     let protocolFixtureRevision: String?
-    let pluginCompatibility: String
+    let hostCompatibility: String
     let lifecycle: String
 
     func copyableText() -> String {
@@ -25,72 +26,89 @@ struct HostDiagnosticSnapshot: Equatable, Sendable {
             "dshHome=\(dshHome)",
             "ownership=\(ownership)",
             "pid=\(ownedProcessID.map { String($0) } ?? "none")",
-            "lastSSEAt=\(lastSSEAt.map { ISO8601DateFormatter().string(from: $0) } ?? "none")",
+            "remoteGeneration=\(remoteGeneration.map(String.init) ?? "none")",
+            "streamState=\(streamState)",
             "lastRPCError=\(lastRPCError ?? "none")",
             "protocolFixtureRevision=\(protocolFixtureRevision ?? "none")",
-            "pluginCompatibility=\(pluginCompatibility)",
+            "hostCompatibility=\(hostCompatibility)",
             "lifecycle=\(lifecycle)",
         ].joined(separator: "\n")
     }
 }
 
-/// Actor-isolated diagnostic facts shared by Host readiness, RPC facade and SSE
-/// observation. It stores redacted summaries only and never payload bodies.
+/// Actor-isolated diagnostic facts shared by Host readiness and Remote calls.
+/// Payload bodies, launch tokens, cookies and credential values never enter it.
 actor HostDiagnosticRecorder {
     private let dshHome: String
     private var hostBuildID: String?
     private var port: Int?
     private var ownedProcessID: Int32?
     private var ownership = "none"
-    private var lastSSEAt: Date?
+    private var remoteGeneration: UInt64?
+    private var streamState = "disconnected"
     private var lastRPCError: String?
     private var protocolFixtureRevision: String?
-    private var pluginCompatibility = "unknown"
+    private var hostCompatibility = "unknown"
     private var lifecycle = "idle"
 
     init(dshHome: String) {
         self.dshHome = dshHome
     }
 
-    func recordVerified(build: SupportedHostBuildCatalog.Build, endpoint: URL, pid: Int32?) {
+    func recordConnected(
+        build: SupportedHostBuildCatalog.Build,
+        compatibility: HostCompatibility,
+        endpoint: URL,
+        pid: Int32?,
+        generation: RemoteConnectionGeneration? = nil
+    ) {
         hostBuildID = build.id
         port = endpoint.port
         ownedProcessID = pid
         ownership = "owned"
+        remoteGeneration = generation?.rawValue
+        streamState = "ready"
         protocolFixtureRevision = build.protocolFixtureRevision
-        pluginCompatibility = "pinned-compatible"
+        switch compatibility {
+        case .verified: hostCompatibility = "verified"
+        case let .bestEffort(reason): hostCompatibility = "best-effort: \(HostLogRedactor.redact(reason))"
+        }
         lifecycle = "ready"
-    }
-
-    func recordUnverified(reason: String) {
-        hostBuildID = nil
-        pluginCompatibility = "unverified: \(HostLogRedactor.redact(reason))"
-        lifecycle = "unverified"
     }
 
     func recordLifecycle(_ state: HostLifecycleState, ownedPID: Int32?) {
         lifecycle = stableStateName(state)
         ownedProcessID = ownedPID
-        if case .ready = state { ownership = "owned" }
-        if case .idle = state { ownership = "none" }
+        switch state {
+        case .idle:
+            ownership = "none"
+            streamState = "disconnected"
+            remoteGeneration = nil
+        case .starting, .authenticating, .connecting, .classifying:
+            streamState = "connecting"
+        case .recovering:
+            streamState = "recovering"
+            remoteGeneration = nil
+        case .ready:
+            ownership = "owned"
+        case .failed, .stopping:
+            streamState = "disconnected"
+            remoteGeneration = nil
+        }
     }
 
     private func stableStateName(_ state: HostLifecycleState) -> String {
         switch state {
         case .idle: return "idle"
-        case .probingExternal: return "probing-external"
-        case .startingOwned: return "starting-owned"
-        case .verifying: return "verifying"
+        case .starting: return "starting"
+        case .authenticating: return "authenticating"
+        case .connecting: return "connecting"
+        case .classifying: return "classifying"
         case .recovering: return "recovering"
         case .ready: return "ready"
-        case .unverified: return "unverified"
         case .failed: return "failed"
         case .stopping: return "stopping"
         }
-    }
-
-    func recordSSEActivity(at date: Date = Date()) {
-        lastSSEAt = date
     }
 
     func recordRPCError(_ error: Error) {
@@ -104,10 +122,11 @@ actor HostDiagnosticRecorder {
             dshHome: dshHome,
             ownedProcessID: ownedProcessID,
             ownership: ownership,
-            lastSSEAt: lastSSEAt,
+            remoteGeneration: remoteGeneration,
+            streamState: streamState,
             lastRPCError: lastRPCError,
             protocolFixtureRevision: protocolFixtureRevision,
-            pluginCompatibility: pluginCompatibility,
+            hostCompatibility: hostCompatibility,
             lifecycle: lifecycle
         )
     }

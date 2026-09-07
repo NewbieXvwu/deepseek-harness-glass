@@ -26,17 +26,17 @@ function loadTypeScript() {
 
 const ts = loadTypeScript()
 
-const SLOT_PATH = resolve(officialRoot, 'packages/client/ui-conversation/src/client/contract/slots.ts')
-if (!existsSync(SLOT_PATH)) {
-  throw new Error(`slots.ts not found at ${SLOT_PATH}`)
+const SLOT_SOURCES = [
+  'packages/client/ui-conversation/src/client/contract/slots.ts',
+  'packages/client/ui-chat/src/client/contract/slots.ts',
+].map(relativePath => ({ relativePath, filePath: resolve(officialRoot, relativePath) }))
+for (const source of SLOT_SOURCES) {
+  if (!existsSync(source.filePath)) throw new Error(`slots.ts not found at ${source.filePath}`)
 }
-
-const slotSourceText = readFileSync(SLOT_PATH, 'utf8')
-const slotSourceFile = ts.createSourceFile(SLOT_PATH, slotSourceText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
 
 const slots = []
 
-function extractSlotMap(node) {
+function extractSlotMap(node, sourcePath) {
   if (ts.isInterfaceDeclaration(node) && node.name.text === 'SlotMap') {
     for (const member of node.members) {
       if (!ts.isPropertySignature(member)) continue
@@ -60,20 +60,24 @@ function extractSlotMap(node) {
       }
 
       if (kind && scope) {
-        slots.push({ name, kind, scope })
+        slots.push({ name, kind, scope, sourcePath })
       }
     }
   }
-  ts.forEachChild(node, extractSlotMap)
+  ts.forEachChild(node, child => extractSlotMap(child, sourcePath))
 }
 
-extractSlotMap(slotSourceFile)
+for (const source of SLOT_SOURCES) {
+  const slotSourceText = readFileSync(source.filePath, 'utf8')
+  const slotSourceFile = ts.createSourceFile(source.filePath, slotSourceText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+  extractSlotMap(slotSourceFile, source.relativePath)
+}
 
 const TSX_SOURCES = [
   'packages/client/ui-conversation/src/client/skeleton/ConversationRoot.tsx',
-  'packages/client/ui-conversation/src/client/chat/ChatView.tsx',
-  'packages/client/ui-conversation/src/client/chat/ChatNodeSeat.tsx',
-  'packages/client/ui-conversation/src/client/chat/AssistantMarkdown.tsx',
+  'packages/client/ui-chat/src/client/chat/ChatView.tsx',
+  'packages/client/ui-chat/src/client/chat/ChatNodeSeat.tsx',
+  'packages/client/ui-chat/src/client/chat/AssistantMarkdown.tsx',
 ]
 
 const dataSelectors = new Set()

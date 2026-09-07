@@ -539,7 +539,7 @@ struct NativeSettingsRoot: View {
         )
     }
 
-    private static func official(namespace: String, key: String) -> String {
+    private nonisolated static func official(namespace: String, key: String) -> String {
         OfficialUISpec.LocaleCatalog.value(namespace: namespace, key: key, language: "en") ?? ""
     }
 }

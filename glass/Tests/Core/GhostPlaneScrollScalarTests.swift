@@ -63,6 +63,8 @@ final class GhostPlaneScrollScalarTests: XCTestCase {
     func testRendererArgumentsArePrimitiveAndDoNotContainTransformSource() {
         let scalar = GhostPlaneScrollScalar(documentEpoch: 4, sequence: 9, scrollOffset: 33.5)
 
-        XCTAssertEqual(scalar.rendererArguments, ["scrollOffset": 33.5])
+        XCTAssertEqual(scalar.rendererArguments["scrollOffset"] as? Double, 33.5)
+        XCTAssertEqual((scalar.rendererArguments["documentEpoch"] as? NSNumber)?.uint64Value, 4)
+        XCTAssertEqual((scalar.rendererArguments["sequence"] as? NSNumber)?.uint64Value, 9)
     }
 }

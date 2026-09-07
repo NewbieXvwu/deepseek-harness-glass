@@ -2,30 +2,24 @@ import XCTest
 @testable import GlassCore
 
 final class GhostPlaneResponsePolicyTests: XCTestCase {
-    func testAllowsExactSuccessfulSkeletonAndJavaScriptResponses() throws {
+    func testAllowsRc1ComboScriptAndSourceMapMimes() throws {
         let policy = try makePolicy()
-        let skeleton = URL(string: "http://127.0.0.1:7342/")!
-        XCTAssertEqual(policy.decision(requestURL: skeleton, responseURL: skeleton, statusCode: 200, mimeType: "text/html; charset=utf-8"), .allowSkeletonDocument)
-        let script = URL(string: "http://127.0.0.1:7342/plugins/dsh-review/client.js?rev=r1")!
-        XCTAssertEqual(policy.decision(requestURL: script, responseURL: script, statusCode: 200, mimeType: "application/javascript"), .allowPluginResource(pluginID: "dsh-review"))
+        let script = URL(string: "http://127.0.0.1:7342/plugins/??@deepseek-ai/dsh-ui-chat/client.js&rev=r1")!
+        XCTAssertEqual(policy.decision(requestURL: script, responseURL: script, statusCode: 200, mimeType: "text/javascript; charset=utf-8"), .allowPluginCombo(pluginIDs: ["@deepseek-ai/dsh-ui-chat"], sourceMap: false))
+        let map = URL(string: "http://127.0.0.1:7342/plugins/??@deepseek-ai/dsh-ui-chat/client.js.map&rev=r1")!
+        XCTAssertEqual(policy.decision(requestURL: map, responseURL: map, statusCode: 200, mimeType: "application/json"), .allowPluginCombo(pluginIDs: ["@deepseek-ai/dsh-ui-chat"], sourceMap: true))
     }
 
-    func testRejectsRedirectsStatusAndMIMEConfusion() throws {
+    func testRejectsRedirectStatusAndComboMimeConfusion() throws {
         let policy = try makePolicy()
-        let script = URL(string: "http://127.0.0.1:7342/plugins/dsh-review/client.js?rev=r1")!
-        let redirected = URL(string: "http://127.0.0.1:7342/plugins/dsh-review/other.js?rev=r1")!
-        XCTAssertEqual(policy.decision(requestURL: script, responseURL: redirected, statusCode: 200, mimeType: "application/javascript"), .deny(.redirect))
-        XCTAssertEqual(policy.decision(requestURL: script, responseURL: script, statusCode: 302, mimeType: "application/javascript"), .deny(.nonSuccessStatus))
-        XCTAssertEqual(policy.decision(requestURL: script, responseURL: script, statusCode: 200, mimeType: "text/html"), .deny(.unexpectedMIMEType))
-        XCTAssertEqual(policy.decision(requestURL: script, responseURL: script, statusCode: 200, mimeType: "text/css"), .deny(.pathMIMEMismatch))
-        let svg = URL(string: "http://127.0.0.1:7342/plugins/dsh-review/icon.svg")!
-        XCTAssertEqual(policy.decision(requestURL: svg, responseURL: svg, statusCode: 200, mimeType: "image/svg+xml"), .deny(.unexpectedMIMEType))
+        let script = URL(string: "http://127.0.0.1:7342/plugins/??@deepseek-ai/dsh-ui-chat/client.js&rev=r1")!
+        let other = URL(string: "http://127.0.0.1:7342/plugins/??@deepseek-ai/dsh-ui-chat/client.js&rev=r2")!
+        XCTAssertEqual(policy.decision(requestURL: script, responseURL: other, statusCode: 200, mimeType: "text/javascript"), .deny(.redirect))
+        XCTAssertEqual(policy.decision(requestURL: script, responseURL: script, statusCode: 404, mimeType: "text/javascript"), .deny(.nonSuccessStatus))
+        XCTAssertEqual(policy.decision(requestURL: script, responseURL: script, statusCode: 200, mimeType: "application/json"), .deny(.unexpectedMIMEType))
     }
 
     private func makePolicy() throws -> GhostPlaneResponsePolicy {
-        let loopback = try XCTUnwrap(GhostPlaneLoopbackPolicy(
-            origin: URL(string: "http://127.0.0.1:7342/")!, pluginIDs: ["dsh-review"]
-        ))
-        return .init(loopback: loopback)
+        .init(loopback: try XCTUnwrap(GhostPlaneLoopbackPolicy(origin: URL(string: "http://127.0.0.1:7342/")!, pluginIDs: ["@deepseek-ai/dsh-ui-chat"])))
     }
 }

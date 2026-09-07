@@ -1,0 +1,230 @@
+import Foundation
+
+#if DEEPSEEK_HARNESS_PACKAGE
+@testable import GlassSpec
+#endif
+
+/// Source: `packages/feedback/message-feedback/src/types.ts` at RC8.
+enum MessageFeedbackRatingDTO: String, Codable, Sendable, Equatable {
+    case positive
+    case negative
+}
+
+struct MessageFeedbackItemDTO: Codable, Sendable, Equatable, Identifiable {
+    let messageId: String
+    let rating: MessageFeedbackRatingDTO
+    let note: String?
+    /// Equality-only Host mutation token; never interpreted or locally incremented.
+    let version: String
+    let createdAt: Int
+    let updatedAt: Int
+
+    var id: String { messageId }
+}
+
+struct MessageFeedbackListRequest: Codable, Sendable, Equatable {
+    let sessionId: String
+}
+
+struct MessageFeedbackPutRequest: Codable, Sendable, Equatable {
+    let sessionId: String
+    let messageId: String
+    let rating: MessageFeedbackRatingDTO
+    let note: String?
+    /// RC8 distinguishes an explicit null (require absent) from an omitted wire field.
+    let ifVersion: String?
+
+    private enum CodingKeys: String, CodingKey { case sessionId, messageId, rating, note, ifVersion }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(sessionId, forKey: .sessionId)
+        try container.encode(messageId, forKey: .messageId)
+        try container.encode(rating, forKey: .rating)
+        try container.encodeIfPresent(note, forKey: .note)
+        try container.encode(ifVersion, forKey: .ifVersion)
+    }
+}
+
+struct MessageFeedbackDeleteRequest: Codable, Sendable, Equatable {
+    let sessionId: String
+    let messageId: String
+    let ifVersion: String
+}
+
+/// Stable RC8 business error carrier. Optional fields cover the precise
+/// version-conflict `current` projection without inventing client recovery.
+struct MessageFeedbackBusinessErrorDTO: Codable, Sendable, Equatable {
+    let code: String
+    let sessionId: String?
+    let messageId: String?
+    let current: MessageFeedbackItemDTO?
+    let maxBytes: Int?
+    let actualBytes: Int?
+}
+
+struct MessageFeedbackListValueDTO: Codable, Sendable, Equatable {
+    let items: [MessageFeedbackItemDTO]
+}
+
+struct MessageFeedbackDeleteValueDTO: Codable, Sendable, Equatable {
+    let absent: Bool
+}
+
+struct MessageFeedbackListResponse: Codable, Sendable, Equatable {
+    let ok: Bool
+    let value: MessageFeedbackListValueDTO?
+    let error: MessageFeedbackBusinessErrorDTO?
+}
+
+struct MessageFeedbackPutResponse: Codable, Sendable, Equatable {
+    let ok: Bool
+    let value: MessageFeedbackItemDTO?
+    let error: MessageFeedbackBusinessErrorDTO?
+}
+
+struct MessageFeedbackDeleteResponse: Codable, Sendable, Equatable {
+    let ok: Bool
+    let value: MessageFeedbackDeleteValueDTO?
+    let error: MessageFeedbackBusinessErrorDTO?
+}
+
+protocol NativeCredentialAPI: Sendable {
+    func describe(refs: [String]) async throws -> CredentialsDescribeResponse
+    func set(ref: String, value: String) async throws -> EmptyRPCResponse
+    func unset(ref: String) async throws -> EmptyRPCResponse
+}
+
+protocol NativeLLMDirectoryAPI: Sendable {
+    func providers() async throws -> LLMProvidersResponse
+    func discoverModels(_ request: LLMDiscoverModelsRequest) async throws -> LLMDiscoverModelsResponse
+}
+
+protocol NativeAgentPresetAPI: Sendable {
+    func list() async throws -> AgentPresetListResponse
+    func select(sessionID: String, agentPreset: String) async throws -> AgentPresetSelectResponse
+    func read(agentPreset: String) async throws -> AgentPresetReadResponse
+    func copy(_ request: AgentPresetCopyRequest) async throws -> AgentPresetCopyResponse
+    func openDocument(agentPreset: String) async throws -> AgentPresetOpenDocumentResponse
+    func remove(agentPreset: String) async throws -> EmptyRPCResponse
+}
+
+// MARK: - ServerRequest response DTOs
+
+enum ApprovalOutcome: String, Codable, Sendable { case allowedOnce = "allowed-once"; case rejected }
+struct ApprovalResponsePayload: Codable, Sendable { let sessionId: String; let approvalId: String; let outcome: String }
+struct QuestionAnswerResponse: Codable, Sendable { let id: String; let selected: [String]; let custom: String? }
+private struct QuestionAnswerBatch: Codable, Sendable { let answers: [QuestionAnswerResponse] }
+private struct QuestionResponsePayload: Codable, Sendable { let sessionId: String; let answer: QuestionAnswerBatch }
+
+// MARK: - Credentials DTOs
+
+struct EmptyRPCResponse: Codable, Sendable {}
+struct CredentialsDescribeRequest: Codable, Sendable { let refs: [String] }
+struct CredentialsSetRequest: Codable, Sendable { let ref: String; let value: String }
+struct CredentialsUnsetRequest: Codable, Sendable { let ref: String }
+struct CredentialsDescribeResponse: Codable, Sendable { let credentials: [String: CredentialViewDTO] }
+struct CredentialViewDTO: Codable, Sendable { let configured: Bool; let source: String?; let writable: Bool }
+
+// MARK: - LLM DTOs
+
+struct LLMProviderDTO: Codable, Sendable, Identifiable {
+    let provider: String
+    let displayName: String
+    let settingsNs: String
+    let settingsPath: [String]
+    let active: Bool
+    let declared: Bool?
+    var id: String { provider }
+}
+struct LLMProvidersResponse: Codable, Sendable { let providers: [LLMProviderDTO] }
+struct LLMModelDTO: Codable, Sendable, Identifiable { let id: String; let name: String; let description: String? }
+struct LLMModelGroupDTO: Codable, Sendable, Identifiable { let id: String; let name: String; let models: [LLMModelDTO] }
+struct LLMModelFailureDTO: Codable, Sendable, Identifiable { let id: String; let name: String; let message: String }
+struct LLMModelsResponse: Codable, Sendable { let groups: [LLMModelGroupDTO]; let failures: [LLMModelFailureDTO] }
+struct LLMDiscoverModelsRequest: Codable, Sendable {
+    let settingsNs: String
+    let provider: String?
+    let baseURL: String?
+    let api: String?
+    let apiKey: String?
+}
+struct LLMDiscoveredModelDTO: Codable, Sendable, Identifiable { let id: String; let name: String?; let contextWindow: Int?; let maxTokens: Int? }
+struct LLMDiscoverModelsResponse: Codable, Sendable { let models: [LLMDiscoveredModelDTO] }
+
+// MARK: - Subagent DTOs
+
+/// Source: RC8 `subagents.ts:13-63`. `kind` controls which optional fields are
+/// meaningful; callers must fail closed for malformed combinations.
+struct SubagentListRequest: Codable, Sendable, Equatable { let parentSessionId: String }
+struct SubagentListEntryDTO: Codable, Sendable, Equatable {
+    let kind: String
+    let id: String
+    let activity: String?
+    let hasChildren: Bool?
+    let mode: String?
+    let label: String?
+    let reason: String?
+}
+struct SubagentListResponse: Codable, Sendable, Equatable {
+    let entries: [SubagentListEntryDTO]
+    let parentAvailable: Bool
+}
+/// RC8 `SubagentAddress` narrowed to the only mode permitted for prompt and
+/// interrupt. The caller supplies no free-form mode string.
+struct SubagentPromptRequest: Codable, Sendable, Equatable {
+    let parentSessionId: String
+    let childSessionId: String
+    var mode: String = "continuable"
+    let content: [SessionPromptContent]
+    let clientTimeZone: String?
+}
+struct SubagentPromptResponse: Codable, Sendable, Equatable { let messageId: String }
+struct SubagentInterruptRequest: Codable, Sendable, Equatable {
+    let parentSessionId: String
+    let childSessionId: String
+    var mode: String = "continuable"
+}
+struct SubagentInterruptResponse: Codable, Sendable, Equatable { let accepted: Bool }
+
+// MARK: - Goals / command DTOs
+
+struct GoalReferenceDTO: Codable, Sendable, Equatable { let id: String; let revision: Int }
+struct GoalReferenceResponse: Codable, Sendable { let ref: GoalReferenceDTO }
+struct GoalCreateRequest: Codable, Sendable { let sessionId: String; let objective: String; let maxGoalRounds: Int? }
+struct GoalEditRequest: Codable, Sendable { let sessionId: String; let ref: GoalReferenceDTO; let objective: String?; let maxGoalRounds: Int? }
+struct GoalReferenceRequest: Codable, Sendable, Equatable { let sessionId: String; let ref: GoalReferenceDTO }
+struct GoalClearResponse: Codable, Sendable { let cleared: Bool }
+
+// MARK: - Skills DTOs
+
+struct SkillsListRequest: Codable, Sendable { let sessionId: String }
+struct SkillEntryDTO: Codable, Sendable, Identifiable {
+    let name: String
+    let description: String
+    let whenToUse: String?
+    let modelInvocable: Bool
+    var id: String { name }
+}
+struct SkillsListResponse: Codable, Sendable { let skills: [SkillEntryDTO] }
+
+// MARK: - Agent preset DTOs
+
+struct AgentPresetEntryDTO: Codable, Sendable, Identifiable {
+    let id: String
+    let trust: String
+    let isDefault: Bool
+    let name: String?
+    let description: String?
+    let broken: String?
+}
+struct AgentPresetListResponse: Codable, Sendable { let presets: [AgentPresetEntryDTO]; let authorable: Bool; let hasDocument: Bool }
+struct AgentPresetSelectRequest: Codable, Sendable { let sessionId: String; let agentPreset: String }
+struct AgentPresetSelectResponse: Codable, Sendable { let agentPreset: String }
+struct AgentPresetReadRequest: Codable, Sendable { let agentPreset: String }
+struct AgentPresetReadResponse: Codable, Sendable { let agentPreset: String; let trust: String; let content: String; let name: String?; let description: String? }
+struct AgentPresetCopyRequest: Codable, Sendable { let from: String; let agentPreset: String; let name: String? }
+struct AgentPresetCopyResponse: Codable, Sendable { let agentPreset: String }
+struct AgentPresetOpenDocumentRequest: Codable, Sendable { let agentPreset: String }
+struct AgentPresetOpenDocumentResponse: Codable, Sendable { let opened: Bool; let path: String? }
+struct AgentPresetRemoveRequest: Codable, Sendable { let agentPreset: String }

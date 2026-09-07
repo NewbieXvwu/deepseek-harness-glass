@@ -20,17 +20,13 @@ struct HostLifecyclePresentation: Equatable, Sendable {
         switch state {
         case .idle:
             return HostLifecyclePresentation(title: loading, detail: nil, retryTitle: nil, permitsInteraction: false)
-        case let .probingExternal(endpoint):
-            return HostLifecyclePresentation(title: loading, detail: endpoint?.absoluteString, retryTitle: nil, permitsInteraction: false)
-        case .startingOwned, .verifying, .recovering:
+        case .starting, .authenticating, .connecting, .classifying, .recovering:
             return HostLifecyclePresentation(title: loading, detail: nil, retryTitle: nil, permitsInteraction: false)
         case .ready:
             // The locked official locale exposes no "ready" copy; the loading
             // title is a placeholder and consumers gate on permitsInteraction
             // (true) rather than the title.
             return HostLifecyclePresentation(title: loading, detail: nil, retryTitle: nil, permitsInteraction: true)
-        case let .unverified(status):
-            return HostLifecyclePresentation(title: failed, detail: status.reason, retryTitle: retry, permitsInteraction: false)
         case let .failed(failure):
             return HostLifecyclePresentation(title: failed, detail: failure.message, retryTitle: retry, permitsInteraction: false)
         case .stopping:

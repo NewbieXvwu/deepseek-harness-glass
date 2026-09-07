@@ -1,0 +1,1358 @@
+{
+  "schemaVersion": 1,
+  "officialSourceCommit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d",
+  "contractRevision": "official-a66e470-remote-contract-r1",
+  "generation": "locked rc.1 Typert Remote AST and Gateway carrier manifest",
+  "procedures": [
+    {
+      "endpoint": "agentPresets/copy",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "from",
+          "wire": "from",
+          "source": "json",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "id",
+          "wire": "id",
+          "source": "json",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "name",
+          "wire": "name",
+          "source": "json",
+          "type": "string",
+          "optional": true
+        }
+      ],
+      "injected": [],
+      "returnType": "Promise<void>",
+      "sourcePath": "packages/preset/agent-presets/src/index.ts",
+      "sourceLine": 564,
+      "sourceSHA256": "sha256:179ba926742520d5f27ae7b7ec63af5759663fbaad40f5458da6e0e4d80bce6a",
+      "contractSignatureSHA256": "sha256:db778b121efeac8d9f97d41295b9a78785d847dbba87229b4c6b7a8e1e730237"
+    },
+    {
+      "endpoint": "agentPresets/deletePreset",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "id",
+          "wire": "id",
+          "source": "json",
+          "type": "string",
+          "optional": false
+        }
+      ],
+      "injected": [],
+      "returnType": "Promise<void>",
+      "sourcePath": "packages/preset/agent-presets/src/index.ts",
+      "sourceLine": 602,
+      "sourceSHA256": "sha256:179ba926742520d5f27ae7b7ec63af5759663fbaad40f5458da6e0e4d80bce6a",
+      "contractSignatureSHA256": "sha256:63ea71271128d338a946935030fa38d631353da044fa6df90958f1c573c05d72"
+    },
+    {
+      "endpoint": "agentPresets/list",
+      "mode": "unary",
+      "parameters": [],
+      "injected": [],
+      "returnType": "Promise<AgentPresetRoster>",
+      "sourcePath": "packages/preset/agent-presets/src/index.ts",
+      "sourceLine": 260,
+      "sourceSHA256": "sha256:179ba926742520d5f27ae7b7ec63af5759663fbaad40f5458da6e0e4d80bce6a",
+      "contractSignatureSHA256": "sha256:8a3e4234c4b438d7b0254160cdd782d8c7a2bd4b1901517bae88b3e2e10c313f"
+    },
+    {
+      "endpoint": "agentPresets/read",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "agentPreset",
+          "wire": "agentPreset",
+          "source": "json",
+          "type": "string",
+          "optional": false
+        }
+      ],
+      "injected": [],
+      "returnType": "Promise<AgentPresetDocument>",
+      "sourcePath": "packages/preset/agent-presets/src/index.ts",
+      "sourceLine": 512,
+      "sourceSHA256": "sha256:179ba926742520d5f27ae7b7ec63af5759663fbaad40f5458da6e0e4d80bce6a",
+      "contractSignatureSHA256": "sha256:304eaab70b196598629c139f7c9751585741fda9f8138f1138b22380ce6ec3c2"
+    },
+    {
+      "endpoint": "agentPresets/select",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "agent",
+          "wire": "agentId",
+          "source": "lookup",
+          "lookup": "agent",
+          "type": "Agent",
+          "optional": false
+        },
+        {
+          "name": "agentPreset",
+          "wire": "agentPreset",
+          "source": "json",
+          "type": "string",
+          "optional": false
+        }
+      ],
+      "injected": [],
+      "returnType": "Promise<string>",
+      "sourcePath": "packages/preset/agent-presets/src/index.ts",
+      "sourceLine": 694,
+      "sourceSHA256": "sha256:179ba926742520d5f27ae7b7ec63af5759663fbaad40f5458da6e0e4d80bce6a",
+      "contractSignatureSHA256": "sha256:ffe6186ef978ea8f6bbb2ea5fe5309b1129c2d7de3da25228f55bfd4547cf301"
+    },
+    {
+      "endpoint": "credentials/describe",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "refs",
+          "wire": "refs",
+          "source": "json",
+          "type": "string[]",
+          "optional": false
+        }
+      ],
+      "injected": [],
+      "returnType": "Promise<Record<string,CredentialInfo>>",
+      "sourcePath": "packages/api/settings-controller/src/credentials.ts",
+      "sourceLine": 82,
+      "sourceSHA256": "sha256:59b6cec2aeba79c76c357525014f4aee49e01e25d786eb637acd210c1e5b66a4",
+      "contractSignatureSHA256": "sha256:46449038eec30b793b1ae33855651f1c926a791c562c13cb021a750c4c759edb"
+    },
+    {
+      "endpoint": "credentials/set",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "ref",
+          "wire": "ref",
+          "source": "json",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "value",
+          "wire": "value",
+          "source": "json",
+          "type": "string",
+          "optional": false
+        }
+      ],
+      "injected": [],
+      "returnType": "Promise<void>",
+      "sourcePath": "packages/api/settings-controller/src/credentials.ts",
+      "sourceLine": 99,
+      "sourceSHA256": "sha256:59b6cec2aeba79c76c357525014f4aee49e01e25d786eb637acd210c1e5b66a4",
+      "contractSignatureSHA256": "sha256:eeab69a6bf33fac634c9d772e7dcde566eb9e374dd3217c5ddafcb79f342f2a7"
+    },
+    {
+      "endpoint": "credentials/unset",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "ref",
+          "wire": "ref",
+          "source": "json",
+          "type": "string",
+          "optional": false
+        }
+      ],
+      "injected": [],
+      "returnType": "Promise<void>",
+      "sourcePath": "packages/api/settings-controller/src/credentials.ts",
+      "sourceLine": 112,
+      "sourceSHA256": "sha256:59b6cec2aeba79c76c357525014f4aee49e01e25d786eb637acd210c1e5b66a4",
+      "contractSignatureSHA256": "sha256:cc1d50b44f8fdfbd2c2599f96550a99d9d072997b4e59f7be81ec2473f21d298"
+    },
+    {
+      "endpoint": "goals/clear",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "agent",
+          "wire": "agentId",
+          "source": "lookup",
+          "lookup": "agent",
+          "type": "Agent",
+          "optional": false
+        },
+        {
+          "name": "ref",
+          "wire": "ref",
+          "source": "json",
+          "type": "GoalRef",
+          "optional": false
+        }
+      ],
+      "injected": [],
+      "returnType": "GoalRef",
+      "sourcePath": "packages/goal/goal/src/index.ts",
+      "sourceLine": 430,
+      "sourceSHA256": "sha256:7af21235fda87e36d3f454b7b789fb8a2ad62a0f23dc09ddf49ca264ad73b37c",
+      "contractSignatureSHA256": "sha256:d8d0e1ba3f24a9e0eeabcb67f489d65e265e2c4c10a742c5a53dd2c55ca267e0"
+    },
+    {
+      "endpoint": "goals/complete",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "agent",
+          "wire": "agentId",
+          "source": "lookup",
+          "lookup": "agent",
+          "type": "Agent",
+          "optional": false
+        },
+        {
+          "name": "ref",
+          "wire": "ref",
+          "source": "json",
+          "type": "GoalRef",
+          "optional": false
+        }
+      ],
+      "injected": [],
+      "returnType": "GoalView",
+      "sourcePath": "packages/goal/goal/src/index.ts",
+      "sourceLine": 388,
+      "sourceSHA256": "sha256:7af21235fda87e36d3f454b7b789fb8a2ad62a0f23dc09ddf49ca264ad73b37c",
+      "contractSignatureSHA256": "sha256:53b64fc096935d2ae32f0abe3ce2130f22a768f20984dfe649e79ea9d4238c55"
+    },
+    {
+      "endpoint": "goals/create",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "agent",
+          "wire": "agentId",
+          "source": "lookup",
+          "lookup": "agent",
+          "type": "Agent",
+          "optional": false
+        },
+        {
+          "name": "request",
+          "wire": "request",
+          "source": "json",
+          "type": "CreateGoalRequest",
+          "optional": false
+        }
+      ],
+      "injected": [],
+      "returnType": "CreateGoalResult",
+      "sourcePath": "packages/goal/goal/src/index.ts",
+      "sourceLine": 622,
+      "sourceSHA256": "sha256:7af21235fda87e36d3f454b7b789fb8a2ad62a0f23dc09ddf49ca264ad73b37c",
+      "contractSignatureSHA256": "sha256:5c9af3581c6eb03e3d784b6fb47bae3486e1b619f69bd27fddadecf5d2c3b562"
+    },
+    {
+      "endpoint": "goals/edit",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "agent",
+          "wire": "agentId",
+          "source": "lookup",
+          "lookup": "agent",
+          "type": "Agent",
+          "optional": false
+        },
+        {
+          "name": "ref",
+          "wire": "ref",
+          "source": "json",
+          "type": "GoalRef",
+          "optional": false
+        },
+        {
+          "name": "request",
+          "wire": "request",
+          "source": "json",
+          "type": "EditGoalRequest",
+          "optional": false
+        }
+      ],
+      "injected": [],
+      "returnType": "GoalView",
+      "sourcePath": "packages/goal/goal/src/index.ts",
+      "sourceLine": 326,
+      "sourceSHA256": "sha256:7af21235fda87e36d3f454b7b789fb8a2ad62a0f23dc09ddf49ca264ad73b37c",
+      "contractSignatureSHA256": "sha256:0d1f49194f2ed9a1fb13aa23dc60c2ded2d57edc49a6707ba73135cdba2d2e5d"
+    },
+    {
+      "endpoint": "goals/pause",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "agent",
+          "wire": "agentId",
+          "source": "lookup",
+          "lookup": "agent",
+          "type": "Agent",
+          "optional": false
+        },
+        {
+          "name": "ref",
+          "wire": "ref",
+          "source": "json",
+          "type": "GoalRef",
+          "optional": false
+        }
+      ],
+      "injected": [],
+      "returnType": "GoalView",
+      "sourcePath": "packages/goal/goal/src/index.ts",
+      "sourceLine": 349,
+      "sourceSHA256": "sha256:7af21235fda87e36d3f454b7b789fb8a2ad62a0f23dc09ddf49ca264ad73b37c",
+      "contractSignatureSHA256": "sha256:a7a582ead675c6deef493a9845b457bfa08133c89f82d5597ec1413357b2893d"
+    },
+    {
+      "endpoint": "goals/resume",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "agent",
+          "wire": "agentId",
+          "source": "lookup",
+          "lookup": "agent",
+          "type": "Agent",
+          "optional": false
+        },
+        {
+          "name": "ref",
+          "wire": "ref",
+          "source": "json",
+          "type": "GoalRef",
+          "optional": false
+        }
+      ],
+      "injected": [],
+      "returnType": "GoalView",
+      "sourcePath": "packages/goal/goal/src/index.ts",
+      "sourceLine": 361,
+      "sourceSHA256": "sha256:7af21235fda87e36d3f454b7b789fb8a2ad62a0f23dc09ddf49ca264ad73b37c",
+      "contractSignatureSHA256": "sha256:8e33bbd616eb9271a66e396b5cda817255dd0b465d3f985198b73f04f7fe37f3"
+    },
+    {
+      "endpoint": "llm/discoverModels",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "settingsNs",
+          "wire": "settingsNs",
+          "source": "json",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "request",
+          "wire": "request",
+          "source": "json",
+          "type": "LlmModelDiscoveryRequest",
+          "optional": false
+        }
+      ],
+      "injected": [
+        {
+          "name": "signal",
+          "kind": "AbortSignal"
+        }
+      ],
+      "returnType": "Promise<LlmDiscoveredModel[]>",
+      "sourcePath": "packages/llm/llm/src/index.ts",
+      "sourceLine": 620,
+      "sourceSHA256": "sha256:e94e3a72f17d2d82038f3b456abcb19260153577706acbb81498b93fb2a41b50",
+      "contractSignatureSHA256": "sha256:41d7706c7c2fcf5a16d699c500ee0351fe81359e841743226feb4c40c6bb2908"
+    },
+    {
+      "endpoint": "llm/listConfigurableProviders",
+      "mode": "unary",
+      "parameters": [],
+      "injected": [],
+      "returnType": "LlmConfigurableProvider[]",
+      "sourcePath": "packages/llm/llm/src/index.ts",
+      "sourceLine": 533,
+      "sourceSHA256": "sha256:e94e3a72f17d2d82038f3b456abcb19260153577706acbb81498b93fb2a41b50",
+      "contractSignatureSHA256": "sha256:525e7fcef2d3e54dc15f2b86bf49b77560eecfc80d5139dd0d7aa523cea00911"
+    },
+    {
+      "endpoint": "llm/listProviders",
+      "mode": "unary",
+      "parameters": [],
+      "injected": [],
+      "returnType": "LlmProviderInfo[]",
+      "sourcePath": "packages/llm/llm/src/index.ts",
+      "sourceLine": 461,
+      "sourceSHA256": "sha256:e94e3a72f17d2d82038f3b456abcb19260153577706acbb81498b93fb2a41b50",
+      "contractSignatureSHA256": "sha256:6d008428f902081481e4e6a143c15fcb9bbf43f314a868fc3ae5043623c0c030"
+    },
+    {
+      "endpoint": "messageFeedback/delete",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "request",
+          "wire": "request",
+          "source": "json",
+          "type": "MessageFeedbackDeleteRequest",
+          "optional": false
+        }
+      ],
+      "injected": [],
+      "returnType": "Promise<MessageFeedbackDeleteResult>",
+      "sourcePath": "packages/feedback/message-feedback/src/index.ts",
+      "sourceLine": 272,
+      "sourceSHA256": "sha256:c6caa3af663e6583622cc5da2fa88429137e82fbf05383b33b9330c185f76c70",
+      "contractSignatureSHA256": "sha256:570d33dbc373dd4113a7e3b2cd11571f0a15a9bc4bc93b125cd713b751e33b9a"
+    },
+    {
+      "endpoint": "messageFeedback/list",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "request",
+          "wire": "request",
+          "source": "json",
+          "type": "MessageFeedbackListRequest",
+          "optional": false
+        }
+      ],
+      "injected": [],
+      "returnType": "Promise<MessageFeedbackListResult>",
+      "sourcePath": "packages/feedback/message-feedback/src/index.ts",
+      "sourceLine": 190,
+      "sourceSHA256": "sha256:c6caa3af663e6583622cc5da2fa88429137e82fbf05383b33b9330c185f76c70",
+      "contractSignatureSHA256": "sha256:ed4dcd377ab3d81bcafeb115fefe8adb4b63ddc67a7c164f67411dbda59f6f5c"
+    },
+    {
+      "endpoint": "messageFeedback/put",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "request",
+          "wire": "request",
+          "source": "json",
+          "type": "MessageFeedbackPutRequest",
+          "optional": false
+        }
+      ],
+      "injected": [],
+      "returnType": "Promise<MessageFeedbackPutResult>",
+      "sourcePath": "packages/feedback/message-feedback/src/index.ts",
+      "sourceLine": 206,
+      "sourceSHA256": "sha256:c6caa3af663e6583622cc5da2fa88429137e82fbf05383b33b9330c185f76c70",
+      "contractSignatureSHA256": "sha256:c191d2e06c89fb564cdc74e483c9ef0cfa56acd0dc52a2763a95c48d7be4e557"
+    },
+    {
+      "endpoint": "session/attachment",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "request",
+          "wire": "request",
+          "source": "json",
+          "type": "SessionAttachmentRequest",
+          "optional": false
+        }
+      ],
+      "injected": [],
+      "returnType": "Promise<SessionAttachmentValue>",
+      "sourcePath": "packages/api/session-controller/src/index.ts",
+      "sourceLine": 337,
+      "sourceSHA256": "sha256:3f1aaa8c8c949196f9955d01fed246d89fec93b945c05366d46c535c611fef08",
+      "contractSignatureSHA256": "sha256:05c9949bb1d6507b5aa0ceae08e816dcc5b53c19a814b8b3d8a2ebdc92c4f289"
+    },
+    {
+      "endpoint": "session/canOpenWorkspacePath",
+      "mode": "unary",
+      "parameters": [],
+      "injected": [],
+      "returnType": "boolean",
+      "sourcePath": "packages/api/session-controller/src/index.ts",
+      "sourceLine": 262,
+      "sourceSHA256": "sha256:3f1aaa8c8c949196f9955d01fed246d89fec93b945c05366d46c535c611fef08",
+      "contractSignatureSHA256": "sha256:04a0ff8325dd6832b5b5eac53df95cdd81ec741ebd4f3a9a14a7a00c2dc65fd6"
+    },
+    {
+      "endpoint": "session/cancel",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "request",
+          "wire": "request",
+          "source": "json",
+          "type": "SessionCancelRequest",
+          "optional": false
+        }
+      ],
+      "injected": [],
+      "returnType": "SessionCancelValue",
+      "sourcePath": "packages/api/session-controller/src/index.ts",
+      "sourceLine": 357,
+      "sourceSHA256": "sha256:3f1aaa8c8c949196f9955d01fed246d89fec93b945c05366d46c535c611fef08",
+      "contractSignatureSHA256": "sha256:2b27b8d81b288d19189932301ce9c57890c337bb36bc6fa3af4058b9dac57b8c"
+    },
+    {
+      "endpoint": "session/control",
+      "mode": "stream",
+      "parameters": [],
+      "injected": [
+        {
+          "name": "signal",
+          "kind": "AbortSignal"
+        }
+      ],
+      "returnType": "AsyncIterable<SessionControlFrame>",
+      "sourcePath": "packages/api/session-controller/src/index.ts",
+      "sourceLine": 389,
+      "sourceSHA256": "sha256:3f1aaa8c8c949196f9955d01fed246d89fec93b945c05366d46c535c611fef08",
+      "contractSignatureSHA256": "sha256:5d541fc182c5f097a6b4913c42bbc48da64484f2bc4f195aa039f5c9af26c4a8"
+    },
+    {
+      "endpoint": "session/create",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "request",
+          "wire": "request",
+          "source": "json",
+          "type": "SessionCreateRequest",
+          "optional": false
+        }
+      ],
+      "injected": [],
+      "returnType": "Promise<SessionCreateValue>",
+      "sourcePath": "packages/api/session-controller/src/index.ts",
+      "sourceLine": 234,
+      "sourceSHA256": "sha256:3f1aaa8c8c949196f9955d01fed246d89fec93b945c05366d46c535c611fef08",
+      "contractSignatureSHA256": "sha256:cf391b9908ce17aad7552b50b3ef313eefe193af8bb2a150c597d1aebf806541"
+    },
+    {
+      "endpoint": "session/follow",
+      "mode": "stream",
+      "parameters": [
+        {
+          "name": "request",
+          "wire": "request",
+          "source": "json",
+          "type": "SessionFollowRequest",
+          "optional": false
+        }
+      ],
+      "injected": [
+        {
+          "name": "signal",
+          "kind": "AbortSignal"
+        }
+      ],
+      "returnType": "AsyncIterable<SessionFollowFrame>",
+      "sourcePath": "packages/api/session-controller/src/index.ts",
+      "sourceLine": 379,
+      "sourceSHA256": "sha256:3f1aaa8c8c949196f9955d01fed246d89fec93b945c05366d46c535c611fef08",
+      "contractSignatureSHA256": "sha256:7061fa78bf13d05aba2bb731aca686cb94b9b7b27031027693b4da90786958a9"
+    },
+    {
+      "endpoint": "session/fork",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "request",
+          "wire": "request",
+          "source": "json",
+          "type": "SessionForkRequest",
+          "optional": false
+        }
+      ],
+      "injected": [],
+      "returnType": "Promise<SessionForkValue>",
+      "sourcePath": "packages/api/session-controller/src/index.ts",
+      "sourceLine": 315,
+      "sourceSHA256": "sha256:3f1aaa8c8c949196f9955d01fed246d89fec93b945c05366d46c535c611fef08",
+      "contractSignatureSHA256": "sha256:a0dc507a05dc2b46b2f1eb384708a2b65a6837ea8e2fa3b4ca0cfcf4288c5dbf"
+    },
+    {
+      "endpoint": "session/list",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "_request",
+          "wire": "_request",
+          "source": "json",
+          "type": "SessionListRequest",
+          "optional": false
+        }
+      ],
+      "injected": [
+        {
+          "name": "signal",
+          "kind": "AbortSignal"
+        }
+      ],
+      "returnType": "Promise<SessionListValue>",
+      "sourcePath": "packages/api/session-controller/src/index.ts",
+      "sourceLine": 213,
+      "sourceSHA256": "sha256:3f1aaa8c8c949196f9955d01fed246d89fec93b945c05366d46c535c611fef08",
+      "contractSignatureSHA256": "sha256:43df75bd45218ba56447b58268edc4398c3c4eb30ca85b5a3ae906eded0af160"
+    },
+    {
+      "endpoint": "session/modelCatalog",
+      "mode": "unary",
+      "parameters": [],
+      "injected": [],
+      "returnType": "Promise<ModelCatalog>",
+      "sourcePath": "packages/api/session-controller/src/index.ts",
+      "sourceLine": 253,
+      "sourceSHA256": "sha256:3f1aaa8c8c949196f9955d01fed246d89fec93b945c05366d46c535c611fef08",
+      "contractSignatureSHA256": "sha256:7b91e9d2b5dc93fc319c7114167a62261d572db147b492bf49ee177d67b0c054"
+    },
+    {
+      "endpoint": "session/openWorkspacePath",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "request",
+          "wire": "request",
+          "source": "json",
+          "type": "SessionOpenWorkspacePathRequest",
+          "optional": false
+        }
+      ],
+      "injected": [
+        {
+          "name": "signal",
+          "kind": "AbortSignal"
+        }
+      ],
+      "returnType": "Promise<SessionOpenWorkspacePathValue>",
+      "sourcePath": "packages/api/session-controller/src/index.ts",
+      "sourceLine": 274,
+      "sourceSHA256": "sha256:3f1aaa8c8c949196f9955d01fed246d89fec93b945c05366d46c535c611fef08",
+      "contractSignatureSHA256": "sha256:e4c8d1b4719daf1a44c7114e0319f533bc50756bfba86a02d6017d97e85bc84d"
+    },
+    {
+      "endpoint": "session/page",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "request",
+          "wire": "request",
+          "source": "json",
+          "type": "SessionPageRequest",
+          "optional": false
+        }
+      ],
+      "injected": [
+        {
+          "name": "signal",
+          "kind": "AbortSignal"
+        }
+      ],
+      "returnType": "Promise<SessionPage>",
+      "sourcePath": "packages/api/session-controller/src/index.ts",
+      "sourceLine": 368,
+      "sourceSHA256": "sha256:3f1aaa8c8c949196f9955d01fed246d89fec93b945c05366d46c535c611fef08",
+      "contractSignatureSHA256": "sha256:1dae224e5c3a8aa31295538563b9993bc44093c16e276981e35e8b6556d19854"
+    },
+    {
+      "endpoint": "session/prompt",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "request",
+          "wire": "request",
+          "source": "json",
+          "type": "SessionPromptRequest",
+          "optional": false
+        }
+      ],
+      "injected": [
+        {
+          "name": "signal",
+          "kind": "AbortSignal"
+        }
+      ],
+      "returnType": "Promise<SessionPromptValue>",
+      "sourcePath": "packages/api/session-controller/src/index.ts",
+      "sourceLine": 326,
+      "sourceSHA256": "sha256:3f1aaa8c8c949196f9955d01fed246d89fec93b945c05366d46c535c611fef08",
+      "contractSignatureSHA256": "sha256:c924d625daef438f7dcd209a88579bb16a4d8ee03679ac546882538f20c82dff"
+    },
+    {
+      "endpoint": "session/rename",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "request",
+          "wire": "request",
+          "source": "json",
+          "type": "SessionRenameRequest",
+          "optional": false
+        }
+      ],
+      "injected": [],
+      "returnType": "Promise<SessionRenameValue>",
+      "sourcePath": "packages/api/session-controller/src/index.ts",
+      "sourceLine": 305,
+      "sourceSHA256": "sha256:3f1aaa8c8c949196f9955d01fed246d89fec93b945c05366d46c535c611fef08",
+      "contractSignatureSHA256": "sha256:f2840afb0bae82791bcf59a3f6558cf0b1469d11100fef4cf7421377f2cc6fdf"
+    },
+    {
+      "endpoint": "session/search",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "request",
+          "wire": "request",
+          "source": "json",
+          "type": "SessionSearchRequest",
+          "optional": false
+        }
+      ],
+      "injected": [
+        {
+          "name": "signal",
+          "kind": "AbortSignal"
+        }
+      ],
+      "returnType": "Promise<SessionSearchValue>",
+      "sourcePath": "packages/api/session-controller/src/index.ts",
+      "sourceLine": 224,
+      "sourceSHA256": "sha256:3f1aaa8c8c949196f9955d01fed246d89fec93b945c05366d46c535c611fef08",
+      "contractSignatureSHA256": "sha256:6b9ce6c19f5f6aeffa568d840cb9eac4e2610e2e724b9cff4c589023929cf1d7"
+    },
+    {
+      "endpoint": "session/selectModel",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "request",
+          "wire": "request",
+          "source": "json",
+          "type": "SessionSelectModelRequest",
+          "optional": false
+        }
+      ],
+      "injected": [],
+      "returnType": "Promise<SessionSelectModelValue>",
+      "sourcePath": "packages/api/session-controller/src/index.ts",
+      "sourceLine": 244,
+      "sourceSHA256": "sha256:3f1aaa8c8c949196f9955d01fed246d89fec93b945c05366d46c535c611fef08",
+      "contractSignatureSHA256": "sha256:2e8aeb51171e95abd31197a53eb8edd6d9adb329273d2c5fad5e55438fd899cb"
+    },
+    {
+      "endpoint": "session/updateQueue",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "request",
+          "wire": "request",
+          "source": "json",
+          "type": "SessionUpdateQueueRequest",
+          "optional": false
+        }
+      ],
+      "injected": [],
+      "returnType": "SessionUpdateQueueValue",
+      "sourcePath": "packages/api/session-controller/src/index.ts",
+      "sourceLine": 347,
+      "sourceSHA256": "sha256:3f1aaa8c8c949196f9955d01fed246d89fec93b945c05366d46c535c611fef08",
+      "contractSignatureSHA256": "sha256:8b6165985f5e416f3ef2e37ad26f3336cd724995079247b4f60ecb8dbed0d8b7"
+    },
+    {
+      "endpoint": "settings/canOpenAgentPresetDirectory",
+      "mode": "unary",
+      "parameters": [],
+      "injected": [],
+      "returnType": "boolean",
+      "sourcePath": "packages/api/settings-controller/src/index.ts",
+      "sourceLine": 130,
+      "sourceSHA256": "sha256:2179ab17800f33f74ccdab0b31cba9a856c70f40ca2a677b43be3a66c85eb459",
+      "contractSignatureSHA256": "sha256:3db547b8d82630023897896714bc07de92e3481a917ca28898c06d606834c341"
+    },
+    {
+      "endpoint": "settings/describe",
+      "mode": "unary",
+      "parameters": [],
+      "injected": [],
+      "returnType": "SettingsDescribeValue",
+      "sourcePath": "packages/api/settings-controller/src/index.ts",
+      "sourceLine": 116,
+      "sourceSHA256": "sha256:2179ab17800f33f74ccdab0b31cba9a856c70f40ca2a677b43be3a66c85eb459",
+      "contractSignatureSHA256": "sha256:81f43b351d7a16a2e0ba4a161c14f0d29f0d1760ebaa136057143aae8a1000a8"
+    },
+    {
+      "endpoint": "settings/mutate",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "ns",
+          "wire": "ns",
+          "source": "json",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "ops",
+          "wire": "ops",
+          "source": "json",
+          "type": "SettingsPathOpView[]",
+          "optional": false
+        },
+        {
+          "name": "expectedRevision",
+          "wire": "expectedRevision",
+          "source": "json",
+          "type": "number|undefined",
+          "optional": false
+        }
+      ],
+      "injected": [],
+      "returnType": "Promise<SettingsNamespaceView>",
+      "sourcePath": "packages/api/settings-controller/src/index.ts",
+      "sourceLine": 179,
+      "sourceSHA256": "sha256:2179ab17800f33f74ccdab0b31cba9a856c70f40ca2a677b43be3a66c85eb459",
+      "contractSignatureSHA256": "sha256:06426b6eb4b98d33ba7ad537a605f1e781dcd5ad77963d7427b6862bb43fb31c"
+    },
+    {
+      "endpoint": "settings/openAgentPresetDirectory",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "agentPreset",
+          "wire": "agentPreset",
+          "source": "json",
+          "type": "string",
+          "optional": false
+        }
+      ],
+      "injected": [
+        {
+          "name": "signal",
+          "kind": "AbortSignal"
+        }
+      ],
+      "returnType": "Promise<AgentPresetDirectoryOpenValue>",
+      "sourcePath": "packages/api/settings-controller/src/index.ts",
+      "sourceLine": 225,
+      "sourceSHA256": "sha256:2179ab17800f33f74ccdab0b31cba9a856c70f40ca2a677b43be3a66c85eb459",
+      "contractSignatureSHA256": "sha256:c052a4d31e47d00c4408948207cbc3eb5d9a5c59bf31aff2ec909de1e9307236"
+    },
+    {
+      "endpoint": "settings/openSettingsDocument",
+      "mode": "unary",
+      "parameters": [],
+      "injected": [
+        {
+          "name": "signal",
+          "kind": "AbortSignal"
+        }
+      ],
+      "returnType": "Promise<SettingsDocumentOpenValue>",
+      "sourcePath": "packages/api/settings-controller/src/index.ts",
+      "sourceLine": 194,
+      "sourceSHA256": "sha256:2179ab17800f33f74ccdab0b31cba9a856c70f40ca2a677b43be3a66c85eb459",
+      "contractSignatureSHA256": "sha256:4d79587e973cbb5496f5a397614e66eb8a050841498900651faec217c75117bd"
+    },
+    {
+      "endpoint": "subagents/interruptByParent",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "childSessionId",
+          "wire": "childSessionId",
+          "source": "json",
+          "type": "SessionId",
+          "optional": false
+        },
+        {
+          "name": "parentSessionId",
+          "wire": "parentSessionId",
+          "source": "json",
+          "type": "SessionId",
+          "optional": false
+        },
+        {
+          "name": "mode",
+          "wire": "mode",
+          "source": "json",
+          "type": "'continuable'",
+          "optional": false
+        }
+      ],
+      "injected": [],
+      "returnType": "SubagentInterruptReceipt",
+      "sourcePath": "packages/subagent/subagent/src/index.ts",
+      "sourceLine": 475,
+      "sourceSHA256": "sha256:173e3e150ad24758c52156a9a3b27ec6632f780a999feeeee6f584601c5bd653",
+      "contractSignatureSHA256": "sha256:0f68588e43fefcac04b250fb3af49a73f45eeeda68787a44f9ff2aa50841ff0e"
+    },
+    {
+      "endpoint": "subagents/list",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "parentSessionId",
+          "wire": "parentSessionId",
+          "source": "json",
+          "type": "SessionId",
+          "optional": false
+        }
+      ],
+      "injected": [
+        {
+          "name": "signal",
+          "kind": "AbortSignal"
+        }
+      ],
+      "returnType": "Promise<SubagentCatalog>",
+      "sourcePath": "packages/subagent/subagent/src/index.ts",
+      "sourceLine": 383,
+      "sourceSHA256": "sha256:173e3e150ad24758c52156a9a3b27ec6632f780a999feeeee6f584601c5bd653",
+      "contractSignatureSHA256": "sha256:75083e2795ea459e44426a41b972a0465391438966d42976dc0799ed9287a860"
+    },
+    {
+      "endpoint": "subagents/prompt",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "request",
+          "wire": "request",
+          "source": "json",
+          "type": "SubagentPromptRequest",
+          "optional": false
+        }
+      ],
+      "injected": [
+        {
+          "name": "signal",
+          "kind": "AbortSignal"
+        }
+      ],
+      "returnType": "Promise<SubagentPromptReceipt>",
+      "sourcePath": "packages/subagent/subagent/src/index.ts",
+      "sourceLine": 409,
+      "sourceSHA256": "sha256:173e3e150ad24758c52156a9a3b27ec6632f780a999feeeee6f584601c5bd653",
+      "contractSignatureSHA256": "sha256:ab0d873b8a4e23a83ade1cfc7d5ebdf9b4198d0fd2567e7aec48f7a367f266bf"
+    },
+    {
+      "endpoint": "workspace/archiveSession",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "request",
+          "wire": "request",
+          "source": "json",
+          "type": "WorkspaceArchiveSessionRequest",
+          "optional": false
+        }
+      ],
+      "injected": [],
+      "returnType": "Promise<WorkspaceArchiveValue>",
+      "sourcePath": "packages/api/workspace-controller/src/index.ts",
+      "sourceLine": 107,
+      "sourceSHA256": "sha256:5178c295529ebbf8266fc9c27dae20bdf7922938121ad1d91693115818867683",
+      "contractSignatureSHA256": "sha256:51d25ef2a7adafc0ac13ff9e81dfdc37a8497eb3996f22df2c2df2d854a881b4"
+    },
+    {
+      "endpoint": "workspace/create",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "request",
+          "wire": "request",
+          "source": "json",
+          "type": "WorkspaceCreateRequest",
+          "optional": false
+        }
+      ],
+      "injected": [],
+      "returnType": "Promise<WorkspaceCreateValue>",
+      "sourcePath": "packages/api/workspace-controller/src/index.ts",
+      "sourceLine": 57,
+      "sourceSHA256": "sha256:5178c295529ebbf8266fc9c27dae20bdf7922938121ad1d91693115818867683",
+      "contractSignatureSHA256": "sha256:7f3f52d2e2eebc34be7ec77d8aeccca7e7b6242e38dda68f761af40c22dcaf5f"
+    },
+    {
+      "endpoint": "workspace/delete",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "request",
+          "wire": "request",
+          "source": "json",
+          "type": "WorkspaceDeleteRequest",
+          "optional": false
+        }
+      ],
+      "injected": [],
+      "returnType": "Promise<WorkspaceDeleteValue>",
+      "sourcePath": "packages/api/workspace-controller/src/index.ts",
+      "sourceLine": 77,
+      "sourceSHA256": "sha256:5178c295529ebbf8266fc9c27dae20bdf7922938121ad1d91693115818867683",
+      "contractSignatureSHA256": "sha256:8e3186f63b016c9227486642d8a790b67dcd77cbba26ac3e25752dd192acef1b"
+    },
+    {
+      "endpoint": "workspace/follow",
+      "mode": "stream",
+      "parameters": [],
+      "injected": [
+        {
+          "name": "signal",
+          "kind": "AbortSignal"
+        }
+      ],
+      "returnType": "AsyncIterable<WorkspaceFollowFrame>",
+      "sourcePath": "packages/api/workspace-controller/src/index.ts",
+      "sourceLine": 117,
+      "sourceSHA256": "sha256:5178c295529ebbf8266fc9c27dae20bdf7922938121ad1d91693115818867683",
+      "contractSignatureSHA256": "sha256:055bfd174fb449207f3707d12c0349083623841ff598ac8e829dd1ee5b225a3a"
+    },
+    {
+      "endpoint": "workspace/insertBefore",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "request",
+          "wire": "request",
+          "source": "json",
+          "type": "WorkspaceInsertBeforeRequest",
+          "optional": false
+        }
+      ],
+      "injected": [],
+      "returnType": "Promise<WorkspaceOrderValue>",
+      "sourcePath": "packages/api/workspace-controller/src/index.ts",
+      "sourceLine": 87,
+      "sourceSHA256": "sha256:5178c295529ebbf8266fc9c27dae20bdf7922938121ad1d91693115818867683",
+      "contractSignatureSHA256": "sha256:0c715d32138600e0d7985fd0f164c84d9d19828fd39680bca1e5652ff0f0165e"
+    },
+    {
+      "endpoint": "workspace/insertSessionBefore",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "request",
+          "wire": "request",
+          "source": "json",
+          "type": "WorkspaceInsertSessionBeforeRequest",
+          "optional": false
+        }
+      ],
+      "injected": [],
+      "returnType": "Promise<WorkspaceValue>",
+      "sourcePath": "packages/api/workspace-controller/src/index.ts",
+      "sourceLine": 97,
+      "sourceSHA256": "sha256:5178c295529ebbf8266fc9c27dae20bdf7922938121ad1d91693115818867683",
+      "contractSignatureSHA256": "sha256:d214aeefc42b63eb097d85515a56bf50cced4fb9c3bea9fbaa07934e0140f397"
+    },
+    {
+      "endpoint": "workspace/rename",
+      "mode": "unary",
+      "parameters": [
+        {
+          "name": "request",
+          "wire": "request",
+          "source": "json",
+          "type": "WorkspaceRenameRequest",
+          "optional": false
+        }
+      ],
+      "injected": [],
+      "returnType": "Promise<WorkspaceValue>",
+      "sourcePath": "packages/api/workspace-controller/src/index.ts",
+      "sourceLine": 67,
+      "sourceSHA256": "sha256:5178c295529ebbf8266fc9c27dae20bdf7922938121ad1d91693115818867683",
+      "contractSignatureSHA256": "sha256:b9e4f7fc4624e491b93e286e42223874f864df768a056689beeb8d4dafbbfec6"
+    }
+  ],
+  "closedRemoteErrors": [
+    {
+      "code": "agent-preset/conflict",
+      "detailsType": "{ readonly sessionId: SessionId readonly requestedPreset: string readonly existingPreset?: string }",
+      "sourcePath": "packages/api/session-controller/src/types.ts",
+      "sourceSHA256": "sha256:103bec53728f20f7fcc6c585139a4f5799fc0b5036f82582eb1ee17ee8e18dac"
+    },
+    {
+      "code": "agent-preset/invalid",
+      "detailsType": "{ readonly agentPreset: string; readonly reason: string }",
+      "sourcePath": "packages/preset/agent-presets/src/types.ts",
+      "sourceSHA256": "sha256:618c9d2274d950d70f695363c9475364bac865538a14d056203aa889134bdfb3"
+    },
+    {
+      "code": "agent-preset/locked",
+      "detailsType": "{ readonly sessionId: SessionId; readonly agentPreset: string }",
+      "sourcePath": "packages/preset/agent-presets/src/types.ts",
+      "sourceSHA256": "sha256:618c9d2274d950d70f695363c9475364bac865538a14d056203aa889134bdfb3"
+    },
+    {
+      "code": "agent-preset/not-found",
+      "detailsType": "{ readonly agentPreset: string; readonly available: readonly string[] }",
+      "sourcePath": "packages/preset/agent-presets/src/types.ts",
+      "sourceSHA256": "sha256:618c9d2274d950d70f695363c9475364bac865538a14d056203aa889134bdfb3"
+    },
+    {
+      "code": "agent-preset/read-only",
+      "detailsType": "{ readonly agentPreset: string; readonly reason: string }",
+      "sourcePath": "packages/preset/agent-presets/src/types.ts",
+      "sourceSHA256": "sha256:618c9d2274d950d70f695363c9475364bac865538a14d056203aa889134bdfb3"
+    },
+    {
+      "code": "credential/rejected",
+      "detailsType": "{ readonly ref: string }",
+      "sourcePath": "packages/api/settings-controller/src/types.ts",
+      "sourceSHA256": "sha256:c1c92eccdc592adbc5ba94bd43e7ea3009014073e942251ed5a6e4287487865a"
+    },
+    {
+      "code": "gateway/bad-request",
+      "detailsType": "{ readonly issues?: readonly object[] }",
+      "sourcePath": "packages/typert/protocol/src/types.ts",
+      "sourceSHA256": "sha256:73869903a477e1636e10503c00cb8829e66121a064bc57dc271203779576808a"
+    },
+    {
+      "code": "gateway/cancelled",
+      "detailsType": "{}",
+      "sourcePath": "packages/typert/protocol/src/types.ts",
+      "sourceSHA256": "sha256:73869903a477e1636e10503c00cb8829e66121a064bc57dc271203779576808a"
+    },
+    {
+      "code": "gateway/internal",
+      "detailsType": "{}",
+      "sourcePath": "packages/typert/protocol/src/types.ts",
+      "sourceSHA256": "sha256:73869903a477e1636e10503c00cb8829e66121a064bc57dc271203779576808a"
+    },
+    {
+      "code": "gateway/method-unavailable",
+      "detailsType": "TypertGatewayFaultDetails",
+      "sourcePath": "packages/api/gateway/src/remote-error-codes.ts",
+      "sourceSHA256": "sha256:9be8692d7251043e9a4023324a7d0e5229e06b66f8d78f04e706ac5cae583f61"
+    },
+    {
+      "code": "gateway/service-unavailable",
+      "detailsType": "TypertGatewayFaultDetails",
+      "sourcePath": "packages/api/gateway/src/remote-error-codes.ts",
+      "sourceSHA256": "sha256:9be8692d7251043e9a4023324a7d0e5229e06b66f8d78f04e706ac5cae583f61"
+    },
+    {
+      "code": "llm/model-discovery-rejected",
+      "detailsType": "{ readonly settingsNs: string readonly baseURL?: string }",
+      "sourcePath": "packages/llm/llm/src/types.ts",
+      "sourceSHA256": "sha256:c8f35085c935b7b712c65e95feba3da2b9c1c3b7b761488fad955e8b383a1614"
+    },
+    {
+      "code": "session/agent-busy",
+      "detailsType": "{ readonly reason: string }",
+      "sourcePath": "packages/api/session-controller/src/types.ts",
+      "sourceSHA256": "sha256:103bec53728f20f7fcc6c585139a4f5799fc0b5036f82582eb1ee17ee8e18dac"
+    },
+    {
+      "code": "session/attachment-invalid",
+      "detailsType": "{ readonly reason: string }",
+      "sourcePath": "packages/api/session-controller/src/types.ts",
+      "sourceSHA256": "sha256:103bec53728f20f7fcc6c585139a4f5799fc0b5036f82582eb1ee17ee8e18dac"
+    },
+    {
+      "code": "session/conflict",
+      "detailsType": "{ readonly sessionId: SessionId readonly requestedCwd: string readonly existingCwd?: string }",
+      "sourcePath": "packages/api/session-controller/src/types.ts",
+      "sourceSHA256": "sha256:103bec53728f20f7fcc6c585139a4f5799fc0b5036f82582eb1ee17ee8e18dac"
+    },
+    {
+      "code": "session/fork-unavailable",
+      "detailsType": "{ readonly sessionId: SessionId }",
+      "sourcePath": "packages/api/session-controller/src/types.ts",
+      "sourceSHA256": "sha256:103bec53728f20f7fcc6c585139a4f5799fc0b5036f82582eb1ee17ee8e18dac"
+    },
+    {
+      "code": "session/invalid-time-zone",
+      "detailsType": "{ readonly value: string }",
+      "sourcePath": "packages/api/session-controller/src/types.ts",
+      "sourceSHA256": "sha256:103bec53728f20f7fcc6c585139a4f5799fc0b5036f82582eb1ee17ee8e18dac"
+    },
+    {
+      "code": "session/model-unavailable",
+      "detailsType": "{ readonly provider: string; readonly model: string }",
+      "sourcePath": "packages/api/session-controller/src/types.ts",
+      "sourceSHA256": "sha256:103bec53728f20f7fcc6c585139a4f5799fc0b5036f82582eb1ee17ee8e18dac"
+    },
+    {
+      "code": "session/not-found",
+      "detailsType": "{ readonly sessionId: SessionId }",
+      "sourcePath": "packages/core/session/src/types.ts",
+      "sourceSHA256": "sha256:64184da63463365c64bb2ed9b8a2383c4a269972c101ee9c6c6ce421b1986d94"
+    },
+    {
+      "code": "session/queue-item-not-found",
+      "detailsType": "{ readonly itemId: MessageId }",
+      "sourcePath": "packages/api/session-controller/src/types.ts",
+      "sourceSHA256": "sha256:103bec53728f20f7fcc6c585139a4f5799fc0b5036f82582eb1ee17ee8e18dac"
+    },
+    {
+      "code": "session/steer-unavailable",
+      "detailsType": "{ readonly itemId: MessageId }",
+      "sourcePath": "packages/api/session-controller/src/types.ts",
+      "sourceSHA256": "sha256:103bec53728f20f7fcc6c585139a4f5799fc0b5036f82582eb1ee17ee8e18dac"
+    },
+    {
+      "code": "session/title-invalid",
+      "detailsType": "{ readonly sessionId: SessionId }",
+      "sourcePath": "packages/api/session-controller/src/types.ts",
+      "sourceSHA256": "sha256:103bec53728f20f7fcc6c585139a4f5799fc0b5036f82582eb1ee17ee8e18dac"
+    },
+    {
+      "code": "session/workspace-attach-failed",
+      "detailsType": "{ readonly sessionId: SessionId; readonly workspaceId: string }",
+      "sourcePath": "packages/api/session-controller/src/types.ts",
+      "sourceSHA256": "sha256:103bec53728f20f7fcc6c585139a4f5799fc0b5036f82582eb1ee17ee8e18dac"
+    },
+    {
+      "code": "settings/conflict",
+      "detailsType": "{ readonly ns: string; readonly expected: number; readonly actual: number }",
+      "sourcePath": "packages/api/settings-controller/src/types.ts",
+      "sourceSHA256": "sha256:c1c92eccdc592adbc5ba94bd43e7ea3009014073e942251ed5a6e4287487865a"
+    },
+    {
+      "code": "settings/rejected",
+      "detailsType": "{ readonly ns: string }",
+      "sourcePath": "packages/api/settings-controller/src/types.ts",
+      "sourceSHA256": "sha256:c1c92eccdc592adbc5ba94bd43e7ea3009014073e942251ed5a6e4287487865a"
+    },
+    {
+      "code": "subagent/attachment-invalid",
+      "detailsType": "{ readonly reason: string }",
+      "sourcePath": "packages/subagent/subagent/src/control-types.ts",
+      "sourceSHA256": "sha256:f916609e898db26e28c79f5e725cc0ef0e30367094ca1c3798f7b8797c710386"
+    },
+    {
+      "code": "subagent/catalog-diagnostic",
+      "detailsType": "{ readonly parentSessionId: SessionId readonly childSessionId: SessionId readonly reason: 'corrupt' | 'unsupported' | 'unavailable' }",
+      "sourcePath": "packages/api/session-controller/src/types.ts",
+      "sourceSHA256": "sha256:103bec53728f20f7fcc6c585139a4f5799fc0b5036f82582eb1ee17ee8e18dac"
+    },
+    {
+      "code": "subagent/delivery-unavailable",
+      "detailsType": "{ readonly childSessionId: SessionId }",
+      "sourcePath": "packages/subagent/subagent/src/control-types.ts",
+      "sourceSHA256": "sha256:f916609e898db26e28c79f5e725cc0ef0e30367094ca1c3798f7b8797c710386"
+    },
+    {
+      "code": "subagent/invalid-time-zone",
+      "detailsType": "{ readonly value: string }",
+      "sourcePath": "packages/subagent/subagent/src/control-types.ts",
+      "sourceSHA256": "sha256:f916609e898db26e28c79f5e725cc0ef0e30367094ca1c3798f7b8797c710386"
+    },
+    {
+      "code": "subagent/not-found",
+      "detailsType": "{ readonly parentSessionId: SessionId readonly childSessionId: SessionId }",
+      "sourcePath": "packages/api/session-controller/src/types.ts",
+      "sourceSHA256": "sha256:103bec53728f20f7fcc6c585139a4f5799fc0b5036f82582eb1ee17ee8e18dac"
+    },
+    {
+      "code": "subagent/not-resumable",
+      "detailsType": "{ readonly childSessionId: SessionId }",
+      "sourcePath": "packages/subagent/subagent/src/control-types.ts",
+      "sourceSHA256": "sha256:f916609e898db26e28c79f5e725cc0ef0e30367094ca1c3798f7b8797c710386"
+    },
+    {
+      "code": "subagent/parent-unavailable",
+      "detailsType": "{ readonly parentSessionId: SessionId }",
+      "sourcePath": "packages/subagent/subagent/src/control-types.ts",
+      "sourceSHA256": "sha256:f916609e898db26e28c79f5e725cc0ef0e30367094ca1c3798f7b8797c710386"
+    },
+    {
+      "code": "subagent/projections-unavailable",
+      "detailsType": "{}",
+      "sourcePath": "packages/subagent/subagent/src/control-types.ts",
+      "sourceSHA256": "sha256:f916609e898db26e28c79f5e725cc0ef0e30367094ca1c3798f7b8797c710386"
+    },
+    {
+      "code": "subagent/unauthorized",
+      "detailsType": "{ readonly childSessionId: SessionId }",
+      "sourcePath": "packages/subagent/subagent/src/control-types.ts",
+      "sourceSHA256": "sha256:f916609e898db26e28c79f5e725cc0ef0e30367094ca1c3798f7b8797c710386"
+    },
+    {
+      "code": "workspace/invalid-path",
+      "detailsType": "{ readonly path: string }",
+      "sourcePath": "packages/api/workspace-controller/src/types.ts",
+      "sourceSHA256": "sha256:9f975d182aa9d49347fb30f318e0725deea9afd0a2b26235cccb926ac0f684de"
+    },
+    {
+      "code": "workspace/move-invalid",
+      "detailsType": "{ readonly workspaceId: WorkspaceId readonly sessionId: SessionId readonly beforeSessionId?: SessionId }",
+      "sourcePath": "packages/api/workspace-controller/src/types.ts",
+      "sourceSHA256": "sha256:9f975d182aa9d49347fb30f318e0725deea9afd0a2b26235cccb926ac0f684de"
+    },
+    {
+      "code": "workspace/name-conflict",
+      "detailsType": "{ readonly name: string }",
+      "sourcePath": "packages/api/workspace-controller/src/types.ts",
+      "sourceSHA256": "sha256:9f975d182aa9d49347fb30f318e0725deea9afd0a2b26235cccb926ac0f684de"
+    },
+    {
+      "code": "workspace/not-found",
+      "detailsType": "{ readonly workspaceId: WorkspaceId }",
+      "sourcePath": "packages/workspace/workspace/src/types.ts",
+      "sourceSHA256": "sha256:378d94a9d8509791e46f3e1f24ca9cb7bbc6e9e468b1b10b3ca44c17727fb585"
+    }
+  ],
+  "carrier": {
+    "unary": {
+      "pathTemplate": "/api/<namespace>/<method>",
+      "requestEnvelope": "client-request",
+      "responseEnvelope": "server-response",
+      "correlationField": "rpcId",
+      "sourcePath": "packages/client/connection/src/client/rpc.ts"
+    },
+    "streamMux": {
+      "path": "/api/remote.mux",
+      "eventStreamEndpoint": "$events",
+      "eventResultEndpoint": "$events/result",
+      "readyHostFields": [
+        "home"
+      ],
+      "sourcePath": "packages/api/gateway/src/stream-protocol.ts"
+    },
+    "nonJSONRoutes": [
+      {
+        "path": "/api/session.export",
+        "methods": [
+          "GET",
+          "HEAD"
+        ],
+        "contentType": "application/zip",
+        "sourcePath": "packages/session-query/session-log-export/src/index.ts"
+      }
+    ],
+    "sources": [
+      {
+        "path": "packages/api/gateway/src/stream-protocol.ts",
+        "sha256": "sha256:24bc63f54b5fdd31d6eac7c19306f539bdde2d5848ada2471b46c6ce32036f3b"
+      },
+      {
+        "path": "packages/api/gateway/src/remote-error-codes.ts",
+        "sha256": "sha256:9be8692d7251043e9a4023324a7d0e5229e06b66f8d78f04e706ac5cae583f61"
+      },
+      {
+        "path": "packages/client/connection/src/client/rpc.ts",
+        "sha256": "sha256:6844f7f3d6b7e7815b94e2bb37d218a764df5d77e788a81b2c44df7114e19dd0"
+      },
+      {
+        "path": "packages/session-query/session-log-export/src/index.ts",
+        "sha256": "sha256:f34c34e6d344787672a2c737f03cf41101babb962be2d62e5c37fefc178f0f6f"
+      }
+    ]
+  }
+}

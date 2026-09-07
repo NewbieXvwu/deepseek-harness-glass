@@ -7,12 +7,12 @@
   "rawEventFixtureRevision": "official-a66e470-raw-event-replay-r1",
   "governanceDocument": "notes/T13.3-host-upgrade-governance.md",
   "requiredArtifacts": {
-    "rpcDTOContract": "glass/Sources/Spec/Fixtures/official-rpc-dto-manifest.json",
-    "transportContract": "glass/Sources/Spec/Fixtures/official-transport-contract-manifest.json",
+    "remoteContract": "glass/Sources/Spec/Fixtures/official-remote-contract-manifest.json",
     "rawEventCatalog": "glass/Sources/Core/Resources/official-raw-event-replay-fixtures.json",
     "reducerReplayTests": "glass/Tests/Core/RawEventReplayReducerTests.swift",
-    "transportChaosTests": "glass/Tests/Core/SSEClientTests.swift",
-    "upgradeGovernance": "notes/T13.3-host-upgrade-governance.md"
+    "transportChaosTests": "glass/Tests/Core/HarnessHostTransportSmokeTests.swift",
+    "upgradeGovernance": "notes/T13.3-host-upgrade-governance.md",
+    "authenticatedHostFixtures": "glass/Sources/Core/Resources/official-authenticated-host-fixtures.json"
   },
   "requiredReviewStages": [
     "official-source-lock",

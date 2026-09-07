@@ -46,28 +46,12 @@ final class NativeWebViewIsolationRuntimeTests: XCTestCase {
     }
 
     private func assertNoWebViews<V: View>(in view: V, surface: String) {
-        let host = NSHostingView(rootView: view)
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 960, height: 720),
-            styleMask: [.titled],
-            backing: .buffered,
-            defer: false
-        )
-        window.contentView = host
-        window.makeKeyAndOrderFront(nil)
-        host.layoutSubtreeIfNeeded()
-        // 等待 SwiftUI 布局稳定，避免 flaky
-        RunLoop.main.run(until: Date().addingTimeInterval(0.1))
-        defer {
-            window.contentView = nil
-            window.orderOut(nil)
-            window.close()
+        IsolatedTestWindowHarness.withHostedView(view) { host in
+            XCTAssertTrue(
+                webViews(in: host).isEmpty,
+                "D0 violation: \(surface) mounted a WKWebView in its runtime NSView tree."
+            )
         }
-
-        XCTAssertTrue(
-            webViews(in: host).isEmpty,
-            "D0 violation: \(surface) mounted a WKWebView in its runtime NSView tree."
-        )
     }
 
     private func webViews(in root: NSView) -> [WKWebView] {

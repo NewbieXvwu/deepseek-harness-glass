@@ -98,16 +98,63 @@ jobs:
           cd .reference/deepseek-harness
           corepack pnpm install --frozen-lockfile
 
-      - name: Build and capture locked official WebUI baseline
+      - name: Prepare official client build environment
+        if: steps.official-baseline-cache.outputs.cache-hit != 'true'
+        run: |
+          cd .reference/deepseek-harness
+          echo "DSH_CLIENT_BUILD_PROFILE=official" >> "$GITHUB_ENV"
+          echo "DSH_CLIENT_COMMIT_HASH=${OFFICIAL_COMMIT:0:7}" >> "$GITHUB_ENV"
+          echo "DSH_CLIENT_VERSION=$(node -p "require('./package.json').version")" >> "$GITHUB_ENV"
+          echo "DSH_CLIENT_TITLE=DeepSeek Harness" >> "$GITHUB_ENV"
+
+      - name: Typecheck locked official Host libraries
         if: steps.official-baseline-cache.outputs.cache-hit != 'true'
         run: |
           export PATH="$NODE24_BIN:$PATH"
           cd .reference/deepseek-harness
-          NODE_OPTIONS="--max-old-space-size=8192" corepack pnpm run build
+          NODE_OPTIONS="--max-old-space-size=8192" corepack pnpm exec tsc -b tsconfig.host.json
+
+      - name: Bundle locked official Host libraries
+        if: steps.official-baseline-cache.outputs.cache-hit != 'true'
+        run: |
+          export PATH="$NODE24_BIN:$PATH"
+          cd .reference/deepseek-harness
+          NODE_OPTIONS="--max-old-space-size=8192" corepack pnpm exec tsdown --env.DSH_BUILD_FACE host
+
+      - name: Typecheck locked official client libraries
+        if: steps.official-baseline-cache.outputs.cache-hit != 'true'
+        run: |
+          export PATH="$NODE24_BIN:$PATH"
+          cd .reference/deepseek-harness
+          NODE_OPTIONS="--max-old-space-size=8192" corepack pnpm exec tsc -b tsconfig.client.json
+
+      - name: Bundle locked official client libraries
+        if: steps.official-baseline-cache.outputs.cache-hit != 'true'
+        run: |
+          export PATH="$NODE24_BIN:$PATH"
+          cd .reference/deepseek-harness
+          NODE_OPTIONS="--max-old-space-size=8192" corepack pnpm exec tsdown --env.DSH_BUILD_FACE client
+
+      - name: Build locked official WebUI
+        if: steps.official-baseline-cache.outputs.cache-hit != 'true'
+        run: |
+          export PATH="$NODE24_BIN:$PATH"
+          cd .reference/deepseek-harness
+          NODE_OPTIONS="--max-old-space-size=8192" corepack pnpm run build:web
+          test -s apps/web/dist/index.html
+
+      - name: Capture locked official WebUI baseline
+        if: steps.official-baseline-cache.outputs.cache-hit != 'true'
+        run: |
+          export PATH="$NODE24_BIN:$PATH"
+          cd .reference/deepseek-harness
           cp "$GITHUB_WORKSPACE/tools/reference-capture/capture-official-welcome.e2e.ts" apps/web/tests/
           corepack pnpm --filter @deepseek-ai/dsh-web-frontend exec playwright install chromium
+          mkdir -p "$GITHUB_WORKSPACE/artifacts/official-webui"
+          set -o pipefail
           DSH_REFERENCE_SCREENSHOT_DIR="$GITHUB_WORKSPACE/artifacts/official-webui" \
-            corepack pnpm exec vitest run --config vitest.web.config.ts apps/web/tests/capture-official-welcome.e2e.ts
+            corepack pnpm exec vitest run --config vitest.web.config.ts apps/web/tests/capture-official-welcome.e2e.ts \
+            2>&1 | tee "$GITHUB_WORKSPACE/artifacts/official-webui/capture.log"
 
       - name: Save official WebUI baseline
         if: steps.official-baseline-cache.outputs.cache-hit != 'true'
@@ -117,6 +164,7 @@ jobs:
           key: ${{ steps.official-baseline-cache.outputs.cache-primary-key }}
 
       - name: Upload official baseline artifacts
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: official-webui-baseline-${{ env.OFFICIAL_COMMIT }}

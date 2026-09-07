@@ -37,7 +37,7 @@ enum NativeWorkspaceBrowserSearchOnExpand {
 /// expansion and search-input animation state.
 struct WorkspaceBrowserView: View {
     @ObservedObject var store: NativeWorkspaceStore
-    /// Source: RC8 `host.describe.home`; used only for official display-path abbreviation.
+    /// Source: authenticated rc.1 `$events.ready.host.home`; display-path abbreviation only.
     let hostHome: String?
     let collapsed: Bool
     let requestSidebarExpansion: () -> Void

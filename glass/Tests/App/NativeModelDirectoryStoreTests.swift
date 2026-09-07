@@ -5,7 +5,7 @@ import XCTest
 
 @MainActor
 final class NativeModelDirectoryStoreTests: XCTestCase {
-    func testRefreshPreservesHostDirectoryOrderAndProjectsHostFailures() async {
+    func testRefreshPreservesHostProviderDirectoryOrder() async {
         let api = DirectoryAPI(
             providers: [
                 .init(provider: "zeta", displayName: "Zeta", settingsNs: "zeta", settingsPath: [], active: false, declared: nil),
@@ -25,8 +25,8 @@ final class NativeModelDirectoryStoreTests: XCTestCase {
 
         XCTAssertEqual(store.phase, .ready)
         XCTAssertEqual(store.providers.map(\.provider), ["zeta", "alpha"])
-        XCTAssertEqual(store.groups.map(\.id), ["group-b", "group-a"])
-        XCTAssertEqual(store.failures, [.init(id: "provider-failure", name: "Provider", message: "Host-safe failure")])
+        XCTAssertTrue(store.groups.isEmpty)
+        XCTAssertTrue(store.failures.isEmpty)
     }
 
     func testFailureDoesNotLeaveStaleOrInventedDirectory() async {

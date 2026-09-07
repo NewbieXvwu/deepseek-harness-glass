@@ -4,6 +4,35 @@ import GlassSpec
 @testable import GlassCore
 
 @MainActor
+private extension NativeSessionStore {
+    func open(
+        sessionID: String,
+        using api: any NativeSessionAPI,
+        endpoint: URL,
+        hostPathAPI: (any NativeHostPathAPI)? = nil,
+        goalAPI: (any NativeGoalAPI)? = nil,
+        subagentCatalogAPI: (any NativeSubagentCatalogAPI)? = nil,
+        subagentContinuationAPI: (any NativeSubagentContinuationAPI)? = nil,
+        messageFeedbackAPI: (any NativeMessageFeedbackAPI)? = nil,
+        sessionCWD: String? = nil,
+        sessionRuntime: SessionRuntime? = nil
+    ) {
+        setSessionAPIForTesting(api)
+        open(
+            sessionID: sessionID,
+            endpoint: endpoint,
+            hostPathAPI: hostPathAPI,
+            goalAPI: goalAPI,
+            subagentCatalogAPI: subagentCatalogAPI,
+            subagentContinuationAPI: subagentContinuationAPI,
+            messageFeedbackAPI: messageFeedbackAPI,
+            sessionCWD: sessionCWD,
+            sessionRuntime: sessionRuntime
+        )
+    }
+}
+
+@MainActor
 final class NativeSessionStoreTests: XCTestCase {
     func testComposerIntentUsesInjectedTypedSessionFacadeAndRetainsDraftOnRejection() async {
         let promptReachedFacade = expectation(description: "typed prompt facade receives the user intent")
@@ -2511,6 +2540,7 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual((finalNodes.first?.data as? CoreAssistantNode)?.blocks.compactMap(\.text).joined(), "settled")
     }
 
+    @MainActor
     func testToolResultRetainsEveryContentBlockAndUsesStructuredEmptyErrorFallback() throws {
         let store = NativeSessionStore()
         store.loadSnapshotToolingFixture()
@@ -2541,7 +2571,7 @@ final class NativeSessionStoreTests: XCTestCase {
             ])
         ), sessionID: "snapshot-tooling")
 
-        let mixed = tryUnwrap(store.toolInvocations.first(where: { $0.id == "result-text-mixed" }))
+        let mixed = try tryUnwrap(store.toolInvocations.first(where: { $0.id == "result-text-mixed" }))
         XCTAssertTrue(mixed.output?.hasPrefix("first\n") == true)
         XCTAssertTrue(mixed.output?.contains("\"type\"") == true)
         XCTAssertTrue(mixed.output?.contains("\"reasoning\"") == true)
@@ -2573,7 +2603,7 @@ final class NativeSessionStoreTests: XCTestCase {
             ])
         ), sessionID: "snapshot-tooling")
 
-        let empty = tryUnwrap(store.toolInvocations.first(where: { $0.id == "result-text-empty-error" }))
+        let empty = try tryUnwrap(store.toolInvocations.first(where: { $0.id == "result-text-empty-error" }))
         XCTAssertEqual(empty.output, "ToolError: interrupted")
         XCTAssertNil(empty.textOutput)
         XCTAssertEqual(empty.errorName, "ToolError")
@@ -2650,7 +2680,8 @@ final class NativeSessionStoreTests: XCTestCase {
         }
     }
 
-    private func eventually(timeout: TimeInterval, condition: @escaping @MainActor () -> Bool) async {
+    @MainActor
+    private func eventually(timeout: TimeInterval, condition: () -> Bool) async {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
             if condition() { return }
@@ -2980,7 +3011,7 @@ final class NativeSessionStoreTests: XCTestCase {
                     "source": .object(["kind": .string("user")]),
                 ]),
                 surfaceOp: .string("append"), sourceEventSeqs: nil, ignorable: nil
-            ), view: nil)
+            ))
         }
     }
 
@@ -3067,7 +3098,7 @@ final class NativeSessionStoreTests: XCTestCase {
                 surfaceOp: .string("append"),
                 sourceEventSeqs: nil,
                 ignorable: nil
-            ), view: nil)
+            ))
         }
     }
 
@@ -3108,7 +3139,7 @@ final class NativeSessionStoreTests: XCTestCase {
                 surfaceOp: .string("append"),
                 sourceEventSeqs: nil,
                 ignorable: nil
-            ), view: nil)
+            ))
         }
     }
 
@@ -3164,7 +3195,7 @@ final class NativeSessionStoreTests: XCTestCase {
                 surfaceOp: .string("append"),
                 sourceEventSeqs: nil,
                 ignorable: nil
-            ), view: nil)
+            ))
         }
     }
 
@@ -3219,7 +3250,7 @@ final class NativeSessionStoreTests: XCTestCase {
                 surfaceOp: .string("append"),
                 sourceEventSeqs: nil,
                 ignorable: nil
-            ), view: nil)
+            ))
         }
     }
 
@@ -3256,6 +3287,7 @@ final class NativeSessionStoreTests: XCTestCase {
                 if Task.isCancelled { oldCancellationCancelled.fulfill() }
                 throw DSHTransportError.invalidEndpoint
             }
+            try? await Task.sleep(for: .seconds(5))
             return .init(accepted: true, reason: nil)
         }
     }
@@ -3291,6 +3323,7 @@ final class NativeSessionStoreTests: XCTestCase {
                 if Task.isCancelled { oldApprovalCancelled.fulfill() }
                 throw DSHTransportError.invalidEndpoint
             }
+            try? await Task.sleep(for: .seconds(5))
             return .init(accepted: true, reason: nil)
         }
 
@@ -3330,6 +3363,7 @@ final class NativeSessionStoreTests: XCTestCase {
                 if Task.isCancelled { oldAnswerCancelled.fulfill() }
                 throw DSHTransportError.invalidEndpoint
             }
+            try? await Task.sleep(for: .seconds(5))
             return .init(accepted: true, reason: nil)
         }
 
@@ -3394,7 +3428,7 @@ final class NativeSessionStoreTests: XCTestCase {
                 surfaceOp: .string("append"),
                 sourceEventSeqs: nil,
                 ignorable: nil
-            ), view: nil)
+            ))
         }
     }
 
@@ -3421,7 +3455,7 @@ final class NativeSessionStoreTests: XCTestCase {
                 surfaceOp: .string("append"),
                 sourceEventSeqs: nil,
                 ignorable: nil
-            ), view: nil)], hasMore: false, projections: nil)
+            ))], hasMore: false, projections: nil)
         }
 
         func models(sessionID _: String) async throws -> SessionModelsResponse {
@@ -3479,7 +3513,7 @@ final class NativeSessionStoreTests: XCTestCase {
                 surfaceOp: .string("append"),
                 sourceEventSeqs: nil,
                 ignorable: nil
-            ), view: nil)
+            ))
         }
     }
 
@@ -3536,7 +3570,7 @@ final class NativeSessionStoreTests: XCTestCase {
                 surfaceOp: .string("append"),
                 sourceEventSeqs: nil,
                 ignorable: nil
-            ), view: nil)
+            ))
         }
     }
 
@@ -3591,7 +3625,7 @@ final class NativeSessionStoreTests: XCTestCase {
                 surfaceOp: .string("append"),
                 sourceEventSeqs: nil,
                 ignorable: nil
-            ), view: nil)
+            ))
         }
     }
 
@@ -3654,7 +3688,7 @@ final class NativeSessionStoreTests: XCTestCase {
                 surfaceOp: .string("append"),
                 sourceEventSeqs: nil,
                 ignorable: nil
-            ), view: nil)
+            ))
         }
     }
 
@@ -3741,7 +3775,7 @@ final class NativeSessionStoreTests: XCTestCase {
                     "source": .object(["kind": .string("user")]),
                 ]),
                 surfaceOp: .string("append"), sourceEventSeqs: nil, ignorable: nil
-            ), view: nil)], hasMore: false, projections: nil)
+            ))], hasMore: false, projections: nil)
         }
 
         func models(sessionID _: String) async throws -> SessionModelsResponse {

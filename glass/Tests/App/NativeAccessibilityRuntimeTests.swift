@@ -187,9 +187,9 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
     }
 
     func testToolDetailsExportsOfficialSectionsAndSelectionEmptyStates() throws {
-        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.input", language: "en"))
-        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.output", language: "en"))
-        let notInWindow = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.notInWindow", language: "en"))
+        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-chat", key: "details.input", language: "en"))
+        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-chat", key: "details.output", language: "en"))
+        let notInWindow = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-chat", key: "details.notInWindow", language: "en"))
         let invocation = NativeSessionStore.ToolInvocation(
             id: "details-call",
             name: "custom_tool",
@@ -199,9 +199,7 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
             errorName: nil,
             errorCode: nil,
             state: .completed,
-            sequence: 1,
-            callView: nil,
-            resultView: nil
+            sequence: 1
         )
         try assertAccessibleLabels(
             in: NativeToolDetailsBody(invocation: invocation, selectedCallID: invocation.id),
@@ -220,8 +218,8 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
     }
 
     func testTypedReadDetailsExportsAdmittedReadChromeAndSource() throws {
-        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.input", language: "en"))
-        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.output", language: "en"))
+        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-chat", key: "details.input", language: "en"))
+        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-chat", key: "details.output", language: "en"))
         let invocation = NativeSessionStore.ToolInvocation(
             id: "read-details",
             name: "read",
@@ -232,25 +230,28 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
             errorCode: nil,
             state: .completed,
             sequence: 1,
-            callView: nil,
-            resultView: ToolEventViewDTO(for: "result", view: .object([
-                "card": .string("read"),
-                "title": .string("README preview"),
+            resultContent: [.object([
+                "type": .string("text"),
+                "text": .string("<path>README.md</path>\n<type>file</type>\n<content>\n# Heading\nbody\n</content>"),
+            ])],
+            resultMeta: .object([
                 "path": .string("README.md"),
+                "offset": .number(4),
                 "lines": .array([
                     .object(["number": .number(4), "text": .string("# Heading")]),
                     .object(["number": .number(5), "text": .string("body")]),
                 ]),
                 "totalLines": .number(5),
                 "lang": .string("markdown"),
-            ]))
+            ]),
+            resultIsError: false
         )
         try assertAccessibleLabels(
             in: NativeToolDetailsBody(invocation: invocation, selectedCallID: invocation.id),
             expected: [
                 input,
                 output,
-                "README preview",
+                "README.md",
                 "显示 2 / 5 行",
                 "markdown",
                 OfficialUISpec.Text.copy,
@@ -262,30 +263,24 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
     }
 
     func testTypedDiffDetailsUsesAppliedResultAndExportsChrome() throws {
-        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.input", language: "en"))
-        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.output", language: "en"))
+        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-chat", key: "details.input", language: "en"))
+        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-chat", key: "details.output", language: "en"))
         let invocation = NativeSessionStore.ToolInvocation(
             id: "diff-details",
             name: "edit",
-            arguments: #"{"path":"draft.txt"}"#,
+            arguments: #"{"file_path":"draft.txt","old_string":"before","new_string":"intent"}"#,
             output: "generic output must not leak into admitted diff",
             textOutput: "generic output must not leak into admitted diff",
             errorName: nil,
             errorCode: nil,
             state: .completed,
             sequence: 1,
-            callView: ToolEventViewDTO(for: "call", view: .object([
-                "card": .string("diff"),
-                "diffs": .array([.object([
-                    "path": .string("draft.txt"), "oldText": .string("before"), "newText": .string("intent"),
-                ])]),
-            ])),
-            resultView: ToolEventViewDTO(for: "result", view: .object([
-                "card": .string("diff"),
+            resultMeta: .object([
                 "diffs": .array([.object([
                     "path": .string("draft.txt"), "oldText": .string("before"), "newText": .string("applied"),
                 ])]),
-            ]))
+            ]),
+            resultIsError: false
         )
         try assertAccessibleLabels(
             in: NativeToolDetailsBody(invocation: invocation, selectedCallID: invocation.id),
@@ -303,8 +298,8 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
     }
 
     func testTypedSearchDetailsExportsSummaryRecoveryAndMatches() throws {
-        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.input", language: "en"))
-        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.output", language: "en"))
+        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-chat", key: "details.input", language: "en"))
+        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-chat", key: "details.output", language: "en"))
         let invocation = NativeSessionStore.ToolInvocation(
             id: "search-details",
             name: "grep",
@@ -315,9 +310,8 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
             errorCode: nil,
             state: .completed,
             sequence: 1,
-            callView: nil,
-            resultView: ToolEventViewDTO(for: "result", view: .object([
-                "card": .string("search"),
+            resultContent: [.object(["type": .string("text"), "text": .string("Full result stored at /tmp/grep.txt")])],
+            resultMeta: .object([
                 "shape": .string("matches"),
                 "truncated": .bool(true),
                 "total": .number(20),
@@ -328,7 +322,8 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
                         .object(["lineNumber": .number(18), "line": .string("use(needle)")]),
                     ]),
                 ])]),
-            ]))
+            ]),
+            resultIsError: false
         )
         try assertAccessibleLabels(
             in: NativeToolDetailsBody(invocation: invocation, selectedCallID: invocation.id),
@@ -347,27 +342,27 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
     }
 
     func testTypedWebDetailsExportsSafeSourceAndTruncation() throws {
-        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.input", language: "en"))
-        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.output", language: "en"))
+        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-chat", key: "details.input", language: "en"))
+        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-chat", key: "details.output", language: "en"))
         let invocation = NativeSessionStore.ToolInvocation(
             id: "web-details",
             name: "web_search",
-            arguments: #"{"query":"DeepSeek"}"#,
+            arguments: #"{"queries":["DeepSeek"]}"#,
             output: "generic web output must not leak",
             textOutput: "generic web output must not leak",
             errorName: nil,
             errorCode: nil,
             state: .completed,
             sequence: 1,
-            callView: nil,
-            resultView: ToolEventViewDTO(for: "result", view: .object([
-                "card": .string("web"), "kind": .string("search"), "truncated": .bool(true),
+            resultMeta: .object([
+                "truncated": .bool(true),
                 "answer": .string("A sourced answer"),
                 "sources": .array([.object([
                     "url": .string("https://example.com/article"), "title": .string("Example article"),
                     "snippet": .string("source excerpt"), "publishedAt": .string("2026-08-22"),
                 ])]),
-            ]))
+            ]),
+            resultIsError: false
         )
         try assertAccessibleLabels(
             in: NativeToolDetailsBody(invocation: invocation, selectedCallID: invocation.id),
@@ -385,26 +380,22 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
     }
 
     func testTypedTerminalDetailsExportsCappedOutputAndCopy() throws {
-        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.input", language: "en"))
-        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.output", language: "en"))
+        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-chat", key: "details.input", language: "en"))
+        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-chat", key: "details.output", language: "en"))
         let lines = (1...20).map(String.init)
         let invocation = NativeSessionStore.ToolInvocation(
             id: "terminal-details",
             name: "bash",
-            arguments: #"{"command":"seq 20"}"#,
+            arguments: #"{"command":"seq 20","description":"seq 20"}"#,
             output: "generic terminal output must not leak",
             textOutput: "generic terminal output must not leak",
             errorName: nil,
             errorCode: nil,
             state: .completed,
             sequence: 1,
-            callView: ToolEventViewDTO(for: "call", view: .object([
-                "card": .string("terminal"), "title": .string("seq 20"), "cwd": .string("/workspace"),
-            ])),
-            resultView: ToolEventViewDTO(for: "result", view: .object([
-                "card": .string("terminal"), "title": .string("seq 20"), "output": .string(lines.joined(separator: "\n") + "\n"),
-                "exitCode": .number(0),
-            ]))
+            resultContent: [.object(["type": .string("text"), "text": .string(lines.joined(separator: "\n") + "\n")])],
+            resultIsError: false,
+            sessionCWD: "/workspace"
         )
         try assertAccessibleLabels(
             in: NativeToolDetailsBody(invocation: invocation, selectedCallID: invocation.id),
@@ -424,25 +415,20 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
     }
 
     func testTerminalStatusPillExportsSignalBeforeNonZeroExit() throws {
-        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.input", language: "en"))
-        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.output", language: "en"))
+        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-chat", key: "details.input", language: "en"))
+        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-chat", key: "details.output", language: "en"))
         let invocation = NativeSessionStore.ToolInvocation(
             id: "terminal-signal",
             name: "bash",
-            arguments: #"{"command":"long command"}"#,
+            arguments: #"{"command":"long command","description":"long command"}"#,
             output: nil,
             textOutput: nil,
             errorName: nil,
             errorCode: nil,
-            state: .failed,
+            state: .completed,
             sequence: 1,
-            callView: ToolEventViewDTO(for: "call", view: .object([
-                "card": .string("terminal"), "title": .string("long command"),
-            ])),
-            resultView: ToolEventViewDTO(for: "result", view: .object([
-                "card": .string("terminal"), "title": .string("long command"), "output": .string(""),
-                "exitCode": .number(7), "signal": .string("SIGTERM"),
-            ]))
+            resultContent: [.object(["type": .string("text"), "text": .string("\n[killed by signal: SIGTERM]")])],
+            resultIsError: false
         )
         try assertAccessibleLabels(
             in: NativeToolDetailsBody(invocation: invocation, selectedCallID: invocation.id),
@@ -461,9 +447,7 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
             errorName: nil,
             errorCode: nil,
             state: .completed,
-            sequence: 1,
-            callView: nil,
-            resultView: nil
+            sequence: 1
         )
         let aborted = NativeSessionStore.ToolInvocation(
             id: "ask-aborted",
@@ -474,9 +458,7 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
             errorName: "Interrupted",
             errorCode: "ASK_ABORTED",
             state: .failed,
-            sequence: 2,
-            callView: nil,
-            resultView: nil
+            sequence: 2
         )
         try assertAccessibleLabels(
             in: NativeToolRow(
@@ -512,9 +494,7 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
             errorName: nil,
             errorCode: nil,
             state: .completed,
-            sequence: 1,
-            callView: nil,
-            resultView: nil
+            sequence: 1
         )
         try assertAccessibleLabels(
             in: NativeToolRow(
@@ -530,25 +510,20 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
     }
 
     func testTypedTerminalDetailsExportsVisibleANSISpansWithoutControlBytes() throws {
-        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.input", language: "en"))
-        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: "details.output", language: "en"))
+        let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-chat", key: "details.input", language: "en"))
+        let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-chat", key: "details.output", language: "en"))
         let invocation = NativeSessionStore.ToolInvocation(
             id: "terminal-ansi-details",
             name: "bash",
-            arguments: #"{"command":"printf"}"#,
+            arguments: #"{"command":"printf","description":"printf"}"#,
             output: "generic terminal output must not leak",
             textOutput: "generic terminal output must not leak",
             errorName: nil,
             errorCode: nil,
             state: .completed,
             sequence: 1,
-            callView: ToolEventViewDTO(for: "call", view: .object([
-                "card": .string("terminal"), "title": .string("printf"),
-            ])),
-            resultView: ToolEventViewDTO(for: "result", view: .object([
-                "card": .string("terminal"), "title": .string("printf"),
-                "output": .string("\u{1B}[31mred\u{1B}[0m plain\n"), "exitCode": .number(0),
-            ]))
+            resultContent: [.object(["type": .string("text"), "text": .string("\u{1B}[31mred\u{1B}[0m plain\n")])],
+            resultIsError: false
         )
         try assertAccessibleLabels(
             in: NativeToolDetailsBody(invocation: invocation, selectedCallID: invocation.id),
@@ -567,9 +542,7 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
             errorName: nil,
             errorCode: nil,
             state: .completed,
-            sequence: 1,
-            callView: nil,
-            resultView: nil
+            sequence: 1
         )
         try assertAccessibleLabels(
             in: NativeToolRow(
@@ -798,40 +771,24 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         guard AXIsProcessTrusted() else {
             throw XCTSkip("Accessibility trust is unavailable for this XCTest process; the runtime locale catalog regression remains mandatory in CI.")
         }
-        let host = NSHostingView(rootView: view)
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 900, height: 840),
-            styleMask: [.titled],
-            backing: .buffered,
-            defer: false
-        )
-        window.contentView = host
-        window.makeKeyAndOrderFront(nil)
-        host.layoutSubtreeIfNeeded()
-        // 等待 SwiftUI 布局稳定，避免 flaky
-        RunLoop.main.run(until: Date().addingTimeInterval(0.1))
-        defer {
-            window.contentView = nil
-            window.orderOut(nil)
-            window.close()
-        }
-
-        let labels = accessibilityLabels(in: host)
-        guard !labels.isEmpty else {
-            throw XCTSkip("The trusted process exposed no SwiftUI accessibility elements; run this tree assertion in the GUI accessibility-test host.")
-        }
-        for label in expected {
-            XCTAssertTrue(labels.contains(label), "expected \(label), exported labels: \(labels)")
-        }
-        for (label, count) in expectedCounts {
-            XCTAssertEqual(
-                labels.filter { $0 == label }.count,
-                count,
-                "expected \(count) occurrences of \(label), exported labels: \(labels)"
-            )
-        }
-        for label in forbidden {
-            XCTAssertFalse(labels.contains(label), "forbidden hidden-control label \(label), exported labels: \(labels)")
+        try IsolatedTestWindowHarness.withHostedView(view, size: NSSize(width: 900, height: 840)) { host in
+            let labels = accessibilityLabels(in: host)
+            guard !labels.isEmpty else {
+                throw XCTSkip("The trusted process exposed no SwiftUI accessibility elements; run this tree assertion in the GUI accessibility-test host.")
+            }
+            for label in expected {
+                XCTAssertTrue(labels.contains(label), "expected \(label), exported labels: \(labels)")
+            }
+            for (label, count) in expectedCounts {
+                XCTAssertEqual(
+                    labels.filter { $0 == label }.count,
+                    count,
+                    "expected \(count) occurrences of \(label), exported labels: \(labels)"
+                )
+            }
+            for label in forbidden {
+                XCTAssertFalse(labels.contains(label), "forbidden hidden-control label \(label), exported labels: \(labels)")
+            }
         }
     }
 
@@ -843,28 +800,12 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         guard AXIsProcessTrusted() else {
             throw XCTSkip("Accessibility trust is unavailable for this XCTest process; run settings trigger state assertion in the GUI accessibility-test host.")
         }
-        let host = NSHostingView(rootView: view)
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 360, height: 720),
-            styleMask: [.titled],
-            backing: .buffered,
-            defer: false
-        )
-        window.contentView = host
-        window.makeKeyAndOrderFront(nil)
-        host.layoutSubtreeIfNeeded()
-        // 等待 SwiftUI 布局稳定，避免 flaky
-        RunLoop.main.run(until: Date().addingTimeInterval(0.1))
-        defer {
-            window.contentView = nil
-            window.orderOut(nil)
-            window.close()
+        try IsolatedTestWindowHarness.withHostedView(view, size: NSSize(width: 360, height: 720)) { host in
+            guard let element = accessibilityElements(in: host).first(where: { $0.accessibilityLabel() == label }) else {
+                throw XCTSkip("The trusted process exposed no settings trigger accessibility element.")
+            }
+            XCTAssertEqual(element.accessibilityValue() as? String, expected)
         }
-
-        guard let element = accessibilityElements(in: host).first(where: { $0.accessibilityLabel() == label }) else {
-            throw XCTSkip("The trusted process exposed no settings trigger accessibility element.")
-        }
-        XCTAssertEqual(element.accessibilityValue() as? String, expected)
     }
 
     private func accessibilityLabels(in element: any NSAccessibilityProtocol) -> [String] {

@@ -37,24 +37,26 @@ def main() -> None:
         fixture["selectors"].remove("[data-streaming]")
         tampered.write_text(json.dumps(fixture), encoding="utf-8")
         result = invoke(official_root, tampered)
-        if result.returncode == 0 or "lacks required DOM/slot selectors" not in result.stderr:
+        if result.returncode == 0 or "lacks required rc.1 DOM selectors" not in result.stderr:
             raise SystemExit("tampered contract selector unexpectedly passed")
 
         copied_root = temp / "official"
         required = [
             "packages/client/ui-conversation/src/client/contract/slots.ts",
+            "packages/client/ui-chat/src/client/contract/slots.ts",
             "packages/client/ui-conversation/src/client/skeleton/ConversationRoot.tsx",
-            "packages/client/ui-conversation/src/client/chat/ChatView.tsx",
-            "packages/client/ui-conversation/src/client/chat/ChatNodeSeat.tsx",
-            "packages/client/ui-conversation/src/client/chat/AssistantMarkdown.tsx",
+            "packages/client/ui-chat/src/client/chat/ChatView.tsx",
+            "packages/client/ui-chat/src/client/chat/ChatNodeSeat.tsx",
+            "packages/client/ui-chat/src/client/chat/AssistantMarkdown.tsx",
             "packages/client/modules/src/client/manifest.ts",
+            "packages/client/modules/src/index.ts",
         ]
         for relative in required:
             source = official_root / relative
             destination = copied_root / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, destination)
-        slots = copied_root / "packages/client/ui-conversation/src/client/contract/slots.ts"
+        slots = copied_root / "packages/client/ui-chat/src/client/contract/slots.ts"
         text = slots.read_text(encoding="utf-8")
         slots.write_text(text.replace("'conversation.chat.turnTail'", "'conversation.chat.turnTailRemoved'", 1), encoding="utf-8")
         result = invoke(copied_root, CONTRACT)

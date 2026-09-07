@@ -11,8 +11,7 @@ final class HarnessHostControllerTests: XCTestCase {
         let environment = ProcessInfo.processInfo.environment
         guard let nodePath = environment["DSH_GLASS_HOST_NODE"],
               let entrypointPath = environment["DSH_GLASS_HOST_ENTRY"] else {
-            XCTFail("T3.1 Host command-line test requires DSH_GLASS_HOST_NODE and DSH_GLASS_HOST_ENTRY")
-            return
+            throw XCTSkip("T3.1 Host command-line test requires DSH_GLASS_HOST_NODE and DSH_GLASS_HOST_ENTRY")
         }
 
         let root = FileManager.default.temporaryDirectory
@@ -104,15 +103,14 @@ final class HarnessHostControllerTests: XCTestCase {
 
 
 extension HarnessHostControllerTests {
-    func testUnknownBuildBecomesUnverifiedAndDefaultsToWriteProtection() throws {
+    func testMismatchedBuildIsUnsupportedAndNeverLaunches() throws {
         let environment = ProcessInfo.processInfo.environment
         guard let nodePath = environment["DSH_GLASS_HOST_NODE"],
               let entrypointPath = environment["DSH_GLASS_HOST_ENTRY"] else {
-            XCTFail("T3.2 Host command-line test requires DSH_GLASS_HOST_NODE and DSH_GLASS_HOST_ENTRY")
-            return
+            throw XCTSkip("T3.2 Host command-line test requires DSH_GLASS_HOST_NODE and DSH_GLASS_HOST_ENTRY")
         }
         let root = FileManager.default.temporaryDirectory
-            .appendingPathComponent("dsh-glass-unverified-test-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("dsh-glass-unsupported-test-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: root) }
         let runtime = HostRuntimeConfiguration(
             nodeExecutable: URL(fileURLWithPath: nodePath),
@@ -141,29 +139,21 @@ extension HarnessHostControllerTests {
             )]
         )
         let verifier = HostBuildVerifier(catalog: unknownCatalog)
-        guard case let .unverified(reason) = verifier.verify(runtime: runtime) else {
-            XCTFail("mismatched payload version must be unverified")
+        guard case let .unsupported(reason) = verifier.verify(runtime: runtime) else {
+            XCTFail("mismatched owned payload must be unsupported")
             return
         }
-        XCTAssertTrue(reason.contains("version"))
+        XCTAssertTrue(reason.contains("commit"))
 
         let controller = HarnessHostController(runtime: runtime, verifier: verifier)
         controller.start()
-        guard case let .unverified(status) = controller.state else {
-            XCTFail("unknown payload must enter explicit unverified state")
+        guard case let .failed(failure) = controller.state else {
+            XCTFail("unsupported owned payload must fail before launch")
             return
         }
-        XCTAssertFalse(status.developerWriteOverrideEnabled)
-        XCTAssertNil(controller.ownedProcessIdentifier, "unverified build must not be launched as ready")
-
-        let defaultPolicy = HostRPCAccessPolicy(trust: .unverified(reason: reason, developerWriteOverride: false))
-        XCTAssertTrue(defaultPolicy.permits(method: "host.describe"))
-        XCTAssertFalse(defaultPolicy.permits(method: "session.prompt"))
-        XCTAssertFalse(defaultPolicy.trust.permitsWrites)
-
-        let overridePolicy = HostRPCAccessPolicy(trust: .unverified(reason: reason, developerWriteOverride: true))
-        XCTAssertTrue(overridePolicy.permits(method: "session.prompt"))
-        XCTAssertTrue(overridePolicy.trust.permitsWrites)
+        XCTAssertEqual(failure.kind, .invalidBundledBaseline)
+        XCTAssertEqual(failure.message, reason)
+        XCTAssertNil(controller.ownedProcessIdentifier)
     }
 }
 
@@ -173,8 +163,7 @@ extension HarnessHostControllerTests {
         let environment = ProcessInfo.processInfo.environment
         guard let nodePath = environment["DSH_GLASS_HOST_NODE"],
               let entrypointPath = environment["DSH_GLASS_HOST_ENTRY"] else {
-            XCTFail("T3.3 Host command-line test requires DSH_GLASS_HOST_NODE and DSH_GLASS_HOST_ENTRY")
-            return
+            throw XCTSkip("T3.3 Host command-line test requires DSH_GLASS_HOST_NODE and DSH_GLASS_HOST_ENTRY")
         }
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("dsh-glass-transition-test-\(UUID().uuidString)", isDirectory: true)
@@ -196,13 +185,10 @@ extension HarnessHostControllerTests {
         // pass a state machine that oscillates or skips steps.
         XCTAssertEqual(
             controller.stateTransitions.map(\.summary),
-            ["idle -> startingOwned", "startingOwned -> verifying", "verifying -> ready", "ready -> stopping", "stopping -> idle"]
+            ["idle -> starting", "starting -> authenticating", "authenticating -> connecting", "connecting -> classifying", "classifying -> ready", "ready -> stopping", "stopping -> idle"]
         )
         XCTAssertTrue(controller.recentLogLines.contains(where: { $0.contains("[host] transition") }))
 
-        let probing = HostLifecyclePresentation.make(state: .probingExternal(URL(string: "http://127.0.0.1:43123")!))
-        XCTAssertEqual(probing.title, OfficialUISpec.LocaleCatalog.value(namespace: "locale", key: "loading", language: "en"))
-        XCTAssertFalse(probing.permitsInteraction)
         let failed = HostLifecyclePresentation.make(state: .failed(HostFailure(
             kind: .verificationFailed,
             message: "fixture failure",
@@ -232,9 +218,13 @@ extension HarnessHostControllerTests {
     func testDiagnosticsAreCopyableCompleteAndRedacted() async throws {
         let recorder = HostDiagnosticRecorder(dshHome: "/tmp/diagnostic-home")
         let endpoint = try XCTUnwrap(URL(string: "http://127.0.0.1:43123"))
-        await recorder.recordVerified(build: Self.fixedCatalog.builds[0], endpoint: endpoint, pid: 4321)
-        let sseTime = Date(timeIntervalSince1970: 1_700_000_000)
-        await recorder.recordSSEActivity(at: sseTime)
+        await recorder.recordConnected(
+            build: Self.fixedCatalog.builds[0],
+            compatibility: .verified,
+            endpoint: endpoint,
+            pid: 4321,
+            generation: .init(rawValue: 7)
+        )
         await recorder.recordRPCError(NSError(
             domain: "fixture",
             code: 1,
@@ -246,11 +236,12 @@ extension HarnessHostControllerTests {
         XCTAssertEqual(snapshot.dshHome, "/tmp/diagnostic-home")
         XCTAssertEqual(snapshot.ownedProcessID, 4321)
         XCTAssertEqual(snapshot.ownership, "owned")
-        XCTAssertEqual(snapshot.lastSSEAt, sseTime)
-        XCTAssertEqual(snapshot.protocolFixtureRevision, "official-b150a55-web-ui-r1")
-        XCTAssertEqual(snapshot.pluginCompatibility, "pinned-compatible")
+        XCTAssertEqual(snapshot.remoteGeneration, 7)
+        XCTAssertEqual(snapshot.streamState, "ready")
+        XCTAssertEqual(snapshot.protocolFixtureRevision, "official-a66e470-remote-r1")
+        XCTAssertEqual(snapshot.hostCompatibility, "verified")
         let copy = snapshot.copyableText()
-        for required in ["hostBuild=", "port=", "dshHome=", "ownership=", "pid=", "lastSSEAt=", "lastRPCError=", "protocolFixtureRevision=", "pluginCompatibility=", "lifecycle="] {
+        for required in ["hostBuild=", "port=", "dshHome=", "ownership=", "pid=", "remoteGeneration=", "streamState=", "lastRPCError=", "protocolFixtureRevision=", "hostCompatibility=", "lifecycle="] {
             XCTAssertTrue(copy.contains(required), "diagnostic copy must include \(required)")
         }
         for secret in ["top-secret", "session-cookie", "bearer-secret", "user:password", "json-secret", "json-token"] {
@@ -273,7 +264,7 @@ extension HarnessHostControllerTests {
 
 
 extension HarnessHostControllerTests {
-    func testPlannedBuildFailsClosedAfterPayloadMetadataMatches() throws {
+    func testPlannedBuildUsesBestEffortAfterPayloadMetadataMatches() throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("dsh-glass-planned-build-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -317,7 +308,10 @@ extension HarnessHostControllerTests {
 
         XCTAssertEqual(
             HostBuildVerifier(catalog: catalog).verify(runtime: runtime),
-            .unverified(reason: "Bundled Host build is awaiting the required macOS CI verification.")
+            .bestEffort(
+                build,
+                reason: "Bundled rc.1 payload matches the supported build but macOS verification is still pending."
+            )
         )
     }
 }

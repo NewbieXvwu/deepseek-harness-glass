@@ -1,0 +1,184 @@
+{
+  "schemaVersion": 1,
+  "officialSourceCommit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d",
+  "fixtureRevision": "official-a66e470-authenticated-host-r1",
+  "fixtureClass": "isolated exact bundled rc.1 authenticated Host capture",
+  "payload": {
+    "dshVersion": "0.1.2-rc.1",
+    "packageLockSHA256": "sha256:88bb697cbf50ba582bd0494fc84f7493193053938e699878d46b58cd1e32a255"
+  },
+  "secretPolicy": {
+    "persistedLaunchToken": false,
+    "persistedCookie": false,
+    "persistedAuthorization": false,
+    "persistedUserCredentials": false,
+    "persistedRealWorkspacePath": false
+  },
+  "normalization": {
+    "home": "<fixture-home>",
+    "workspacePath": "<fixture-workspace>",
+    "eventClientId": "<fixture-client-id>",
+    "workspaceId": "<fixture-workspace-id>",
+    "workspaceTimestamp": "<fixture-time>"
+  },
+  "authentication": {
+    "bootstrapStatus": 303,
+    "redirectLocation": "/",
+    "cookieInstalled": true,
+    "authenticatedRootStatus": 200
+  },
+  "unary": {
+    "endpoint": "session/list",
+    "request": {
+      "type": "client-request",
+      "rpcId": "fixture-session-list",
+      "method": "session/list",
+      "payload": {
+        "args": {
+          "_request": {}
+        }
+      }
+    },
+    "httpStatus": 200,
+    "contentType": "application/json",
+    "response": {
+      "type": "server-response",
+      "rpcId": "fixture-session-list",
+      "result": {
+        "ok": true,
+        "value": {
+          "items": []
+        }
+      }
+    }
+  },
+  "streamOpening": {
+    "eventRequest": {
+      "type": "open",
+      "streamId": "fixture-events",
+      "endpoint": "$events",
+      "payload": {
+        "args": {}
+      }
+    },
+    "eventReady": {
+      "type": "item",
+      "streamId": "fixture-events",
+      "value": {
+        "type": "ready",
+        "clientId": "<fixture-client-id>",
+        "host": {
+          "home": "<fixture-home>"
+        }
+      }
+    },
+    "workspaceRequest": {
+      "type": "open",
+      "streamId": "fixture-workspaces",
+      "endpoint": "workspace/follow",
+      "payload": {
+        "args": {}
+      }
+    },
+    "workspaceBaseline": {
+      "type": "item",
+      "streamId": "fixture-workspaces",
+      "value": {
+        "type": "baseline",
+        "value": {
+          "items": [],
+          "archivedSessionIds": []
+        }
+      }
+    }
+  },
+  "streamDelta": {
+    "trigger": {
+      "type": "client-request",
+      "rpcId": "fixture-workspace-create",
+      "method": "workspace/create",
+      "payload": {
+        "args": {
+          "request": {
+            "path": "<fixture-workspace>"
+          }
+        }
+      }
+    },
+    "frames": [
+      {
+        "type": "item",
+        "streamId": "fixture-workspaces",
+        "value": {
+          "type": "upsert",
+          "workspace": {
+            "workspaceId": "<fixture-workspace-id>",
+            "path": "<fixture-workspace>",
+            "title": "workspace-a",
+            "sessionIds": [],
+            "createdAt": "<fixture-time>",
+            "updatedAt": "<fixture-time>"
+          }
+        }
+      },
+      {
+        "type": "item",
+        "streamId": "fixture-workspaces",
+        "value": {
+          "type": "order",
+          "workspaceIds": [
+            "<fixture-workspace-id>"
+          ]
+        }
+      }
+    ]
+  },
+  "businessError": {
+    "endpoint": "session/cancel",
+    "request": {
+      "type": "client-request",
+      "rpcId": "fixture-business-error",
+      "method": "session/cancel",
+      "payload": {
+        "args": {
+          "request": {
+            "sessionId": "fixture-missing-session"
+          }
+        }
+      }
+    },
+    "httpStatus": 200,
+    "contentType": "application/json",
+    "response": {
+      "type": "server-response",
+      "rpcId": "fixture-business-error",
+      "result": {
+        "ok": false,
+        "error": {
+          "code": "session/not-found",
+          "message": "session \"fixture-missing-session\" not found (not attached)",
+          "details": {
+            "sessionId": "fixture-missing-session"
+          }
+        }
+      }
+    }
+  },
+  "download": {
+    "request": {
+      "method": "GET",
+      "path": "/api/session.export?sessionId=fixture-session"
+    },
+    "head": {
+      "status": 200,
+      "contentType": "application/zip",
+      "contentDisposition": "attachment; filename=\"dsh-session-fixture-session.zip\""
+    },
+    "get": {
+      "status": 200,
+      "contentType": "application/zip",
+      "contentDisposition": "attachment; filename=\"dsh-session-fixture-session.zip\"",
+      "zipMagicHex": "504b0304"
+    }
+  }
+}

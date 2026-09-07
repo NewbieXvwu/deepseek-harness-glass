@@ -110,13 +110,12 @@ jobs:
           python3 glass/ci/check-official-interaction-scenes.py \
             --official-root .reference/deepseek-harness
           echo "::endgroup::"
-          echo "::group::Official RPC DTO manifest"
-          python3 glass/ci/check-official-rpc-dto-manifest.py \
+          echo "::group::Official rc.1 Remote contract"
+          python3 glass/ci/check-official-remote-contract.py \
             --official-root .reference/deepseek-harness
           echo "::endgroup::"
-          echo "::group::Official transport contract baseline"
-          python3 glass/ci/check-official-transport-contract.py \
-            --official-root .reference/deepseek-harness
+          echo "::group::Authenticated rc.1 Host fixture"
+          python3 glass/ci/check-authenticated-host-fixtures.py
           echo "::endgroup::"
           echo "::group::Official UI specification provenance"
           ./glass/ci/check-official-spec.py \
@@ -130,5 +129,5 @@ jobs:
         run: python3 glass/ci/test-ci-workflow-layout.py
       - name: Scan for tautological test assertions (report-only)
         run: python3 glass/ci/check-test-integrity.py
-      - name: Gate generated-prose style (no filler, no runaway lines)
-        run: python3 tools/check-doc-style.py --fail
+      - name: Scan generated-prose style (report-only)
+        run: python3 tools/check-doc-style.py

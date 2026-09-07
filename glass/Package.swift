@@ -20,7 +20,18 @@ let package = Package(
         .target(
             name: "GlassSpec",
             path: "Sources/Spec",
-            resources: [.process("Fixtures"), .process("Locales")],
+            exclude: [
+                "HostUpgradeReport.json",
+                "RuntimeAssetInventory.json",
+                "OfficialUISpec/official-ui-catalog.json",
+                "OfficialUISpec/official-ui-spec-build.json",
+                "Tokens/official-theme-tokens.json",
+            ],
+            resources: [
+                .process("Fixtures"),
+                .process("Locales"),
+                .process("SupportedHostBuilds.json"),
+            ],
             swiftSettings: [.define("DEEPSEEK_HARNESS_PACKAGE"), .unsafeFlags(["-enable-testing"])]
         ),
         .target(

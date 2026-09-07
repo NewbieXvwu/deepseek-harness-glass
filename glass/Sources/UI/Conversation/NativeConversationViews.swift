@@ -18,7 +18,7 @@ struct NativeConversationColumn: View {
     let jobsPopoverInitiallyOpen: Bool
     let jobsLanguageCode: String?
     let openSession: (String) -> Void
-    /// Comes only from a verified loopback Host `host.describe` response.
+    /// Comes only from the authenticated Host `session/canOpenWorkspacePath` capability.
     let canOpenProjectPath: Bool
     /// Held by the resident shell in production; default construction keeps
     /// isolated preview/snapshot call sites deterministic.
@@ -689,8 +689,12 @@ struct NativeWelcomeSurface: View {
 
     var body: some View {
         GeometryReader { geometry in
+            // Source: rc.1 ConversationRoot.module.css: the shared chat width is
+            // clamp(680px, 64% of the live conversation column, 920px), while
+            // InputBar is exactly 32px wider than that content axis.
+            let adaptiveContentWidth = min(max(geometry.size.width * 0.64, 680), 920)
             let cardWidth = min(
-                OfficialUISpec.Layout.composerMaximum,
+                adaptiveContentWidth + 32,
                 max(0, geometry.size.width - 2 * OfficialUISpec.Layout.composerClearance)
             )
 
@@ -870,7 +874,11 @@ private struct NativeInteractiveComposerCard: View {
                     .foregroundStyle(OfficialUISpec.Token.primary)
                     .scrollContentBackground(.hidden)
                     .focused($draftFocused)
-                    .frame(minHeight: OfficialUISpec.Geometry.px48, maxHeight: OfficialUISpec.Geometry.px336)
+                    .frame(
+                        minHeight: isWorkspaceTrigger ? 52 : OfficialUISpec.Geometry.px48,
+                        idealHeight: isWorkspaceTrigger ? 52 : nil,
+                        maxHeight: isWorkspaceTrigger ? 52 : OfficialUISpec.Geometry.px336
+                    )
                     .padding(.horizontal, OfficialUISpec.Spacing.p10)
                     .padding(.top, OfficialUISpec.Spacing.p2)
                     .disabled(isWorkspaceTrigger)

@@ -13,7 +13,7 @@ final class GhostPlaneTapIndexReplayTests: XCTestCase {
             ),
             .init(
                 source: source,
-                target: .toolview,
+                target: .detailsTool,
                 mutation: .setDataAttribute(name: "data-ghost-mode", value: "review")
             ),
             .init(
@@ -39,7 +39,7 @@ final class GhostPlaneTapIndexReplayTests: XCTestCase {
             [
                 "pluginID": "dsh-review-loop",
                 "revision": "r1",
-                "targetID": "ghost-toolview",
+                "targetID": "ghost-details-tool",
                 "kind": "dataAttribute",
                 "name": "data-ghost-mode",
                 "value": "review",
@@ -128,7 +128,7 @@ final class GhostPlaneTapIndexReplayTests: XCTestCase {
             pluginIDs: ["dsh-review-loop"]
         ))
         let data = Data("""
-        {"rev":"graph-r1","entries":[{"id":"dsh-review-loop","url":"http://127.0.0.1:7342/plugins/dsh-review-loop/client.js?rev=r1","rev":"r1","inject":[],"immediately":true,"external":[]}]}
+        {"rev":"graph-r1","entries":[{"id":"dsh-review-loop","url":"http://127.0.0.1:7342/plugins/??dsh-review-loop/client.js&rev=r1","rev":"r1","inject":[],"immediately":true,"external":[]}],"batches":[{"phase":"application","url":"http://127.0.0.1:7342/plugins/??dsh-review-loop/client.js&rev=batch-r1","rev":"batch-r1","entries":["dsh-review-loop"]}]}
         """.utf8)
         guard case .admitted(let manifest) = GhostPlaneModuleManifest.admit(
             data: data,

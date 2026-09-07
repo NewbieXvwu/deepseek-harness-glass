@@ -167,8 +167,8 @@ enum SnapshotExporter {
             // only the snapshot view's controlled locale lookup, never Host
             // state or normal application language selection.
             jobsSnapshotLanguageCode: requestedMode == "jobs" ? "en" : nil,
-            // The locked RC8 produced-files capture exercised an already
-            // verified loopback `host.describe.canOpenPath=true` state.
+            // The historical produced-files capture exercised an authenticated
+            // Host state with `session/canOpenWorkspacePath=true`.
             snapshotCanOpenProjectPath: requestedMode == "deliverables",
             // RC8 selected that session wide, then retained an explicit narrow
             // sidebar expansion at the capture's 780px lane viewport.

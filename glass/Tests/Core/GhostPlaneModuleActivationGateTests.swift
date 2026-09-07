@@ -28,8 +28,11 @@ final class GhostPlaneModuleActivationGateTests: XCTestCase {
         ))
         let data = Data("""
         {"rev":"graph-r1","entries":[
-          {"id":"dsh-runtime","url":"http://127.0.0.1:7342/plugins/dsh-runtime/client.js?rev=runtime-r1","rev":"runtime-r1","inject":[],"immediately":true,"external":["react"]},
-          {"id":"dsh-review","url":"http://127.0.0.1:7342/plugins/dsh-review/client.js?rev=review-r1","rev":"review-r1","inject":[],"immediately":true,"external":["dsh-runtime/client","react"]}
+          {"id":"dsh-runtime","url":"http://127.0.0.1:7342/plugins/??dsh-runtime/client.js&rev=runtime-r1","rev":"runtime-r1","inject":[],"immediately":true,"external":["react"]},
+          {"id":"dsh-review","url":"http://127.0.0.1:7342/plugins/??dsh-review/client.js&rev=review-r1","rev":"review-r1","inject":["dsh-runtime"],"immediately":true,"external":["react"]}
+        ],"batches":[
+          {"phase":"bootstrap","url":"http://127.0.0.1:7342/plugins/??dsh-runtime/client.js&rev=boot-r1","rev":"boot-r1","entries":["dsh-runtime"]},
+          {"phase":"application","url":"http://127.0.0.1:7342/plugins/??dsh-review/client.js&rev=app-r1","rev":"app-r1","entries":["dsh-review"]}
         ]}
         """.utf8)
         let manifest: GhostPlaneModuleManifest

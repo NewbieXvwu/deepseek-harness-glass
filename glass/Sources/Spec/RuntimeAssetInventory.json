@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "supportBuild": "dsh-0.1.1-rc.2-official-b150a55",
+  "supportBuild": "dsh-0.1.2-rc.1-official-a66e470",
   "assets": [
     {
       "id": "legacy-app-entry",
@@ -36,11 +36,11 @@
     },
     {
       "id": "external-port-attachment",
-      "source": "95c3ad8 historical 127.0.0.1:3080 probe",
-      "responsibility": "Probe and reuse default 127.0.0.1:3080 dsh web instance before spawning the bundled payload.",
-      "decision": "preserved",
-      "destination": "Sources/Core/Host/HarnessHostController.swift",
-      "verification": "HarnessHostController probes loopback 3080; attaches if active or falls back to spawning owned Host."
+      "source": "Historical 127.0.0.1:3080 unauthenticated probe",
+      "responsibility": "Reuse a local Host only through the rc.1 process-token launch URL, then bootstrap its authenticated cookie session before Remote access.",
+      "decision": "replaced",
+      "destination": "Sources/Core/Host/HostLaunchDescriptor.swift and Sources/Core/Host/HostAuthBootstrap.swift",
+      "verification": "No unauthenticated loopback probe remains; HostLaunchDescriptor requires a loopback process-token URL and HostAuthBootstrap establishes the authenticated ephemeral session before Remote composition."
     },
     {
       "id": "snapshot-export",
@@ -61,7 +61,7 @@
     {
       "id": "bundled-node-and-payload",
       "source": "glass/assemble.sh and glass/ci/dsh-backend-payload/package-lock.json",
-      "responsibility": "Bundle Node 24.19.0 and exact rc.8 DSH/WebUI packages in the app.",
+      "responsibility": "Bundle Node 24.19.0 and exact rc.1 DSH/WebUI packages in the app.",
       "decision": "preserved",
       "destination": "glass/assemble.sh, SupportedHostBuilds.json and BuildManifest.json",
       "verification": "check-supported-host-build.py validates catalog, lockfile, package manifests, Info.plist and Node binary together."
@@ -72,7 +72,7 @@
       "responsibility": "Reinstall exact payload, smoke test app-owned Host and reassemble for maintenance.",
       "decision": "preserved",
       "destination": "glass/repair-backend.sh",
-      "verification": "Defaults use exact rc.8 package versions and a temporary DSH_HOME."
+      "verification": "Defaults use exact rc.1 package versions and a temporary DSH_HOME."
     },
     {
       "id": "app-metadata-assets-signing",
@@ -96,7 +96,7 @@
       "responsibility": "Build a DMG from the same exact bundled payload.",
       "decision": "migrated",
       "destination": ".github/workflows/release.yml",
-      "verification": "Release workflow pins rc.8; signing/notarization remain explicit later release-governance work."
+      "verification": "Release workflow pins rc.1; signing/notarization remain explicit later release-governance work."
     },
     {
       "id": "webview-shell",

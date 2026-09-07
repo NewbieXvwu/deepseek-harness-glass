@@ -5,71 +5,56 @@ import XCTest
 final class GhostPlaneModuleManifestTests: XCTestCase {
     private let policy = GhostPlaneLoopbackPolicy(
         origin: URL(string: "http://127.0.0.1:7342/")!,
-        pluginIDs: ["dsh-a", "dsh-b"]
+        pluginIDs: ["@deepseek-ai/dsh-client-modules", "@deepseek-ai/dsh-ui-chat"]
     )!
 
-    func testAdmissionAcceptsExactOrderedClientGraphAndKnownStaticSeed() {
-        let result = GhostPlaneModuleManifest.admit(
-            data: validGraph.data(using: .utf8)!,
-            policy: policy,
-            staticModuleSpecifiers: ["@deepseek-ai/dsh-client-runtime/client"]
-        )
-        guard case let .admitted(manifest) = result else {
-            return XCTFail("valid loopback module graph should admit: \(result)")
-        }
-        XCTAssertEqual(manifest.rev, "graph-r1")
-        XCTAssertEqual(manifest.entries.map(\.id), ["dsh-a", "dsh-b"])
-        XCTAssertEqual(manifest.entries[1].external, ["dsh-a/client", "@deepseek-ai/dsh-client-runtime/client"])
+    func testAdmissionAcceptsRc1EntriesAndInitialLoadBatches() {
+        let result = GhostPlaneModuleManifest.admit(data: validGraph.data(using: .utf8)!, policy: policy, staticModuleSpecifiers: ["react"])
+        guard case let .admitted(manifest) = result else { return XCTFail("expected rc1 graph admission: \(result)") }
+        XCTAssertEqual(manifest.entries.map(\.id), ["@deepseek-ai/dsh-client-modules", "@deepseek-ai/dsh-ui-chat"])
+        XCTAssertEqual(manifest.batches.map(\.phase), [.bootstrap, .application])
     }
 
-    func testAdmissionRejectsURLMismatchUnregisteredGraphAndDependencyOrder() {
-        assertRejected(
-            #"{"rev":"graph-r1","entries":[{"id":"dsh-a","url":"http://127.0.0.1:7342/plugins/dsh-a/client.js?rev=other","rev":"a-r1","inject":[],"immediately":false,"external":[]}]}"#,
-            .invalidClientBundlePath
-        )
-        assertRejected(
-            #"{"rev":"graph-r1","entries":[{"id":"dsh-a","url":"http://127.0.0.1:7342/plugins/dsh-b/client.js?rev=a-r1","rev":"a-r1","inject":[],"immediately":false,"external":[]}]}"#,
-            .resourceIDMismatch
-        )
-        assertRejected(
-            #"{"rev":"graph-r1","entries":[{"id":"dsh-b","url":"http://127.0.0.1:7342/plugins/dsh-b/client.js?rev=b-r1","rev":"b-r1","inject":[],"immediately":false,"external":["dsh-a"]},{"id":"dsh-a","url":"http://127.0.0.1:7342/plugins/dsh-a/client.js?rev=a-r1","rev":"a-r1","inject":[],"immediately":false,"external":[]}]}"#,
-            .dependencyAfterConsumer
-        )
-        assertRejected(
-            #"{"rev":"graph-r1","entries":[{"id":"dsh-a","url":"http://127.0.0.1:7342/plugins/dsh-a/client.js?rev=a-r1","rev":"a-r1","inject":[],"immediately":false,"external":["unknown"]}]}"#,
-            .unknownExternalSpecifier
-        )
+    func testAdmissionRejectsMissingOrDuplicateBatchMembership() {
+        let missing = #"""
+        {"rev":"graph-r1","entries":[
+          {"id":"@deepseek-ai/dsh-client-modules","url":"http://127.0.0.1:7342/plugins/??@deepseek-ai/dsh-client-modules/client.js&rev=modules-r1","rev":"modules-r1","inject":[],"immediately":true,"external":[]},
+          {"id":"@deepseek-ai/dsh-ui-chat","url":"http://127.0.0.1:7342/plugins/??@deepseek-ai/dsh-ui-chat/client.js&rev=chat-r1","rev":"chat-r1","inject":["@deepseek-ai/dsh-client-modules"],"immediately":false,"external":["react"]}
+        ],"batches":[
+          {"phase":"bootstrap","url":"http://127.0.0.1:7342/plugins/??@deepseek-ai/dsh-client-modules/client.js&rev=boot-r1","rev":"boot-r1","entries":["@deepseek-ai/dsh-client-modules"]}
+        ]}
+        """#
+        assertRejected(missing, .missingBatchMembership)
+
+        let duplicate = #"""
+        {"rev":"graph-r1","entries":[
+          {"id":"@deepseek-ai/dsh-client-modules","url":"http://127.0.0.1:7342/plugins/??@deepseek-ai/dsh-client-modules/client.js&rev=modules-r1","rev":"modules-r1","inject":[],"immediately":true,"external":[]},
+          {"id":"@deepseek-ai/dsh-ui-chat","url":"http://127.0.0.1:7342/plugins/??@deepseek-ai/dsh-ui-chat/client.js&rev=chat-r1","rev":"chat-r1","inject":["@deepseek-ai/dsh-client-modules"],"immediately":false,"external":["react"]}
+        ],"batches":[
+          {"phase":"bootstrap","url":"http://127.0.0.1:7342/plugins/??@deepseek-ai/dsh-client-modules/client.js&rev=boot-r1","rev":"boot-r1","entries":["@deepseek-ai/dsh-client-modules", "@deepseek-ai/dsh-client-modules"]}
+        ]}
+        """#
+        assertRejected(duplicate, .duplicateBatchMembership)
     }
 
-    func testAdmissionRejectsMalformedRevisionDuplicateIDsAndExternalResource() {
-        assertRejected("{", .malformedWire)
-        assertRejected(#"{"rev":"","entries":[]}"#, .emptyGraphRevision)
-        assertRejected(
-            #"{"rev":"graph-r1","entries":[{"id":"dsh-a","url":"http://127.0.0.1:7342/plugins/dsh-a/client.js?rev=a-r1","rev":"a-r1","inject":[],"immediately":false,"external":[]},{"id":"dsh-a","url":"http://127.0.0.1:7342/plugins/dsh-a/client.js?rev=a-r2","rev":"a-r2","inject":[],"immediately":false,"external":[]}]}"#,
-            .duplicateEntryID
-        )
-        assertRejected(
-            #"{"rev":"graph-r1","entries":[{"id":"dsh-a","url":"https://127.0.0.1:7342/plugins/dsh-a/client.js?rev=a-r1","rev":"a-r1","inject":[],"immediately":false,"external":[]}]}"#,
-            .resourceDenied(.unsupportedScheme)
-        )
+    func testAdmissionRejectsWrongSingleResourceComboAndDependencyOrder() {
+        let wrong = validGraph.replacingOccurrences(of: "@deepseek-ai/dsh-ui-chat/client.js&rev=chat-r1", with: "@deepseek-ai/dsh-client-modules/client.js&rev=chat-r1")
+        assertRejected(wrong, .resourceIDMismatch)
+        let order = validGraph.replacingOccurrences(of: #""external":[]"#, with: #""external":["@deepseek-ai/dsh-ui-chat"]"#)
+        assertRejected(order, .dependencyAfterConsumer)
     }
 
     private func assertRejected(_ wire: String, _ reason: GhostPlaneModuleManifest.Reason) {
-        XCTAssertEqual(
-            GhostPlaneModuleManifest.admit(
-                data: wire.data(using: .utf8)!,
-                policy: policy,
-                staticModuleSpecifiers: []
-            ),
-            .rejected(reason),
-            wire
-        )
+        XCTAssertEqual(GhostPlaneModuleManifest.admit(data: wire.data(using: .utf8)!, policy: policy, staticModuleSpecifiers: ["react"]), .rejected(reason))
     }
 
     private let validGraph = #"""
     {"rev":"graph-r1","entries":[
-      {"id":"dsh-a","url":"http://127.0.0.1:7342/plugins/dsh-a/client.js?rev=a-r1","rev":"a-r1","inject":[],"immediately":true,"external":[]},
-      {"id":"dsh-b","url":"http://127.0.0.1:7342/plugins/dsh-b/client.js?rev=b-r1","rev":"b-r1","inject":["dsh-a"],"immediately":false,"external":["dsh-a/client","@deepseek-ai/dsh-client-runtime/client"]}
+      {"id":"@deepseek-ai/dsh-client-modules","url":"http://127.0.0.1:7342/plugins/??@deepseek-ai/dsh-client-modules/client.js&rev=modules-r1","rev":"modules-r1","inject":[],"immediately":true,"external":[]},
+      {"id":"@deepseek-ai/dsh-ui-chat","url":"http://127.0.0.1:7342/plugins/??@deepseek-ai/dsh-ui-chat/client.js&rev=chat-r1","rev":"chat-r1","inject":["@deepseek-ai/dsh-client-modules"],"immediately":false,"external":["react"]}
+    ],"batches":[
+      {"phase":"bootstrap","url":"http://127.0.0.1:7342/plugins/??@deepseek-ai/dsh-client-modules/client.js&rev=boot-r1","rev":"boot-r1","entries":["@deepseek-ai/dsh-client-modules"]},
+      {"phase":"application","url":"http://127.0.0.1:7342/plugins/??@deepseek-ai/dsh-ui-chat/client.js&rev=app-r1","rev":"app-r1","entries":["@deepseek-ai/dsh-ui-chat"]}
     ]}
     """#
 }
