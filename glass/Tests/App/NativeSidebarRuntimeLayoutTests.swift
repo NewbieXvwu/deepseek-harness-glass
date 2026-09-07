@@ -20,15 +20,16 @@ final class NativeSidebarRuntimeLayoutTests: XCTestCase {
         }
         split.view.layoutSubtreeIfNeeded()
 
+        let sidebarItem = split.splitViewItems[0]
         XCTAssertTrue(presentation.sidebarLayout.isCollapsed)
         XCTAssertEqual(split.splitView.bounds.width, 780, accuracy: 0.5)
         XCTAssertEqual(
-            split.splitViewItems[0].minimumThickness,
+            sidebarItem.minimumThickness,
             OfficialUISpec.Layout.sidebarCollapsed,
             accuracy: 0.5
         )
         XCTAssertEqual(
-            split.splitView.subviews[0].frame.width,
+            sidebarItem.viewController.view.frame.width,
             OfficialUISpec.Layout.sidebarCollapsed,
             accuracy: 0.5
         )
