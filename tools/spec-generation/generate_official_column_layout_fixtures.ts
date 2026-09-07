@@ -36,6 +36,7 @@ function fixtureInputs(): Array<{ name: string; viewport: number; sidebarPrefere
     ["collapsed-sidebar-compact-rail", 1023, 0, 360],
     ["collapsed-sidebar-details-minimum-boundary", 996, 0, 360],
     ["collapsed-sidebar-details-auto-closes-below-minimum", 995, 0, 360],
+    ["deliverables-capture-compact-rail", 780, 0, 360],
     ["details-closed-center-absorbs", 900, 280, 0],
     ["details-closed-narrow-center-floor-fallback", 200, 280, 0],
     ["sidebar-min-preferred-boundary", 1264, 264, 360],

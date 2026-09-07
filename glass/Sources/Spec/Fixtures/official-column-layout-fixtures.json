@@ -107,6 +107,17 @@
       }
     },
     {
+      "name": "deliverables-capture-compact-rail",
+      "viewport": 780,
+      "sidebarPreference": 0,
+      "detailsPreference": 360,
+      "expected": {
+        "sidebar": 56,
+        "center": 724,
+        "details": 0
+      }
+    },
+    {
       "name": "details-closed-center-absorbs",
       "viewport": 900,
       "sidebarPreference": 280,
