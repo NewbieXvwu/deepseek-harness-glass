@@ -1,0 +1,26 @@
+name: Retrigger CUT5.12
+
+on:
+  push:
+    branches: [gpt-continue-todo-20260905]
+    paths: [.github/workflows/retrigger-cut512.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  retrigger:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gpt-continue-todo-20260905
+      - name: Touch clean-cut helper and self-delete
+        run: |
+          printf '\n# retrigger after SessionAddress.SubagentMode fix\n' >> .github/workflows/cut512-clean-ingest.yml
+          rm .github/workflows/retrigger-cut512.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/workflows/cut512-clean-ingest.yml .github/workflows/retrigger-cut512.yml
+          git commit -m 'ci: retrigger CUT5.12 clean cut'
+          git push origin HEAD:gpt-continue-todo-20260905
