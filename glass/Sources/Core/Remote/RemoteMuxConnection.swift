@@ -6,7 +6,7 @@ import FoundationNetworking
 
 actor RemoteMuxConnection {
     private struct Sink: Sendable {
-        let yield: @Sendable (Data) -> Void
+        let yield: @Sendable (Data) throws -> Void
         let finish: @Sendable (Error?) -> Void
     }
 
@@ -87,6 +87,34 @@ actor RemoteMuxConnection {
         self.authenticatedHost = authenticatedHost
     }
 
+    static func decodeItem<Frame: Decodable>(_ type: Frame.Type, data: Data) throws -> Frame {
+        do {
+            let item = try JSONDecoder().decode(ItemEnvelope<Frame>.self, from: data)
+            guard let value = item.value else {
+                throw RemoteConnectionError.protocolViolation("Remote stream item omitted value")
+            }
+            return value
+        } catch let error as RemoteConnectionError {
+            throw error
+        } catch {
+            throw RemoteConnectionError.protocolViolation("invalid Remote stream item value: \(error)")
+        }
+    }
+
+    static func encodeMessage<Message: Encodable>(_ message: Message) throws -> String {
+        do {
+            let data = try JSONEncoder().encode(message)
+            guard let text = String(data: data, encoding: .utf8) else {
+                throw RemoteConnectionError.protocolViolation("failed to encode Remote stream message")
+            }
+            return text
+        } catch let error as RemoteConnectionError {
+            throw error
+        } catch {
+            throw RemoteConnectionError.protocolViolation("failed to encode Remote stream message: \(error)")
+        }
+    }
+
     func open<Arguments, Frame>(
         _ procedure: RemoteStreamProcedure<Arguments, Frame>,
         arguments: Arguments
@@ -99,15 +127,7 @@ actor RemoteMuxConnection {
         let continuation = pair.continuation
         let sink = Sink(
             yield: { data in
-                do {
-                    let item = try JSONDecoder().decode(ItemEnvelope<Frame>.self, from: data)
-                    guard let value = item.value else {
-                        throw RemoteConnectionError.protocolViolation("Remote stream item omitted value")
-                    }
-                    continuation.yield(value)
-                } catch {
-                    continuation.finish(throwing: error)
-                }
+                continuation.yield(try Self.decodeItem(Frame.self, data: data))
             },
             finish: { error in
                 if let error { continuation.finish(throwing: error) }
@@ -187,7 +207,7 @@ actor RemoteMuxConnection {
                 }
                 guard let sink = sinks[frame.streamId] else { continue }
                 switch frame.type {
-                case "item": sink.yield(data)
+                case "item": try sink.yield(data)
                 case "end":
                     sinks.removeValue(forKey: frame.streamId)
                     sink.finish(nil)
@@ -223,10 +243,7 @@ actor RemoteMuxConnection {
     }
 
     private func send<Message: Encodable>(_ message: Message, on socket: URLSessionWebSocketTask) async throws {
-        let data = try JSONEncoder().encode(message)
-        guard let text = String(data: data, encoding: .utf8) else {
-            throw RemoteConnectionError.protocolViolation("failed to encode Remote stream message")
-        }
+        let text = try Self.encodeMessage(message)
         do {
             try await socket.send(.string(text))
         } catch {
