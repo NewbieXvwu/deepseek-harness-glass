@@ -23,7 +23,7 @@ def main() -> None:
     build = json.loads(BUILD.read_text(encoding='utf-8'))
     require(fixture.get('schemaVersion') == 1, 'schemaVersion must be 1')
     require(fixture.get('officialSourceCommit') == build['sourceCommit'], 'fixture source commit differs from locked rc.1')
-    require(fixture.get('fixtureRevision') == 'official-a66e470-authenticated-host-r1', 'fixture revision is not rc.1')
+    require(fixture.get('fixtureRevision') == 'official-a66e470-authenticated-host-r2', 'fixture revision is not rc.1')
     require(fixture.get('payload', {}).get('dshVersion') == '0.1.2-rc.1', 'fixture payload is not exact rc.1')
     expected_lock = 'sha256:' + hashlib.sha256(LOCK.read_bytes()).hexdigest()
     require(fixture.get('payload', {}).get('packageLockSHA256') == expected_lock, 'fixture payload lock digest drifted')
@@ -57,6 +57,17 @@ def main() -> None:
     require(frames[0]['value']['workspace']['updatedAt'] == '<fixture-time>', 'workspace updatedAt was not normalized')
     require(frames[1]['value']['workspaceIds'] == ['<fixture-workspace-id>'], 'workspace order delta drifted')
 
+    catalogs = fixture.get('controllerCatalogs', {})
+    commands = catalogs.get('commands', {})
+    assert_remote_pair(commands, 'fixture-commands-list', 'commands/list', True)
+    command_values = commands['response']['result']['value']
+    require([command.get('name') for command in command_values] == ['compact', 'export', 'feedback', 'goal', 'permission', 'plan'], 'commands/list catalog drifted')
+    require(commands['request']['payload']['args'] == {'agentId': 'fixture-session'}, 'commands/list request ownership drifted')
+    skills = catalogs.get('skills', {})
+    assert_remote_pair(skills, 'fixture-skills-list', 'skills/list', True)
+    require(skills['request']['payload']['args'] == {'request': {'sessionId': 'fixture-session'}}, 'skills/list request ownership drifted')
+    require(skills['response']['result']['value'] == {'skills': []}, 'fresh skills/list catalog drifted')
+
     error = fixture.get('businessError', {})
     assert_remote_pair(error, 'fixture-business-error', 'session/cancel', False)
     require(error['response']['result']['error']['code'] == 'session/not-found', 'business error code drifted')
@@ -89,7 +100,7 @@ def main() -> None:
             require(token_pattern.search(node) is None, f"fixture leaked token pattern in value at {path}: {node!r}")
 
     scan_for_unredacted_tokens(fixture)
-    print('Authenticated rc.1 Host fixture OK: unary, stream opening/delta, business error, download, privacy')
+    print('Authenticated rc.1 Host fixture OK: unary, stream opening/delta, commands/skills catalogs, business error, download, privacy')
 
 
 

@@ -104,6 +104,31 @@ try {
   )
   assertResponse(sessionCreate, 'fixture-session-create', true)
 
+  const commands = await remoteCall(
+    base,
+    cookie,
+    'commands/list',
+    { agentId: 'fixture-session' },
+    'fixture-commands-list',
+  )
+  assertResponse(commands, 'fixture-commands-list', true)
+  const commandNames = commands.body.result.value?.map(command => command.name)
+  if (JSON.stringify(commandNames) !== JSON.stringify(['compact', 'export', 'feedback', 'goal', 'permission', 'plan'])) {
+    throw new Error(`fresh Host commands/list drifted: ${JSON.stringify(commands.body.result.value)}`)
+  }
+
+  const skills = await remoteCall(
+    base,
+    cookie,
+    'skills/list',
+    { request: { sessionId: 'fixture-session' } },
+    'fixture-skills-list',
+  )
+  assertResponse(skills, 'fixture-skills-list', true)
+  if (JSON.stringify(skills.body.result.value) !== '{"skills":[]}') {
+    throw new Error(`fresh Host skills/list drifted: ${JSON.stringify(skills.body.result.value)}`)
+  }
+
   const downloadURL = new URL('/api/session.export?sessionId=fixture-session', base)
   const downloadHead = await fetch(downloadURL, { method: 'HEAD', headers: { Cookie: cookie } })
   const downloadGet = await fetch(downloadURL, { headers: { Cookie: cookie } })
@@ -116,7 +141,7 @@ try {
   const fixture = normalize({
     schemaVersion: 1,
     officialSourceCommit: build.sourceCommit,
-    fixtureRevision: 'official-a66e470-authenticated-host-r1',
+    fixtureRevision: 'official-a66e470-authenticated-host-r2',
     fixtureClass: 'isolated exact bundled rc.1 authenticated Host capture',
     payload: {
       dshVersion,
@@ -158,6 +183,22 @@ try {
     streamDelta: {
       trigger: remoteRequest('fixture-workspace-create', 'workspace/create', { request: { path: workspace } }),
       frames: workspaceDeltas,
+    },
+    controllerCatalogs: {
+      commands: {
+        endpoint: 'commands/list',
+        request: remoteRequest('fixture-commands-list', 'commands/list', { agentId: 'fixture-session' }),
+        httpStatus: commands.status,
+        contentType: contentType(commands.contentType),
+        response: commands.body,
+      },
+      skills: {
+        endpoint: 'skills/list',
+        request: remoteRequest('fixture-skills-list', 'skills/list', { request: { sessionId: 'fixture-session' } }),
+        httpStatus: skills.status,
+        contentType: contentType(skills.contentType),
+        response: skills.body,
+      },
     },
     businessError: {
       endpoint: 'session/cancel',

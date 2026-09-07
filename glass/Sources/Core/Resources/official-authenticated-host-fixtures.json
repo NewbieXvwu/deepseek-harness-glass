@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "officialSourceCommit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d",
-  "fixtureRevision": "official-a66e470-authenticated-host-r1",
+  "fixtureRevision": "official-a66e470-authenticated-host-r2",
   "fixtureClass": "isolated exact bundled rc.1 authenticated Host capture",
   "payload": {
     "dshVersion": "0.1.2-rc.1",
@@ -132,6 +132,97 @@
         }
       }
     ]
+  },
+  "controllerCatalogs": {
+    "commands": {
+      "endpoint": "commands/list",
+      "request": {
+        "type": "client-request",
+        "rpcId": "fixture-commands-list",
+        "method": "commands/list",
+        "payload": {
+          "args": {
+            "agentId": "fixture-session"
+          }
+        }
+      },
+      "httpStatus": 200,
+      "contentType": "application/json",
+      "response": {
+        "type": "server-response",
+        "rpcId": "fixture-commands-list",
+        "result": {
+          "ok": true,
+          "value": [
+            {
+              "name": "compact",
+              "description": "Compact older conversation history"
+            },
+            {
+              "name": "export",
+              "description": "Download this Session log as a ZIP archive"
+            },
+            {
+              "name": "feedback",
+              "description": "record feedback about this session",
+              "input": {
+                "hint": "<text>"
+              }
+            },
+            {
+              "name": "goal",
+              "description": "set or view the goal for a long-running task",
+              "input": {
+                "hint": "[<objective>|clear|edit <objective>|pause|resume]",
+                "images": true
+              }
+            },
+            {
+              "name": "permission",
+              "description": "Switch the permission preset (sandbox mode + approval policy)",
+              "input": {
+                "hint": "<preset>"
+              }
+            },
+            {
+              "name": "plan",
+              "description": "Enter or leave plan mode",
+              "input": {
+                "hint": "[off|message]",
+                "images": true
+              }
+            }
+          ]
+        }
+      }
+    },
+    "skills": {
+      "endpoint": "skills/list",
+      "request": {
+        "type": "client-request",
+        "rpcId": "fixture-skills-list",
+        "method": "skills/list",
+        "payload": {
+          "args": {
+            "request": {
+              "sessionId": "fixture-session"
+            }
+          }
+        }
+      },
+      "httpStatus": 200,
+      "contentType": "application/json",
+      "response": {
+        "type": "server-response",
+        "rpcId": "fixture-skills-list",
+        "result": {
+          "ok": true,
+          "value": {
+            "skills": []
+          }
+        }
+      }
+    }
   },
   "businessError": {
     "endpoint": "session/cancel",
