@@ -303,7 +303,8 @@ enum NativeCodeHighlighter {
     }
 
     static func text(code: String, language: String?) -> SwiftUI.Text {
-        fragments(code: code, language: language).reduce(SwiftUI.Text(String())) { result, fragment in
+        var attributed = AttributedString()
+        for fragment in fragments(code: code, language: language) {
             let color: Color
             switch fragment.kind {
             case .plain: color = OfficialUISpec.Token.primary
@@ -312,8 +313,11 @@ enum NativeCodeHighlighter {
             case .number: color = OfficialUISpec.Token.caption
             case .comment: color = OfficialUISpec.Token.secondary
             }
-            return result + SwiftUI.Text(verbatim: fragment.text).foregroundColor(color)
+            var run = AttributedString(fragment.text)
+            run.foregroundColor = color
+            attributed.append(run)
         }
+        return SwiftUI.Text(attributed)
     }
 }
 
