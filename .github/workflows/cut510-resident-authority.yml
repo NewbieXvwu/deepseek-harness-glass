@@ -1,0 +1,34 @@
+name: CUT5.10 resident authority one-shot
+
+on:
+  push:
+    branches: [gpt-continue-todo-20260905]
+    paths:
+      - .github/workflows/cut510-resident-authority.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-cut:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: gpt-continue-todo-20260905
+      - name: Invalidate resident Host authority
+        run: python3 tools/cut510_resident_authority.py
+      - name: Commit result and remove helpers
+        run: |
+          set -euo pipefail
+          rm .github/workflows/cut510-resident-authority.yml tools/cut510_resident_authority.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add glass/Sources/Core/Session/NativeSessionStore.swift \
+                  glass/Tests/Core/NativeSessionStoreTests.swift \
+                  .github/workflows/cut510-resident-authority.yml \
+                  tools/cut510_resident_authority.py
+          git diff --cached --check
+          git commit -m "core: invalidate resident Host authority on refresh"
+          git push origin HEAD:gpt-continue-todo-20260905
