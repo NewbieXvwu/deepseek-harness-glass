@@ -249,7 +249,7 @@ final class SessionProjectionIncrementalTests: XCTestCase {
         let final = try XCTUnwrap(projected)
         let assistant = try XCTUnwrap(final.chatNodes.first(where: { $0.kind == "assistant-step" })?.data as? CoreAssistantNode)
         XCTAssertEqual(final.chatNodes.filter { $0.kind == "assistant-step" }.count, 1)
-        XCTAssertEqual(assistant.blocks.first?.text.count, 10_000)
+        XCTAssertEqual(assistant.blocks.first?.text?.count, 10_000)
         XCTAssertEqual(journal.snapshot?.revision, 10_001)
         XCTAssertEqual(journal.snapshot?.mutation, .append(startRecordIndex: 10_000))
     }
