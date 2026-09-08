@@ -53,9 +53,12 @@ def upstream_path(root: Path, path: str) -> None:
         if not target.is_file():
             raise SystemExit(f"registered upstream scene path does not exist under official root: {path}")
     elif first == "artifacts" and len(parts) >= 2 and parts[1] == "official-webui":
-        # These are outputs of the native-ui capture workflow. Portable checks
-        # validate the contract path; the macOS job owns producing the artifact.
-        return
+        # Portable checks have no rendered baseline directory. On the macOS
+        # capture job, however, the directory already exists before this gate;
+        # every registered artifact path must then resolve to a real file.
+        artifact_root = REPO_ROOT / "artifacts" / "official-webui"
+        if artifact_root.exists() and not (REPO_ROOT / path).is_file():
+            raise SystemExit(f"registered official WebUI artifact does not exist: {path}")
     else:
         raise SystemExit(f"unrecognized or unsupported path root prefix for registered scene path: {path}")
 
@@ -106,6 +109,7 @@ def main() -> None:
                 raise SystemExit(f"scene {identifier} has an empty or invalid {list_field}")
         if not isinstance(scene["screenshotBaseline"], str) or not scene["screenshotBaseline"].endswith(".png"):
             raise SystemExit(f"scene {identifier} lacks a PNG screenshot baseline contract")
+        upstream_path(args.official_root, scene["screenshotBaseline"])
     missing_scenes = REQUIRED_SCENES - ids
     if missing_scenes:
         raise SystemExit("interaction scene catalog lacks required coverage: " + ", ".join(sorted(missing_scenes)))
