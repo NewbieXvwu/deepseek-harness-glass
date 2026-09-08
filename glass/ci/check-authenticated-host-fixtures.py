@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Validate the captured rc.1 authenticated Host fixture and its privacy invariants."""
 from __future__ import annotations
-import argparse, hashlib, json, re, sys
+import argparse, hashlib, json, re
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT = ROOT / 'glass/Sources/Core/Resources/official-authenticated-host-fixtures.json'
@@ -90,7 +91,7 @@ def main() -> None:
             for k, v in node.items():
                 curr_path = f"{path}.{k}" if path else k
                 if k.lower() in {"token", "auth_token", "launchtoken", "access_token"} and curr_path != "secretPolicy.persistedLaunchToken":
-                    require(v in (None, False, True, "<fixture-token>"), f"fixture leaked unredacted token at {curr_path}: {v!r}")
+                    require(v is None or type(v) is bool or v == "<fixture-token>", f"fixture leaked unredacted token at {curr_path}: {v!r}")
                 scan_for_unredacted_tokens(v, curr_path)
         elif isinstance(node, list):
             for i, elem in enumerate(node):
