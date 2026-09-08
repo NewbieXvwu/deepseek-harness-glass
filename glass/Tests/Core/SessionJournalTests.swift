@@ -71,6 +71,25 @@ final class SessionJournalTests: XCTestCase {
         XCTAssertEqual(journal.snapshot, before)
     }
 
+    func testRepairSnapshotSupersedesConflictingHistoryAndForgetsOldTail() throws {
+        var journal = try openedJournal(cursor: 2, records: [record(1), record(2)])
+        XCTAssertTrue(try journal.append(generation: generation, event: event(3, text: "stale-tail")))
+
+        let repaired = event(2, text: "repaired-authority")
+        try journal.replaceOpening(
+            generation: generation,
+            address: address,
+            frame: opening(cursor: 2, records: [record(1), .event(repaired)])
+        )
+
+        let newTail = event(3, text: "new-tail")
+        XCTAssertTrue(try journal.append(generation: generation, event: newTail))
+        XCTAssertEqual(
+            journal.snapshot?.records,
+            [record(1), .event(repaired), .event(newTail)]
+        )
+    }
+
     func testConflictingOverlappingPageForKnownSequenceIsRejectedWithoutMutation() throws {
         var journal = try openedJournal(cursor: 4, records: [record(3), record(4)], hasMore: true)
         let before = journal.snapshot

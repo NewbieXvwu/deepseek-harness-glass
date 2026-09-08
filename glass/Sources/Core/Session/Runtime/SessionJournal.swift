@@ -86,7 +86,6 @@ struct SessionJournal: Sendable {
             throw SessionJournalError.missingOpeningSnapshot
         }
         try Self.validatePage(records)
-        try validateRawEvents(in: records)
         let tail = records.last?.lastSeq ?? SessionSeq(rawValue: -1)
         guard tail == cursor else {
             throw SessionJournalError.invalidOpeningCursor(expected: cursor, actual: tail)
@@ -104,6 +103,7 @@ struct SessionJournal: Sendable {
             revision: revision,
             mutation: .authoritativeReplace
         )
+        rawEventsBySeq.removeAll(keepingCapacity: true)
         registerRawEvents(in: records)
     }
 
