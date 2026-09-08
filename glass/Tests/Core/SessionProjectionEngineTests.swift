@@ -5,7 +5,7 @@ import XCTest
 final class SessionProjectionEngineTests: XCTestCase {
     func testCompleteRuntimeStateFoldsConversationAndCurrentControlAuthority() {
         let generation = RemoteConnectionGeneration(rawValue: 7)
-        let address = SessionAddress.session("session-a")
+        let address = SessionAddress.session(sessionID: "session-a")
         let journalBaseline = RemoteSessionProjectionBaseline(
             asOfSeq: SessionSeq(rawValue: 2),
             values: ["journal-only": .string("durable")]
@@ -87,7 +87,7 @@ final class SessionProjectionEngineTests: XCTestCase {
 
         XCTAssertEqual(projection.generation, generation)
         XCTAssertEqual(projection.address, address)
-        XCTAssertEqual(projection.chatNodes.map(\.kind), ["input-message"])
+        XCTAssertEqual(projection.chatNodes.map { $0.kind }, ["input-message"])
         XCTAssertEqual((projection.chatNodes.first?.data as? CoreUserMessageNode)?.messageID, "message-1")
         XCTAssertTrue(projection.trajectoryNodes.isEmpty)
         XCTAssertTrue(projection.toolCalls.isEmpty)
@@ -97,7 +97,7 @@ final class SessionProjectionEngineTests: XCTestCase {
         XCTAssertNil(projection.projectionValues["journal-only"])
         XCTAssertEqual(
             projection.modelSelection,
-            .init(provider: "provider-a", model: "model-a", reasoningEffort: "high")
+            RemoteModelSelection(provider: "provider-a", model: "model-a", reasoningEffort: "high")
         )
         XCTAssertTrue(projection.isRunning)
         XCTAssertTrue(projection.hasMoreHistory)
@@ -125,8 +125,8 @@ final class SessionProjectionEngineTests: XCTestCase {
         let reused = engine.project(second)
         let fresh = SessionProjectionEngine().project(second)
 
-        XCTAssertEqual(reused.chatNodes.map(\.key), fresh.chatNodes.map(\.key))
-        XCTAssertEqual(reused.chatNodes.map(\.kind), fresh.chatNodes.map(\.kind))
+        XCTAssertEqual(reused.chatNodes.map { $0.key }, fresh.chatNodes.map { $0.key })
+        XCTAssertEqual(reused.chatNodes.map { $0.kind }, fresh.chatNodes.map { $0.kind })
         XCTAssertEqual((reused.chatNodes.first?.data as? CoreUserMessageNode)?.messageID, "fresh")
         XCTAssertEqual(reused.projectionValues["title"], .string("fresh"))
         XCTAssertEqual(reused.projectionSequence, SessionSeq(rawValue: 1))
@@ -159,7 +159,7 @@ final class SessionProjectionEngineTests: XCTestCase {
         return .init(
             journal: .init(
                 generation: generation,
-                address: .session(sessionID),
+                address: .session(sessionID: sessionID),
                 header: .init(
                     version: 1,
                     id: sessionID,
