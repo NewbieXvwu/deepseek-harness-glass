@@ -189,7 +189,7 @@ enum HostLogRedactor {
         var earliest: Range<String.Index>?
         for marker in markers {
             guard let range = text.range(of: marker, options: .caseInsensitive) else { continue }
-            if earliest == nil || range.lowerBound < earliest!.lowerBound {
+            if earliest.map({ range.lowerBound < $0.lowerBound }) ?? true {
                 earliest = range
             }
         }
