@@ -12,6 +12,7 @@ final class SessionProjectionEngine {
         let chatNodes: [ConversationViewNode]
         let trajectoryNodes: [ConversationViewNode]
         let toolCalls: [CoreToolCallNode]
+        let toolInvocations: [SessionToolInvocation]
         let queue: [RemoteSessionQueuedItem]
         let jobs: [RemoteSessionJob]
         let projectionValues: [String: RemoteJSONValue]
@@ -22,6 +23,7 @@ final class SessionProjectionEngine {
     }
 
     private let conversation: ConversationNodeReducer
+    private let tools = ToolInvocationProjector()
 
     init(
         definitions: [AnyConversationNodeDefinition] = ConversationCoreNodeRegistry.initialDefinitions()
@@ -41,6 +43,10 @@ final class SessionProjectionEngine {
             chatNodes: chatNodes,
             trajectoryNodes: conversation.snapshot(target: "trajectory"),
             toolCalls: chatNodes.compactMap { $0.data as? CoreToolCallNode },
+            toolInvocations: tools.replaceWindow(
+                state.journal.records,
+                sessionCWD: state.journal.header.cwd
+            ),
             queue: state.control?.queue ?? [],
             jobs: state.control?.jobs ?? [],
             projectionValues: baseline.values,

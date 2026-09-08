@@ -91,6 +91,7 @@ final class SessionProjectionEngineTests: XCTestCase {
         XCTAssertEqual((projection.chatNodes.first?.data as? CoreUserMessageNode)?.messageID, "message-1")
         XCTAssertEqual(projection.trajectoryNodes.map { $0.kind }, ["trajectory-input-message"])
         XCTAssertTrue(projection.toolCalls.isEmpty)
+        XCTAssertTrue(projection.toolInvocations.isEmpty)
         XCTAssertEqual(projection.queue, [queued])
         XCTAssertEqual(projection.jobs, [job])
         XCTAssertEqual(projection.projectionSequence, SessionSeq(rawValue: 3))
@@ -101,6 +102,67 @@ final class SessionProjectionEngineTests: XCTestCase {
         )
         XCTAssertTrue(projection.isRunning)
         XCTAssertTrue(projection.hasMoreHistory)
+    }
+
+    func testRawToolProjectionIsEngineOwnedAndRefoldsWithJournalAuthority() throws {
+        let generation = RemoteConnectionGeneration(rawValue: 9)
+        let engine = SessionProjectionEngine()
+        let baseline = RemoteSessionProjectionBaseline(asOfSeq: SessionSeq(rawValue: 2), values: [:])
+        let toolState = SessionRuntimeState(
+            journal: .init(
+                generation: generation,
+                address: .session(sessionID: "tools"),
+                header: .init(
+                    version: 1, id: "tools", createdAt: 1, cwd: "/workspace",
+                    parentSession: nil, seedLength: nil, origin: nil, delegationDepth: nil, agentPreset: nil
+                ),
+                openingCut: SessionSeq(rawValue: 2),
+                records: [
+                    .event(Self.event(
+                        type: "tool/call",
+                        seq: 1,
+                        data: .object([
+                            "callId": .string("call-1"),
+                            "name": .string("read"),
+                            "arguments": .string(#"{"file_path":"README.md"}"#),
+                        ])
+                    )),
+                    .event(Self.event(
+                        type: "tool/result",
+                        seq: 2,
+                        data: .object([
+                            "message": .object([
+                                "source": .object(["callId": .string("call-1")]),
+                                "content": .array([.object([
+                                    "type": .string("tool-result"),
+                                    "toolCallId": .string("call-1"),
+                                    "content": .array([.object(["type": .string("text"), "text": .string("done")])]),
+                                    "isError": .bool(false),
+                                ])]),
+                            ]),
+                        ])
+                    )),
+                ],
+                hasMore: false,
+                projections: baseline,
+                appliedThrough: SessionSeq(rawValue: 2)
+            ),
+            control: nil
+        )
+
+        let projected = engine.project(toolState)
+        let invocation = try XCTUnwrap(projected.toolInvocations.first)
+        XCTAssertEqual(projected.toolInvocations.count, 1)
+        XCTAssertEqual(invocation.id, "call-1")
+        XCTAssertEqual(invocation.name, "read")
+        XCTAssertEqual(invocation.state, .completed)
+        XCTAssertEqual(invocation.output, "done")
+        XCTAssertEqual(invocation.sessionCWD, "/workspace")
+
+        let fresh = engine.project(Self.state(
+            generation: generation, sessionID: "fresh", messageID: "m", text: "fresh", projectionValue: "fresh"
+        ))
+        XCTAssertTrue(fresh.toolInvocations.isEmpty)
     }
 
     func testCompleteStateRefoldDropsPriorConversationAndFallsBackToJournalProjectionCut() {
