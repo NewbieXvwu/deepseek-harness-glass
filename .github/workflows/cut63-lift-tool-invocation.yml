@@ -24,76 +24,7 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
-
-          model = Path('glass/Sources/Core/Session/Projection/Tooling/SessionToolInvocation.swift')
-          if model.exists():
-              raise SystemExit('SessionToolInvocation.swift already exists')
-          model.write_text('''import Foundation
-
-/// Transport-free rc.1 tool call/result projection value. The Session Store may
-/// temporarily alias this type while authority moves into SessionProjectionEngine;
-/// card projectors depend only on this Core value and never on MainActor state.
-struct SessionToolInvocation: Identifiable, Sendable {
-    enum State: Sendable, Equatable {
-        case running
-        case completed
-        case failed
-        case stopped
-    }
-
-    let id: String
-    let name: String
-    let arguments: String
-    var output: String?
-    /// Text-only flatten of the rc.1 inner `tool-result.content` array.
-    var textOutput: String?
-    /// Structured error is retained for generic fallback and stopped state.
-    var errorName: String?
-    var errorCode: String?
-    var state: State
-    let sequence: Int
-    /// Raw rc.1 facts consumed by native card projectors. `resultContent` is the
-    /// inner content of the durable `tool-result` wrapper; metadata is the
-    /// top-level `tool/result.data.meta` value.
-    var resultContent: [JSONValue]?
-    var resultMeta: JSONValue?
-    var resultIsError: Bool?
-    var parentCallID: String?
-    var sessionCWD: String?
-
-    init(
-        id: String,
-        name: String,
-        arguments: String,
-        output: String?,
-        textOutput: String?,
-        errorName: String?,
-        errorCode: String?,
-        state: State,
-        sequence: Int,
-        resultContent: [JSONValue]? = nil,
-        resultMeta: JSONValue? = nil,
-        resultIsError: Bool? = nil,
-        parentCallID: String? = nil,
-        sessionCWD: String? = nil
-    ) {
-        self.id = id
-        self.name = name
-        self.arguments = arguments
-        self.output = output
-        self.textOutput = textOutput
-        self.errorName = errorName
-        self.errorCode = errorCode
-        self.state = state
-        self.sequence = sequence
-        self.resultContent = resultContent
-        self.resultMeta = resultMeta
-        self.resultIsError = resultIsError
-        self.parentCallID = parentCallID
-        self.sessionCWD = sessionCWD
-    }
-}
-''')
+          from textwrap import dedent
 
           store = Path('glass/Sources/Core/Session/NativeSessionStore.swift')
           text = store.read_text()
@@ -129,6 +60,16 @@ struct SessionToolInvocation: Identifiable, Sendable {
               i += 1
           if end is None:
               raise SystemExit('unbalanced ToolInvocation block')
+
+          block = dedent(text[start:end])
+          block = block.replace('struct ToolInvocation: Identifiable {', 'struct SessionToolInvocation: Identifiable, Sendable {', 1)
+          block = block.replace('enum State: Equatable {', 'enum State: Sendable, Equatable {', 1)
+          model = Path('glass/Sources/Core/Session/Projection/Tooling/SessionToolInvocation.swift')
+          if model.exists():
+              raise SystemExit('SessionToolInvocation.swift already exists')
+          header = 'import Foundation\n\n/// Transport-free rc.1 tool call/result projection value. Card projectors depend on this Core value, never MainActor Store state.\n'
+          model.write_text(header + block + '\n')
+
           text = text[:start] + '    typealias ToolInvocation = SessionToolInvocation\n' + text[end:]
           store.write_text(text)
 
@@ -149,6 +90,7 @@ struct SessionToolInvocation: Identifiable, Sendable {
           ! grep -n 'NativeSessionStore.ToolInvocation' glass/Sources/Core/Session/Projection/Tooling/NativeRawToolCardProjector.swift
           ! grep -n 'NativeSessionStore.ToolInvocation' glass/Tests/Core/NativeRawToolCardProjectorTests.swift
           grep -n 'typealias ToolInvocation = SessionToolInvocation' glass/Sources/Core/Session/NativeSessionStore.swift
+          grep -n 'struct SessionToolInvocation: Identifiable, Sendable' glass/Sources/Core/Session/Projection/Tooling/SessionToolInvocation.swift
           git diff --check
 
       - name: Compile SwiftPM app
