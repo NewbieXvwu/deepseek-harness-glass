@@ -1,3 +1,4 @@
+# Trigger after workflow registration on the branch.
 name: CUT5.12 store test realignment
 
 on:
