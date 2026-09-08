@@ -87,9 +87,9 @@ final class SessionProjectionEngineTests: XCTestCase {
 
         XCTAssertEqual(projection.generation, generation)
         XCTAssertEqual(projection.address, address)
-        XCTAssertEqual(projection.chatNodes.map { $0.kind }, ["input-message"])
+        XCTAssertEqual(projection.chatNodes.map { $0.kind }, ["user"])
         XCTAssertEqual((projection.chatNodes.first?.data as? CoreUserMessageNode)?.messageID, "message-1")
-        XCTAssertTrue(projection.trajectoryNodes.isEmpty)
+        XCTAssertEqual(projection.trajectoryNodes.map { $0.kind }, ["trajectory-input-message"])
         XCTAssertTrue(projection.toolCalls.isEmpty)
         XCTAssertEqual(projection.queue, [queued])
         XCTAssertEqual(projection.jobs, [job])
