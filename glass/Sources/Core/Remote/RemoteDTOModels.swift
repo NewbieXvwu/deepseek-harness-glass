@@ -64,14 +64,6 @@ struct SessionEventDTO: Decodable, Sendable, Identifiable {
     var id: Int { seq }
 }
 
-/// Source: `events.schema.ts:session/subscribed`. The stream's durable-history
-/// watermark is `-1` for an empty log and is used to evict state from a prior
-/// Host generation before its fresh transient baselines arrive.
-struct SessionSubscribedDTO: Decodable, Sendable {
-    let sessionId: String
-    let lastSeq: Int
-}
-
 /// Source: `events.schema.ts:session/queue` and its `messageSchema`. Queue
 /// messages are transient Host-owned inbox entries, never synthesised from the
 /// durable transcript. Content remains JSON here so typed feature adapters can

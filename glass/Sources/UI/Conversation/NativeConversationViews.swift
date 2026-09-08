@@ -155,9 +155,9 @@ enum NativeComposerPresentation: Equatable {
     }
 }
 
-/// First native transcript surface. The Store provides a session.history
-/// baseline plus official mux event deltas; the root remains visually stable
-/// for snapshot fixtures whose deterministic conversation mode has no Host.
+/// First native transcript surface. The Store presents addressed SessionRuntime
+/// journal/control snapshots; the root remains visually stable for snapshot
+/// fixtures whose deterministic conversation mode has no Host.
 private struct NativeActiveConversationSurface: View {
     let sessionSnapshot: NativeWorkspaceStore.Snapshot
     @ObservedObject var sessionStore: NativeSessionStore

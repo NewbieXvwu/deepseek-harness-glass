@@ -9,7 +9,6 @@ import Foundation
 /// conversation authority runs through `SessionRuntime` and typed controllers.
 @MainActor
 protocol NativeSessionAPI: Sendable {
-    func history(sessionID: String, beforeSeq: Int?, maxMessages: Int?) async throws -> SessionHistoryResponse
     func prompt(sessionID: String, content: [SessionPromptContent], mode: SessionPromptMode) async throws -> SessionPromptResponse
     func cancel(sessionID: String) async throws -> SessionCancelResponse
     func updateQueue(_ request: SessionUpdateQueueRequest) async throws -> SessionUpdateQueueResponse
@@ -604,20 +603,9 @@ final class NativeSessionStore: ObservableObject {
     private var promptTask: Task<Void, Never>?
     private var cancelTask: Task<Void, Never>?
     private var olderHistoryTask: Task<Void, Never>?
-    /// A recovery is distinct from initial history loading. Its monotonic token
-    /// prevents an old Host generation, endpoint, or selected session from
-    /// applying models/history/projections after a newer authority request.
-    private var recoveryTask: Task<Void, Never>?
+    /// Main-actor lifecycle fence for async UI-side work derived from the current
+    /// addressed SessionRuntime generation. Journal continuity lives in the actor.
     private var recoveryGeneration: UInt = 0
-    /// RC8 `Session.liveBuffer` equivalent. While a full authority recovery is
-    /// rebuilding the history window, live frames must wait to be stitched on
-    /// top of that cut rather than being discarded or folded into an old window.
-    private var recoveryLiveBuffer: [SessionHistoryEntryDTO] = []
-    private var recoveryBufferGeneration: UInt?
-    /// RC8 retains the mux subscription tail even when it arrives before the
-    /// initial history page. Once that page lands, a mismatch triggers the
-    /// second authority pull required to avoid a cold-to-live discontinuity.
-    private var subscribedLastSequence: Int?
     private var endpoint: URL?
     private var api: (any NativeSessionAPI)?
     private var goalAPI: (any NativeGoalAPI)?
@@ -1353,7 +1341,6 @@ final class NativeSessionStore: ObservableObject {
         olderHistoryTask?.cancel()
         promptTask?.cancel()
         cancelTask?.cancel()
-        recoveryTask?.cancel()
         approvalSubmissionTask?.cancel()
         questionSubmissionTask?.cancel()
         remoteInteractionTask?.cancel()
@@ -1404,7 +1391,6 @@ final class NativeSessionStore: ObservableObject {
         isSubmittingQuestion = false
         lastError = nil
         appliedSequences = []
-        subscribedLastSequence = nil
         projections.remove(sessionID: sessionID)
         resetConversationWindow()
         chatNodes = cachedChatNodes
@@ -1484,9 +1470,6 @@ final class NativeSessionStore: ObservableObject {
         promptTask?.cancel()
         pendingPromptIntent = nil
         cancelTask?.cancel()
-        recoveryTask?.cancel()
-        recoveryLiveBuffer = []
-        recoveryBufferGeneration = nil
         goalTask?.cancel()
         goalTask = nil
         subagentCatalogTask?.cancel()
@@ -1533,12 +1516,10 @@ final class NativeSessionStore: ObservableObject {
         queueActionCompletion = nil
         recoveryGeneration &+= 1
         invalidateInteractions()
-        subscribedLastSequence = nil
         let authorityGeneration = recoveryGeneration
         // RC8 buffers live frames during the first authority read as well as
         // gap recovery. The common generation gate keeps a replaced session or
         // endpoint from stitching its old pending tail into the new window.
-        recoveryBufferGeneration = authorityGeneration
         let directoryGeneration = modelDirectoryGeneration
         self.goalAPI = goalAPI
         self.subagentCatalogAPI = subagentCatalogAPI
@@ -1593,70 +1574,70 @@ final class NativeSessionStore: ObservableObject {
             refreshCurrentControlAuthority(for: sessionID)
         }
 
-        modelDirectoryStatus = .loading
+        modelDirectoryStatus = modelCatalogRepository == nil ? .idle : .loading
         historyTask = Task { [weak self] in
             do {
-                if let sessionRuntime, let modelCatalogRepository = self?.modelCatalogRepository {
-                    let catalog = try await modelCatalogRepository.catalog()
+                guard let sessionRuntime else {
+                    // Focused legacy command tests may bind no journal runtime. They
+                    // receive no durable/history authority from this compatibility seam.
+                    guard let api = self?.api else { throw DSHTransportError.invalidEndpoint }
+                    let models = try await api.models(sessionID: sessionID)
                     guard !Task.isCancelled,
                           self?.recoveryGeneration == authorityGeneration,
                           self?.modelDirectoryGeneration == directoryGeneration,
                           self?.activeSessionID == sessionID,
                           self?.endpoint == endpoint
                     else { return }
+                    self?.modelDirectory = .init(response: models)
+                    self?.modelDirectoryStatus = .ready
+                    self?.phase = .ready(sessionID: sessionID)
+                    return
+                }
 
-                    let opening = try await sessionRuntime.open()
+                // Follow-first: the journal opening is the first session-history
+                // authority operation. No page/history predecessor runs before it.
+                let opening = try await sessionRuntime.open()
+                guard !Task.isCancelled,
+                      self?.recoveryGeneration == authorityGeneration,
+                      self?.activeSessionID == sessionID,
+                      self?.endpoint == endpoint
+                else { return }
+                self?.installRemoteJournal(opening, sessionID: sessionID)
+                self?.phase = .ready(sessionID: sessionID)
+
+                if let repository = self?.modelCatalogRepository {
+                    do {
+                        let catalog = try await repository.catalog()
+                        guard !Task.isCancelled,
+                              self?.recoveryGeneration == authorityGeneration,
+                              self?.modelDirectoryGeneration == directoryGeneration,
+                              self?.activeSessionID == sessionID,
+                              self?.endpoint == endpoint
+                        else { return }
+                        if let self {
+                            let current = self.projections.remoteModelSelection(sessionID: sessionID) ?? catalog.default
+                            self.modelDirectory = .init(catalog: catalog, current: current)
+                            self.modelDirectoryStatus = .ready
+                        }
+                    } catch {
+                        guard !Task.isCancelled,
+                              self?.recoveryGeneration == authorityGeneration,
+                              self?.activeSessionID == sessionID
+                        else { return }
+                        self?.modelDirectoryStatus = .error(error.localizedDescription)
+                    }
+                } else {
+                    self?.modelDirectoryStatus = .idle
+                }
+
+                let snapshots = await sessionRuntime.snapshots()
+                for await snapshot in snapshots {
                     guard !Task.isCancelled,
                           self?.recoveryGeneration == authorityGeneration,
                           self?.activeSessionID == sessionID,
                           self?.endpoint == endpoint
                     else { return }
-                    self?.installRemoteJournal(opening, sessionID: sessionID)
-                    if let self {
-                        let current = self.projections.remoteModelSelection(sessionID: sessionID) ?? catalog.default
-                        self.modelDirectory = .init(catalog: catalog, current: current)
-                    }
-                    self?.modelDirectoryStatus = .ready
-                    self?.phase = .ready(sessionID: sessionID)
-                    let snapshots = await sessionRuntime.snapshots()
-                    for await snapshot in snapshots {
-                        guard !Task.isCancelled,
-                              self?.recoveryGeneration == authorityGeneration,
-                              self?.activeSessionID == sessionID,
-                              self?.endpoint == endpoint
-                        else { return }
-                        self?.installRemoteJournal(snapshot, sessionID: sessionID)
-                    }
-                    return
-                }
-
-                // Legacy/test fallback while the remaining facade-only domains
-                // are cut over to rc.1 Remote.
-                guard let api = self?.api else { throw DSHTransportError.invalidEndpoint }
-                let models = try await api.models(sessionID: sessionID)
-                guard !Task.isCancelled,
-                      self?.recoveryGeneration == authorityGeneration,
-                      self?.modelDirectoryGeneration == directoryGeneration,
-                      self?.activeSessionID == sessionID,
-                      self?.endpoint == endpoint
-                else { return }
-                self?.modelDirectory = .init(response: models)
-                self?.modelDirectoryStatus = .ready
-
-                let response = try await api.history(sessionID: sessionID, beforeSeq: nil, maxMessages: nil)
-                guard !Task.isCancelled,
-                      self?.recoveryGeneration == authorityGeneration,
-                      self?.activeSessionID == sessionID,
-                      self?.endpoint == endpoint
-                else { return }
-                self?.replaceConversationWindow(response.events.map(ConversationEventInput.init(entry:)), hasMore: response.hasMore)
-                self?.applyHistory(response.events)
-                if let projections = response.projections { self?.projections.seed(sessionID: sessionID, baseline: projections) }
-                self?.hasMoreHistory = response.hasMore
-                self?.phase = .ready(sessionID: sessionID)
-                self?.stitchRecoveryLiveBuffer(generation: authorityGeneration)
-                if self?.consumeSubscriptionTailMismatch() == true {
-                    self?.requestAuthorityRecovery(sessionID: sessionID, reason: .subscriptionWatermark)
+                    self?.installRemoteJournal(snapshot, sessionID: sessionID)
                 }
             } catch let error as DSHTransportError {
                 guard !Task.isCancelled,
@@ -1668,10 +1649,6 @@ final class NativeSessionStore: ObservableObject {
                 if case .loading = self?.modelDirectoryStatus {
                     self?.modelDirectoryStatus = .error(error.localizedDescription)
                 }
-                if self?.recoveryBufferGeneration == authorityGeneration {
-                    self?.recoveryBufferGeneration = nil
-                    self?.recoveryLiveBuffer = []
-                }
                 if !restoredResident { self?.phase = .failed(sessionID: sessionID) }
             } catch {
                 guard !Task.isCancelled,
@@ -1681,10 +1658,6 @@ final class NativeSessionStore: ObservableObject {
                 else { return }
                 if case .loading = self?.modelDirectoryStatus {
                     self?.modelDirectoryStatus = .error(error.localizedDescription)
-                }
-                if self?.recoveryBufferGeneration == authorityGeneration {
-                    self?.recoveryBufferGeneration = nil
-                    self?.recoveryLiveBuffer = []
                 }
                 if !restoredResident { self?.phase = .failed(sessionID: sessionID) }
             }
@@ -1707,16 +1680,11 @@ final class NativeSessionStore: ObservableObject {
         Task { await previousSessionRuntime?.close() }
         olderHistoryTask?.cancel()
         olderHistoryTask = nil
-        recoveryTask?.cancel()
-        recoveryTask = nil
         recoveryGeneration &+= 1
         promptTask?.cancel()
         pendingPromptIntent = nil
         promptTask = nil
         invalidateInteractions()
-        recoveryLiveBuffer = []
-        recoveryBufferGeneration = nil
-        subscribedLastSequence = nil
         messageFeedbackTask?.cancel()
         messageFeedbackTask = nil
         messageFeedbackResyncTask?.cancel()
@@ -1799,16 +1767,11 @@ final class NativeSessionStore: ObservableObject {
         Task { await previousSessionRuntime?.close() }
         olderHistoryTask?.cancel()
         olderHistoryTask = nil
-        recoveryTask?.cancel()
-        recoveryTask = nil
         recoveryGeneration &+= 1
         promptTask?.cancel()
         pendingPromptIntent = nil
         promptTask = nil
         invalidateInteractions()
-        recoveryLiveBuffer = []
-        recoveryBufferGeneration = nil
-        subscribedLastSequence = nil
         messageFeedbackTask?.cancel()
         messageFeedbackTask = nil
         messageFeedbackResyncTask?.cancel()
@@ -2468,54 +2431,38 @@ final class NativeSessionStore: ObservableObject {
         }
     }
 
-    /// Source: `sessions.schema.ts:sessionHistoryRequestSchema`. The Host owns
-    /// message-boundary paging and returns the authority for `hasMore`.\
+    /// Loads only through the addressed SessionRuntime journal. The actor freezes
+    /// the current follow cut and supplies page prepend authority.
     func loadOlderHistory() {
         guard hasMoreHistory,
               !isLoadingOlderHistory,
               let sessionID = activeSessionID,
-              sessionRuntime != nil || (api != nil && appliedSequences.min() != nil)
+              let runtime = sessionRuntime
         else { return }
 
-        let runtime = sessionRuntime
-        let legacyAPI = api
-        let legacyBeforeSeq = appliedSequences.min()
         isLoadingOlderHistory = true
         olderHistoryTask?.cancel()
         olderHistoryTask = Task { [weak self] in
             defer { self?.isLoadingOlderHistory = false }
             do {
-                if let runtime {
-                    if let snapshot = try await runtime.loadOlder() {
-                        guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
-                        self?.installRemoteJournal(snapshot, sessionID: sessionID)
-                    }
-                    return
+                if let snapshot = try await runtime.loadOlder() {
+                    guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
+                    self?.installRemoteJournal(snapshot, sessionID: sessionID)
                 }
-                guard let legacyAPI, let legacyBeforeSeq else { return }
-                let response = try await legacyAPI.history(sessionID: sessionID, beforeSeq: legacyBeforeSeq, maxMessages: nil)
-                guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
-                self?.prependConversationWindow(response.events.map(ConversationEventInput.init(entry:)), hasMore: response.hasMore)
-                self?.applyHistory(response.events)
-                if let projections = response.projections { self?.projections.seed(sessionID: sessionID, baseline: projections) }
-                self?.hasMoreHistory = response.hasMore
             } catch {
+                guard !Task.isCancelled, self?.activeSessionID == sessionID else { return }
                 self?.historyLoadError = error.localizedDescription
-                // Retain the existing official transcript if a backward page
-                // fails; a templated error surface follows transport code mapping.
             }
         }
     }
 
-    /// Source: RC8 `Session.resync`. A resident session discards its old
-    /// history window and pending server requests, then reopens against a new
-    /// Host authority baseline. Cold instances have no transport to rebuild.
-    /// Cached Host authority is dropped immediately; the bound generation alone
-    /// may repopulate control state while the durable journal is reopening.
+
+    /// Invalidates the selected presentation authority and asks the addressed
+    /// SessionRuntime for a fresh follow opening in its current Host generation.
     func resyncActiveSession() {
         guard let sessionID = activeSessionID,
               endpoint != nil,
-              sessionRuntime != nil || api != nil
+              let runtime = sessionRuntime
         else { return }
 
         historyTask?.cancel()
@@ -2523,9 +2470,6 @@ final class NativeSessionStore: ObservableObject {
         olderHistoryTask?.cancel()
         olderHistoryTask = nil
         isLoadingOlderHistory = false
-        recoveryLiveBuffer = []
-        recoveryBufferGeneration = nil
-        subscribedLastSequence = nil
         invalidateInteractions()
         pendingApproval = nil
         pendingQuestion = nil
@@ -2541,31 +2485,31 @@ final class NativeSessionStore: ObservableObject {
         phase = .loading(sessionID: sessionID)
         invalidateResidentHostAuthority(sessionID: sessionID)
         refreshCurrentControlAuthority(for: sessionID)
-        if let runtime = sessionRuntime {
-            recoveryGeneration &+= 1
-            let generation = recoveryGeneration
-            historyTask = Task { [weak self] in
-                do {
-                    let snapshot = try await runtime.resync()
-                    guard !Task.isCancelled,
-                          self?.recoveryGeneration == generation,
-                          self?.activeSessionID == sessionID
-                    else { return }
-                    self?.installRemoteJournal(snapshot, sessionID: sessionID)
-                    self?.phase = .ready(sessionID: sessionID)
-                } catch {
-                    guard !Task.isCancelled,
-                          self?.recoveryGeneration == generation,
-                          self?.activeSessionID == sessionID
-                    else { return }
-                    self?.historyLoadError = error.localizedDescription
-                    self?.phase = .failed(sessionID: sessionID)
-                }
+
+        recoveryGeneration &+= 1
+        let generation = recoveryGeneration
+        historyTask = Task { [weak self] in
+            do {
+                let snapshot = try await runtime.resync()
+                guard !Task.isCancelled,
+                      self?.recoveryGeneration == generation,
+                      self?.activeSessionID == sessionID
+                else { return }
+                self?.installRemoteJournal(snapshot, sessionID: sessionID)
+                self?.phase = .ready(sessionID: sessionID)
+                self?.resyncSubagentCatalogsAfterRecovery()
+                self?.resyncMessageFeedbackAfterRecovery()
+            } catch {
+                guard !Task.isCancelled,
+                      self?.recoveryGeneration == generation,
+                      self?.activeSessionID == sessionID
+                else { return }
+                self?.historyLoadError = error.localizedDescription
+                self?.phase = .failed(sessionID: sessionID)
             }
-            return
         }
-        requestAuthorityRecovery(sessionID: sessionID, reason: .residentResync)
     }
+
 
     private func resetConversationWindow() {
         conversationReducer = ConversationNodeReducer(
@@ -2584,11 +2528,6 @@ final class NativeSessionStore: ObservableObject {
         trajectoryNodes = conversationReducer.snapshot(target: "trajectory")
     }
 
-    private func prependConversationWindow(_ entries: [ConversationEventInput], hasMore: Bool) {
-        _ = conversationReducer.prepend(entries, hasMore: hasMore)
-        chatNodes = conversationReducer.snapshot(target: "chat")
-        trajectoryNodes = conversationReducer.snapshot(target: "trajectory")
-    }
 
     private func appendConversationEvent(_ input: ConversationEventInput) {
         _ = conversationReducer.append(input)
@@ -2596,11 +2535,6 @@ final class NativeSessionStore: ObservableObject {
         trajectoryNodes = conversationReducer.snapshot(target: "trajectory")
     }
 
-    private func applyHistory(_ entries: [SessionHistoryEntryDTO]) {
-        for entry in entries.sorted(by: { $0.event.seq < $1.event.seq }) {
-            apply(event: entry.event)
-        }
-    }
 
     private func installRemoteJournal(_ snapshot: SessionJournalSnapshot, sessionID: String) {
         let inputs = snapshot.records.map(ConversationEventInput.init(remoteRecord:))
@@ -2622,205 +2556,13 @@ final class NativeSessionStore: ObservableObject {
         modelDirectory = modelDirectory?.applying(current)
     }
 
-    /// Source: `events.ts:MuxFrame` uses frame.method as the event discriminant
-    /// in the native SSE transport's server-request envelope.
-    /// Core-internal Host mux reducer. The transport owns envelope decoding;
-    /// Feature/UI receives the resulting published typed state only.
-    func applyMuxFrame(_ frame: RPCServerRequest, sessionID: String) {
-        guard activeSessionID == sessionID,
-              let object = frame.payload.objectValue,
-              object["sessionId"]?.stringValue == sessionID
-        else { return }
 
-        switch frame.method {
-        case "session/event":
-            guard let eventValue = object["event"],
-                  let event = decode(SessionEventDTO.self, from: eventValue)
-            else { return }
-            if recoveryBufferGeneration != nil {
-                bufferRecoveryLiveEvent(event)
-                return
-            }
-            // Source: RC8 `Session.acceptLiveEvent`: only an open authority
-            // window accepts direct events. A failed/cold window must wait for
-            // a later history baseline instead of manufacturing a partial log.
-            guard case .ready(sessionID: sessionID) = phase else { return }
-            guard !liveEventRequiresAuthorityRecovery(event) else {
-                bufferRecoveryLiveEvent(event)
-                requestAuthorityRecovery(sessionID: sessionID, reason: .eventGap)
-                return
-            }
-            appendConversationEvent(.init(event: event))
-            apply(event: event)
-        case "session/subscribed":
-            applySubscription(object, sessionID: sessionID)
-        case "session/projection":
-            applyProjection(object, sessionID: sessionID)
-        case "session/queue":
-            applyQueue(object, sessionID: sessionID)
-        case "session/jobs":
-            applyJobs(object, sessionID: sessionID)
-        case "approval/requested":
-            applyApprovalRequest(object, rpcID: frame.rpcId, sessionID: sessionID)
-        case "approval/resolved":
-            applyApprovalResolution(object)
-        case "question/requested":
-            applyQuestionRequest(object, rpcID: frame.rpcId, sessionID: sessionID)
-        case "question/resolved":
-            applyQuestionResolution(object)
-        default:
-            break
-        }
-    }
 
-    /// Source: `events.ts:session/projection`; one finished whole value per key,
-    /// never a client-side partial fold. The projection store rejects replayed
-    /// and lower/equal sequence frames.
-    private func applySubscription(_ object: [String: JSONValue], sessionID: String) {
-        guard let subscribed = decode(SessionSubscribedDTO.self, from: .object(object)),
-              subscribed.sessionId == sessionID
-        else { return }
-        // A new mux generation may have lost process-local queue/jobs and events
-        // past `lastSeq`; wait for its fresh whole-set frames instead of showing
-        // phantom work from the prior Host generation.
-        let priorWindowHighWatermark = conversationReducer.rawWindow().map(\.event.seq).max()
-        subscribedLastSequence = subscribed.lastSeq
-        projections.truncate(sessionID: sessionID, after: subscribed.lastSeq)
-        queuedMessages = []
-        backgroundJobs = []
-        // approval/question ServerRequests are generation-bound, exactly like
-        // queue/jobs. A restarted Host can no longer resolve an old rpcId; keep
-        // no stale takeover visible until the fresh mux baseline re-emits it.
-        invalidateInteractions()
-        pendingApproval = nil
-        pendingQuestion = nil
-        isSubmittingApproval = false
-        isSubmittingQuestion = false
-        // RC8 `Session.doOpen` performs a second authority history pull when
-        // the mux subscription reports a durable tail beyond the just-installed
-        // history window. The inverse rollback case requires the same full
-        // recovery so a restarted Host cannot leave a discontinuous window.
-        if let priorWindowHighWatermark, subscribed.lastSeq != priorWindowHighWatermark {
-            requestAuthorityRecovery(sessionID: sessionID, reason: .subscriptionWatermark)
-        }
-    }
 
-    private enum AuthorityRecoveryReason {
-        case eventGap
-        case subscriptionWatermark
-        case residentResync
-    }
 
-    /// Consumes a durable `session/subscribed` tail only when its installed
-    /// authority window is discontinuous. Clearing before the follow-up pull
-    /// prevents a stale/underfilled Host page from recursively scheduling the
-    /// same recovery forever.
-    private func consumeSubscriptionTailMismatch() -> Bool {
-        guard let subscribedLastSequence,
-              let installedTail = conversationReducer.rawWindow().map(\.event.seq).max(),
-              installedTail != subscribedLastSequence
-        else { return false }
-        self.subscribedLastSequence = nil
-        return true
-    }
 
-    private func bufferRecoveryLiveEvent(_ event: SessionEventDTO) {
-        recoveryLiveBuffer.append(.init(event: event))
-    }
 
-    /// RC8 `installWindow` stitches the buffered live tail only after the Host
-    /// history cut has replaced the old window. Sequence is the sole dedup key:
-    /// replay overlap at or below the recovered tail is ignored, while a newer
-    /// frame is applied through the normal typed event path.
-    private func stitchRecoveryLiveBuffer(generation: UInt) {
-        guard recoveryBufferGeneration == generation else { return }
-        let buffered = recoveryLiveBuffer.sorted { $0.event.seq < $1.event.seq }
-        recoveryLiveBuffer = []
-        recoveryBufferGeneration = nil
-        for entry in buffered {
-            let tail = conversationReducer.rawWindow().map(\.event.seq).max()
-            guard tail == nil || entry.event.seq > tail! else { continue }
-            appendConversationEvent(.init(entry: entry))
-            apply(event: entry.event)
-        }
-    }
 
-    private func liveEventRequiresAuthorityRecovery(_ event: SessionEventDTO) -> Bool {
-        let window = conversationReducer.rawWindow()
-        guard let highest = window.map(\.event.seq).max() else { return false }
-        if window.contains(where: { $0.event.seq == event.seq }) { return false }
-        return event.seq != highest + 1
-    }
-
-    private func requestAuthorityRecovery(sessionID: String, reason _: AuthorityRecoveryReason) {
-        guard let api,
-              let endpoint,
-              activeSessionID == sessionID
-        else { return }
-        recoveryTask?.cancel()
-        modelSelectionTask?.cancel()
-        modelSelectionTask = nil
-        modelSelectionGeneration &+= 1
-        isSelectingModel = false
-        recoveryGeneration &+= 1
-        modelDirectoryGeneration &+= 1
-        let generation = recoveryGeneration
-        recoveryBufferGeneration = generation
-        let directoryGeneration = modelDirectoryGeneration
-        modelDirectoryStatus = .loading
-        recoveryTask = Task { [weak self] in
-            do {
-                let models = try await api.models(sessionID: sessionID)
-                guard !Task.isCancelled,
-                      self?.recoveryGeneration == generation,
-                      self?.modelDirectoryGeneration == directoryGeneration,
-                      self?.activeSessionID == sessionID,
-                      self?.endpoint == endpoint
-                else { return }
-                let history = try await api.history(sessionID: sessionID, beforeSeq: nil, maxMessages: nil)
-                guard !Task.isCancelled,
-                      self?.recoveryGeneration == generation,
-                      self?.modelDirectoryGeneration == directoryGeneration,
-                      self?.activeSessionID == sessionID,
-                      self?.endpoint == endpoint
-                else { return }
-                self?.modelDirectory = .init(response: models)
-                self?.modelDirectoryStatus = .ready
-                self?.replaceConversationWindow(history.events.map(ConversationEventInput.init(entry:)), hasMore: history.hasMore)
-                self?.items = []
-                self?.appliedSequences = []
-                self?.applyHistory(history.events)
-                if let projections = history.projections {
-                    self?.projections.seed(sessionID: sessionID, baseline: projections)
-                }
-                self?.hasMoreHistory = history.hasMore
-                self?.phase = .ready(sessionID: sessionID)
-                self?.stitchRecoveryLiveBuffer(generation: generation)
-                if self?.consumeSubscriptionTailMismatch() == true {
-                    self?.requestAuthorityRecovery(sessionID: sessionID, reason: .subscriptionWatermark)
-                    return
-                }
-                self?.resyncSubagentCatalogsAfterRecovery()
-                self?.resyncMessageFeedbackAfterRecovery()
-            } catch {
-                guard !Task.isCancelled,
-                      self?.recoveryGeneration == generation,
-                      self?.activeSessionID == sessionID,
-                      self?.endpoint == endpoint
-                else { return }
-                if case .loading = self?.modelDirectoryStatus {
-                    self?.modelDirectoryStatus = .error(error.localizedDescription)
-                }
-                if self?.recoveryBufferGeneration == generation {
-                    self?.recoveryBufferGeneration = nil
-                }
-                // Keep the last complete authority window visible. A newer
-                // mux/recovery generation or a finite stream failure owns any
-                // user-facing transport error policy; stale recovery errors do
-                // not replace a selected resident transcript.
-            }
-        }
-    }
 
     private func installRemoteControl(_ snapshot: SessionControlSnapshot) {
         guard let sessionID = activeSessionID else {
@@ -2876,56 +2618,8 @@ final class NativeSessionStore: ObservableObject {
         }
     }
 
-    private func applyProjection(_ object: [String: JSONValue], sessionID: String) {
-        guard let key = object["key"]?.stringValue,
-              let value = object["value"],
-              let seq = object["seq"]?.numberValue
-        else { return }
-        projections.apply(sessionID: sessionID, key: key, value: value, seq: Int(seq))
-    }
 
-    private func applyQueue(_ object: [String: JSONValue], sessionID: String) {
-        guard let frame = decode(SessionQueueFrameDTO.self, from: .object(object)),
-              frame.sessionId == sessionID
-        else { return }
-        queuedMessages = frame.items.map { item in
-            let texts = item.message.content.map { contentText($0) }
-            let allText = texts.allSatisfy { $0.isText }
-            let flat = texts.map(\.value).joined(separator: " ")
-                .split(whereSeparator: { $0.isWhitespace })
-                .joined(separator: " ")
-            let preview = String(flat.prefix(200)) + (flat.count > 200 ? "…" : "")
-            return QueuedMessage(
-                id: item.id,
-                messageID: item.message.id,
-                placement: QueuedMessage.Placement(rawValue: item.placement.rawValue)!,
-                role: item.message.role,
-                content: item.message.content,
-                source: item.message.source,
-                preview: preview,
-                text: allText ? item.message.content.compactMap { $0.objectValue?["text"]?.stringValue }.joined() : nil
-            )
-        }
-    }
 
-    private func applyJobs(_ object: [String: JSONValue], sessionID: String) {
-        guard let frame = decode(SessionJobsFrameDTO.self, from: .object(object)),
-              frame.sessionId == sessionID
-        else { return }
-        // `session/jobs` is a complete authority snapshot: `[]` and an absent
-        // baseline both mean no jobs, never a delta to merge.
-        backgroundJobs = frame.jobs.map { job in
-            BackgroundJob(
-                id: job.id,
-                kind: job.kind,
-                label: job.label,
-                status: BackgroundJob.Status(rawValue: job.status.rawValue)!,
-                detail: job.detail,
-                startedAt: job.startedAt,
-                finishedAt: job.finishedAt
-            )
-        }
-    }
 
     private func contentText(_ value: JSONValue) -> (isText: Bool, value: String) {
         guard let object = value.objectValue,
@@ -2937,89 +2631,10 @@ final class NativeSessionStore: ObservableObject {
         return (false, "[\(type)]")
     }
 
-    private func applyApprovalRequest(_ object: [String: JSONValue], rpcID: String, sessionID: String) {
-        guard let approvalID = object["approvalId"]?.stringValue,
-              let toolName = object["toolName"]?.stringValue
-        else { return }
-        guard pendingApproval?.rpcID != rpcID else { return }
-        invalidateInteractions()
-        pendingApproval = PendingApproval(
-            rpcID: rpcID,
-            sessionID: sessionID,
-            approvalID: approvalID,
-            toolName: toolName,
-            callID: object["callId"]?.stringValue,
-            reason: object["reason"]?.stringValue
-        )
-        isSubmittingApproval = false
-    }
 
-    private func applyApprovalResolution(_ object: [String: JSONValue]) {
-        guard let approvalID = object["approvalId"]?.stringValue,
-              pendingApproval?.approvalID == approvalID
-        else { return }
-        pendingApproval = nil
-        invalidateApprovalSubmission()
-    }
 
-    private func applyQuestionRequest(_ object: [String: JSONValue], rpcID: String, sessionID: String) {
-        guard let values = object["questions"]?.arrayValue else { return }
-        let items = values.compactMap(questionItem)
-        guard !items.isEmpty, items.count == values.count else { return }
-        guard pendingQuestion?.rpcID != rpcID else { return }
-        invalidateInteractions()
-        pendingQuestion = PendingQuestion(rpcID: rpcID, sessionID: sessionID, items: items)
-        isSubmittingQuestion = false
-    }
 
-    private func applyQuestionResolution(_ object: [String: JSONValue]) {
-        guard let rpcID = object["questionRpcId"]?.stringValue,
-              pendingQuestion?.rpcID == rpcID
-        else { return }
-        pendingQuestion = nil
-        invalidateQuestionSubmission()
-    }
 
-    private func questionItem(_ value: JSONValue) -> PendingQuestion.Item? {
-        guard let object = value.objectValue,
-              let id = object["id"]?.stringValue,
-              let question = object["question"]?.stringValue
-        else { return nil }
-        let options: [PendingQuestion.Option]
-        if let values = object["options"]?.arrayValue {
-            options = values.compactMap { value in
-                guard let option = value.objectValue,
-                      let label = option["label"]?.stringValue
-                else { return nil }
-                return PendingQuestion.Option(label: label, detail: option["description"]?.stringValue)
-            }
-            guard options.count == values.count else { return nil }
-        } else {
-            options = []
-        }
-        let intent: PendingQuestion.Item.Intent?
-        if let rawIntent = object["intent"]?.objectValue {
-            guard let kind = rawIntent["kind"]?.stringValue else { return nil }
-            switch kind {
-            case "plan-review":
-                guard let approve = rawIntent["approve"]?.stringValue else { return nil }
-                intent = .planReview(approve: approve)
-            default:
-                return nil
-            }
-        } else {
-            intent = nil
-        }
-        return PendingQuestion.Item(
-            id: id,
-            question: question,
-            header: object["header"]?.stringValue,
-            detail: object["detail"]?.stringValue,
-            options: options,
-            multiSelect: object["multiSelect"]?.boolValue ?? false,
-            intent: intent
-        )
-    }
 
     private func invalidateApprovalSubmission() {
         approvalSubmissionTask?.cancel()
