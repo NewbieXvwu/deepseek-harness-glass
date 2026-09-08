@@ -123,8 +123,9 @@ final class SessionJournalRecoveryChaosTests: XCTestCase {
             XCTAssertEqual(recovered.records, records(through: finalSeq), "seed \(seed)")
             XCTAssertEqual(recovered.appliedThrough, SessionSeq(rawValue: finalSeq), "seed \(seed)")
 
-            // One more carrier generation must converge the complete journal
-            // metadata to exactly the same state as a fresh client opening.
+            // One more carrier generation must converge the durable journal authority
+            // to the same state as a fresh client opening. `revision` deliberately
+            // remains instance-local and records how many accepted mutations occurred.
             generationValue &+= 1
             generation = .init(rawValue: generationValue)
             try journal.replaceOpening(
@@ -138,7 +139,17 @@ final class SessionJournalRecoveryChaosTests: XCTestCase {
                 address: address,
                 frame: opening(cursor: finalSeq)
             )
-            XCTAssertEqual(journal.snapshot, fresh.snapshot, "seed \(seed)")
+            let repaired = try XCTUnwrap(journal.snapshot, "seed \(seed)")
+            let canonical = try XCTUnwrap(fresh.snapshot, "seed \(seed)")
+            XCTAssertEqual(repaired.generation, canonical.generation, "seed \(seed)")
+            XCTAssertEqual(repaired.address, canonical.address, "seed \(seed)")
+            XCTAssertEqual(repaired.header, canonical.header, "seed \(seed)")
+            XCTAssertEqual(repaired.openingCut, canonical.openingCut, "seed \(seed)")
+            XCTAssertEqual(repaired.records, canonical.records, "seed \(seed)")
+            XCTAssertEqual(repaired.hasMore, canonical.hasMore, "seed \(seed)")
+            XCTAssertEqual(repaired.projections, canonical.projections, "seed \(seed)")
+            XCTAssertEqual(repaired.appliedThrough, canonical.appliedThrough, "seed \(seed)")
+            XCTAssertEqual(repaired.mutation, canonical.mutation, "seed \(seed)")
         }
     }
 
