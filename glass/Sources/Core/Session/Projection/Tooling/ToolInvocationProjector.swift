@@ -23,8 +23,17 @@ final class ToolInvocationProjector {
         _ event: RemoteSessionWireEvent,
         sessionCWD: String?
     ) -> [SessionToolInvocation] {
-        accept(ConversationEventInput(remoteEvent: event).event, sessionCWD: sessionCWD)
+        appendInPlace(event, sessionCWD: sessionCWD)
         return snapshot()
+    }
+
+    /// Incremental engine hot path. It updates only keyed projector state and
+    /// defers ordered snapshot materialization until the enclosing engine emits.
+    func appendInPlace(
+        _ event: RemoteSessionWireEvent,
+        sessionCWD: String?
+    ) {
+        accept(ConversationEventInput(remoteEvent: event).event, sessionCWD: sessionCWD)
     }
 
     func snapshot() -> [SessionToolInvocation] {
