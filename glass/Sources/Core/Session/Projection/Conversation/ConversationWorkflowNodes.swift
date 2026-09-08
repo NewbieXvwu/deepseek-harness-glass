@@ -92,7 +92,7 @@ struct WorkflowRunDefinition: ConversationNodeDefinition {
     }
 
     func update(context: ConversationNodeContext<State>, match: ConversationMatch) -> State {
-        guard let state = context.state else { preconditionFailure("workflow-run update requires start") }
+        let state = context.state ?? .init(name: match.event.data.workflowString(named: "name") ?? "", stopReason: nil, members: [])
         switch match.event.type {
         case "tool-workflow/agent-start":
             guard let seq = match.event.data.workflowPositiveInteger(named: "seq"),

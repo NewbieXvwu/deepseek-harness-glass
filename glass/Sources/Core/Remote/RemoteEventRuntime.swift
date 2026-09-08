@@ -30,7 +30,7 @@ actor RemoteEventRuntime {
         catalog = .init(generation: channel.generation, items: sort(baseline.items), errors: [:])
         let buffered = pendingSessionFrames
         pendingSessionFrames.removeAll(keepingCapacity: false)
-        for frame in buffered { try applySessionFrame(frame) }
+        for frame in buffered { applySessionFrame(frame) }
         guard let opened = catalog else {
             throw RemoteConnectionError.protocolViolation("session catalog baseline unavailable")
         }
@@ -102,15 +102,14 @@ actor RemoteEventRuntime {
     private func receive(_ frame: RemoteEventDownlinkFrame) {
         if isSessionCatalogFrame(frame) {
             guard catalog != nil else {
+                if pendingSessionFrames.count >= 500 {
+                    pendingSessionFrames.removeFirst()
+                }
                 pendingSessionFrames.append(frame)
                 return
             }
-            do {
-                try applySessionFrame(frame)
-                if let catalog { publishCatalog(catalog) }
-            } catch {
-                invalidateCatalog()
-            }
+            applySessionFrame(frame)
+            if let catalog { publishCatalog(catalog) }
             return
         }
         if let interaction = RemoteInteractionProjector.project(frame) {
@@ -128,39 +127,40 @@ actor RemoteEventRuntime {
             || event == "api-session/error"
     }
 
-    private func applySessionFrame(_ frame: RemoteEventDownlinkFrame) throws {
+    private func applySessionFrame(_ frame: RemoteEventDownlinkFrame) {
         guard var current = catalog, case let .emit(event, args) = frame else { return }
         var byID = Dictionary(current.items.map { ($0.sessionId, $0) }, uniquingKeysWith: { _, latest in latest })
         var errors = current.errors
         switch event {
         case "api-session/added":
-            guard args.count == 1 else { throw RemoteConnectionError.protocolViolation("api-session/added arguments") }
-            let summary = try sessionSummary(args[0])
+            guard args.count == 1, let summary = try? sessionSummary(args[0]) else { return }
             byID[summary.sessionId] = summary
         case "api-session/removed":
-            guard args.count == 1, case let .string(sessionID) = args[0] else { throw RemoteConnectionError.protocolViolation("api-session/removed arguments") }
+            guard args.count == 1, case let .string(sessionID) = args[0] else { return }
             byID.removeValue(forKey: sessionID)
             errors.removeValue(forKey: sessionID)
         case "api-session/status":
             guard args.count == 2,
                   case let .string(sessionID) = args[0],
-                  case let .bool(running) = args[1],
-                  let item = byID[sessionID]
-            else { throw RemoteConnectionError.protocolViolation("api-session/status arguments") }
-            byID[sessionID] = replacing(item, running: running)
+                  case let .bool(running) = args[1]
+            else { return }
+            if let item = byID[sessionID] {
+                byID[sessionID] = replacing(item, running: running)
+            }
         case "api-session/activity":
             guard args.count == 2,
                   case let .string(sessionID) = args[0],
                   case let .number(rawUpdatedAt) = args[1],
-                  let updatedAt = Int64(exactly: rawUpdatedAt),
-                  let item = byID[sessionID]
-            else { throw RemoteConnectionError.protocolViolation("api-session/activity arguments") }
-            byID[sessionID] = replacing(item, updatedAt: updatedAt)
+                  let updatedAt = Int64(exactly: rawUpdatedAt)
+            else { return }
+            if let item = byID[sessionID] {
+                byID[sessionID] = replacing(item, updatedAt: updatedAt)
+            }
         case "api-session/error":
             guard args.count == 2,
                   case let .string(sessionID) = args[0],
                   case let .string(message) = args[1]
-            else { throw RemoteConnectionError.protocolViolation("api-session/error arguments") }
+            else { return }
             errors[sessionID] = message
         default:
             return

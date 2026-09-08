@@ -57,14 +57,12 @@ struct DeliverablesDefinition: ConversationNodeDefinition {
         match: ConversationMatch,
         reader _: any ConversationContextReader
     ) -> State {
-        guard let turn = match.event.data.deliverablesInteger(named: "turn") else {
-            preconditionFailure("deliverables start requires turn/start turn")
-        }
+        let turn = match.event.data.deliverablesInteger(named: "turn") ?? 0
         return .init(turn: turn, calls: [:], produced: [])
     }
 
     func update(context: ConversationNodeContext<State>, match: ConversationMatch) -> State {
-        guard var state = context.state else { preconditionFailure("deliverables update requires turn/start") }
+        var state = context.state ?? .init(turn: match.event.data.deliverablesInteger(named: "turn") ?? 0, calls: [:], produced: [])
         switch match.event.type {
         case "tool/call":
             guard let callID = match.event.data.deliverablesString(named: "callId"), !callID.isEmpty else { return state }

@@ -812,7 +812,7 @@ struct WorkspaceBrowserView: View {
     /// newly active sessions while keeping manually edited unaffected order.
     private func reconcileBrowserLocalOrders(sortUpdatedAccounts: Bool = false) {
         let snapshot = store.snapshot
-        let sessionByID = Dictionary(uniqueKeysWithValues: snapshot.sessions.map { ($0.sessionId, $0) })
+        let sessionByID = Dictionary(snapshot.sessions.map { ($0.sessionId, $0) }, uniquingKeysWith: { _, latest in latest })
         let accountedIDs = Set(snapshot.workspaces.flatMap(\.sessionIds))
         var accounts: [(key: String, sessionIDs: [String])] = snapshot.workspaces.map {
             ($0.workspaceId, $0.sessionIds.filter { sessionByID[$0] != nil })
@@ -852,7 +852,8 @@ struct WorkspaceBrowserView: View {
             }
             nextOrderByAccount[account.key] = order
             nextUpdatedAtByAccount[account.key] = Dictionary(
-                uniqueKeysWithValues: sessions.map { ($0.sessionId, $0.updatedAt) }
+                sessions.map { ($0.sessionId, $0.updatedAt) },
+                uniquingKeysWith: { _, latest in latest }
             )
         }
         sessionOrderByAccount = nextOrderByAccount
@@ -871,7 +872,7 @@ struct WorkspaceBrowserView: View {
     }
 
     private func orderedSessions(_ sessions: [SessionSummaryDTO], accountKey: String) -> [SessionSummaryDTO] {
-        let sessionByID = Dictionary(uniqueKeysWithValues: sessions.map { ($0.sessionId, $0) })
+        let sessionByID = Dictionary(sessions.map { ($0.sessionId, $0) }, uniquingKeysWith: { _, latest in latest })
         let order = NativeWorkspaceBrowserOrdering.reconciledOrder(
             hostIDs: sessions.map(\.sessionId),
             storedOrder: sessionOrderByAccount[accountKey]

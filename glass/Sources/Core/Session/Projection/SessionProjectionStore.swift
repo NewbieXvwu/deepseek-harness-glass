@@ -44,7 +44,7 @@ final class SessionProjectionStore: ObservableObject {
     }
 
     func values(sessionID: String) -> [String: JSONValue] {
-        Dictionary(uniqueKeysWithValues: (rowsBySession[sessionID] ?? [:]).map { ($0.key, $0.value.value) })
+        (rowsBySession[sessionID] ?? [:]).mapValues(\.value)
     }
 
     func apply(sessionID: String, key: String, value: JSONValue, seq: Int) {

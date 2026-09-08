@@ -67,7 +67,7 @@ public struct GhostPlaneSlotRegistry: Equatable, Sendable {
             throw Rejection.contractUnavailable
         }
         slots = decoded.sorted { $0.name < $1.name }
-        slotsByName = Dictionary(uniqueKeysWithValues: slots.map { ($0.name, $0) })
+        slotsByName = Dictionary(slots.map { ($0.name, $0) }, uniquingKeysWith: { _, latest in latest })
     }
 
     public var greenSlots: [Slot] { slots.filter { $0.zone == .green } }

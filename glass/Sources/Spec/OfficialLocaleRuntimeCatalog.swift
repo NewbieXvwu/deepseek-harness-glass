@@ -44,6 +44,6 @@ struct OfficialLocaleRuntimeCatalog: Decodable {
     }()
 
     var valueMap: [String: String] {
-        Dictionary(uniqueKeysWithValues: entries.map { ("\($0.language)|\($0.namespace).\($0.key)", $0.value) })
+        Dictionary(entries.map { ("\($0.language)|\($0.namespace).\($0.key)", $0.value) }, uniquingKeysWith: { _, latest in latest })
     }
 }

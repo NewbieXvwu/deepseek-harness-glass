@@ -32,7 +32,7 @@ struct NativeSchemaFormDraft: Equatable {
     init(namespace: SettingsNamespaceDTO, manifest: NativeUIManifest) {
         self.namespace = namespace
         self.manifest = manifest
-        fields = Dictionary(uniqueKeysWithValues: manifest.fields.map { ($0.id, $0) })
+        fields = Dictionary(manifest.fields.map { ($0.id, $0) }, uniquingKeysWith: { _, latest in latest })
     }
 
     var isDirty: Bool { !staged.isEmpty }

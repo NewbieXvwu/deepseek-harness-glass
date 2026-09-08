@@ -109,15 +109,15 @@ struct GhostPlaneSkeleton: Equatable, Sendable {
             centerWidth: Double(resolved.center),
             detailsWidth: Double(resolved.details)
         )
-        let anchorElementIDs = Dictionary(uniqueKeysWithValues: input.anchors.map {
+        let anchorElementIDs = Dictionary(input.anchors.map {
             ($0.key, "ghost-chat-anchor-\(elementSuffix($0.key))")
-        })
+        }, uniquingKeysWith: { _, latest in latest })
         let registry: GhostPlaneSlotRegistry
         do { registry = try GhostPlaneSlotRegistry() }
         catch { throw Error.slotContractUnavailable }
-        let slotSeatIDs = Dictionary(uniqueKeysWithValues: registry.greenSlots.map { slot in
+        let slotSeatIDs = Dictionary(registry.greenSlots.map { slot in
             (slot.name, "ghost-slot-\(elementSuffix(slot.name))")
-        })
+        }, uniquingKeysWith: { _, latest in latest })
         let elements = ElementMap(
             rootID: "ghost-plane-root",
             sessionHeaderID: "ghost-session-header",

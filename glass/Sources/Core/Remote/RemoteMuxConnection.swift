@@ -23,12 +23,20 @@ actor RemoteMuxConnection {
         let streamId: String
     }
 
-    private struct WireKey: CodingKey {
+    private struct DynamicKey: CodingKey, Equatable {
         let stringValue: String
-        let intValue: Int? = nil
+        var intValue: Int? { nil }
 
         init(stringValue: String) { self.stringValue = stringValue }
         init?(intValue: Int) { return nil }
+
+        static let type = DynamicKey(stringValue: "type")
+        static let streamId = DynamicKey(stringValue: "streamId")
+        static let value = DynamicKey(stringValue: "value")
+        static let error = DynamicKey(stringValue: "error")
+        static let code = DynamicKey(stringValue: "code")
+        static let message = DynamicKey(stringValue: "message")
+        static let details = DynamicKey(stringValue: "details")
     }
 
     private struct ServerEnvelope: Decodable {
@@ -37,10 +45,10 @@ actor RemoteMuxConnection {
         let failure: RemoteFailurePayload?
 
         init(from decoder: Decoder) throws {
-            let container = try decoder.container(keyedBy: WireKey.self)
-            let keys = Set(container.allKeys.map(\.stringValue))
-            let type = try container.decode(String.self, forKey: WireKey(stringValue: "type"))
-            let streamID = try container.decode(String.self, forKey: WireKey(stringValue: "streamId"))
+            let container = try decoder.container(keyedBy: DynamicKey.self)
+            let allKeys = container.allKeys
+            let type = try container.decode(String.self, forKey: .type)
+            let streamID = try container.decode(String.self, forKey: .streamId)
             guard !streamID.isEmpty else {
                 throw RemoteConnectionError.protocolViolation("Remote stream frame has empty streamId")
             }
@@ -48,25 +56,44 @@ actor RemoteMuxConnection {
             self.streamId = streamID
             switch type {
             case "item":
-                guard keys == ["type", "streamId"] || keys == ["type", "streamId", "value"] else {
+                // Item envelope must have exactly (type, streamId) or (type, streamId, value)
+                if allKeys.count == 2 {
+                    guard container.contains(.type), container.contains(.streamId) else {
+                        throw RemoteConnectionError.protocolViolation("invalid Remote stream item envelope")
+                    }
+                } else if allKeys.count == 3 {
+                    guard container.contains(.type), container.contains(.streamId), container.contains(.value) else {
+                        throw RemoteConnectionError.protocolViolation("invalid Remote stream item envelope")
+                    }
+                } else {
                     throw RemoteConnectionError.protocolViolation("invalid Remote stream item envelope")
                 }
                 failure = nil
             case "end":
-                guard keys == ["type", "streamId"] else {
+                // End envelope must contain only (type, streamId)
+                guard allKeys.count == 2, container.contains(.type), container.contains(.streamId) else {
                     throw RemoteConnectionError.protocolViolation("invalid Remote stream end envelope")
                 }
                 failure = nil
             case "error":
-                guard keys == ["type", "streamId", "error"] else {
+                // Error envelope must contain only (type, streamId, error)
+                guard allKeys.count == 3,
+                      container.contains(.type),
+                      container.contains(.streamId),
+                      container.contains(.error)
+                else {
                     throw RemoteConnectionError.protocolViolation("invalid Remote stream error envelope")
                 }
-                let errorKey = WireKey(stringValue: "error")
-                let nested = try container.nestedContainer(keyedBy: WireKey.self, forKey: errorKey)
-                guard Set(nested.allKeys.map(\.stringValue)) == ["code", "message", "details"] else {
+                let nested = try container.nestedContainer(keyedBy: DynamicKey.self, forKey: .error)
+                let nestedKeys = nested.allKeys
+                guard nestedKeys.count == 3,
+                      nested.contains(.code),
+                      nested.contains(.message),
+                      nested.contains(.details)
+                else {
                     throw RemoteConnectionError.protocolViolation("invalid Remote stream error payload")
                 }
-                failure = try container.decode(RemoteFailurePayload.self, forKey: errorKey)
+                failure = try container.decode(RemoteFailurePayload.self, forKey: .error)
             default:
                 throw RemoteConnectionError.protocolViolation("unknown Remote stream frame \(type)")
             }
@@ -76,6 +103,9 @@ actor RemoteMuxConnection {
     private struct ItemEnvelope<Frame: Decodable>: Decodable {
         let value: Frame?
     }
+
+    private static let decoder = JSONDecoder()
+    private static let encoder = JSONEncoder()
 
     private let authenticatedHost: AuthenticatedHostSession
     private var socket: URLSessionWebSocketTask?
@@ -89,7 +119,7 @@ actor RemoteMuxConnection {
 
     static func decodeItem<Frame: Decodable>(_ type: Frame.Type, data: Data) throws -> Frame {
         do {
-            let item = try JSONDecoder().decode(ItemEnvelope<Frame>.self, from: data)
+            let item = try decoder.decode(ItemEnvelope<Frame>.self, from: data)
             guard let value = item.value else {
                 throw RemoteConnectionError.protocolViolation("Remote stream item omitted value")
             }
@@ -103,7 +133,7 @@ actor RemoteMuxConnection {
 
     static func encodeMessage<Message: Encodable>(_ message: Message) throws -> String {
         do {
-            let data = try JSONEncoder().encode(message)
+            let data = try encoder.encode(message)
             guard let text = String(data: data, encoding: .utf8) else {
                 throw RemoteConnectionError.protocolViolation("failed to encode Remote stream message")
             }
@@ -199,7 +229,7 @@ actor RemoteMuxConnection {
                 }
                 let frame: ServerEnvelope
                 do {
-                    frame = try JSONDecoder().decode(ServerEnvelope.self, from: data)
+                    frame = try Self.decoder.decode(ServerEnvelope.self, from: data)
                 } catch let error as RemoteConnectionError {
                     throw error
                 } catch {

@@ -62,7 +62,7 @@ final class NativeWorkspaceStore: ObservableObject {
         }
 
         func sessions(in workspace: WorkspaceSummaryDTO) -> [SessionSummaryDTO] {
-            let byID = Dictionary(uniqueKeysWithValues: sessions.map { ($0.sessionId, $0) })
+            let byID = Dictionary(sessions.map { ($0.sessionId, $0) }, uniquingKeysWith: { _, latest in latest })
             return workspace.sessionIds.compactMap { byID[$0] }
                 .filter(isVisibleInBrowser)
         }
@@ -250,7 +250,7 @@ final class NativeWorkspaceStore: ObservableObject {
     /// its creation instant; equal timestamps intentionally retain Host list
     /// order by updating only on a strict improvement.
     static func recentWorkspaceID(in snapshot: Snapshot) -> String? {
-        let sessionsByID = Dictionary(uniqueKeysWithValues: snapshot.sessions.map { ($0.sessionId, $0) })
+        let sessionsByID = Dictionary(snapshot.sessions.map { ($0.sessionId, $0) }, uniquingKeysWith: { _, latest in latest })
         var selected: String?
         var selectedTime = -Double.infinity
         for workspace in snapshot.workspaces {

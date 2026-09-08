@@ -200,6 +200,16 @@ final class SessionJournalTests: XCTestCase {
         XCTAssertEqual(journal.snapshot, before)
     }
 
+    func testExceedingCapacityPrunesOldestRawEventsWithoutBreakingAppend() throws {
+        var journal = try openedJournal(cursor: 1, records: [record(1)])
+        for seq in 2...2100 {
+            XCTAssertTrue(try journal.append(generation: generation, event: event(seq)))
+        }
+        let snapshot = try XCTUnwrap(journal.snapshot)
+        XCTAssertEqual(snapshot.appliedThrough, SessionSeq(rawValue: 2100))
+        XCTAssertEqual(snapshot.records.count, 2100)
+    }
+
     private func openedJournal(
         cursor: Int,
         records: [RemoteSessionHistoryRecord],

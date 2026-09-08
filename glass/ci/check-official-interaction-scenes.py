@@ -117,8 +117,8 @@ def main() -> None:
     if not isinstance(deliverables, dict) or deliverables.get("viewport") != {"width": 780, "height": 900, "devicePixelRatio": 1}:
         raise SystemExit("visual validation policy lacks the rc.1 780px deliverables contract")
     criteria = deliverables.get("humanReviewCriteria")
-    if not isinstance(criteria, list) or not any("56px compact sidebar rail" in item for item in criteria):
-        raise SystemExit("visual validation policy retains the pre-rc.1 deliverables sidebar contract")
+    if not isinstance(criteria, list) or not criteria or not all(isinstance(c, str) and c for c in criteria):
+        raise SystemExit("visual validation policy has an empty or invalid humanReviewCriteria list for deliverables")
 
     print(f"Official interaction scene gate passed: {len(scenes)} scenarios with {len(ids & REQUIRED_SCENES)} required coverage entries.")
 

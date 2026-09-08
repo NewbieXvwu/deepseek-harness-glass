@@ -44,7 +44,7 @@ final class WorkspaceRuntimeLifecycleTests: XCTestCase {
         XCTAssertNil(invalidationEvent)
     }
 
-    func testSecondBaselineInvalidatesCurrentGeneration() async throws {
+    func testSecondBaselineReplacesCurrentBaseline() async throws {
         let source = WorkspaceFollowSource()
         let runtime = WorkspaceRuntime(controller: source)
         let generation = RemoteConnectionGeneration(rawValue: 12)
@@ -55,8 +55,25 @@ final class WorkspaceRuntimeLifecycleTests: XCTestCase {
         let currentGeneration = await runtime.current()?.generation
         XCTAssertEqual(currentGeneration, generation)
 
-        source.continuation.yield(.baseline(.init(items: [], archivedSessionIds: [])))
-        try await assertEventuallyInvalid(runtime)
+        let newWorkspace = RemoteWorkspaceView(
+            workspaceId: "ws-2",
+            path: "/path/2",
+            title: "Workspace 2",
+            sessionIds: [],
+            createdAt: "2026-09-08T00:00:00Z",
+            updatedAt: "2026-09-08T00:00:00Z"
+        )
+        source.continuation.yield(.baseline(.init(items: [newWorkspace], archivedSessionIds: [])))
+
+        for _ in 0..<100 {
+            if let items = await runtime.current()?.items, items.contains(where: { $0.workspaceId == "ws-2" }) {
+                break
+            }
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        let updatedState = await runtime.current()
+        XCTAssertEqual(updatedState?.items.map(\.workspaceId), ["ws-2"])
+        XCTAssertEqual(updatedState?.generation, generation)
     }
 
     private func assertEventuallyInvalid(_ runtime: WorkspaceRuntime) async throws {

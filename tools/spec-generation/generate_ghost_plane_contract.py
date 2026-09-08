@@ -35,19 +35,22 @@ def read_source(root: Path, relative: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def node_binary() -> str:
+def node_binary(root: Path | None = None) -> str:
     configured = os.environ.get("DSH_REFERENCE_NODE") or os.environ.get("NODE")
     if configured:
         return configured
-    marker = Path("/home/ubuntu/reference/deepseek-harness/.reference-node-path")
-    if marker.is_file():
-        return str(Path(marker.read_text(encoding="utf-8").strip()) / "bin/node")
+    if root is not None:
+        marker = root / ".reference-node-path"
+        if marker.is_file():
+            candidate = Path(marker.read_text(encoding="utf-8").strip()) / "bin/node"
+            if candidate.is_file():
+                return str(candidate)
     return "node"
 
 
 def extract_ast(root: Path) -> tuple[list[dict[str, str]], list[str]]:
     process = subprocess.run(
-        [node_binary(), str(AST_EXTRACTOR), str(root)],
+        [node_binary(root), str(AST_EXTRACTOR), str(root)],
         check=True,
         capture_output=True,
         text=True,

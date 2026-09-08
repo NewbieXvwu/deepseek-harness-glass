@@ -223,7 +223,7 @@ private struct InboxDefinition: ConversationNodeDefinition {
     }
 
     func update(context: ConversationNodeContext<State>, match _: ConversationMatch) -> State {
-        guard let state = context.state else { preconditionFailure("inbox update requires state") }
+        guard let state = context.state else { return .init(pending: [], claimed: []) }
         return state
     }
 }
@@ -262,8 +262,23 @@ private struct InputMessageDefinition: ConversationNodeDefinition {
         )
     }
 
-    func update(context: ConversationNodeContext<CoreUserMessageNode>, match _: ConversationMatch) -> CoreUserMessageNode {
-        guard let state = context.state else { preconditionFailure("input-message update requires start") }
+    func update(context: ConversationNodeContext<CoreUserMessageNode>, match: ConversationMatch) -> CoreUserMessageNode {
+        guard let state = context.state else {
+            let data = match.event.data
+            let source = data.object(named: "source")
+            let sourceKind = source?.string(named: "kind") ?? "unknown"
+            let messageID = data.string(named: "id") ?? match.event.seq.description
+            let nodeKind: CoreUserMessageNode.Kind = (sourceKind == "user") ? .user : .context
+            return .init(
+                kind: nodeKind,
+                seq: match.event.seq,
+                time: match.event.time,
+                messageID: messageID,
+                content: data.content(named: "content"),
+                sourceKind: sourceKind,
+                sourcePlugin: source?.string(named: "plugin")
+            )
+        }
         return state
     }
 
@@ -314,8 +329,23 @@ private struct TrajectoryMessageDefinition: ConversationNodeDefinition {
         )
     }
 
-    func update(context: ConversationNodeContext<State>, match _: ConversationMatch) -> State {
-        guard let state = context.state else { preconditionFailure("trajectory-input-message update requires start") }
+    func update(context: ConversationNodeContext<State>, match: ConversationMatch) -> State {
+        guard let state = context.state else {
+            let data = match.event.data
+            let source = data.object(named: "source")
+            let sourceKind = source?.string(named: "kind") ?? "unknown"
+            let messageID = data.string(named: "id") ?? match.event.seq.description
+            let nodeKind: CoreUserMessageNode.Kind = (sourceKind == "user") ? .user : .context
+            return .init(
+                kind: nodeKind,
+                seq: match.event.seq,
+                time: match.event.time,
+                messageID: messageID,
+                content: data.content(named: "content"),
+                sourceKind: sourceKind,
+                sourcePlugin: source?.string(named: "plugin")
+            )
+        }
         return state
     }
 
@@ -379,14 +409,23 @@ private struct AssistantStepDefinition: ConversationNodeDefinition {
     }
 
     func start(context _: ConversationNodeContext<State>, match: ConversationMatch, reader _: any ConversationContextReader) -> State {
-        guard let turn = match.event.data.coreInteger(named: "turn"), let step = match.event.data.coreInteger(named: "step") else {
-            preconditionFailure("assistant-step start requires step coordinates")
-        }
+        let turn = match.event.data.coreInteger(named: "turn") ?? 0
+        let step = match.event.data.coreInteger(named: "step") ?? 0
         return .init(turn: turn, step: step, blocks: [:], firstVisibleSeq: nil, firstVisibleTime: nil, firstTokenTime: nil, final: nil, usage: nil, resetGeneration: 0)
     }
 
     func update(context: ConversationNodeContext<State>, match: ConversationMatch) -> State {
-        guard var state = context.state else { preconditionFailure("assistant-step update requires start") }
+        var state = context.state ?? .init(
+            turn: match.event.data.coreInteger(named: "turn") ?? 0,
+            step: match.event.data.coreInteger(named: "step") ?? 0,
+            blocks: [:],
+            firstVisibleSeq: nil,
+            firstVisibleTime: nil,
+            firstTokenTime: nil,
+            final: nil,
+            usage: nil,
+            resetGeneration: 0
+        )
         switch match.event.type {
         case "llm/retry":
             state.blocks = [:]
@@ -550,15 +589,16 @@ private struct AssistantStepDefinition: ConversationNodeDefinition {
     }
 
     private func markVisible(event: SessionEventDTO, state: inout State, token: Bool) {
+        if token && state.firstTokenTime == nil { state.firstTokenTime = event.time }
+        guard state.firstVisibleSeq == nil else { return }
         let visible = state.blocks.values.contains { block in
             (block.kind == .text || block.kind == .reasoning || block.kind == .toolCall)
                 && !(block.text?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? false)
         }
-        if visible && state.firstVisibleSeq == nil {
+        if visible {
             state.firstVisibleSeq = event.seq
             state.firstVisibleTime = event.time
         }
-        if token && state.firstTokenTime == nil { state.firstTokenTime = event.time }
     }
 
     private func projected(_ context: ConversationNodeContext<State>) -> CoreAssistantNode? {
@@ -606,12 +646,21 @@ private struct ToolDefinition: ConversationNodeDefinition {
 
     func start(context _: ConversationNodeContext<State>, match: ConversationMatch, reader _: any ConversationContextReader) -> State {
         let data = match.event.data
-        guard let callID = data.string(named: "callId"), let name = data.string(named: "name") else { preconditionFailure("tool-call requires callId/name") }
+        let callID = data.string(named: "callId") ?? match.event.seq.description
+        let name = data.string(named: "name") ?? "tool"
         return .init(callID: callID, name: name, argumentsRaw: data.string(named: "arguments") ?? "", turn: data.coreInteger(named: "turn") ?? 0, step: data.coreInteger(named: "step") ?? 0, callTime: match.event.time, result: nil)
     }
 
     func update(context: ConversationNodeContext<State>, match: ConversationMatch) -> State {
-        guard var state = context.state else { preconditionFailure("tool result update requires call") }
+        var state = context.state ?? .init(
+            callID: context.id,
+            name: "tool",
+            argumentsRaw: "",
+            turn: match.event.data.coreInteger(named: "turn") ?? 0,
+            step: match.event.data.coreInteger(named: "step") ?? 0,
+            callTime: match.event.time,
+            result: nil
+        )
         guard match.event.type == "tool/result" else { return state }
         let data = match.event.data
         let message = data.object(named: "message")
@@ -654,7 +703,11 @@ private struct RetryDefinition: ConversationNodeDefinition {
     }
 
     func update(context: ConversationNodeContext<State>, match: ConversationMatch) -> State {
-        guard var state = context.state else { preconditionFailure("retry update requires first retry") }
+        var state = context.state ?? .init(
+            turn: match.event.data.coreInteger(named: "turn") ?? 0,
+            step: match.event.data.coreInteger(named: "step") ?? 0,
+            attempts: []
+        )
         let retry = match.event.data.coreInteger(named: "retry") ?? 0
         if match.event.type == "llm/retry" {
             state.attempts.append(retryAttempt(from: match.event.data, seq: match.event.seq, time: match.event.time))
@@ -711,7 +764,14 @@ private struct BoundaryDefinition: ConversationNodeDefinition {
     }
 
     func update(context: ConversationNodeContext<State>, match: ConversationMatch) -> State {
-        guard var state = context.state else { preconditionFailure("boundary update requires start") }
+        let isStep = match.event.type == "step/end"
+        var state = context.state ?? .init(
+            kind: isStep ? .step : .turn,
+            turn: match.event.data.coreInteger(named: "turn") ?? 0,
+            step: isStep ? match.event.data.coreInteger(named: "step") : nil,
+            startSeq: match.event.seq,
+            endSeq: nil
+        )
         state.endSeq = match.event.seq
         return state
     }
@@ -739,7 +799,7 @@ private struct TurnErrorDefinition: ConversationNodeDefinition {
     func start(context _: ConversationNodeContext<State>, match: ConversationMatch, reader _: any ConversationContextReader) -> State { .init(turn: match.event.data.coreInteger(named: "turn") ?? 0, failure: nil, hidden: false) }
 
     func update(context: ConversationNodeContext<State>, match: ConversationMatch) -> State {
-        guard var state = context.state else { preconditionFailure("turn error update requires start") }
+        var state = context.state ?? .init(turn: match.event.data.coreInteger(named: "turn") ?? 0, failure: nil, hidden: false)
         if match.event.type == "turn/end", let error = match.event.data.object(named: "reason")?.object(named: "error") {
             state.failure = (match.event.seq, match.event.time, error.string(named: "message") ?? error.string(named: "name") ?? "Unknown error", error.string(named: "code"))
         } else if match.event.type == "llm/retry" || match.event.type == "llm/retry-started" { state.hidden = true }
@@ -792,8 +852,15 @@ private struct TurnMaxTokensDefinition: ConversationNodeDefinition {
         )
     }
 
-    func update(context: ConversationNodeContext<State>, match _: ConversationMatch) -> State {
-        guard let state = context.state else { preconditionFailure("turn-max-tokens update requires turn/end") }
+    func update(context: ConversationNodeContext<State>, match: ConversationMatch) -> State {
+        guard let state = context.state else {
+            return .init(
+                turn: match.event.data.coreInteger(named: "turn") ?? 0,
+                step: maxTokensStep(for: match.location),
+                seq: match.event.seq,
+                time: match.event.time
+            )
+        }
         return state
     }
 

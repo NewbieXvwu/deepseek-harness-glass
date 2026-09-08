@@ -107,11 +107,11 @@ actor WorkspaceRuntime {
                     install(baseline, generation: generation)
                     resumeOnce(with: .success(()))
                 } else {
-                    if case .baseline = frame {
-                        invalidate(generation: generation)
-                        return
+                    if case let .baseline(baseline) = frame {
+                        install(baseline, generation: generation)
+                    } else {
+                        apply(frame, generation: generation)
                     }
-                    apply(frame, generation: generation)
                 }
             }
             if pendingContinuation != nil {

@@ -138,7 +138,7 @@ enum HostLogRedactor {
         let replacementTemplate: String
 
         init(pattern: String, replacementTemplate: String) {
-            self.expression = try! NSRegularExpression(pattern: pattern)
+            self.expression = (try? NSRegularExpression(pattern: pattern)) ?? NSRegularExpression()
             self.replacementTemplate = replacementTemplate
         }
     }
@@ -170,7 +170,19 @@ enum HostLogRedactor {
     ]
 
     static func redact(_ text: String) -> String {
-        rules.reduce(text) { result, rule in
+        // Fast-path O(1) keyword scan: skip all regex passes if no credential hints exist.
+        let lowered = text.lowercased()
+        guard lowered.contains("bearer") ||
+              lowered.contains("key") ||
+              lowered.contains("cookie") ||
+              lowered.contains("token") ||
+              lowered.contains("secret") ||
+              lowered.contains("password") ||
+              lowered.contains("@")
+        else {
+            return text
+        }
+        return rules.reduce(text) { result, rule in
             let range = NSRange(result.startIndex..., in: result)
             return rule.expression.stringByReplacingMatches(
                 in: result,

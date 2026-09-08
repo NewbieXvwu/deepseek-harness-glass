@@ -45,7 +45,7 @@ struct NativeSessionHeaderPresentation: Equatable {
     ) {
         self.sessionID = sessionID
         self.composerIsBlank = composerIsBlank
-        let sessionByID = Dictionary(uniqueKeysWithValues: snapshot.sessions.map { ($0.sessionId, $0) })
+        let sessionByID = Dictionary(snapshot.sessions.map { ($0.sessionId, $0) }, uniquingKeysWith: { _, latest in latest })
         let selected = sessionID.flatMap { sessionByID[$0] }
         blank = selected?.blank ?? false
         agentPreset = selected?.agentPreset

@@ -95,9 +95,8 @@ def scan_file(path: Path) -> list[tuple[str, int, str]]:
 def main() -> int:
     total = 0
     per_file: list[tuple[str, int]] = []
-    for path in sorted(TESTS.rglob("*.swift")):
-        if "RecoveryGate" in path.name:
-            continue
+    test_files = sorted(TESTS.rglob("*.swift"))
+    for path in test_files:
         hits = scan_file(path)
         if not hits:
             continue
@@ -106,10 +105,10 @@ def main() -> int:
         per_file.append((str(path.relative_to(ROOT)), len(hits)))
         total += len(hits)
     print()
-    print(f"scanned {len(list(TESTS.rglob('*.swift')))} test files; {len(per_file)} files flagged; {total} tautological assertions")
+    print(f"scanned {len(test_files)} test files; {len(per_file)} files flagged; {total} tautological assertions")
     for name, count in sorted(per_file, key=lambda item: -item[1]):
         print(f"  {count:>3}  {name}")
-    return 0
+    return 1 if total > 0 else 0
 
 
 if __name__ == "__main__":

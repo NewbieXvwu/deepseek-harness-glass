@@ -62,6 +62,8 @@ struct SessionJournalSnapshot: Sendable, Equatable {
 
 struct SessionJournal: Sendable {
     private(set) var snapshot: SessionJournalSnapshot?
+    /// Maximum number of recent raw events retained for deduplication and conflict checks.
+    private static let maxRawEventsCapacity = 2000
     /// Exact raw durable events observed by this runtime. Packed chunk rows keep
     /// their compact representation and therefore do not fabricate identities
     /// for member events that were never individually received.
@@ -144,6 +146,7 @@ struct SessionJournal: Sendable {
         snapshot!.revision = revision
         snapshot!.mutation = .append(startRecordIndex: startRecordIndex)
         rawEventsBySeq[event.seq] = event
+        pruneRawEventsIfNeeded()
         return true
     }
 
@@ -198,6 +201,16 @@ struct SessionJournal: Sendable {
         for record in records {
             guard case let .event(event) = record else { continue }
             rawEventsBySeq[event.seq] = event
+        }
+        pruneRawEventsIfNeeded()
+    }
+
+    private mutating func pruneRawEventsIfNeeded() {
+        guard rawEventsBySeq.count > Self.maxRawEventsCapacity else { return }
+        let excess = rawEventsBySeq.count - Self.maxRawEventsCapacity
+        let sortedKeys = rawEventsBySeq.keys.sorted()
+        for key in sortedKeys.prefix(excess) {
+            rawEventsBySeq.removeValue(forKey: key)
         }
     }
 

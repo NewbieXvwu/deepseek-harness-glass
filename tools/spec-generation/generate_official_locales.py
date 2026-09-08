@@ -51,21 +51,24 @@ def source_input_revision(root: Path) -> str:
     return "sha256:" + accumulator.hexdigest()
 
 
-def node_binary() -> str:
+def node_binary(root: Path | None = None) -> str:
     """Use the locked Node 24 toolchain when the reference marker is available."""
-    configured = os.environ.get("DSH_REFERENCE_NODE")
+    configured = os.environ.get("DSH_REFERENCE_NODE") or os.environ.get("NODE")
     if configured:
         return configured
-    marker = Path("/home/ubuntu/reference/deepseek-harness/.reference-node-path")
-    if marker.is_file():
-        return str(Path(marker.read_text(encoding="utf-8").strip()) / "bin/node")
+    if root is not None:
+        marker = root / ".reference-node-path"
+        if marker.is_file():
+            candidate = Path(marker.read_text(encoding="utf-8").strip()) / "bin/node"
+            if candidate.is_file():
+                return str(candidate)
     return "node"
 
 
 def parse_file(root: Path, path: Path, commit: str) -> list[dict[str, object]]:
     """Extract locale exports with the TypeScript compiler AST, never source-text matching."""
     process = subprocess.run(
-        [node_binary(), str(AST_EXTRACTOR), str(root), str(path)],
+        [node_binary(root), str(AST_EXTRACTOR), str(root), str(path)],
         check=True,
         capture_output=True,
         text=True,

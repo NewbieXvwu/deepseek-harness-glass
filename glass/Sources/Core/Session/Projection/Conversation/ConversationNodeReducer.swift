@@ -582,6 +582,6 @@ private extension SessionEventDTO {
     /// never change facts already emitted for earlier sequences, so appends with
     /// `false` here are safe to accept incrementally.
     var affectsLocationFacts: Bool {
-        type.hasPrefix("turn/") || type.hasPrefix("step/") || data.integer(named: "turn") != nil
+        type.hasPrefix("turn/") || type.hasPrefix("step/")
     }
 }

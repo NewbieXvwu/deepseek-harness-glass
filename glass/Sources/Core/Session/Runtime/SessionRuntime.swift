@@ -198,11 +198,15 @@ actor SessionRuntime {
             }
         }
 
+        var retryDelayNanos: UInt64 = 200_000_000
+        let maxDelayNanos: UInt64 = 3_000_000_000
+
         while !Task.isCancelled {
             var receivedOpening = false
             var needsContinuityRepair = false
             do {
                 for try await frame in currentStream {
+                    retryDelayNanos = 200_000_000
                     if !receivedOpening {
                         receivedOpening = true
                         if isRepair {
@@ -242,8 +246,20 @@ actor SessionRuntime {
             } catch {
                 if pendingContinuation != nil {
                     resumeOnce(with: .failure(error))
+                    return
                 }
-                return
+                guard !Task.isCancelled else { return }
+                try? await Task.sleep(nanoseconds: retryDelayNanos)
+                retryDelayNanos = min(retryDelayNanos * 2, maxDelayNanos)
+                guard !Task.isCancelled else { return }
+                do {
+                    isRepair = true
+                    currentStream = try await controller.follow(.init(address: address, maxMessages: maxMessages))
+                } catch is CancellationError {
+                    return
+                } catch {
+                    // Next iteration will back off further and retry
+                }
             }
         }
     }

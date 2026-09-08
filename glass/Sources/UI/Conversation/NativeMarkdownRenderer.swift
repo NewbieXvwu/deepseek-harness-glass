@@ -10,14 +10,14 @@ import SwiftUI
 /// interactive only when it is an absolute HTTP(S) URL; the renderer never
 /// delegates `file:`, `data:`, `javascript:` or relative destinations to macOS.
 enum NativeMarkdownSecurityPolicy {
-    private static let executableHTMLExpression = try! NSRegularExpression(
+    private static let executableHTMLExpression = (try? NSRegularExpression(
         pattern: #"(?is)<(script|style|iframe|object|embed)[^>]*>.*?</\1>"#
-    )
-    private static let htmlCommentExpression = try! NSRegularExpression(pattern: #"(?is)<!--.*?-->"#)
-    private static let htmlTagExpression = try! NSRegularExpression(pattern: #"(?is)<[^>]+>"#)
-    private static let markdownLinkExpression = try! NSRegularExpression(
+    )) ?? NSRegularExpression()
+    private static let htmlCommentExpression = (try? NSRegularExpression(pattern: #"(?is)<!--.*?-->"#)) ?? NSRegularExpression()
+    private static let htmlTagExpression = (try? NSRegularExpression(pattern: #"(?is)<[^>]+>"#)) ?? NSRegularExpression()
+    private static let markdownLinkExpression = (try? NSRegularExpression(
         pattern: #"\[([^\]]*)\]\(([^\s\)]+)(?:\s+[^\)]*)?\)"#
-    )
+    )) ?? NSRegularExpression()
 
     static func externalURL(from raw: String) -> URL? {
         guard let components = URLComponents(string: raw.trimmingCharacters(in: .whitespacesAndNewlines)),
@@ -36,6 +36,10 @@ enum NativeMarkdownSecurityPolicy {
     /// inert prose before `AttributedString` receives the document. This is a
     /// defensive parser boundary, not an HTML renderer or sanitizer bypass.
     static func sanitizedInlineMarkdown(_ source: String) -> String {
+        // Fast-path guard: pure text without HTML tags, comments, links, or code spans skips all regex passes.
+        guard source.contains("<") || source.contains("[") || source.contains("`") else {
+            return source
+        }
         let stashed = stashInlineCode(in: source)
         var result = replacingMatches(in: stashed.text, using: executableHTMLExpression, with: "")
         result = replacingMatches(in: result, using: htmlCommentExpression, with: "")
@@ -57,7 +61,7 @@ enum NativeMarkdownSecurityPolicy {
 
     /// Backtick spans are balanced and non-nested in Markdown, so a single
     /// non-greedy scan is exact and free of backtracking hazards.
-    private static let inlineCodeExpression = try! NSRegularExpression(pattern: #"`([^`]+)`"#)
+    private static let inlineCodeExpression = (try? NSRegularExpression(pattern: #"`([^`]+)`"#)) ?? NSRegularExpression()
 
     private struct InlineCodeStash {
         let text: String

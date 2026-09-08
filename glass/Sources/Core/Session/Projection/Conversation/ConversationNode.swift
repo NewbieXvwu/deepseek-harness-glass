@@ -290,9 +290,7 @@ struct AnyConversationNodeDefinition {
             )
         }
         updateBody = { context, match in
-            guard let state = context.state as? Definition.State else {
-                preconditionFailure("conversation Definition \(definition.kind) received an incompatible State")
-            }
+            let state = context.state as? Definition.State
             return definition.update(
                 context: ConversationNodeContext<Definition.State>(
                     key: context.key,

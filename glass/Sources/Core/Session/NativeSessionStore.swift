@@ -864,7 +864,7 @@ final class NativeSessionStore: ObservableObject {
                       self?.recoveryGeneration == generation,
                       self?.activeSessionID == sessionID
                 else { return }
-                self?.messageFeedbackItems = Dictionary(uniqueKeysWithValues: items.map { ($0.messageId, $0) })
+                self?.messageFeedbackItems = Dictionary(items.map { ($0.messageId, $0) }, uniquingKeysWith: { _, latest in latest })
                 self?.hasLoadedMessageFeedback = true
             } catch {
                 guard !Task.isCancelled,
@@ -3166,39 +3166,39 @@ final class NativeSessionStore: ObservableObject {
             sessionID: sessionID,
             items: [
                 PendingQuestion.Item(
-                    id: "harness-profile",
-                    question: "你现在更想招哪类 Agent/Harness 候选人？",
-                    header: "偏好",
+                    id: "goal",
+                    question: "What would you like the agent to accomplish?",
+                    header: "Objective",
                     detail: nil,
                     options: [
-                        PendingQuestion.Option(label: "工程落地型 (Recommended)", detail: "更看重能直接做 runtime、tool executor、sandbox、trace 和线上问题排查。"),
-                        PendingQuestion.Option(label: "研究潜力型", detail: "更看重 Agent 理解、训练评测思路和长期成长空间。"),
-                        PendingQuestion.Option(label: "均衡型", detail: "同时要求工程能力和 Agent 认知，但可能筛选门槛更高。")
+                        PendingQuestion.Option(label: "Refactor architecture (Recommended)", detail: "Modernize component boundaries and improve testability."),
+                        PendingQuestion.Option(label: "Implement feature", detail: "Add new functionality according to upstream specification."),
+                        PendingQuestion.Option(label: "Fix defect", detail: "Resolve runtime issue with resilient error handling.")
                     ],
                     multiSelect: false,
                     intent: nil
                 ),
                 PendingQuestion.Item(
-                    id: "work-mode",
-                    question: "你希望候选人优先展示哪种工作方式？",
-                    header: "方式",
+                    id: "scope",
+                    question: "Which components should be included in the scope?",
+                    header: "Scope",
                     detail: nil,
                     options: [
-                        PendingQuestion.Option(label: "先做小型原型 (Recommended)", detail: "用可运行结果尽快验证关键假设。"),
-                        PendingQuestion.Option(label: "先写完整设计", detail: "先收敛边界、协议和风险，再开始实现。")
+                        PendingQuestion.Option(label: "Core runtime (Recommended)", detail: "Transport, projection, and session lifecycle."),
+                        PendingQuestion.Option(label: "UI components", detail: "Native macOS views and layout.")
                     ],
                     multiSelect: false,
                     intent: nil
                 ),
                 PendingQuestion.Item(
-                    id: "signals",
-                    question: "哪些面试信号最重要？",
-                    header: "信号",
-                    detail: "按当前招聘目标选择；跳过则视为不设偏好。",
+                    id: "constraints",
+                    question: "Select verification constraints to enforce:",
+                    header: "Constraints",
+                    detail: "Skip if using default verification settings.",
                     options: [
-                        PendingQuestion.Option(label: "系统设计", detail: nil),
-                        PendingQuestion.Option(label: "代码质量", detail: nil),
-                        PendingQuestion.Option(label: "Agent 产品判断", detail: nil)
+                        PendingQuestion.Option(label: "Zero compiler warnings", detail: nil),
+                        PendingQuestion.Option(label: "Anti-theater test execution", detail: nil),
+                        PendingQuestion.Option(label: "Two-phase stream resilience", detail: nil)
                     ],
                     multiSelect: true,
                     intent: nil
@@ -3581,7 +3581,7 @@ final class NativeSessionStore: ObservableObject {
     /// projection consumed in production, never a local checklist substitute.
     func loadSnapshotTodoFixture() {
         loadSnapshotToolingFixture()
-        guard let sessionID = activeSessionID else { preconditionFailure("todo fixture requires an active snapshot session") }
+        let sessionID = activeSessionID ?? "snapshot-tooling"
         projections.apply(sessionID: sessionID, key: "todos", value: .array([
             .object(["content": .string("Inspect the project instructions"), "status": .string("completed")]),
             .object(["content": .string("Implement the native todo dock"), "status": .string("in_progress")]),
@@ -3596,7 +3596,7 @@ final class NativeSessionStore: ObservableObject {
     /// because a snapshot must never issue a Host RPC.
     func loadSnapshotGoalFixture() {
         loadSnapshotToolingFixture()
-        guard let sessionID = activeSessionID else { preconditionFailure("goal fixture requires an active snapshot session") }
+        let sessionID = activeSessionID ?? "snapshot-tooling"
         projections.apply(sessionID: sessionID, key: "goal", value: .object([
             "goal": .object([
                 "id": .string("snapshot-goal"),

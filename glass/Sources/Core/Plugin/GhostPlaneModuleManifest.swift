@@ -49,7 +49,7 @@ public struct GhostPlaneModuleManifest: Codable, Equatable, Sendable {
         guard validRevision(manifest.rev) else { return .rejected(.emptyGraphRevision) }
         let ids = manifest.entries.map(\.id)
         guard Set(ids).count == ids.count else { return .rejected(.duplicateEntryID) }
-        let indexByID = Dictionary(uniqueKeysWithValues: ids.enumerated().map { ($1, $0) })
+        let indexByID = Dictionary(ids.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
 
         for (index, entry) in manifest.entries.enumerated() {
             guard GhostPlaneLoopbackPolicy.isValidPluginID(entry.id) else { return .rejected(.invalidEntryID) }
