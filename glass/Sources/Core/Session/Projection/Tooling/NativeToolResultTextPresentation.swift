@@ -1,6 +1,6 @@
 import Foundation
 
-/// Foundation-only result-text projection matching rc.2
+/// Foundation-only result-text projection matching rc.1
 /// `tool-call-model.ts:resultText`. Core preserves block order and supplies each
 /// non-text block as its own pretty JSON string; this model owns only the shared
 /// join and empty-result error decision so a renderer cannot accidentally drop

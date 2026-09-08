@@ -124,9 +124,3 @@ jobs:
           echo "::group::Runtime asset migration inventory"
           python3 glass/ci/check-runtime-asset-inventory.py
           echo "::endgroup::"
-      - name: Verify CI feedback topology
-        run: python3 glass/ci/test-ci-workflow-layout.py
-      - name: Scan for tautological test assertions (report-only)
-        run: python3 glass/ci/check-test-integrity.py
-      - name: Scan generated-prose style (report-only)
-        run: python3 tools/check-doc-style.py

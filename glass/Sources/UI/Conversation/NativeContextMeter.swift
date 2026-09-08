@@ -5,7 +5,7 @@ import SwiftUI
 @testable import GlassSpec
 #endif
 
-/// Native RC8 composer context-occupancy seat. It reads the Host token-meter
+/// Native rc.1 composer context-occupancy seat. It reads the Host token-meter
 /// projection directly and deliberately has no locally sampled token counter.
 @MainActor
 struct NativeContextMeter: View {
@@ -102,14 +102,12 @@ struct NativeContextMeter: View {
     }
 
     private func t(_ key: String, replacements: [String: String] = [:]) -> String {
-        var value = OfficialUISpec.LocaleCatalog.value(
+        OfficialUISpec.LocaleCatalog.string(
             namespace: "ui-conversation",
             key: key,
-            language: language
-        ) ?? key
-        for (token, replacement) in replacements {
-            value = value.replacingOccurrences(of: "{\(token)}", with: replacement)
-        }
-        return value
+            language: language,
+            fallback: key,
+            replacing: replacements
+        )
     }
 }

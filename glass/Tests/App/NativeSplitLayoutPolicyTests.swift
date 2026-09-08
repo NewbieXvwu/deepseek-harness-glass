@@ -179,7 +179,7 @@ final class NativeSplitLayoutPolicyTests: XCTestCase {
         XCTAssertFalse(state.isCollapsed)
 
         state.setNarrow(true)
-        XCTAssertTrue(state.isCollapsed, "RC8 narrows to a 56px rail by default")
+        XCTAssertTrue(state.isCollapsed, "rc.1 narrows to a 56px rail by default")
         XCTAssertFalse(state.narrowExpanded)
 
         state.setCollapsed(false)

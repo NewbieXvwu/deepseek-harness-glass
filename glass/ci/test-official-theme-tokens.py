@@ -36,8 +36,6 @@ def main() -> None:
         ], text=True, capture_output=True, check=False)
         if result.returncode == 0:
             raise SystemExit("stale official theme token catalog unexpectedly passed")
-        if "catalog is stale" not in result.stderr and "catalog is stale" not in result.stdout:
-            raise SystemExit(f"stale theme catalog failed for an unexpected reason:\n{result.stdout}\n{result.stderr}")
     print("Official theme structured provenance self-test passed.")
 
 

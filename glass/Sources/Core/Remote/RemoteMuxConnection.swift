@@ -32,11 +32,7 @@ actor RemoteMuxConnection {
 
         static let type = DynamicKey(stringValue: "type")
         static let streamId = DynamicKey(stringValue: "streamId")
-        static let value = DynamicKey(stringValue: "value")
         static let error = DynamicKey(stringValue: "error")
-        static let code = DynamicKey(stringValue: "code")
-        static let message = DynamicKey(stringValue: "message")
-        static let details = DynamicKey(stringValue: "details")
     }
 
     private struct ServerEnvelope: Decodable {
@@ -46,56 +42,20 @@ actor RemoteMuxConnection {
 
         init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: DynamicKey.self)
-            let allKeys = container.allKeys
-            let type = try container.decode(String.self, forKey: .type)
             let streamID = try container.decode(String.self, forKey: .streamId)
             guard !streamID.isEmpty else {
                 throw RemoteConnectionError.protocolViolation("Remote stream frame has empty streamId")
             }
-            self.type = type
+            let frameType = try container.decode(String.self, forKey: .type)
+            self.type = frameType
             self.streamId = streamID
-            switch type {
-            case "item":
-                // Item envelope must have exactly (type, streamId) or (type, streamId, value)
-                if allKeys.count == 2 {
-                    guard container.contains(.type), container.contains(.streamId) else {
-                        throw RemoteConnectionError.protocolViolation("invalid Remote stream item envelope")
-                    }
-                } else if allKeys.count == 3 {
-                    guard container.contains(.type), container.contains(.streamId), container.contains(.value) else {
-                        throw RemoteConnectionError.protocolViolation("invalid Remote stream item envelope")
-                    }
-                } else {
-                    throw RemoteConnectionError.protocolViolation("invalid Remote stream item envelope")
-                }
-                failure = nil
-            case "end":
-                // End envelope must contain only (type, streamId)
-                guard allKeys.count == 2, container.contains(.type), container.contains(.streamId) else {
-                    throw RemoteConnectionError.protocolViolation("invalid Remote stream end envelope")
-                }
-                failure = nil
+            // Unknown or extra keys are tolerated so an additive Host field can
+            // never tear down the whole multiplexed carrier.
+            switch frameType {
             case "error":
-                // Error envelope must contain only (type, streamId, error)
-                guard allKeys.count == 3,
-                      container.contains(.type),
-                      container.contains(.streamId),
-                      container.contains(.error)
-                else {
-                    throw RemoteConnectionError.protocolViolation("invalid Remote stream error envelope")
-                }
-                let nested = try container.nestedContainer(keyedBy: DynamicKey.self, forKey: .error)
-                let nestedKeys = nested.allKeys
-                guard nestedKeys.count == 3,
-                      nested.contains(.code),
-                      nested.contains(.message),
-                      nested.contains(.details)
-                else {
-                    throw RemoteConnectionError.protocolViolation("invalid Remote stream error payload")
-                }
-                failure = try container.decode(RemoteFailurePayload.self, forKey: .error)
+                failure = try? container.decode(RemoteFailurePayload.self, forKey: .error)
             default:
-                throw RemoteConnectionError.protocolViolation("unknown Remote stream frame \(type)")
+                failure = nil
             }
         }
     }
@@ -237,18 +197,28 @@ actor RemoteMuxConnection {
                 }
                 guard let sink = sinks[frame.streamId] else { continue }
                 switch frame.type {
-                case "item": try sink.yield(data)
+                case "item":
+                    // A malformed item payload fails only its own logical stream;
+                    // the carrier and every sibling stream stay usable.
+                    do {
+                        try sink.yield(data)
+                    } catch {
+                        sinks.removeValue(forKey: frame.streamId)
+                        sink.finish(error)
+                    }
                 case "end":
                     sinks.removeValue(forKey: frame.streamId)
                     sink.finish(nil)
                 case "error":
                     sinks.removeValue(forKey: frame.streamId)
                     guard let error = frame.failure else {
-                        throw RemoteConnectionError.protocolViolation("Remote stream error omitted payload")
+                        sink.finish(RemoteConnectionError.protocolViolation("Remote stream error omitted payload"))
+                        continue
                     }
                     sink.finish(RemoteConnectionError.remote(error))
                 default:
-                    throw RemoteConnectionError.protocolViolation("unknown Remote stream frame \(frame.type)")
+                    // Unknown additive frame: ignore it without disturbing any stream.
+                    continue
                 }
             }
         } catch {

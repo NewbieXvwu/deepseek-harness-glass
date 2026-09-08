@@ -33,7 +33,7 @@ public struct NativeToolTerminalView: Equatable, Sendable {
     }
 }
 
-/// Foundation-only equivalent of rc.2 `terminalCardModel` selection. It accepts
+/// Foundation-only equivalent of rc.1 `terminalCardModel` selection. It accepts
 /// already-admitted call/result views rather than decoding raw wire dictionaries:
 /// Core retains the event target and owns the fail-closed adapter, while every
 /// renderer can share the same deterministic terminal-or-generic decision.
@@ -86,7 +86,7 @@ public struct NativeTerminalCardPresentation: Equatable, Sendable {
         )
     }
 
-    /// Matches rc.2 `terminalFailed`: terminal exit status is result data, not a
+    /// Matches rc.1 `terminalFailed`: terminal exit status is result data, not a
     /// generic tool failure. A running card never reports a terminal failure.
     public var failed: Bool {
         !running && ((exitCode != nil && exitCode != 0) || signal != nil)
@@ -106,7 +106,7 @@ public struct NativeTerminalOutputPresentation: Equatable, Sendable {
     public static func resolve(output: String?) -> NativeTerminalOutputPresentation? {
         guard let output else { return nil }
         let parsed = NativeTerminalANSIPresentation.parse(output)
-        // rc.2 drops the parsed terminal newline, including `line\\nESC[0m`:
+        // rc.1 drops the parsed terminal newline, including `line\\nESC[0m`:
         // only a final fully empty parsed line is a terminator; a preceding
         // blank line remains visible.
         let ansiLines = parsed.lines.count > 1 && (parsed.lines.last?.allSatisfy { $0.text.isEmpty } ?? false)
@@ -126,7 +126,7 @@ public struct NativeTerminalOutputPresentation: Equatable, Sendable {
 }
 
 /// Shared head/tail cap used by terminal details. The row passes `nil` maxLines
-/// because rc.2 ToolRow expands terminal output without a cap; details uses the
+/// because rc.1 ToolRow expands terminal output without a cap; details uses the
 /// primitive default 16-line cap.
 public struct NativeTerminalOutputWindow: Equatable, Sendable {
     public let head: [String]

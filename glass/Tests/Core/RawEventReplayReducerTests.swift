@@ -151,7 +151,7 @@ final class RawEventReplayReducerTests: XCTestCase {
 
 
 
-    func testTenThousandStreamingChunksPerformanceBaselineKeepsOneAssistantRow() {
+    func testTenThousandStreamingChunksRebuildKeepsOneAssistantRowUnderBudget() {
         var events = [
             SessionEventDTO(
                 type: "step/start",
@@ -179,11 +179,16 @@ final class RawEventReplayReducerTests: XCTestCase {
                 ])
             )
         }
-        measure(metrics: [XCTClockMetric()]) {
-            let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
-            _ = reducer.replaceWindow(events.map { .init(event: $0) }, hasMore: false)
-            XCTAssertEqual(reducer.snapshot(target: "chat").filter { $0.kind == "assistant-step" }.count, 1)
-        }
+        let clock = ContinuousClock()
+        let started = clock.now
+        let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
+        _ = reducer.replaceWindow(events.map { .init(event: $0) }, hasMore: false)
+        XCTAssertEqual(reducer.snapshot(target: "chat").filter { $0.kind == "assistant-step" }.count, 1)
+        XCTAssertLessThan(
+            started.duration(to: clock.now),
+            .seconds(2),
+            "a 10k-chunk full rebuild must stay linear; a quadratic regression would blow this budget"
+        )
     }
 
     func testUnknownReplayEventIsSafelyIgnoredWithoutManufacturingANode() throws {
@@ -191,7 +196,7 @@ final class RawEventReplayReducerTests: XCTestCase {
         let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
 
         for event in events {
-            _ = reducer.append(.init(event: event))
+            XCTAssertEqual(reducer.append(.init(event: event)), .none, "an unknown plugin event must not request a re-render")
         }
 
         XCTAssertTrue(reducer.snapshot(target: "chat").isEmpty)

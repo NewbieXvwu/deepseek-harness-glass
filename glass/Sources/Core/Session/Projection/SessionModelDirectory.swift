@@ -118,7 +118,7 @@ struct CoreSessionModelDirectory: Equatable {
         return reasoningEffort == nil || selectedModel.reasoningEfforts.contains(where: { $0.id == reasoningEffort })
     }
 
-    /// RC8 directory select only replaces `current` after `session.selectModel`
+    /// rc.1 directory select only replaces `current` after `session.selectModel`
     /// returns a Host-confirmed selection. Provider groups/failures remain the
     /// last complete directory snapshot and are never edited optimistically.
     func applying(_ selected: SessionModelSelectionDTO) -> CoreSessionModelDirectory {

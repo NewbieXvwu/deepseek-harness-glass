@@ -16,7 +16,9 @@ struct HarnessHostProcess: Equatable, Sendable {
         environment["DSH_HOME"] = runtime.homeDirectory.path
         return .init(
             executableURL: runtime.nodeExecutable,
-            arguments: ["--expose-internals", runtime.dshEntrypoint.path, "web", "--port", "0"],
+            // `--no-open` keeps the process token out of the user's browser
+            // history; Glass authenticates the launch URL itself.
+            arguments: ["--expose-internals", runtime.dshEntrypoint.path, "web", "--port", "0", "--no-open"],
             environment: environment
         )
     }

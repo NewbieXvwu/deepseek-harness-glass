@@ -5,7 +5,7 @@ import SwiftUI
 @testable import GlassSpec
 #endif
 
-/// Native RC8 `subagent-catalog` header action. It is hidden until a complete
+/// Native rc.1 `subagent-catalog` header action. It is hidden until a complete
 /// Host catalog supplies child/diagnostic evidence; ordinary session summaries
 /// never manufacture a catalog row or recursive descendant.
 struct NativeSubagentCatalogHeaderAction: View {

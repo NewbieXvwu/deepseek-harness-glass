@@ -146,11 +146,7 @@ actor SessionLogExporter {
     }
 
     private func isTrustedLoopbackDownloadURL(_ url: URL) -> Bool {
-        url.scheme == "http"
-            && url.host == "127.0.0.1"
-            && url.user == nil
-            && url.password == nil
-            && (url.port ?? 0) > 0
+        url.isCanonicalLoopbackHTTP
     }
 
     private func reserveDestination(named proposedName: String) throws -> URL {

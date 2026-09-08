@@ -6,7 +6,7 @@ import SwiftUI
 @testable import GlassCore
 @testable import GlassSpec
 #endif
-/// Source: RC8 `packages/client/ui-layout/src/client/stores.ts` (`LayoutState`,
+/// Source: rc.1 `packages/client/ui-layout/src/client/stores.ts` (`LayoutState`,
 /// `toggleSidebar`, and `setNarrow`). A narrow viewport derives a collapsed
 /// rail by default. Its manual re-expansion is an override only: it never
 /// rewrites the wide-window collapsed preference or dragged width.
@@ -34,7 +34,7 @@ struct NativeSidebarLayoutState: Equatable {
     }
 }
 
-/// RC8 `WorkspaceRuntime.connectWorkspace` only reuses a blank session from
+/// rc.1 `WorkspaceRuntime.connectWorkspace` only reuses a blank session from
 /// the requested workspace's canonical cwd. The pure predicate keeps this
 /// Host-authoritative condition independently testable from task coalescing.
 enum NativeWorkspaceBlankSessionReuse {
@@ -96,7 +96,7 @@ final class NativeShellPresentation: ObservableObject {
     let modelDiscoveryStore: NativeModelDiscoveryStore
     let agentPresetStore: NativeAgentPresetStore
     @Published var settingsPresented = false
-    /// Window-resident native counterparts of RC8's contribution ledgers.
+    /// Window-resident native counterparts of rc.1's contribution ledgers.
     /// They deliberately outlive individual SwiftUI root-view assignments.
     let conversationViewRegistry = NativeConversationViewRegistry()
     let conversationHeaderContributions = NativeConversationHeaderContributionRegistry()
@@ -115,7 +115,7 @@ final class NativeShellPresentation: ObservableObject {
     private var remoteGeneration: RemoteConnectionGeneration?
     private var selectedToolObservation: AnyCancellable?
     private var observedEndpoint: URL?
-    /// Source: RC8 `WorkspaceRuntime.connecting`. Concurrent New Session
+    /// Source: rc.1 `WorkspaceRuntime.connecting`. Concurrent New Session
     /// requests for one workspace share the same blank lookup/create work.
     private let blankConnectionCoordinator = NativeWorkspaceConnectionCoordinator()
     /// Cancels navigation from stale blank-connect completions after a newer
@@ -153,7 +153,7 @@ final class NativeShellPresentation: ObservableObject {
         self.detailsVisible = self.sessionStore.selectedToolCallID != nil
         if releaseFeaturePolicy.permits(.trajectoryTab) {
             do {
-                // Source: RC8 `ui-trajectory/src/client/index.ts`: the trajectory
+                // Source: rc.1 `ui-trajectory/src/client/index.ts`: the trajectory
                 // contribution is a real `conversation.view` tab, ordered after
                 // Chat and backed by its target-specific inspection snapshot.
                 _ = try conversationViewRegistry.register(
@@ -169,7 +169,7 @@ final class NativeShellPresentation: ObservableObject {
         }
         if releaseFeaturePolicy.permits(.subagentCatalogAction) {
             do {
-                // Source: RC8 `ui-subagent/src/client/index.ts:60-68`: direct-child
+                // Source: rc.1 `ui-subagent/src/client/index.ts:60-68`: direct-child
                 // catalog is a session-header action at order 10.
                 _ = try conversationHeaderContributions.register(
                     slot: .actions,
@@ -308,7 +308,7 @@ final class NativeShellPresentation: ObservableObject {
         sidebarLayout = updated
     }
 
-    /// Source: RC8 `createLayoutStore.closeDetails/openDetails`. Closing writes
+    /// Source: rc.1 `createLayoutStore.closeDetails/openDetails`. Closing writes
     /// the zero-width preference; reopening restores the contract default rather
     /// than an old dragged width.
     func closeDetails() {
@@ -420,7 +420,7 @@ final class NativeShellPresentation: ObservableObject {
         await agentPresetStore.remove(agentPreset: agentPreset, using: controllers?.agentPresets)
     }
 
-    /// RC8 seat selection is legal only while the Host projects this session as
+    /// rc.1 seat selection is legal only while the Host projects this session as
     /// blank. Running-session histories cannot be recomposed locally.
     func selectAgentPreset(sessionID: String, presetID: String) async -> Bool {
         guard let agentPresets = controllers?.agentPresets,
@@ -518,7 +518,7 @@ final class NativeShellPresentation: ObservableObject {
         synchronizeDetailsAfterSessionSelection(didSwitchSession: didSwitchSession)
     }
 
-    /// Source: RC8 `AppFrame` closes the details panel when the current session
+    /// Source: rc.1 `AppFrame` closes the details panel when the current session
     /// changes, even if the newly resident session contains a tool selection.
     /// Staying in the same session may surface its selected tool normally.
     func synchronizeDetailsAfterSessionSelection(didSwitchSession: Bool) {
@@ -533,7 +533,7 @@ final class NativeShellPresentation: ObservableObject {
         workspaceStore.snapshot.sessions.first(where: { $0.sessionId == sessionID })?.cwd
     }
 
-    /// Source: RC8 `workspaces/service.ts:startSession` and
+    /// Source: rc.1 `workspaces/service.ts:startSession` and
     /// `connectWorkspace`. Explicit workspace wins, then the selected session's
     /// workspace, then the Host-order stable recent-workspace projection. A
     /// missing target clears only selection; it does not create an unscoped
@@ -566,13 +566,13 @@ final class NativeShellPresentation: ObservableObject {
                 else { return }
                 selectSession(sessionID, workspaceID: target)
             } catch {
-                // RC8 treats a rejected blank connection as non-fatal: keep the
+                // rc.1 treats a rejected blank connection as non-fatal: keep the
                 // current selection usable and wait for the next Host authority.
             }
         }
     }
 
-    /// Source: RC8 `WorkspaceRuntime.connectWorkspace`. Only a blank session
+    /// Source: rc.1 `WorkspaceRuntime.connectWorkspace`. Only a blank session
     /// that is both accounted by the workspace and has the workspace canonical
     /// cwd is reusable; archived blanks are intentionally invisible and cannot
     /// be opened. A create is coalesced per workspace until it settles.
@@ -771,7 +771,7 @@ final class NativeShellController: NativeSplitViewController {
         return presentation.workspaceStore.snapshot.workspaces.first { $0.workspaceId == workspaceID }?.title
     }
 
-    /// RC8 hierarchy navigation reopens the Host session through the ordinary
+    /// rc.1 hierarchy navigation reopens the Host session through the ordinary
     /// session-selection path. A subagent may be ungrouped, so the workspace id
     /// is optional rather than inferred from its breadcrumb title.
     private static func workspaceID(for sessionID: String, in presentation: NativeShellPresentation) -> String? {
@@ -901,7 +901,7 @@ final class NativeShellController: NativeSplitViewController {
         settingsWindow = window
     }
 
-    /// Source: RC8 `ui-renderer/DocumentTitle.tsx`. The native titlebar remains
+    /// Source: rc.1 `ui-renderer/DocumentTitle.tsx`. The native titlebar remains
     /// visually hidden, but standard AppKit document title state stays aligned
     /// with the selected durable Host session for system restoration/accessibility.
     private func updateDocumentTitle() {
@@ -977,7 +977,7 @@ extension NativeShellController: NSWindowDelegate {
 /// deterministic T5.2 regression tests. It mirrors the official columns
 /// constraints rather than relying on AppKit's implicit proportional resize.
 struct NativeSplitLayoutPolicy {
-    /// Mirrors RC8 AppFrame's ResizeObserver contract: column concessions are
+    /// Mirrors rc.1 AppFrame's ResizeObserver contract: column concessions are
     /// recomputed on a real frame-width change, but never reapplied during the
     /// nested same-width AppKit layout pass caused by divider placement.
     static func needsViewportReconciliation(
@@ -1059,6 +1059,9 @@ class NativeSplitViewController: NSSplitViewController {
         conversationItem.canCollapse = false
         detailsItem.canCollapse = true
         detailsItem.collapseBehavior = .useConstraints
+        // The sidebar may be dragged down to the official collapsed rail; set
+        // the floor once at composition instead of mutating the parent during layout.
+        sidebarItem.minimumThickness = OfficialUISpec.Layout.sidebarCollapsed
         addSplitViewItem(sidebarItem)
         addSplitViewItem(conversationItem)
         addSplitViewItem(detailsItem)

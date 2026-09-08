@@ -228,11 +228,6 @@ private extension JSONValue {
     func workflowString(named key: String) -> String? { objectValue?[key]?.stringValue }
 
     func workflowPositiveInteger(named key: String) -> Int? {
-        guard let number = objectValue?[key]?.numberValue,
-              number.rounded(.towardZero) == number,
-              number > 0,
-              number <= Double(Int.max)
-        else { return nil }
-        return Int(number)
+        objectValue?[key]?.intValue.flatMap { $0 > 0 ? $0 : nil }
     }
 }

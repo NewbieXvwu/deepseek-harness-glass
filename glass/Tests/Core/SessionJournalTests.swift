@@ -208,6 +208,13 @@ final class SessionJournalTests: XCTestCase {
         let snapshot = try XCTUnwrap(journal.snapshot)
         XCTAssertEqual(snapshot.appliedThrough, SessionSeq(rawValue: 2100))
         XCTAssertEqual(snapshot.records.count, 2100)
+        // The bounded dedup map evicted seq 1, so a conflicting replay is treated
+        // as already applied rather than raising duplicateConflict.
+        XCTAssertFalse(try journal.append(generation: generation, event: event(1, text: "conflict")))
+        // A recent seq is still retained, so its conflicting replay is rejected.
+        XCTAssertThrowsError(try journal.append(generation: generation, event: event(2100, text: "conflict"))) {
+            XCTAssertEqual($0 as? SessionJournalError, .duplicateConflict(seq: SessionSeq(rawValue: 2100)))
+        }
     }
 
     private func openedJournal(

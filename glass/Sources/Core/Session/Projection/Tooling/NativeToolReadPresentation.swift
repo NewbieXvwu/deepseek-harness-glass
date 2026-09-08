@@ -20,7 +20,7 @@ struct NativeToolReadView: Equatable, Sendable {
     let lang: String?
 }
 
-/// Result-side-only native equivalent of rc.2 `readCardModel`. It intentionally
+/// Result-side-only native equivalent of rc.1 `readCardModel`. It intentionally
 /// does not infer content from call arguments: a running read and every failed,
 /// unknown, or malformed settled result remain on the raw generic path.
 struct NativeReadCardPresentation: Equatable, Sendable {
@@ -50,7 +50,7 @@ struct NativeReadCardPresentation: Equatable, Sendable {
     }
 }
 
-/// The structural portion of rc.2 `ReadBlock` head/tail capping. It carries no
+/// The structural portion of rc.1 `ReadBlock` head/tail capping. It carries no
 /// display copy or UI state: SwiftUI owns the eventual expand control only after
 /// its official localization and AX contract are separately admitted.
 struct NativeReadCardWindowPresentation: Equatable, Sendable {

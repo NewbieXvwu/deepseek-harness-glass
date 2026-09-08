@@ -85,7 +85,7 @@ final class NativeMaterialIsolationRuntimeTests: XCTestCase {
         XCTAssertEqual(
             presentation.detailsPreference,
             OfficialUISpec.Layout.detailsDefault,
-            "RC8 close/reopen must restore the official default rather than a stale dragged width"
+            "rc.1 close/reopen must restore the official default rather than a stale dragged width"
         )
     }
 

@@ -5,7 +5,7 @@ import XCTest
 
 @MainActor
 final class NativeWorkspaceStoreTests: XCTestCase {
-    func testRecentWorkspaceProjectionMatchesRC8ActivityCreationAndHostOrder() {
+    func testRecentWorkspaceProjectionMatchesRC1ActivityCreationAndHostOrder() {
         let sessions = [
             SessionSummaryDTO(
                 sessionId: "session-latest", updatedAt: 1_800_000_000_000, running: false, blank: false,
@@ -51,7 +51,7 @@ final class NativeWorkspaceStoreTests: XCTestCase {
         XCTAssertEqual(NativeWorkspaceStore.recentWorkspaceID(in: emptyOnly), "newer")
     }
 
-    func testBrowserVisibilityMatchesRC8OrdinaryBlankSubagentArchivedAndUngroupedRules() {
+    func testBrowserVisibilityMatchesRC1OrdinaryBlankSubagentArchivedAndUngroupedRules() {
         func session(
             _ id: String,
             blank: Bool = false,
@@ -270,7 +270,7 @@ final class NativeWorkspaceStoreTests: XCTestCase {
         XCTAssertFalse(store.remoteSearch.hasMore)
     }
 
-    func testSearchSanitizerMatchesRC8NULAndUTF16BoundaryContract() {
+    func testSearchSanitizerMatchesRC1NULAndUTF16BoundaryContract() {
         XCTAssertEqual(
             NativeWorkspaceStore.sanitizeSearchQuery("before\u{0000}after"),
             "beforeafter"
@@ -280,7 +280,7 @@ final class NativeWorkspaceStoreTests: XCTestCase {
         XCTAssertEqual(NativeWorkspaceStore.sanitizeSearchQuery(withinBoundary), withinBoundary)
 
         // 499 BMP code units followed by a two-code-unit scalar crosses the
-        // 500-unit wire edge. RC8 backs up one unit so a dangling high
+        // 500-unit wire edge. rc.1 backs up one unit so a dangling high
         // surrogate never reaches the Host search request.
         let pairAtBoundary = String(repeating: "a", count: 499) + "😀" + "z"
         let sanitizedBoundary = NativeWorkspaceStore.sanitizeSearchQuery(pairAtBoundary)

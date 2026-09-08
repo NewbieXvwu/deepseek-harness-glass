@@ -5,7 +5,7 @@ import SwiftUI
 @testable import GlassSpec
 #endif
 
-/// Native RC8 `SubagentReadOnlyComposer` counterpart. This view is selected
+/// Native rc.1 `SubagentReadOnlyComposer` counterpart. This view is selected
 /// only from the Host-owned `subagent` identity projection; it never infers a
 /// one-shot mode from a catalog row or session summary.
 struct NativeSubagentReadOnlyComposer: View {

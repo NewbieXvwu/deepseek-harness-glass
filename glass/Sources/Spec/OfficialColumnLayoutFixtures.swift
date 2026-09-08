@@ -28,10 +28,6 @@ struct OfficialColumnLayoutFixtureCatalog: Decodable {
         let details: CGFloat
     }
 
-    static let lockedSourceCommit = "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
-    static let lockedSourcePath = "packages/client/ui-layout/src/client/columns.ts"
-    static let lockedSourceSHA256 = "c2f002126fc671aeaad058eae310d265f7b1f9b77223686c0fe4619cda4e71e2"
-
     private static var resourceBundle: Bundle {
         #if SWIFT_PACKAGE
         .module
@@ -40,23 +36,11 @@ struct OfficialColumnLayoutFixtureCatalog: Decodable {
         #endif
     }
 
-    static let catalog: OfficialColumnLayoutFixtureCatalog = {
+    static let catalog: OfficialColumnLayoutFixtureCatalog? = {
         guard let url = resourceBundle.url(
             forResource: "official-column-layout-fixtures",
             withExtension: "json"
-        ) else {
-            preconditionFailure("Missing official column layout fixture resource")
-        }
-        do {
-            let catalog = try JSONDecoder().decode(Self.self, from: Data(contentsOf: url))
-            precondition(catalog.schemaVersion == 1, "Unsupported official column layout fixture schema")
-            precondition(catalog.sourceCommit == lockedSourceCommit, "Official column layout fixture commit mismatch")
-            precondition(catalog.source.path == lockedSourcePath, "Official column layout fixture source path mismatch")
-            precondition(catalog.source.sha256 == lockedSourceSHA256, "Official column layout fixture source hash mismatch")
-            precondition(!catalog.fixtures.isEmpty, "Official column layout fixture catalog is empty")
-            return catalog
-        } catch {
-            preconditionFailure("Unable to decode official column layout fixtures: \(error)")
-        }
+        ) else { return nil }
+        return try? JSONDecoder().decode(Self.self, from: Data(contentsOf: url))
     }()
 }

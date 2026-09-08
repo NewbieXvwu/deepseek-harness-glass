@@ -87,12 +87,5 @@ enum SessionGoalProjectionReader {
 }
 
 private extension JSONValue {
-    var nonNegativeInteger: Int? {
-        guard let number = numberValue,
-              number.rounded(.towardZero) == number,
-              number >= 0,
-              number <= Double(Int.max)
-        else { return nil }
-        return Int(number)
-    }
+    var nonNegativeInteger: Int? { self.nonNegativeIntValue }
 }

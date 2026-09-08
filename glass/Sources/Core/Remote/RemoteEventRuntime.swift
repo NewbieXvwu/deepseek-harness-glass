@@ -90,14 +90,17 @@ actor RemoteEventRuntime {
                     guard let self else { return }
                     await self.receive(frame)
                 }
-                await self?.invalidateCatalog()
             } catch is CancellationError {
                 return
             } catch {
-                await self?.invalidateCatalog()
+                // A transient carrier failure must never blank the session tree;
+                // the owning generation replaces this runtime on reconnect.
             }
+            await self?.releaseEventTask()
         }
     }
+
+    private func releaseEventTask() { eventTask = nil }
 
     private func receive(_ frame: RemoteEventDownlinkFrame) {
         if isSessionCatalogFrame(frame) {
@@ -221,11 +224,6 @@ actor RemoteEventRuntime {
         case let .string(value)?: return value
         default: throw RemoteConnectionError.protocolViolation("api-session/added \(field)")
         }
-    }
-
-    private func invalidateCatalog() {
-        catalog = nil
-        publishCatalog(nil)
     }
 
     private func publishCatalog(_ value: RemoteSessionCatalogSnapshot?) {

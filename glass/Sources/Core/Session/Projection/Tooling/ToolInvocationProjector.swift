@@ -36,6 +36,26 @@ final class ToolInvocationProjector {
         accept(ConversationEventInput(remoteEvent: event).event, sessionCWD: sessionCWD)
     }
 
+    /// Same incremental update for callers that already hold the projection DTO.
+    func appendInPlace(
+        _ event: SessionEventDTO,
+        sessionCWD: String?
+    ) {
+        accept(event, sessionCWD: sessionCWD)
+    }
+
+    func reset() {
+        byID.removeAll(keepingCapacity: true)
+        order.removeAll(keepingCapacity: true)
+    }
+
+    /// Adopts an already-materialized snapshot (resident-window restore) so a
+    /// later incremental event keeps the existing rows.
+    func seed(_ invocations: [SessionToolInvocation]) {
+        byID = Dictionary(invocations.map { ($0.id, $0) }, uniquingKeysWith: { _, latest in latest })
+        order = invocations.map(\.id)
+    }
+
     func snapshot() -> [SessionToolInvocation] {
         order.compactMap { byID[$0] }
     }
@@ -122,6 +142,12 @@ final class ToolInvocationProjector {
         return .init(content: values, isError: false)
     }
 
+    private static let prettyEncoder: JSONEncoder = {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted]
+        return encoder
+    }()
+
     private func resultText(
         in content: [JSONValue],
         errorName: String?,
@@ -133,9 +159,7 @@ final class ToolInvocationProjector {
                let text = object["text"]?.stringValue {
                 return text
             }
-            let encoder = JSONEncoder()
-            encoder.outputFormatting = [.prettyPrinted]
-            guard let encoded = try? encoder.encode(block),
+            guard let encoded = try? Self.prettyEncoder.encode(block),
                   let rendered = String(data: encoded, encoding: .utf8)
             else { return nil }
             return rendered

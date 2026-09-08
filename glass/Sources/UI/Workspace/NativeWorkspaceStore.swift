@@ -73,7 +73,7 @@ final class NativeWorkspaceStore: ObservableObject {
         }
     }
 
-    /// RC8 Host workspace summaries use JavaScript ISO strings, whose usual
+    /// rc.1 Host workspace summaries use JavaScript ISO strings, whose usual
     /// representation includes milliseconds. `ISO8601DateFormatter` does not
     /// parse that form unless fractional seconds are opted in explicitly.
     private static let workspaceCreationFormatter: ISO8601DateFormatter = {
@@ -101,7 +101,7 @@ final class NativeWorkspaceStore: ObservableObject {
     private var remoteWorkspaceState: WorkspaceRuntimeState?
     private var remoteCatalogState: RemoteSessionCatalogSnapshot?
 
-    /// Source: RC8 `WorkspaceBrowser.sanitizeSearchQuery`. `String.UTF16View`
+    /// Source: rc.1 `WorkspaceBrowser.sanitizeSearchQuery`. `String.UTF16View`
     /// matches the JavaScript wire length model and the boundary adjustment
     /// prevents a dangling high surrogate from reaching `session.search`.
     static func sanitizeSearchQuery(_ value: String) -> String {
@@ -244,7 +244,7 @@ final class NativeWorkspaceStore: ObservableObject {
         }
     }
 
-    /// Source: RC8 `workspaces/service.ts:recentWorkspace`. This is a pure
+    /// Source: rc.1 `workspaces/service.ts:recentWorkspace`. This is a pure
     /// projection over the current Host baselines: a workspace with the most
     /// recently updated accounted session wins; an empty account falls back to
     /// its creation instant; equal timestamps intentionally retain Host list
@@ -400,7 +400,7 @@ final class NativeWorkspaceStore: ObservableObject {
         phase = .ready
     }
 
-    /// Snapshot-only mirror of the locked RC8 jobs capture. Its selected summary
+    /// Snapshot-only mirror of the locked rc.1 jobs capture. Its selected summary
     /// is the Host durable title/preset projection rendered in the paired
     /// official `jobs-expanded-*` scenes; transcript/jobs remain in the separate
     /// NativeSessionStore fixture.

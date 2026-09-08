@@ -1,6 +1,6 @@
 import Foundation
 
-/// Foundation-only state reducer for rc.2's `useCopyFeedback` interaction.
+/// Foundation-only state reducer for rc.1's `useCopyFeedback` interaction.
 /// Clipboard I/O remains platform-owned; this type makes the success/refusal and
 /// one-second feedback transition testable without claiming a pasteboard write.
 public enum NativeClipboardCopyFeedback: Equatable, Sendable {
@@ -9,7 +9,7 @@ public enum NativeClipboardCopyFeedback: Equatable, Sendable {
         case copied
     }
 
-    /// rc.2 ignores repeat activations while the success feedback is visible.
+    /// rc.1 ignores repeat activations while the success feedback is visible.
     public static func acceptsActivation(state: State) -> Bool {
         state == .idle
     }

@@ -277,12 +277,7 @@ final class HarnessHostController: ObservableObject {
         else { return nil }
         let rawURL = nsOutput.substring(with: match.range(at: 1))
         guard let endpoint = URL(string: rawURL),
-              endpoint.scheme == "http",
-              endpoint.host == "127.0.0.1",
-              endpoint.user == nil,
-              endpoint.password == nil,
-              let port = endpoint.port,
-              port > 0 else { return nil }
+              endpoint.isCanonicalLoopbackHTTP else { return nil }
         return endpoint
     }
 
@@ -356,6 +351,10 @@ final class HarnessHostController: ObservableObject {
             return
         }
         state = .classifying(authenticatedHost.baseURL)
+        // A generation that reached readiness restores the recovery budget for a
+        // later, independent failure.
+        recoveryAttempts = 0
+        restartAfterTermination = false
         let endpoint = authenticatedHost.baseURL
         await diagnostics.recordConnected(
             build: build,
@@ -405,14 +404,14 @@ final class HarnessHostController: ObservableObject {
         switch termination {
         case .cancelled:
             return
-        case let .failed(error) where error.category == .carrierLost:
-            state = .recovering(attempt: 1)
-            appendLog("[host] Remote carrier lost generation=\(generation.rawValue); reopening $events")
-            reconnectRemote(from: connection)
         case .ended:
-            failRemoteGeneration("$events ended without a carrier failure")
+            state = .recovering(attempt: 1)
+            appendLog("[host] $events ended generation=\(generation.rawValue); reopening")
+            reconnectRemote(from: connection)
         case let .failed(error):
-            failRemoteGeneration("$events terminated with \(error.category.rawValue): \(error)")
+            state = .recovering(attempt: 1)
+            appendLog("[host] Remote stream failed generation=\(generation.rawValue) (\(error.category.rawValue)); reopening $events")
+            reconnectRemote(from: connection)
         }
     }
 
@@ -427,41 +426,50 @@ final class HarnessHostController: ObservableObject {
                   authenticatedHost.urlSession === connection.context.authenticatedHost.urlSession,
                   ownedProcess.isRunning
             else { return }
-            do {
-                self.state = .connecting(authenticatedHost.baseURL)
-                let remote = RemoteConnection(authenticatedHost: authenticatedHost)
-                let events = try await remote.connectEvents()
-                guard !Task.isCancelled else {
-                    await remote.closeStreams()
+            var retryDelayNanos: UInt64 = 200_000_000
+            let maxDelayNanos: UInt64 = 3_000_000_000
+            let maxAttempts = 6
+            for attempt in 1...maxAttempts {
+                guard !Task.isCancelled, self.process === ownedProcess, ownedProcess.isRunning else { return }
+                self.state = attempt == 1 ? .connecting(authenticatedHost.baseURL) : .recovering(attempt: attempt)
+                do {
+                    let remote = RemoteConnection(authenticatedHost: authenticatedHost)
+                    let events = try await remote.connectEvents()
+                    guard !Task.isCancelled else {
+                        await remote.closeStreams()
+                        return
+                    }
+                    await self.publishReady(
+                        authenticatedHost: authenticatedHost,
+                        remote: remote,
+                        events: events,
+                        build: connection.build,
+                        compatibility: connection.compatibility
+                    )
                     return
+                } catch {
+                    guard !Task.isCancelled, self.process === ownedProcess else { return }
+                    await self.diagnostics.recordRPCError(error)
+                    guard ownedProcess.isRunning else {
+                        // The process termination handler owns restart once the
+                        // local Host has exited; do not publish a competing failure.
+                        return
+                    }
+                    guard attempt < maxAttempts else { break }
+                    try? await Task.sleep(nanoseconds: retryDelayNanos)
+                    retryDelayNanos = min(retryDelayNanos * 2, maxDelayNanos)
                 }
-                await self.publishReady(
-                    authenticatedHost: authenticatedHost,
-                    remote: remote,
-                    events: events,
-                    build: connection.build,
-                    compatibility: connection.compatibility
-                )
-            } catch {
-                guard !Task.isCancelled,
-                      self.process === ownedProcess
-                else { return }
-                await self.diagnostics.recordRPCError(error)
-                guard ownedProcess.isRunning else {
-                    // The process termination handler owns restart once the
-                    // local Host has exited; do not publish a competing failure.
-                    return
-                }
-                guard self.recoveryAttempts == 0 else {
-                    self.failRemoteGeneration("Remote carrier recovery failed: \(error.localizedDescription)")
-                    return
-                }
-                self.recoveryAttempts = 1
-                self.restartAfterTermination = true
-                self.state = .recovering(attempt: self.recoveryAttempts)
-                self.appendLog("[host] Remote reopen failed; restarting owned pid=\(ownedProcess.processIdentifier)")
-                ownedProcess.terminate()
             }
+            guard !Task.isCancelled, self.process === ownedProcess else { return }
+            guard self.recoveryAttempts == 0 else {
+                self.failRemoteGeneration("Remote carrier recovery failed after repeated backoff.")
+                return
+            }
+            self.recoveryAttempts = 1
+            self.restartAfterTermination = true
+            self.state = .recovering(attempt: self.recoveryAttempts)
+            self.appendLog("[host] Remote reopen failed; restarting owned pid=\(ownedProcess.processIdentifier)")
+            ownedProcess.terminate()
         }
     }
 
@@ -549,32 +557,13 @@ final class HarnessHostController: ObservableObject {
     }
 
     private func appendLog(_ text: String) {
-        let normalized = Self.redactSecrets(in: text.trimmingCharacters(in: .newlines))
+        let normalized = HostLogRedactor.redact(text.trimmingCharacters(in: .newlines))
         guard !normalized.isEmpty else { return }
         recentLogLines.append(contentsOf: normalized.split(separator: "\n").map(String.init))
         if recentLogLines.count > 200 { recentLogLines.removeFirst(recentLogLines.count - 200) }
         let line = "\(Self.logTimestampFormatter.string(from: Date())) \(normalized)\n"
         guard let data = line.data(using: .utf8) else { return }
         writeLog(data)
-    }
-
-    static func redactSecrets(in text: String) -> String {
-        var value = text.replacingOccurrences(
-            of: #"(?i)([?&]token=)[^&\s]+"#,
-            with: "$1<redacted>",
-            options: .regularExpression
-        )
-        value = value.replacingOccurrences(
-            of: #"(?i)(authorization:\s*bearer\s+)[^\s]+"#,
-            with: "$1<redacted>",
-            options: .regularExpression
-        )
-        value = value.replacingOccurrences(
-            of: #"(?i)(cookie:\s*)[^\r\n]+"#,
-            with: "$1<redacted>",
-            options: .regularExpression
-        )
-        return value
     }
 
     /// Shared timestamp formatter. `appendLog` runs on the main actor only, so a

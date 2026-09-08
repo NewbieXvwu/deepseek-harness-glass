@@ -1,5 +1,5 @@
 
-/// Read-only projection of RC8 token-meter `contextPressure`. The meter is an
+/// Read-only projection of rc.1 token-meter `contextPressure`. The meter is an
 /// informational Host fact, never a local billing/gating estimate: it renders
 /// only when a provider supplied both a prompt-pressure figure and a positive
 /// route capacity.
@@ -8,7 +8,7 @@ struct CoreContextMeterState: Equatable {
     let contextWindow: Int
     let percent: Int
 
-    /// Mirrors RC8 `contextOccupancy`: projectedTokens reflects an immediately
+    /// Mirrors rc.1 `contextOccupancy`: projectedTokens reflects an immediately
     /// compacted surface, while pressureTokens supports older Host projections.
     @MainActor
     static func value(from store: SessionProjectionStore, sessionID: String) -> Self? {
@@ -31,18 +31,10 @@ struct CoreContextMeterState: Equatable {
         )
     }
 
-    static func integer(_ value: JSONValue?) -> Int? {
-        guard let number = value?.numberValue,
-              number.isFinite,
-              number >= 0,
-              number.rounded(.towardZero) == number,
-              number <= Double(Int.max)
-        else { return nil }
-        return Int(number)
-    }
+    static func integer(_ value: JSONValue?) -> Int? { value?.nonNegativeIntValue }
 }
 
-/// Optional RC8 `contextBreakdown` composition. Its heuristic segments must
+/// Optional rc.1 `contextBreakdown` composition. Its heuristic segments must
 /// never be substituted for provider-anchored occupancy; the UI shows them only
 /// as individually complete descriptive rows inside an available meter.
 struct CoreContextMeterBreakdown: Equatable {

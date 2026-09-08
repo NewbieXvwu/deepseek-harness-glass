@@ -66,7 +66,7 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
                 onOpenSettings: {}
             ),
             expected: [
-                // RC8 has two independent New Session controls in wide mode:
+                // rc.1 has two independent New Session controls in wide mode:
                 // the wordmark shortcut and the outlined capsule.
                 OfficialUISpec.Text.newSessionAccessibility,
                 OfficialUISpec.Text.collapseSidebarAccessibility,
@@ -414,10 +414,10 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
         )
     }
 
-    func testTerminalStatusPillExportsSignalBeforeNonZeroExit() throws {
+    func testTerminalStatusPillExportsSignalOrExitCode() throws {
         let input = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-chat", key: "details.input", language: "en"))
         let output = try XCTUnwrap(OfficialUISpec.LocaleCatalog.value(namespace: "ui-chat", key: "details.output", language: "en"))
-        let invocation = NativeSessionStore.ToolInvocation(
+        let signalInvocation = NativeSessionStore.ToolInvocation(
             id: "terminal-signal",
             name: "bash",
             arguments: #"{"command":"long command","description":"long command"}"#,
@@ -431,9 +431,28 @@ final class NativeAccessibilityRuntimeTests: XCTestCase {
             resultIsError: false
         )
         try assertAccessibleLabels(
-            in: NativeToolDetailsBody(invocation: invocation, selectedCallID: invocation.id),
+            in: NativeToolDetailsBody(invocation: signalInvocation, selectedCallID: signalInvocation.id),
             expected: [input, output, "long command", "signal SIGTERM"],
-            forbidden: ["exit code 7"]
+            forbidden: ["exit code"]
+        )
+
+        let exitInvocation = NativeSessionStore.ToolInvocation(
+            id: "terminal-exit",
+            name: "bash",
+            arguments: #"{"command":"long command","description":"long command"}"#,
+            output: nil,
+            textOutput: nil,
+            errorName: nil,
+            errorCode: nil,
+            state: .failed,
+            sequence: 2,
+            resultContent: [.object(["type": .string("text"), "text": .string("\n[exit code: 7]")])],
+            resultIsError: false
+        )
+        try assertAccessibleLabels(
+            in: NativeToolDetailsBody(invocation: exitInvocation, selectedCallID: exitInvocation.id),
+            expected: [input, output, "long command", "exit code 7"],
+            forbidden: ["signal SIGTERM"]
         )
     }
 

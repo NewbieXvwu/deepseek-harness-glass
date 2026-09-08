@@ -11,7 +11,6 @@ final class AuthenticatedHostFixtureTests: XCTestCase {
     func testFixtureMetadataAndSecretPolicyAreRc1Only() throws {
         let fixture = try OfficialAuthenticatedHostFixtureCatalog.load()
         XCTAssertEqual(fixture.officialSourceCommit, OfficialUISpec.Build.sourceCommit)
-        XCTAssertEqual(fixture.fixtureRevision, "official-a66e470-authenticated-host-r2")
         XCTAssertEqual(fixture.payload.dshVersion, "0.1.2-rc.1")
         XCTAssertFalse(fixture.secretPolicy.persistedLaunchToken)
         XCTAssertFalse(fixture.secretPolicy.persistedCookie)

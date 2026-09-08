@@ -10,7 +10,7 @@ enum IsolatedTestWindowHarness {
     static func withHostedView<V: View, R>(
         _ view: V,
         size: NSSize = NSSize(width: 960, height: 720),
-        settleTime: TimeInterval = 0.05,
+        settleTime: TimeInterval = 0.1,
         body: (NSHostingView<V>) throws -> R
     ) rethrows -> R {
         let host = NSHostingView(rootView: view)
@@ -41,7 +41,7 @@ enum IsolatedTestWindowHarness {
     static func withHostedViewAsync<V: View, R>(
         _ view: V,
         size: NSSize = NSSize(width: 960, height: 720),
-        settleTime: TimeInterval = 0.05,
+        settleTime: TimeInterval = 0.1,
         body: (NSHostingView<V>) async throws -> R
     ) async rethrows -> R {
         let host = NSHostingView(rootView: view)

@@ -72,7 +72,7 @@ struct CoreRetryAttempt: Equatable {
     let time: Double
     let retry: Int
     let state: State
-    /// RC8 `LlmRetryEventData` display fields. Malformed/absent optional facts
+    /// rc.1 `LlmRetryEventData` display fields. Malformed/absent optional facts
     /// fail closed to harmless zero/empty values rather than reaching SwiftUI raw.
     let delayMilliseconds: Int
     let failureMessage: String
@@ -821,7 +821,7 @@ private struct TurnErrorDefinition: ConversationNodeDefinition {
 
 // MARK: - Output-token cap notice
 
-/// Source: RC8 `conversation-nodes/turn-max-tokens.ts`. The full browser also
+/// Source: rc.1 `conversation-nodes/turn-max-tokens.ts`. The full browser also
 /// offsets this notice ahead of its later turn-tail renderer. Glass Core does
 /// not yet register that tail node, so the raw turn-end sequence is the exact
 /// fallback anchor prescribed by the official definition when no closing tail
@@ -968,10 +968,7 @@ private extension JSONValue {
     func value(named key: String) -> JSONValue? { objectValue?[key] }
     func object(named key: String) -> [String: JSONValue]? { value(named: key)?.objectValue }
     func string(named key: String) -> String? { value(named: key)?.stringValue }
-    func coreInteger(named key: String) -> Int? {
-        guard let number = value(named: key)?.numberValue, number.rounded(.towardZero) == number, number >= 0, number <= Double(Int.max) else { return nil }
-        return Int(number)
-    }
+    func coreInteger(named key: String) -> Int? { value(named: key)?.nonNegativeIntValue }
 
     func content(named key: String) -> [ConversationContentBlock] {
         value(named: key)?.arrayValue?.map(\.asContentBlock) ?? []

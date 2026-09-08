@@ -10,14 +10,14 @@ struct NativeToolDiffHunk: Equatable, Sendable {
 }
 
 /// Typed subset of an official `card:'diff'` render intent. It contains only
-/// validated hunk data; view title is intentionally absent because rc.2 row
+/// validated hunk data; view title is intentionally absent because rc.1 row
 /// titles come from the call model, not from the diff card.
 struct NativeToolDiffView: Equatable, Sendable {
     let card: String
     let diffs: [NativeToolDiffHunk]
 }
 
-/// Native equivalent of rc.2 `diffCardModel` selection. While running, only a
+/// Native equivalent of rc.1 `diffCardModel` selection. While running, only a
 /// typed call-side intended diff is eligible. Once settled, the result-side
 /// applied diff entirely replaces the call side, including when history has
 /// truncated the call head.

@@ -9,7 +9,6 @@ struct SessionControlSnapshot: Sendable, Equatable {
 
 enum SessionControlRuntimeError: Error, Sendable, Equatable {
     case missingOpeningBaseline
-    case duplicateOpeningBaseline
 }
 
 actor SessionControlRuntime {
@@ -72,50 +71,67 @@ actor SessionControlRuntime {
             }
         }
 
-        do {
-            for try await frame in stream {
-                if pendingContinuation != nil {
-                    guard case let .baseline(value) = frame else {
-                        resumeOnce(with: .failure(SessionControlRuntimeError.missingOpeningBaseline))
-                        return
+        var currentStream = stream
+        var retryDelayNanos: UInt64 = 200_000_000
+        let maxDelayNanos: UInt64 = 3_000_000_000
+
+        while !Task.isCancelled {
+            do {
+                for try await frame in currentStream {
+                    retryDelayNanos = 200_000_000
+                    if pendingContinuation != nil {
+                        guard case let .baseline(value) = frame else {
+                            resumeOnce(with: .failure(SessionControlRuntimeError.missingOpeningBaseline))
+                            return
+                        }
+                        let opening = SessionControlSnapshot(
+                            generation: generation,
+                            queues: value.queues,
+                            jobs: value.jobs,
+                            projections: value.projections
+                        )
+                        snapshot = opening
+                        publish(opening)
+                        resumeOnce(with: .success(opening))
+                    } else {
+                        apply(frame)
                     }
-                    let opening = SessionControlSnapshot(
-                        generation: generation,
-                        queues: value.queues,
-                        jobs: value.jobs,
-                        projections: value.projections
-                    )
-                    snapshot = opening
-                    publish(opening)
-                    resumeOnce(with: .success(opening))
-                } else {
-                    try apply(frame)
+                }
+                // Runtime phase: reconnect with backoff instead of dropping the
+                // last known control authority.
+                guard pendingContinuation == nil else {
+                    resumeOnce(with: .failure(SessionControlRuntimeError.missingOpeningBaseline))
+                    return
+                }
+            } catch is CancellationError {
+                resumeOnce(with: .failure(CancellationError()))
+                return
+            } catch {
+                if pendingContinuation != nil {
+                    resumeOnce(with: .failure(error))
+                    return
                 }
             }
-            if pendingContinuation != nil {
-                resumeOnce(with: .failure(SessionControlRuntimeError.missingOpeningBaseline))
-            } else {
-                snapshot = nil
-                publish(nil)
-            }
-        } catch is CancellationError {
-            resumeOnce(with: .failure(CancellationError()))
-            return
-        } catch {
-            if pendingContinuation != nil {
-                resumeOnce(with: .failure(error))
-            } else {
-                snapshot = nil
-                publish(nil)
+            guard !Task.isCancelled else { return }
+            try? await Task.sleep(nanoseconds: retryDelayNanos)
+            retryDelayNanos = min(retryDelayNanos * 2, maxDelayNanos)
+            guard !Task.isCancelled else { return }
+            do {
+                currentStream = try await controller.control()
+            } catch is CancellationError {
+                return
+            } catch {
+                // The next iteration backs off further and retries.
             }
         }
     }
 
-    private func apply(_ frame: RemoteSessionControlFrame) throws {
+    private func apply(_ frame: RemoteSessionControlFrame) {
         guard let current = snapshot else { return }
         switch frame {
         case .baseline:
-            throw SessionControlRuntimeError.duplicateOpeningBaseline
+            // A duplicate baseline is ignored; the opening cut stays authoritative.
+            return
         case let .queue(sessionID, items):
             var queues = current.queues
             queues[sessionID] = items

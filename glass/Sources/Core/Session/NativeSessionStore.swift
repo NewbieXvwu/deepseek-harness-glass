@@ -94,7 +94,7 @@ protocol NativeHostPathAPI: Sendable {
     func openPath(_ path: String) async throws -> HostOpenPathResponse
 }
 
-/// Source: RC8 `resolveWorkspacePath`. This only constructs the Host-facing
+/// Source: rc.1 `resolveWorkspacePath`. This only constructs the Host-facing
 /// spelling; it neither touches the local filesystem nor interprets a URL.
 enum NativeProjectPathResolver {
     static func resolve(cwd: String?, path: String) -> String {
@@ -155,7 +155,7 @@ final class NativeSessionStore: ObservableObject {
         case failed(sessionID: String)
     }
 
-    /// RC8 `ui-model-selection` lifecycle. The directory itself remains an
+    /// rc.1 `ui-model-selection` lifecycle. The directory itself remains an
     /// immutable Host response; this state records only the local request phase
     /// and its transient transport/business diagnostic.
     enum ModelDirectoryStatus: Equatable {
@@ -166,7 +166,7 @@ final class NativeSessionStore: ObservableObject {
         case error(String)
     }
 
-    /// The only error shape the RC8 GoalBar displays inline: Host-provided
+    /// The only error shape the rc.1 GoalBar displays inline: Host-provided
     /// business message plus code. Transport failures stay on the existing
     /// session recovery path and never gain invented goal-specific wording.
     /// Catalog-addressed child route retained while the child is selected. It is
@@ -201,38 +201,6 @@ final class NativeSessionStore: ObservableObject {
     struct QueueActionCompletion: Equatable {
         let itemID: String
         let action: SessionQueueAction
-    }
-
-    enum Role: Equatable {
-        case user
-        case assistant
-    }
-
-    struct TranscriptItem: Identifiable, Equatable {
-        let id: String
-        let role: Role
-        var text: String
-        var isStreaming: Bool
-        /// Unix epoch milliseconds from the durable Host event. Snapshot-only
-        /// fixtures may omit it; the UI then honestly hides clock chrome.
-        let time: Double?
-        let sequence: Int
-
-        init(
-            id: String,
-            role: Role,
-            text: String,
-            isStreaming: Bool,
-            time: Double? = nil,
-            sequence: Int
-        ) {
-            self.id = id
-            self.role = role
-            self.text = text
-            self.isStreaming = isStreaming
-            self.time = time
-            self.sequence = sequence
-        }
     }
 
     /// Source: `sessions.schema.ts:promptContentPartSchema`. This is transient
@@ -412,7 +380,6 @@ final class NativeSessionStore: ObservableObject {
     /// refreshed from history on re-selection; transient queue/jobs are retained
     /// only until the next `session/subscribed` generation baseline clears them.
     private struct ResidentSessionState {
-        let items: [TranscriptItem]
         let hasMoreHistory: Bool
         let isRunning: Bool
         let selectedViewID: String?
@@ -438,19 +405,16 @@ final class NativeSessionStore: ObservableObject {
     }
 
     @Published private(set) var phase: Phase = .idle
-    /// Compatibility projection retained while individual downstream surfaces
-    /// complete their node-snapshot migration. Chat rendering reads `chatNodes`.
-    @Published private(set) var items: [TranscriptItem] = []
-    /// The stable keyed RC8 Chat target snapshot. It is materialized solely by
+    /// The stable keyed rc.1 Chat target snapshot. It is materialized solely by
     /// `conversationReducer` from Host history/mux evidence.
     @Published private(set) var chatNodes: [ConversationViewNode] = []
-    /// RC8 `conversation.view` trajectory target, materialized from the same
+    /// rc.1 `conversation.view` trajectory target, materialized from the same
     /// authoritative reducer window as Chat but with target-owned node keys.
     @Published private(set) var trajectoryNodes: [ConversationViewNode] = []
     @Published private(set) var hasMoreHistory = false
     @Published private(set) var isLoadingOlderHistory = false
     @Published private(set) var isRunning = false
-    /// RC8 `ChatStoreState.view`: a retained id may be stale after a plugin
+    /// rc.1 `ChatStoreState.view`: a retained id may be stale after a plugin
     /// unload, so UI resolves it through the stable Chat fallback.
     @Published private(set) var selectedViewID: String?
     @Published private(set) var isSubmittingPrompt = false
@@ -464,6 +428,9 @@ final class NativeSessionStore: ObservableObject {
     /// exposes file paths, decoded metadata, or transport-private errors.
     @Published private(set) var imageAdmissionRejection: NativeImageAttachmentAdmission.Rejection?
     @Published private(set) var toolInvocations: [ToolInvocation] = []
+    /// Shared raw tool projector. `toolInvocations` is always its materialized
+    /// snapshot so the store and the projection engine cannot drift apart.
+    private let toolProjector = ToolInvocationProjector()
     @Published private(set) var queuedMessages: [QueuedMessage] = []
     @Published private(set) var backgroundJobs: [BackgroundJob] = []
     /// The per-session Host `session.models` authority. A nil value means it has
@@ -487,7 +454,7 @@ final class NativeSessionStore: ObservableObject {
     /// session remains exposed above for existing header consumers.
     @Published private(set) var subagentCatalogs: [String: SubagentListResponse] = [:]
     @Published private(set) var subagentRoute: SubagentRoute?
-    /// Complete RC8 message-feedback sidecar snapshot keyed by assistant message id.
+    /// Complete rc.1 message-feedback sidecar snapshot keyed by assistant message id.
     /// A missing API or failed load remains empty; no local rating is invented.
     @Published private(set) var messageFeedbackItems: [String: MessageFeedbackItemDTO] = [:]
     @Published private(set) var isLoadingMessageFeedback = false
@@ -556,12 +523,12 @@ final class NativeSessionStore: ObservableObject {
     private var messageFeedbackAPI: (any NativeMessageFeedbackAPI)?
     private var messageFeedbackController: (any MessageFeedbackControllerAPI)?
     private var messageFeedbackTask: Task<Void, Never>?
-    /// RC8 reconnect resync waits behind any admitted feedback mutation before
+    /// rc.1 reconnect resync waits behind any admitted feedback mutation before
     /// taking a fresh complete list, so an older list cannot revive a stale CAS
     /// version after a mutation result has committed.
     private var messageFeedbackResyncTask: Task<Void, Never>?
     private var messageFeedbackMutationTask: Task<Void, Never>?
-    /// Feedback mutations survive a same-session authority recovery so RC8
+    /// Feedback mutations survive a same-session authority recovery so rc.1
     /// reconnect resync can serialize behind their committed Host version. Only
     /// a session lifecycle change invalidates these writes.
     private var messageFeedbackSessionGeneration: UInt = 0
@@ -572,7 +539,7 @@ final class NativeSessionStore: ObservableObject {
     private var goalTask: Task<Void, Never>?
     private var queueUpdateTask: Task<Void, Never>?
     private var modelSelectionTask: Task<Void, Never>?
-    /// One RC8 directory generation spans models reloads and selections. A late
+    /// One rc.1 directory generation spans models reloads and selections. A late
     /// open/recovery response may never overwrite a newer reload or selection.
     private var modelDirectoryGeneration: UInt = 0
     private var modelSelectionGeneration: UInt = 0
@@ -589,7 +556,7 @@ final class NativeSessionStore: ObservableObject {
     private var interactionGeneration: UInt = 0
     @Published private(set) var isSubmittingGoal = false
     @Published private(set) var goalActionFailure: GoalActionFailure?
-    /// RC8 GoalBar hides a successfully cleared goal before the next whole
+    /// rc.1 GoalBar hides a successfully cleared goal before the next whole
     /// projection arrives. This is a view marker only; `extensionState.goal`
     /// remains Host-owned and unchanged.
     @Published private(set) var locallyClearedGoalID: String?
@@ -609,7 +576,7 @@ final class NativeSessionStore: ObservableObject {
     /// verified endpoint after Host recovery; the Host remains session truth.
     var selectedSessionID: String? { activeSessionID }
 
-    /// RC8 `selectProducedFiles` counterpart. The state-only deliverables node
+    /// rc.1 `selectProducedFiles` counterpart. The state-only deliverables node
     /// stays in reducer-owned turn location data; this read-only seam applies
     /// its official closing-assistant cut before a native turn-tail renderer
     /// receives paths. It never parses raw history or creates local artifacts.
@@ -878,7 +845,7 @@ final class NativeSessionStore: ObservableObject {
         }
     }
 
-    /// RC8 `SessionManager.handleConnected`: refresh the selected parent plus
+    /// rc.1 `SessionManager.handleConnected`: refresh the selected parent plus
     /// every catalog already being observed. The native header owns disclosure
     /// state, so this Store treats its keyed complete Host snapshots as the only
     /// durable observation set; it never derives descriptors from summaries.
@@ -895,7 +862,7 @@ final class NativeSessionStore: ObservableObject {
         }
     }
 
-    /// RC8 `MessageFeedbackController.resync`: serialize the reconnect list
+    /// rc.1 `MessageFeedbackController.resync`: serialize the reconnect list
     /// behind the prior mutation tail. The completed Host list remains the only
     /// source that replaces the sidecar; no local version is synthesized.
     private func resyncMessageFeedbackAfterRecovery() {
@@ -932,7 +899,7 @@ final class NativeSessionStore: ObservableObject {
         }
     }
 
-    /// RC8 toggle behavior: matching committed rating retracts it; another rating
+    /// rc.1 toggle behavior: matching committed rating retracts it; another rating
     /// replaces it while preserving the Host-owned note. No state is optimistic.
     func toggleMessageFeedback(messageID: String, rating: MessageFeedbackRatingDTO) {
         enqueueMessageFeedbackMutation(.toggle(messageID: messageID, rating: rating))
@@ -942,7 +909,7 @@ final class NativeSessionStore: ObservableObject {
         enqueueMessageFeedbackMutation(.clear(messageID: messageID))
     }
 
-    /// RC8 note editor only saves against an already committed rating. An empty
+    /// rc.1 note editor only saves against an already committed rating. An empty
     /// draft is a deliberate `note: nil` clear, not an invented no-op.
     func saveMessageFeedbackNote(messageID: String, note: String) {
         guard let item = messageFeedbackItems[messageID] else { return }
@@ -1268,7 +1235,7 @@ final class NativeSessionStore: ObservableObject {
         goalAPI = api
     }
 
-    /// Source: RC8 `SessionProjectionMap.imageLimits`. Native clients admit
+    /// Source: rc.1 `SessionProjectionMap.imageLimits`. Native clients admit
     /// image bytes only when the Host has supplied this complete contract; this
     /// fails closed rather than inventing a local size/type policy.
     var imageAttachmentLimits: ImageAttachmentLimits? {
@@ -1294,7 +1261,6 @@ final class NativeSessionStore: ObservableObject {
     func preserveActiveState() {
         guard let sessionID = activeSessionID else { return }
         residentStates[sessionID] = ResidentSessionState(
-            items: items,
             hasMoreHistory: hasMoreHistory,
             isRunning: isRunning,
             selectedViewID: selectedViewID,
@@ -1358,7 +1324,6 @@ final class NativeSessionStore: ObservableObject {
     @discardableResult
     func restoreResidentState(for sessionID: String) -> Bool {
         guard let state = residentStates[sessionID] else { return false }
-        items = state.items
         hasMoreHistory = state.hasMoreHistory
         isLoadingOlderHistory = false
         isRunning = state.isRunning
@@ -1367,6 +1332,7 @@ final class NativeSessionStore: ObservableObject {
         draft = state.draft
         pendingImages = state.pendingImages
         toolInvocations = state.toolInvocations
+        toolProjector.seed(state.toolInvocations)
         queuedMessages = state.queuedMessages
         backgroundJobs = state.backgroundJobs
         modelDirectory = state.modelDirectory
@@ -1459,7 +1425,7 @@ final class NativeSessionStore: ObservableObject {
         recoveryGeneration &+= 1
         invalidateInteractions()
         let authorityGeneration = recoveryGeneration
-        // RC8 buffers live frames during the first authority read as well as
+        // rc.1 buffers live frames during the first authority read as well as
         // gap recovery. The common generation gate keeps a replaced session or
         // endpoint from stitching its old pending tail into the new window.
         let directoryGeneration = modelDirectoryGeneration
@@ -1487,9 +1453,8 @@ final class NativeSessionStore: ObservableObject {
         refreshMessageFeedback()
         let restoredResident = restoreResidentState(for: sessionID)
         if !restoredResident {
-            items = []
-            resetConversationWindow()
-            toolInvocations = []
+                resetConversationWindow()
+            resetToolInvocations()
             queuedMessages = []
             backgroundJobs = []
             modelDirectory = nil
@@ -1606,13 +1571,13 @@ final class NativeSessionStore: ObservableObject {
         }
     }
 
-    /// Source: RC8 `sessions/service.ts:clear`. Clears only the active
+    /// Source: rc.1 `sessions/service.ts:clear`. Clears only the active
     /// selection so a no-session shell can be shown; it deliberately retains
     /// resident snapshots for a later open and does not tear down the verified
     /// Host connection owned by the shell.
     func clearActiveSelection() {
         // Preserve the currently staged Host projection before clearing only
-        // the selection. RC8 `sessions.clear()` does not evict that resident
+        // the selection. rc.1 `sessions.clear()` does not evict that resident
         // view; a later open may restore it while fresh authority arrives.
         preserveActiveState()
         historyTask?.cancel()
@@ -1670,9 +1635,8 @@ final class NativeSessionStore: ObservableObject {
         activeSessionCWD = nil
         activeSessionID = nil
         phase = .idle
-        items = []
         resetConversationWindow()
-        toolInvocations = []
+        resetToolInvocations()
         queuedMessages = []
         backgroundJobs = []
         modelDirectory = nil
@@ -1757,9 +1721,8 @@ final class NativeSessionStore: ObservableObject {
         activeSessionCWD = nil
         activeSessionID = nil
         phase = .idle
-        items = []
         resetConversationWindow()
-        toolInvocations = []
+        resetToolInvocations()
         queuedMessages = []
         backgroundJobs = []
         modelDirectory = nil
@@ -1783,7 +1746,7 @@ final class NativeSessionStore: ObservableObject {
     }
 
     /// Selects a registry-owned conversation view id. The store intentionally
-    /// retains unknown ids so the UI can exercise RC8's stable Chat fallback
+    /// retains unknown ids so the UI can exercise rc.1's stable Chat fallback
     /// without erasing persisted state on a transient plugin unload.
     func selectView(_ id: String?) {
         selectedViewID = id
@@ -1816,7 +1779,7 @@ final class NativeSessionStore: ObservableObject {
         pendingImages.removeAll { $0.id == id }
     }
 
-    /// RC8 file mentions are owner-resolved vocabulary, never arbitrary Markdown
+    /// rc.1 file mentions are owner-resolved vocabulary, never arbitrary Markdown
     /// destinations. This method is intentionally inert until the caller passes
     /// an already-recognized path token from that Host-backed vocabulary.
     func openKnownProjectPath(_ path: String) {
@@ -1955,7 +1918,7 @@ final class NativeSessionStore: ObservableObject {
 
     // MARK: - Permission selection face
 
-    /// Source: RC8 `permission-presets` command surface. The session-level
+    /// Source: rc.1 `permission-presets` command surface. The session-level
     /// `permissions` whole projection advertises choices; `/permission` is the
     /// sole write path. The next projection frame remains the only confirmation.
     func selectPermissionPreset(_ preset: String) {
@@ -2007,7 +1970,7 @@ final class NativeSessionStore: ObservableObject {
                 else { return }
                 // Deliberately wait for the Host's durable projection push.
             } catch {
-                // RC8 leaves the last complete permission projection visible
+                // rc.1 leaves the last complete permission projection visible
                 // when a command is rejected; no locally synthesized failure.
             }
         }
@@ -2015,7 +1978,7 @@ final class NativeSessionStore: ObservableObject {
 
     // MARK: - Model selection face
 
-    /// Source: RC8 `SessionDirectory.select`. The UI may submit only a complete
+    /// Source: rc.1 `SessionDirectory.select`. The UI may submit only a complete
     /// currently advertised route; successful presentation follows the exact
     /// Host-confirmed `selected` value and does not edit provider catalog facts.
     func selectModel(provider: String, model: String, reasoningEffort: String?) {
@@ -2090,14 +2053,14 @@ final class NativeSessionStore: ObservableObject {
                       self?.modelDirectoryGeneration == directoryGeneration,
                       self?.modelSelectionGeneration == mutationGeneration
                 else { return }
-                // RC8 keeps the last Host directory selection visible on a
+                // rc.1 keeps the last Host directory selection visible on a
                 // rejected mutation; this diagnostic is presentation-only.
                 self?.modelDirectoryStatus = .error(error.localizedDescription)
             }
         }
     }
 
-    /// Source: RC8 `SessionDirectory.load`. Retry reloads only the complete
+    /// Source: rc.1 `SessionDirectory.load`. Retry reloads only the complete
     /// Host `session.models` directory; it never replays or edits conversation
     /// history and is fenced against selection/recovery responses.
     func reloadModelDirectory() {
@@ -2148,7 +2111,7 @@ final class NativeSessionStore: ObservableObject {
 
     // MARK: - Queue action face
 
-    /// Source: RC8 `conversation.updateQueue`. Queue items are addressed by the
+    /// Source: rc.1 `conversation.updateQueue`. Queue items are addressed by the
     /// Host message id and remain visible until the next `session/queue` whole
     /// snapshot retires or replaces them.
     func updateQueuedMessage(itemID: String, action: SessionQueueAction) {
@@ -2315,7 +2278,7 @@ final class NativeSessionStore: ObservableObject {
         }
     }
 
-    /// Source: RC8 `session.ts:cancel`; a continuable child is cancelled only
+    /// Source: rc.1 `session.ts:cancel`; a continuable child is cancelled only
     /// through its durable parent-child subagent address, never `session.cancel`.
     func cancelRunningTurn() {
         guard isRunning, let sessionID = activeSessionID else { return }
@@ -2418,8 +2381,7 @@ final class NativeSessionStore: ObservableObject {
         isSubmittingApproval = false
         isSubmittingQuestion = false
         resetConversationWindow()
-        items = []
-        toolInvocations = []
+        resetToolInvocations()
         selectedToolCallID = nil
         appliedSequences = []
         hasMoreHistory = false
@@ -2481,8 +2443,7 @@ final class NativeSessionStore: ObservableObject {
     private func installRemoteJournal(_ snapshot: SessionJournalSnapshot, sessionID: String) {
         let inputs = snapshot.records.map(ConversationEventInput.init(remoteRecord:))
         replaceConversationWindow(inputs, hasMore: snapshot.hasMore)
-        items = []
-        toolInvocations = []
+        resetToolInvocations()
         appliedSequences = []
         for record in snapshot.records {
             let input = ConversationEventInput(remoteRecord: record)
@@ -2513,7 +2474,7 @@ final class NativeSessionStore: ObservableObject {
             return
         }
         queuedMessages = (snapshot.queues[sessionID] ?? []).map { item in
-            let content = item.message.content.map(\.conversationJSONValue)
+            let content = item.message.content
             let texts = content.map { contentText($0) }
             let allText = texts.allSatisfy(\.isText)
             let flat = texts.map(\.value).joined(separator: " ")
@@ -2790,129 +2751,21 @@ final class NativeSessionStore: ObservableObject {
             if let messageID = event.data.objectValue?["id"]?.stringValue {
                 queuedMessages.removeAll { $0.placement == .steering && $0.messageID == messageID }
             }
-            guard let text = textContent(in: event.data) else { return }
-            upsert(TranscriptItem(
-                id: "event-\(event.seq)",
-                role: .user,
-                text: text,
-                isStreaming: false,
-                time: event.time,
-                sequence: event.seq
-            ))
-        case "assistant/message":
-            guard let text = textContent(in: event.data.objectValue?["message"] ?? event.data) else { return }
-            settleStreaming()
-            upsert(TranscriptItem(
-                id: "event-\(event.seq)",
-                role: .assistant,
-                text: text,
-                isStreaming: false,
-                time: event.time,
-                sequence: event.seq
-            ))
-        case "turn/start":
+        case "turn/start", "assistant/chunk":
             isRunning = true
-        case "assistant/chunk":
-            isRunning = true
-            applyAssistantChunk(event)
-        case "tool/call":
-            applyToolCall(event)
-        case "tool/result":
-            applyToolResult(event)
+        case "tool/call", "tool/result":
+            toolProjector.appendInPlace(event, sessionCWD: activeSessionCWD)
+            toolInvocations = toolProjector.snapshot()
         case "turn/end":
             isRunning = false
-            settleStreaming()
         default:
             break
         }
     }
 
-    /// Source: `assistant/chunk` payloads have `turn`, `step`, and a chunk whose
-    /// official text branch is `{ type: "text-delta", index, text }`.
-    private func applyAssistantChunk(_ event: SessionEventDTO) {
-        guard let data = event.data.objectValue,
-              let turn = data["turn"]?.numberValue,
-              let step = data["step"]?.numberValue,
-              let chunk = data["chunk"]?.objectValue,
-              chunk["type"]?.stringValue == "text-delta",
-              let index = chunk["index"]?.numberValue,
-              let text = chunk["text"]?.stringValue
-        else { return }
-
-        let id = "stream-\(Int(turn))-\(Int(step))-\(Int(index))"
-        if let existing = items.firstIndex(where: { $0.id == id }) {
-            items[existing].text += text
-            items[existing].isStreaming = true
-        } else {
-            upsert(TranscriptItem(
-                id: id,
-                role: .assistant,
-                text: text,
-                isStreaming: true,
-                time: event.time,
-                sequence: event.seq
-            ))
-        }
-    }
-
-    private func applyToolCall(_ event: SessionEventDTO) {
-        guard let data = event.data.objectValue,
-              let callID = data["callId"]?.stringValue,
-              let name = data["name"]?.stringValue,
-              let arguments = data["arguments"]?.stringValue
-        else { return }
-        guard !toolInvocations.contains(where: { $0.id == callID }) else { return }
-        let invocation = ToolInvocation(
-            id: callID,
-            name: name,
-            arguments: arguments,
-            output: nil,
-            textOutput: nil,
-            errorName: nil,
-            errorCode: nil,
-            state: .running,
-            sequence: event.seq,
-            parentCallID: data["parentCallId"]?.stringValue,
-            sessionCWD: activeSessionCWD
-        )
-        // Sorted-insert by sequence; keeps the timeline merge linear and avoids
-        // re-sorting the whole array on every tool call.
-        var lower = toolInvocations.startIndex
-        var upper = toolInvocations.endIndex
-        while lower < upper {
-            let mid = (lower + upper) / 2
-            if toolInvocations[mid].sequence < invocation.sequence {
-                lower = mid + 1
-            } else {
-                upper = mid
-            }
-        }
-        toolInvocations.insert(invocation, at: lower)
-    }
-
-    private func applyToolResult(_ event: SessionEventDTO) {
-        guard let data = event.data.objectValue,
-              let message = data["message"]?.objectValue,
-              let source = message["source"]?.objectValue,
-              let callID = source["callId"]?.stringValue
-        else { return }
-        let error = data["error"]?.objectValue
-        let errorName = error?["name"]?.stringValue
-        let errorCode = error?["code"]?.stringValue
-        let wrapper = toolResultWrapper(in: message, callID: callID)
-        let content = wrapper?.content ?? []
-        let isError = wrapper?.isError ?? (errorCode != nil)
-        let output = resultText(in: content, errorName: errorName, errorCode: errorCode)
-        let textOutput = textResult(in: content)
-        guard let index = toolInvocations.firstIndex(where: { $0.id == callID }) else { return }
-        toolInvocations[index].output = output
-        toolInvocations[index].textOutput = textOutput
-        toolInvocations[index].errorName = errorName
-        toolInvocations[index].errorCode = errorCode
-        toolInvocations[index].resultContent = content
-        toolInvocations[index].resultMeta = data["meta"]
-        toolInvocations[index].resultIsError = isError
-        toolInvocations[index].state = errorCode == "interrupted" ? .stopped : (isError ? .failed : .completed)
+    private func resetToolInvocations() {
+        toolProjector.reset()
+        toolInvocations = []
     }
 
     func selectToolCall(_ callID: String?) {
@@ -2978,11 +2831,10 @@ final class NativeSessionStore: ObservableObject {
             )),
         ]
         replaceConversationWindow(conversationEvents, hasMore: false)
-        items = []
         for input in conversationEvents {
             apply(event: input.event)
         }
-        toolInvocations = []
+        resetToolInvocations()
         queuedMessages = []
         backgroundJobs = [
             BackgroundJob(
@@ -3028,9 +2880,8 @@ final class NativeSessionStore: ObservableObject {
         let sessionID = "fx-alpha"
         phase = .ready(sessionID: sessionID)
         activeSessionID = sessionID
-        items = []
         resetConversationWindow()
-        toolInvocations = []
+        resetToolInvocations()
         queuedMessages = []
         backgroundJobs = []
         modelDirectory = .init(response: .init(
@@ -3061,15 +2912,14 @@ final class NativeSessionStore: ObservableObject {
     }
 
     /// Snapshot-only Host-shaped `permissions` fixture. It represents the
-    /// complete projection produced by the optional RC8 permission service; the
+    /// complete projection produced by the optional rc.1 permission service; the
     /// current session command path is intentionally not invoked here.
     func loadSnapshotPermissionFixture() {
         let sessionID = "fx-alpha"
         phase = .ready(sessionID: sessionID)
         activeSessionID = sessionID
-        items = []
         resetConversationWindow()
-        toolInvocations = []
+        resetToolInvocations()
         queuedMessages = []
         backgroundJobs = []
         modelDirectory = nil
@@ -3118,9 +2968,8 @@ final class NativeSessionStore: ObservableObject {
         let sessionID = "fx-alpha"
         phase = .ready(sessionID: sessionID)
         activeSessionID = sessionID
-        items = []
         resetConversationWindow()
-        toolInvocations = []
+        resetToolInvocations()
         queuedMessages = []
         backgroundJobs = []
         modelDirectory = nil
@@ -3153,9 +3002,8 @@ final class NativeSessionStore: ObservableObject {
         let sessionID = "fx-alpha"
         phase = .ready(sessionID: sessionID)
         activeSessionID = sessionID
-        items = []
         resetConversationWindow()
-        toolInvocations = []
+        resetToolInvocations()
         queuedMessages = []
         backgroundJobs = []
         modelDirectory = nil
@@ -3265,7 +3113,6 @@ final class NativeSessionStore: ObservableObject {
             )),
         ]
         replaceConversationWindow(conversationEvents, hasMore: false)
-        items = []
         for input in conversationEvents {
             apply(event: input.event)
         }
@@ -3310,7 +3157,7 @@ final class NativeSessionStore: ObservableObject {
         appliedSequences = Set(conversationEvents.map(\.event.seq))
     }
 
-    /// Snapshot-only RC8 `ui-deliverables` fixture. The reducer derives the
+    /// Snapshot-only rc.1 `ui-deliverables` fixture. The reducer derives the
     /// completed turn's locations from a real diff card and successful result;
     /// the assistant's closing sequence selects the correct turn tail.
     func loadSnapshotDeliverablesFixture() {
@@ -3321,7 +3168,7 @@ final class NativeSessionStore: ObservableObject {
             "关于我.md", "index.html", "long-generated-experience-specification-for-produced-files-overflow.md",
             "styles.css", "app.ts", "schema.json", "README.md", "preview.svg", "notes.txt", "manifest.yaml",
         ]
-        // Match RC8 `produced-files.e2e.ts`: each successful write owns one
+        // Match rc.1 `produced-files.e2e.ts`: each successful write owns one
         // location and produces a visible typed tool row before the turn tail.
         let writeEvents = producedPaths.enumerated().flatMap { index, path -> [ConversationEventInput] in
             let callID = "write-\(index + 1)"
@@ -3406,7 +3253,6 @@ final class NativeSessionStore: ObservableObject {
             )),
         ]
         replaceConversationWindow(conversationEvents, hasMore: false)
-        items = []
         for input in conversationEvents {
             apply(event: input.event)
         }
@@ -3474,7 +3320,7 @@ final class NativeSessionStore: ObservableObject {
         messageFeedbackMutationMessageID = nil
     }
 
-    /// Snapshot-only model-retry fixture. It appends the RC8-shaped scheduled
+    /// Snapshot-only model-retry fixture. It appends the rc.1-shaped scheduled
     /// attempt through the reducer, rather than injecting a Core retry node.
     func loadSnapshotRetryFixture() {
         loadSnapshotToolingFixture()
@@ -3611,105 +3457,6 @@ final class NativeSessionStore: ObservableObject {
         ]), seq: 105)
         selectedToolCallID = nil
         isRunning = false
-    }
-
-    private func settleStreaming() {
-        for index in items.indices where items[index].isStreaming {
-            items[index].isStreaming = false
-        }
-    }
-
-    private func upsert(_ item: TranscriptItem) {
-        if let index = items.firstIndex(where: { $0.id == item.id }) {
-            items[index] = item
-        } else {
-            // Items keep the (sequence, id) ascending invariant; a sorted insert
-            // replaces the full-array re-sort that made a long stream O(n log n).
-            var lower = items.startIndex
-            var upper = items.endIndex
-            while lower < upper {
-                let mid = (lower + upper) / 2
-                if isOrdered(items[mid], before: item) {
-                    lower = mid + 1
-                } else {
-                    upper = mid
-                }
-            }
-            items.insert(item, at: lower)
-        }
-    }
-
-    private func isOrdered(_ lhs: TranscriptItem, before rhs: TranscriptItem) -> Bool {
-        lhs.sequence < rhs.sequence || (lhs.sequence == rhs.sequence && lhs.id < rhs.id)
-    }
-
-    private struct ToolResultWrapper {
-        let content: [JSONValue]
-        let isError: Bool
-    }
-
-    /// rc.1 durable tool results are one `tool-result` wrapper inside the user
-    /// message. The wrapper, not the outer message, owns result content/error.
-    private func toolResultWrapper(in message: [String: JSONValue], callID: String) -> ToolResultWrapper? {
-        guard let values = message["content"]?.arrayValue else { return nil }
-        if values.count == 1,
-           let wrapper = values[0].objectValue,
-           wrapper["type"]?.stringValue == "tool-result",
-           wrapper["toolCallId"]?.stringValue == callID,
-           let content = wrapper["content"]?.arrayValue {
-            if wrapper["isError"] != nil && wrapper["isError"]?.boolValue == nil { return nil }
-            return .init(content: content, isError: wrapper["isError"]?.boolValue ?? false)
-        }
-        return .init(content: values, isError: false)
-    }
-
-    /// rc.1 generic result text flattens the inner tool-result content. Text is
-    /// verbatim; non-text blocks retain their JSON shape for the generic card.
-    private func resultText(
-        in content: [JSONValue],
-        errorName: String?,
-        errorCode: String?
-    ) -> String? {
-        let parts = content.compactMap { block -> String? in
-            if let object = block.objectValue,
-               object["type"]?.stringValue == "text",
-               let text = object["text"]?.stringValue {
-                return text
-            }
-            let encoder = JSONEncoder()
-            encoder.outputFormatting = [.prettyPrinted]
-            guard let encoded = try? encoder.encode(block),
-                  let rendered = String(data: encoded, encoding: .utf8)
-            else { return nil }
-            return rendered
-        }
-        return NativeToolResultTextPresentation.flatten(
-            parts: parts,
-            errorName: errorName,
-            errorCode: errorCode
-        )
-    }
-
-    private func textResult(in content: [JSONValue]) -> String? {
-        let text = content.compactMap { block -> String? in
-            guard let object = block.objectValue,
-                  object["type"]?.stringValue == "text",
-                  let value = object["text"]?.stringValue
-            else { return nil }
-            return value
-        }.joined(separator: "\n")
-        return text.isEmpty ? nil : text
-    }
-
-    /// Source: `sessions.schema.ts:contentBlockSchema`; the native transcript
-    /// intentionally exposes only the text branch until image/tool adapters land.
-    private func textContent(in value: JSONValue) -> String? {
-        guard let content = value.objectValue?["content"]?.arrayValue else { return nil }
-        let text = content.compactMap { block -> String? in
-            guard let object = block.objectValue, object["type"]?.stringValue == "text" else { return nil }
-            return object["text"]?.stringValue
-        }.joined()
-        return text.isEmpty ? nil : text
     }
 
     // TODO(perf): hot path — add JSONValue: Decodable to avoid encode→decode round-trip.

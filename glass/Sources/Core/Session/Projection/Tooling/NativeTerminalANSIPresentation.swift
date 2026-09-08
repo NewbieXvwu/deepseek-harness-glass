@@ -78,7 +78,7 @@ public struct NativeTerminalANSIOutput: Equatable, Sendable {
     }
 }
 
-/// Foundation-only subset of rc.2 `parseAnsiLines`. It is intentionally the
+/// Foundation-only subset of rc.1 `parseAnsiLines`. It is intentionally the
 /// only raw-terminal control-sequence decoder. OSC, unsupported CSI and inert
 /// controls are removed before UI consumption; SGR state is threaded across
 /// line boundaries just as a terminal does.
@@ -113,7 +113,7 @@ public enum NativeTerminalANSIPresentation {
         let replayed: Bool
     }
 
-    /// Mirrors rc.2 `sanitize`: OSC/non-CSI/inert controls disappear before any
+    /// Mirrors rc.1 `sanitize`: OSC/non-CSI/inert controls disappear before any
     /// SwiftUI rendering, while CSI plus CR/backspace/tab survive for cell replay.
     private static func sanitize(_ rawOutput: String) -> String {
         let scalars = Array(rawOutput.unicodeScalars)
@@ -156,7 +156,7 @@ public enum NativeTerminalANSIPresentation {
         return String(output)
     }
 
-    /// Direct rc.2 fast path for output that does not move a cursor. It keeps
+    /// Direct rc.1 fast path for output that does not move a cursor. It keeps
     /// tabs as layout characters and folds only SGR state, avoiding per-cell
     /// allocations for large logs that never redraw a line.
     private static func parsePlainLine(_ line: String, entryStyle: NativeTerminalANSIStyle) -> ReplayResult {

@@ -2,7 +2,7 @@ import Foundation
 
 /// rc.1 card derivation from durable Tool call/result facts. This deliberately
 /// consumes arguments, inner tool-result content and result metadata instead of
-/// the removed rc.2 `ToolEventView` presenter carrier.
+/// the removed rc.1 `ToolEventView` presenter carrier.
 enum NativeRawToolCardProjector {
     static func terminal(_ invocation: SessionToolInvocation) -> NativeTerminalCardPresentation? {
         guard invocation.parentCallID == nil, let args = arguments(invocation.arguments) else { return nil }
@@ -461,12 +461,7 @@ enum NativeRawToolCardProjector {
         return text.isEmpty ? nil : text
     }
 
-    private static func integer(_ value: JSONValue?) -> Int? {
-        guard let number = value?.numberValue, number.isFinite, number.rounded(.towardZero) == number,
-              number >= Double(Int.min), number <= Double(Int.max)
-        else { return nil }
-        return Int(number)
-    }
-    private static func nonNegativeInteger(_ value: JSONValue?) -> Int? { integer(value).flatMap { $0 >= 0 ? $0 : nil } }
-    private static func guardPositiveInteger(_ value: JSONValue?) -> Int? { integer(value).flatMap { $0 >= 1 ? $0 : nil } }
+    private static func integer(_ value: JSONValue?) -> Int? { value?.intValue }
+    private static func nonNegativeInteger(_ value: JSONValue?) -> Int? { value?.nonNegativeIntValue }
+    private static func guardPositiveInteger(_ value: JSONValue?) -> Int? { value?.intValue.flatMap { $0 >= 1 ? $0 : nil } }
 }

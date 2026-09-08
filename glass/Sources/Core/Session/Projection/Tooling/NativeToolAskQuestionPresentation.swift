@@ -10,7 +10,7 @@ public enum NativeToolAskQuestionSummary: Equatable, Sendable {
     case generic
 }
 
-/// Foundation-only projection of rc.2's `ask_user_question` keyed row summary.
+/// Foundation-only projection of rc.1's `ask_user_question` keyed row summary.
 /// It does not own composer takeover or answer submission; T9.3 owns that live
 /// interaction and this model only renders a historical tool-row outcome.
 public struct NativeToolAskQuestionPresentation: Equatable, Sendable {

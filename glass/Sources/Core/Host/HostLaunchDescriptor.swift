@@ -1,5 +1,18 @@
 import Foundation
 
+extension URL {
+    /// The minimum Host boundary shared by announcement parsing, launch
+    /// descriptors and loopback downloads: plain `http` on `127.0.0.1` with a
+    /// real port and no embedded credentials.
+    var isCanonicalLoopbackHTTP: Bool {
+        scheme == "http"
+            && host == "127.0.0.1"
+            && user == nil
+            && password == nil
+            && (port ?? 0) > 0
+    }
+}
+
 /// One process-scoped launch URL printed by `dsh web`.
 ///
 /// The query token deliberately stays inside `launchURL`; callers never receive
@@ -9,12 +22,9 @@ struct HostLaunchDescriptor: Sendable, Equatable {
     let cleanBaseURL: URL
 
     init(url: URL) throws {
-        guard url.scheme == "http",
-              url.host == "127.0.0.1",
+        guard url.isCanonicalLoopbackHTTP,
               let port = url.port,
-              (1...65_535).contains(port),
-              url.user == nil,
-              url.password == nil,
+              port <= 65_535,
               url.path == "/",
               url.fragment == nil,
               var components = URLComponents(url: url, resolvingAgainstBaseURL: false)

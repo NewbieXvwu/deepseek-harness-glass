@@ -38,6 +38,6 @@ final class NativeGoalDockTests: XCTestCase {
             "createdAt": .number(100),
             "updatedAt": .number(100),
         ])
-        return try XCTUnwrap(CoreGoalProjection(projection: value), "Goal fixture must satisfy the strict RC8 projection decoder")
+        return try XCTUnwrap(CoreGoalProjection(projection: value), "Goal fixture must satisfy the strict rc.1 projection decoder")
     }
 }

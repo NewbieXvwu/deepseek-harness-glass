@@ -21,7 +21,9 @@ final class HarnessHostProcessTests: XCTestCase {
             "web",
             "--port",
             "0",
+            "--no-open",
         ])
+        XCTAssertTrue(launch.arguments.contains("--no-open"), "the launch token must never be handed to the default browser")
         XCTAssertEqual(launch.environment["PATH"], "")
         XCTAssertEqual(launch.environment["DSH_HOME"], runtime.homeDirectory.path)
         XCTAssertFalse(launch.arguments.contains("node"))

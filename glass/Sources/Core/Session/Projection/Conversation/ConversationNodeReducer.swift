@@ -63,7 +63,6 @@ final class ConversationNodeReducer {
         definitions: [AnyConversationNodeDefinition],
         fallback: AnyConversationNodeDefinition? = nil
     ) {
-        precondition(Set(definitions.map(\.kind)).count == definitions.count, "conversation Definition kinds must be unique")
         self.definitions = definitions
         self.fallback = fallback
     }
@@ -219,29 +218,32 @@ final class ConversationNodeReducer {
         let key = conversationContextKey(kind: definition.kind, id: result.id)
         let context: Context
         if let existing = contexts[key] {
-            precondition(existing.definition.kind == definition.kind && existing.id == result.id,
-                         "conversation reducer context identity changed definition")
+            // A Host frame that maps two different identities onto one key is
+            // dropped instead of crashing the reducer.
+            guard existing.definition.kind == definition.kind, existing.id == result.id else {
+                return key
+            }
             context = existing
         } else {
             context = Context(definition: definition, id: result.id)
             contexts[key] = context
         }
         let match = ConversationMatch(input: input, role: result.role, location: timeline.location(for: input.event))
-        if let previous = context.matches.last {
-            precondition(previous.event.seq < match.event.seq,
-                         "conversation reducer received non-monotonic context evidence for \(context.key)")
+        if let previous = context.matches.last, previous.event.seq >= match.event.seq {
+            // Non-monotonic evidence for one context: keep the first observed
+            // order and ignore the late frame.
+            return key
         }
-        if result.role == .start {
-            precondition(context.start == nil, "conversation reducer received a duplicate start for \(context.key)")
-            precondition(context.matches.isEmpty, "conversation reducer received an update before start for \(context.key)")
+        if result.role == .start, context.start == nil, context.matches.isEmpty {
             context.start = match
             context.matches.append(match)
             context.state = definition.start(context: context.snapshot(), match: match, reader: reader(before: match.event.seq))
         } else {
+            // A duplicate start, or an update that arrived before its start,
+            // degrades to an ordinary update. Definitions synthesize missing
+            // state rather than aborting the process.
             context.matches.append(match)
-            if context.state != nil {
-                context.state = definition.update(context: context.snapshot(), match: match)
-            }
+            context.state = definition.update(context: context.snapshot(), match: match)
         }
         return key
     }
@@ -263,10 +265,9 @@ final class ConversationNodeReducer {
             }
             guard let target = context.definition.target else { continue }
             guard let node = context.definition.buildViewNode(context: snapshot) else { continue }
-            precondition(node.key == context.key,
-                         "conversation Definition \(context.kind) produced unstable key \(node.key), expected \(context.key)")
-            precondition(node.target == target,
-                         "conversation Definition \(context.kind) produced \(node.target), expected \(target)")
+            // A definition that emits a node for another identity or target is
+            // a programming defect; skip the node rather than aborting the app.
+            guard node.key == context.key, node.target == target else { continue }
             context.current[target] = node
             next[target, default: []].append(node)
         }
@@ -310,10 +311,7 @@ final class ConversationNodeReducer {
             context.locationKeys = nextKeys
             guard let target = context.definition.target else { continue }
             guard let node = context.definition.buildViewNode(context: snapshot) else { continue }
-            precondition(node.key == context.key,
-                         "conversation Definition \(context.kind) produced unstable key \(node.key), expected \(context.key)")
-            precondition(node.target == target,
-                         "conversation Definition \(context.kind) produced \(node.target), expected \(target)")
+            guard node.key == context.key, node.target == target else { continue }
             let previous = context.current[target] ?? nil
             context.current[target] = node
             if target == "chat" {
@@ -566,12 +564,7 @@ private struct ConversationTimeline {
 
 private extension JSONValue {
     func integer(named key: String) -> Int? {
-        guard let number = objectValue?[key]?.numberValue,
-              number.rounded(.towardZero) == number,
-              number >= 0,
-              number <= Double(Int.max)
-        else { return nil }
-        return Int(number)
+        objectValue?[key]?.nonNegativeIntValue
     }
 }
 

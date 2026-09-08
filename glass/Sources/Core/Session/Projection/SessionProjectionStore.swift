@@ -48,8 +48,7 @@ final class SessionProjectionStore: ObservableObject {
     }
 
     func apply(sessionID: String, key: String, value: JSONValue, seq: Int) {
-        let existing = rowsBySession[sessionID]?[key]
-        guard existing == nil || seq > existing!.seq else { return }
+        if let existing = rowsBySession[sessionID]?[key], existing.seq >= seq { return }
         rowsBySession[sessionID, default: [:]][key] = Row(value: value, seq: seq)
     }
 
@@ -72,7 +71,7 @@ final class SessionProjectionStore: ObservableObject {
             apply(
                 sessionID: sessionID,
                 key: key,
-                value: value.conversationJSONValue,
+                value: value,
                 seq: remoteBaseline.asOfSeq.rawValue
             )
         }

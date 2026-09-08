@@ -27,9 +27,27 @@ final class GhostPlaneLoopbackPolicyTests: XCTestCase {
         XCTAssertEqual(policy.decision(for: try XCTUnwrap(URL(string: "http://127.0.0.1:7342/api/remote.mux"))), .deny(.nonPluginPath))
     }
 
+    func testPolicyRejectsUnsafeOriginsAndEncodedTraversal() throws {
+        let policy = try XCTUnwrap(GhostPlaneLoopbackPolicy(origin: origin, pluginIDs: ["@deepseek-ai/dsh-ui-chat"]))
+        let cases: [(String, GhostPlaneLoopbackPolicy.Denial)] = [
+            ("https://127.0.0.1:7342/plugins/@deepseek-ai/dsh-ui-chat/client.js", .unsupportedScheme),
+            ("file:///tmp/client.js", .unsupportedScheme),
+            ("http://plugin.example/plugins/@deepseek-ai/dsh-ui-chat/client.js", .nonLoopbackHost),
+            ("http://127.0.0.1:7343/plugins/@deepseek-ai/dsh-ui-chat/client.js", .wrongPort),
+            ("http://credential@127.0.0.1:7342/plugins/@deepseek-ai/dsh-ui-chat/client.js", .credentialedURL),
+            ("http://127.0.0.1:7342/plugins/@deepseek-ai/dsh-ui-chat/%2e%2e/client.js", .encodedTraversal),
+        ]
+        for (raw, denial) in cases {
+            XCTAssertEqual(policy.decision(for: try XCTUnwrap(URL(string: raw))), .deny(denial), raw)
+        }
+    }
+
     func testPolicyConstructionAcceptsNpmPackageIDsAndRejectsUnsafeBoundary() {
         XCTAssertNotNil(GhostPlaneLoopbackPolicy(origin: origin, pluginIDs: ["@deepseek-ai/dsh-ui-chat", "plain-package"]))
         XCTAssertNil(GhostPlaneLoopbackPolicy(origin: origin, pluginIDs: ["@broken", "<unsafe>"]))
         XCTAssertNil(GhostPlaneLoopbackPolicy(origin: URL(string: "http://localhost:7342/")!, pluginIDs: []))
+        XCTAssertNil(GhostPlaneLoopbackPolicy(origin: URL(string: "https://127.0.0.1:7342/")!, pluginIDs: []))
+        XCTAssertNil(GhostPlaneLoopbackPolicy(origin: URL(string: "http://user@127.0.0.1:7342/")!, pluginIDs: []))
+        XCTAssertNil(GhostPlaneLoopbackPolicy(origin: URL(string: "http://127.0.0.1:0/")!, pluginIDs: []))
     }
 }

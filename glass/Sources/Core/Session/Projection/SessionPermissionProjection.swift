@@ -4,7 +4,7 @@ import Foundation
 @testable import GlassSpec
 #endif
 
-/// Renderer-safe RC8 `permissions` whole projection. Source:
+/// Renderer-safe rc.1 `permissions` whole projection. Source:
 /// `interaction/permission-presets/src/types.ts:12-43`. This is deliberately
 /// projection-backed rather than reconstructed from permission/sandbox/approval
 /// events, because key absence means the optional permission capability is not

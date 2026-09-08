@@ -157,7 +157,7 @@ final class SessionControlRuntimeTests: XCTestCase {
         XCTAssertNil(invalidated)
     }
 
-    func testNormalControlStreamEndDropsGenerationAuthority() async throws {
+    func testNormalControlStreamEndRetainsAuthorityAndReconnects() async throws {
         let controller = MockSessionController()
         await controller.queueControlStream {
             let (stream, continuation) = AsyncThrowingStream<RemoteSessionControlFrame, Error>.makeStream()
@@ -171,11 +171,14 @@ final class SessionControlRuntimeTests: XCTestCase {
         )
 
         _ = try await runtime.open()
-        for _ in 0..<100 {
-            if await runtime.currentSnapshot() == nil { return }
-            try await Task.sleep(nanoseconds: 1_000_000)
+        for _ in 0..<200 {
+            if await controller.controlCallCount >= 2 { break }
+            try await Task.sleep(nanoseconds: 10_000_000)
         }
-        XCTFail("ended control generation retained transient authority")
+        let calls = await controller.controlCallCount
+        XCTAssertGreaterThanOrEqual(calls, 2, "an ended control stream must be reopened")
+        let retained = await runtime.currentSnapshot()
+        XCTAssertNotNil(retained, "a transient end must not drop retained authority")
     }
 
     private static func queuedItem(id: String) -> RemoteSessionQueuedItem {

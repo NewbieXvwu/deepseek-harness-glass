@@ -1,22 +1,12 @@
 import Foundation
 
-/// Source: locked RC8 `host.openPath` request payload.
-struct HostOpenPathRequest: Codable, Sendable {
-    let path: String
-}
-
-/// Source: locked RC8 `host.openPath` success value.
+/// Source: locked rc.1 `host.openPath` request payload.
+/// Source: locked rc.1 `host.openPath` success value.
 struct HostOpenPathResponse: Decodable, Sendable {
     let opened: Bool
 }
 
 /// Source: `sessions.schema.ts:sessionHistoryRequestSchema`.
-struct SessionHistoryRequest: Codable, Sendable {
-    let sessionId: String
-    let beforeSeq: Int?
-    let maxMessages: Int?
-}
-
 /// Source: `sessions.schema.ts:sessionHistoryValueSchema`.
 struct SessionHistoryResponse: Decodable, Sendable {
     let events: [SessionHistoryEntryDTO]
@@ -68,86 +58,10 @@ struct SessionEventDTO: Decodable, Sendable, Identifiable {
 /// messages are transient Host-owned inbox entries, never synthesised from the
 /// durable transcript. Content remains JSON here so typed feature adapters can
 /// render each official content-block kind without leaking wire dictionaries.
-struct QueuedSessionMessageDTO: Decodable, Sendable {
-    let id: String
-    let role: String
-    let content: [JSONValue]
-    let source: JSONValue
-}
-
-enum SessionQueuePlacementDTO: String, Decodable, Sendable {
-    case queued
-    case steering
-    case context
-}
-
-struct SessionQueueItemDTO: Decodable, Sendable {
-    let id: String
-    let placement: SessionQueuePlacementDTO
-    let message: QueuedSessionMessageDTO
-}
-
-struct SessionQueueFrameDTO: Decodable, Sendable {
-    let sessionId: String
-    let items: [SessionQueueItemDTO]
-}
-
 /// Source: `jobs.schema.ts:taskViewSchema`; `kind` deliberately remains an
 /// open string because plugins extend the registry's job vocabulary.
-enum SessionJobStatusDTO: String, Decodable, Sendable {
-    case running
-    case stopping
-    case completed
-    case killed
-    case failed
-}
-
-struct SessionJobDTO: Decodable, Sendable {
-    let id: String
-    let kind: String
-    let label: String
-    let status: SessionJobStatusDTO
-    let detail: String?
-    let startedAt: Int
-    let finishedAt: Int?
-}
-
-struct SessionJobsFrameDTO: Decodable, Sendable {
-    let sessionId: String
-    let jobs: [SessionJobDTO]
-}
-
 /// Source: `sessions.schema.ts:sessionModelsRequestSchema`.
-struct SessionModelsRequest: Codable, Sendable { let sessionId: String }
-
 /// Source: `sessions.schema.ts:sessionModelsValueSchema`.
-struct SessionModelsResponse: Decodable, Sendable {
-    let current: SessionModelSelectionDTO
-    let routable: Bool
-    let groups: [SessionModelProviderGroupDTO]
-    let failures: [SessionModelCatalogFailureDTO]
-}
-
-/// Source: RC8 `SessionAPI.selectModel` request. Omitting rather than nulling
-/// `reasoningEffort` preserves the optional wire contract.
-struct SessionSelectModelRequest: Codable, Sendable, Equatable {
-    let sessionId: String
-    let provider: String
-    let model: String
-    let reasoningEffort: String?
-}
-
-/// Source: RC8 `SessionAPI.selectModel` response.
-struct SessionSelectModelResponse: Decodable, Sendable, Equatable {
-    let selected: SessionModelSelectionDTO
-}
-
-struct SessionModelSelectionDTO: Codable, Sendable, Equatable {
-    let provider: String
-    let model: String
-    let reasoningEffort: String?
-}
-
 struct SessionModelReasoningEffortDTO: Codable, Sendable {
     let id: String
     let name: String
@@ -176,6 +90,33 @@ struct SessionModelCatalogFailureDTO: Codable, Sendable, Identifiable {
     let id: String
     let name: String
     let message: String
+}
+
+struct SessionModelsResponse: Decodable, Sendable {
+    let current: SessionModelSelectionDTO
+    let routable: Bool
+    let groups: [SessionModelProviderGroupDTO]
+    let failures: [SessionModelCatalogFailureDTO]
+}
+
+/// Source: rc.1 `SessionAPI.selectModel` request. Omitting rather than nulling
+/// `reasoningEffort` preserves the optional wire contract.
+struct SessionSelectModelRequest: Codable, Sendable, Equatable {
+    let sessionId: String
+    let provider: String
+    let model: String
+    let reasoningEffort: String?
+}
+
+/// Source: rc.1 `SessionAPI.selectModel` response.
+struct SessionSelectModelResponse: Decodable, Sendable, Equatable {
+    let selected: SessionModelSelectionDTO
+}
+
+struct SessionModelSelectionDTO: Codable, Sendable, Equatable {
+    let provider: String
+    let model: String
+    let reasoningEffort: String?
 }
 
 /// Source: `sessions.schema.ts:sessionPromptRequestSchema`.
@@ -222,23 +163,12 @@ enum SessionPromptContent: Codable, Sendable, Equatable {
 }
 
 /// Source: `sessions.schema.ts:sessionPromptRequestSchema`.
-struct SessionPromptRequest: Codable, Sendable {
-    let sessionId: String
-    let mode: SessionPromptMode
-    let content: [SessionPromptContent]
-    let clientTimeZone: String?
-}
-
 /// Source: `sessions.schema.ts:sessionPromptValueSchema`.
 struct SessionPromptResponse: Decodable, Sendable {
     let accepted: Bool
 }
 
 /// Source: `sessions.schema.ts:sessionCancelRequestSchema`.
-struct SessionCancelRequest: Codable, Sendable {
-    let sessionId: String
-}
-
 /// Source: `sessions.schema.ts:sessionCancelValueSchema`.
 struct SessionCancelResponse: Decodable, Sendable {
     let accepted: Bool
@@ -289,53 +219,11 @@ struct SessionUpdateQueueResponse: Decodable, Sendable, Equatable {
 }
 
 /// Source: `sessions.schema.ts:sessionCreateRequestSchema`.
-struct SessionCreateRequest: Codable, Sendable {
-    let workspaceId: String?
-    let cwd: String?
-    let sessionId: String?
-    let agentPreset: String?
-
-    init(
-        workspaceId: String? = nil,
-        cwd: String? = nil,
-        sessionId: String? = nil,
-        agentPreset: String? = nil
-    ) {
-        self.workspaceId = workspaceId
-        self.cwd = cwd
-        self.sessionId = sessionId
-        self.agentPreset = agentPreset
-    }
-}
-
 /// Source: `sessions.schema.ts:sessionCreateValueSchema`.
-struct SessionCreateResponse: Decodable, Sendable {
-    let sessionId: String
-    let agentPreset: String?
-}
-
 /// Source: `workspace.schema.ts:workspaceCreateRequestSchema`.
-struct WorkspaceCreateRequest: Codable, Sendable {
-    let path: String
-}
-
 /// Source: `workspace.schema.ts:workspaceCreateValueSchema`.
-struct WorkspaceCreateResponse: Decodable, Sendable {
-    let workspace: WorkspaceSummaryDTO
-    let created: Bool
-}
-
 /// Source: `sessions.schema.ts:sessionSearchRequestSchema`.
-struct SessionSearchRequest: Codable, Sendable {
-    let query: String
-}
-
 /// Source: `sessions.schema.ts:sessionSearchValueSchema`.
-struct SessionSearchResponse: Decodable, Sendable {
-    let items: [SessionSearchItemDTO]
-    let hasMore: Bool
-}
-
 /// Source: `sessions.schema.ts:sessionSearchItemSchema`.
 struct SessionSearchItemDTO: Decodable, Sendable, Identifiable, Equatable {
     let sessionId: String
@@ -345,82 +233,19 @@ struct SessionSearchItemDTO: Decodable, Sendable, Identifiable, Equatable {
 }
 
 /// Source: `sessions.schema.ts:sessionRenameRequestSchema`.
-struct SessionRenameRequest: Codable, Sendable {
-    let sessionId: String
-    let title: String
-}
-
 /// Source: `sessions.schema.ts:sessionRenameValueSchema`.
-struct SessionRenameResponse: Decodable, Sendable {
-    let title: String
-    let seq: Int
-}
-
 /// Source: `sessions.schema.ts:sessionForkRequestSchema`.
-struct SessionForkRequest: Codable, Sendable {
-    let sessionId: String
-    let atSeq: Int?
-}
-
 /// Source: `sessions.schema.ts:sessionForkValueSchema`.
-struct SessionForkResponse: Decodable, Sendable {
-    let sessionId: String
-}
-
 /// Source: `workspace.schema.ts:workspaceRenameRequestSchema`.
-struct WorkspaceRenameRequest: Codable, Sendable {
-    let workspaceId: String
-    let title: String
-}
-
 /// Source: `workspace.schema.ts:workspaceRenameValueSchema`.
-struct WorkspaceRenameResponse: Decodable, Sendable {
-    let workspace: WorkspaceSummaryDTO
-}
-
 /// Source: `workspace.schema.ts:workspaceDeleteRequestSchema`.
-struct WorkspaceDeleteRequest: Codable, Sendable {
-    let workspaceId: String
-}
-
 /// Source: `workspace.schema.ts:workspaceDeleteValueSchema`.
-struct WorkspaceDeleteResponse: Decodable, Sendable {
-    let deleted: Bool
-}
-
 /// Source: `workspace.schema.ts:workspaceInsertBeforeRequestSchema`.
-struct WorkspaceInsertBeforeRequest: Codable, Sendable {
-    let workspaceId: String
-    let beforeWorkspaceId: String?
-}
-
 /// Source: `workspace.schema.ts:workspaceInsertBeforeValueSchema`.
-struct WorkspaceInsertBeforeResponse: Decodable, Sendable {
-    let workspaceIds: [String]
-}
-
 /// Source: `workspace.schema.ts:workspaceInsertSessionBeforeRequestSchema`.
-struct WorkspaceInsertSessionBeforeRequest: Codable, Sendable {
-    let workspaceId: String
-    let sessionId: String
-    let beforeSessionId: String?
-}
-
 /// Source: `workspace.schema.ts:workspaceInsertSessionBeforeValueSchema`.
-struct WorkspaceInsertSessionBeforeResponse: Decodable, Sendable {
-    let workspace: WorkspaceSummaryDTO
-}
-
 /// Source: `workspace.schema.ts:workspaceArchiveSessionRequestSchema`.
-struct WorkspaceArchiveSessionRequest: Codable, Sendable {
-    let sessionId: String
-}
-
 /// Source: `workspace.schema.ts:workspaceArchiveSessionValueSchema`.
-struct WorkspaceArchiveSessionResponse: Decodable, Sendable {
-    let archivedSessionIds: [String]
-}
-
 struct SessionListResponse: Decodable, Sendable {
     let items: [SessionSummaryDTO]
 }
@@ -490,6 +315,12 @@ struct SettingsDescribeResponse: Decodable, Sendable {
     let namespaces: [SettingsNamespaceDTO]
 }
 
+/// Source: `settings.ts:SettingsSecretView`.
+struct SettingsSecretDTO: Codable, Sendable, Equatable {
+    let path: [String]
+    let set: Bool
+}
+
 /// Source: `settings.ts:SettingsNamespaceView`.
 struct SettingsNamespaceDTO: Codable, Sendable, Identifiable, Equatable {
     let ns: String
@@ -505,11 +336,6 @@ struct SettingsNamespaceDTO: Codable, Sendable, Identifiable, Equatable {
 }
 
 /// Source: `settings.ts:SettingsSecretView`.
-struct SettingsSecretDTO: Codable, Sendable, Equatable {
-    let path: [String]
-    let set: Bool
-}
-
 /// Source: `settings.schema.ts:settingsPathOpSchema`.
 enum SettingsPathOperationDTO: Codable, Sendable, Equatable {
     case set(path: [String], value: JSONValue)
@@ -552,8 +378,3 @@ enum SettingsPathOperationDTO: Codable, Sendable, Equatable {
 }
 
 /// Source: `settings.schema.ts:settingsMutateRequestSchema`.
-struct SettingsMutateRequest: Codable, Sendable {
-    let ns: String
-    let ops: [SettingsPathOperationDTO]
-    let expectedRevision: Int?
-}

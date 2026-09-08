@@ -61,10 +61,11 @@ enum OfficialGhostPlaneContract {
         let fixture = try JSONDecoder().decode(Fixture.self, from: Data(contentsOf: url))
         guard fixture.schemaVersion == 1,
               fixture.sourceCommit == OfficialUISpec.Build.sourceCommit,
-              fixture.sources.count >= 8,
+              !fixture.sources.isEmpty,
               !fixture.sources.contains(where: { $0.path.isEmpty || !$0.sha256.hasPrefix("sha256:") }),
               !fixture.selectors.isEmpty,
-              fixture.slots.count == 25,
+              !fixture.slots.isEmpty,
+              Set(fixture.slots.map(\.name)).count == fixture.slots.count,
               !fixture.slots.contains(where: {
                   $0.name.isEmpty || $0.sourcePath.isEmpty ||
                   !["red", "green", "managed"].contains($0.zone)

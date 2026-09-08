@@ -150,14 +150,7 @@ private extension SessionEventDTO {
 private extension JSONValue {
     func deliverablesObject(named key: String) -> [String: JSONValue]? { objectValue?[key]?.objectValue }
     func deliverablesString(named key: String) -> String? { objectValue?[key]?.stringValue }
-    func deliverablesInteger(named key: String) -> Int? {
-        guard let number = objectValue?[key]?.numberValue,
-              number.rounded(.towardZero) == number,
-              number >= 0,
-              number <= Double(Int.max)
-        else { return nil }
-        return Int(number)
-    }
+    func deliverablesInteger(named key: String) -> Int? { objectValue?[key]?.nonNegativeIntValue }
 
     var deliverablesResultIsError: Bool {
         if deliverablesObject(named: "error") != nil { return true }

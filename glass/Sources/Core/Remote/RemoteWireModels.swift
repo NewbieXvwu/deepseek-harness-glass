@@ -29,6 +29,48 @@ enum RemoteJSONValue: Codable, Sendable, Equatable {
         case let .object(value): try container.encode(value)
         }
     }
+
+    var objectValue: [String: RemoteJSONValue]? {
+        guard case let .object(value) = self else { return nil }
+        return value
+    }
+
+    var stringValue: String? {
+        guard case let .string(value) = self else { return nil }
+        return value
+    }
+
+    var boolValue: Bool? {
+        guard case let .bool(value) = self else { return nil }
+        return value
+    }
+
+    var arrayValue: [RemoteJSONValue]? {
+        guard case let .array(value) = self else { return nil }
+        return value
+    }
+
+    var numberValue: Double? {
+        guard case let .number(value) = self else { return nil }
+        return value
+    }
+
+    /// Exact integer value, or nil for a fractional/non-finite/out-of-range number.
+    var intValue: Int? {
+        guard case let .number(value) = self,
+              value.isFinite,
+              value.rounded(.towardZero) == value,
+              value >= Double(Int.min),
+              value <= Double(Int.max)
+        else { return nil }
+        return Int(value)
+    }
+
+    /// Exact non-negative integer value.
+    var nonNegativeIntValue: Int? {
+        guard let value = intValue, value >= 0 else { return nil }
+        return value
+    }
 }
 
 struct RemoteFailurePayload: Codable, Sendable, Equatable {

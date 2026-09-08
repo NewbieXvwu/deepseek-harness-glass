@@ -114,8 +114,8 @@ struct SessionJournal: Sendable {
         generation: RemoteConnectionGeneration,
         event: RemoteSessionWireEvent
     ) throws -> Bool {
-        guard snapshot != nil else { throw SessionJournalError.missingOpeningSnapshot }
-        guard snapshot!.generation == generation else { throw SessionJournalError.staleGeneration }
+        guard var current = snapshot else { throw SessionJournalError.missingOpeningSnapshot }
+        guard current.generation == generation else { throw SessionJournalError.staleGeneration }
 
         if let known = rawEventsBySeq[event.seq] {
             guard known == event else { throw SessionJournalError.duplicateConflict(seq: event.seq) }
@@ -125,7 +125,7 @@ struct SessionJournal: Sendable {
         let entry = RemoteSessionHistoryRecord.event(event)
         let first = entry.firstSeq
         let last = entry.lastSeq
-        let appliedThrough = snapshot!.appliedThrough
+        let appliedThrough = current.appliedThrough
         if last <= appliedThrough { return false }
         if first <= appliedThrough {
             throw SessionJournalError.partiallyOverlappingEntry(
@@ -139,12 +139,13 @@ struct SessionJournal: Sendable {
             throw SessionJournalError.liveGap(expected: expected, actual: first)
         }
 
-        let startRecordIndex = snapshot!.records.count
+        let startRecordIndex = current.records.count
         revision += 1
-        snapshot!.records.append(entry)
-        snapshot!.appliedThrough = last
-        snapshot!.revision = revision
-        snapshot!.mutation = .append(startRecordIndex: startRecordIndex)
+        current.records.append(entry)
+        current.appliedThrough = last
+        current.revision = revision
+        current.mutation = .append(startRecordIndex: startRecordIndex)
+        snapshot = current
         rawEventsBySeq[event.seq] = event
         pruneRawEventsIfNeeded()
         return true
@@ -155,13 +156,13 @@ struct SessionJournal: Sendable {
         generation: RemoteConnectionGeneration,
         page: RemoteSessionPageValue
     ) throws -> Int {
-        guard snapshot != nil else { throw SessionJournalError.missingOpeningSnapshot }
-        guard snapshot!.generation == generation else { throw SessionJournalError.staleGeneration }
+        guard var current = snapshot else { throw SessionJournalError.missingOpeningSnapshot }
+        guard current.generation == generation else { throw SessionJournalError.staleGeneration }
         try Self.validatePage(page.records)
         try validateRawEvents(in: page.records)
 
         let accepted: [RemoteSessionHistoryRecord]
-        if let first = snapshot!.records.first?.firstSeq {
+        if let first = current.records.first?.firstSeq {
             accepted = page.records.filter { $0.firstSeq < first }
             if let tail = accepted.last {
                 let expectedTail = SessionSeq(rawValue: first.rawValue - 1)
@@ -176,16 +177,17 @@ struct SessionJournal: Sendable {
             accepted = page.records
         }
 
-        let changed = !accepted.isEmpty || snapshot!.hasMore != page.hasMore
+        let changed = !accepted.isEmpty || current.hasMore != page.hasMore
         guard changed else { return 0 }
 
         revision += 1
         if !accepted.isEmpty {
-            snapshot!.records.insert(contentsOf: accepted, at: 0)
+            current.records.insert(contentsOf: accepted, at: 0)
         }
-        snapshot!.hasMore = page.hasMore
-        snapshot!.revision = revision
-        snapshot!.mutation = .prepend(acceptedRecordCount: accepted.count)
+        current.hasMore = page.hasMore
+        current.revision = revision
+        current.mutation = .prepend(acceptedRecordCount: accepted.count)
+        snapshot = current
         registerRawEvents(in: accepted)
         return accepted.count
     }

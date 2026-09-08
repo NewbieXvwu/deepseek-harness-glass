@@ -28,7 +28,7 @@ extension SessionSummaryDTO {
            case let .object(values)? = block["values"] {
             projections = .init(
                 asOfSeq: Int(asOf),
-                values: values.mapValues(\.conversationJSONValue)
+                values: values
             )
         } else {
             projections = nil

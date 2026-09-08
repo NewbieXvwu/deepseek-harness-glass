@@ -15,17 +15,13 @@ final class HostBuildClassifierTests: XCTestCase {
 
     func testPlannedRc1BuildIsBestEffort() {
         let build = Self.build(verificationState: "planned")
-        XCTAssertEqual(
-            HostBuildClassifier().classify(
-                build: build,
-                dshVersion: "0.1.2-rc.1",
-                webFrontendVersion: "0.1.2-rc.1"
-            ),
-            .bestEffort(
-                build,
-                reason: "Bundled rc.1 payload matches the supported build but macOS verification is still pending."
-            )
-        )
+        guard case let .bestEffort(classified, reason) = HostBuildClassifier().classify(
+            build: build,
+            dshVersion: "0.1.2-rc.1",
+            webFrontendVersion: "0.1.2-rc.1"
+        ) else { return XCTFail("a planned rc.1 build must remain best-effort") }
+        XCTAssertEqual(classified, build)
+        XCTAssertFalse(reason.isEmpty)
     }
 
     func testRejectsWrongSourceCommitAndPackageVersions() {
@@ -38,29 +34,19 @@ final class HostBuildClassifierTests: XCTestCase {
         XCTAssertTrue(reason.contains("commit"))
 
         build = Self.build(verificationState: "verified")
-        XCTAssertEqual(
-            HostBuildClassifier().classify(
-                build: build,
-                dshVersion: "0.1.2-incompatible",
-                webFrontendVersion: "0.1.2-rc.1"
-            ),
-            .bestEffort(
-                build,
-                reason: "Host package facts differ from the verified rc.1 catalog; attempting the rc.1 Remote contract best-effort."
-            )
-        )
+        guard case let .bestEffort(mismatched, _) = HostBuildClassifier().classify(
+            build: build,
+            dshVersion: "0.1.2-incompatible",
+            webFrontendVersion: "0.1.2-rc.1"
+        ) else { return XCTFail("mismatched package facts must be best-effort") }
+        XCTAssertEqual(mismatched, build)
 
-        XCTAssertEqual(
-            HostBuildClassifier().classify(
-                build: build,
-                dshVersion: nil,
-                webFrontendVersion: nil
-            ),
-            .bestEffort(
-                build,
-                reason: "Host package metadata is unavailable; attempting the rc.1 Remote contract best-effort."
-            )
-        )
+        guard case let .bestEffort(unavailable, _) = HostBuildClassifier().classify(
+            build: build,
+            dshVersion: nil,
+            webFrontendVersion: nil
+        ) else { return XCTFail("missing package metadata must be best-effort") }
+        XCTAssertEqual(unavailable, build)
     }
 
     private static func build(

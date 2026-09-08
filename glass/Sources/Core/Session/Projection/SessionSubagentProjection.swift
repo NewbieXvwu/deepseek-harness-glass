@@ -4,7 +4,7 @@ import Foundation
 @testable import GlassSpec
 #endif
 
-/// Typed RC8 subagent identity projection. `absent` is distinct from the
+/// Typed rc.1 subagent identity projection. `absent` is distinct from the
 /// serializable `null` sentinel: the former means no projection capability was
 /// supplied, while the latter means the Host folded no trusted descriptor.
 enum CoreSubagentIdentityProjection: Equatable {
@@ -66,12 +66,5 @@ enum SessionSubagentProjectionReader {
 }
 
 private extension JSONValue {
-    var subagentNonNegativeInteger: Int? {
-        guard let number = numberValue,
-              number.rounded(.towardZero) == number,
-              number >= 0,
-              number <= Double(Int.max)
-        else { return nil }
-        return Int(number)
-    }
+    var subagentNonNegativeInteger: Int? { nonNegativeIntValue }
 }

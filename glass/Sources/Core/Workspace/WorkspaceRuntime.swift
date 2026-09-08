@@ -96,39 +96,57 @@ actor WorkspaceRuntime {
             }
         }
 
-        do {
-            for try await frame in stream {
-                if pendingContinuation != nil {
-                    guard case let .baseline(baseline) = frame else {
-                        activeGeneration = nil
-                        resumeOnce(with: .failure(WorkspaceRuntimeError.missingBaseline))
-                        return
-                    }
-                    install(baseline, generation: generation)
-                    resumeOnce(with: .success(()))
-                } else {
-                    if case let .baseline(baseline) = frame {
+        var currentStream = stream
+        var retryDelayNanos: UInt64 = 200_000_000
+        let maxDelayNanos: UInt64 = 3_000_000_000
+
+        while !Task.isCancelled {
+            do {
+                for try await frame in currentStream {
+                    retryDelayNanos = 200_000_000
+                    if pendingContinuation != nil {
+                        guard case let .baseline(baseline) = frame else {
+                            activeGeneration = nil
+                            resumeOnce(with: .failure(WorkspaceRuntimeError.missingBaseline))
+                            return
+                        }
                         install(baseline, generation: generation)
+                        resumeOnce(with: .success(()))
                     } else {
-                        apply(frame, generation: generation)
+                        if case let .baseline(baseline) = frame {
+                            install(baseline, generation: generation)
+                        } else {
+                            apply(frame, generation: generation)
+                        }
                     }
                 }
+                // Runtime phase: a normal end is a carrier loss, not a reason to
+                // blank the workspace. Fall through to the backoff reconnect.
+                guard pendingContinuation == nil else {
+                    activeGeneration = nil
+                    resumeOnce(with: .failure(WorkspaceRuntimeError.missingBaseline))
+                    return
+                }
+            } catch is CancellationError {
+                resumeOnce(with: .failure(CancellationError()))
+                return
+            } catch {
+                if pendingContinuation != nil {
+                    activeGeneration = nil
+                    resumeOnce(with: .failure(error))
+                    return
+                }
             }
-            if pendingContinuation != nil {
-                activeGeneration = nil
-                resumeOnce(with: .failure(WorkspaceRuntimeError.missingBaseline))
-            } else {
-                invalidate(generation: generation)
-            }
-        } catch is CancellationError {
-            resumeOnce(with: .failure(CancellationError()))
-            return
-        } catch {
-            if pendingContinuation != nil {
-                activeGeneration = nil
-                resumeOnce(with: .failure(error))
-            } else {
-                invalidate(generation: generation)
+            guard activeGeneration == generation, !Task.isCancelled else { return }
+            try? await Task.sleep(nanoseconds: retryDelayNanos)
+            retryDelayNanos = min(retryDelayNanos * 2, maxDelayNanos)
+            guard activeGeneration == generation, !Task.isCancelled else { return }
+            do {
+                currentStream = try await controller.follow()
+            } catch is CancellationError {
+                return
+            } catch {
+                // The next iteration backs off further and retries.
             }
         }
     }
@@ -199,13 +217,6 @@ actor WorkspaceRuntime {
             state = next
             publish(next)
         }
-    }
-
-    private func invalidate(generation: RemoteConnectionGeneration) {
-        guard activeGeneration == generation else { return }
-        activeGeneration = nil
-        state = nil
-        publish(nil)
     }
 
     private func publish(_ snapshot: WorkspaceRuntimeState?) {

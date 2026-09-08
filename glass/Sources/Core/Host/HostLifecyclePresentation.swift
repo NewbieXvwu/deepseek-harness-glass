@@ -35,6 +35,6 @@ struct HostLifecyclePresentation: Equatable, Sendable {
     }
 
     private static func locale(_ key: String, language: String) -> String {
-        OfficialUISpec.LocaleCatalog.value(namespace: "locale", key: key, language: language) ?? key
+        OfficialUISpec.LocaleCatalog.string(namespace: "locale", key: key, language: language, fallback: key)
     }
 }

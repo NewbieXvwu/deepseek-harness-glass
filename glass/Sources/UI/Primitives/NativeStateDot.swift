@@ -13,7 +13,7 @@ enum NativeStateDotMetrics {
     ]
 }
 
-/// Native visual counterpart of RC8 `ui-primitives/StateDot`. It has no
+/// Native visual counterpart of rc.1 `ui-primitives/StateDot`. It has no
 /// accessibility surface of its own; its adjacent typed status label remains
 /// the semantic control/row description.
 struct NativeStateDot: View {

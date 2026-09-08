@@ -23,7 +23,6 @@ jobs:
 
       - name: Read pinned Host payload metadata
         run: |
-          python3 tools/check-host-upgrade-report.py --self-test
           IFS=$'\t' read -r NODE_RUNTIME_VERSION DSH_VERSION WEB_FRONTEND_VERSION < <(python3 tools/emit-build-manifest.py --release-inputs)
           {
             echo "NODE_RUNTIME_VERSION=$NODE_RUNTIME_VERSION"

@@ -35,6 +35,13 @@ final class NativeToolRowModelTests: XCTestCase {
         )
     }
 
+    func testWebCardAdmissionCoversSearchAndFetchOnly() {
+        XCTAssertTrue(NativeToolRowModel.isWebTool("web_search"))
+        XCTAssertTrue(NativeToolRowModel.isWebTool("web_fetch"))
+        XCTAssertFalse(NativeToolRowModel.isWebTool("bash"))
+        XCTAssertFalse(NativeToolRowModel.isWebTool("grep"))
+    }
+
     func testFilePathAuthorityIsLimitedToOfficialFileToolArguments() {
         XCTAssertEqual(
             NativeToolRowModel.filePath(

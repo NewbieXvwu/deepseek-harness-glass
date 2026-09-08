@@ -17,7 +17,7 @@ struct NativeToolWebView: Equatable, Sendable {
     let kind: Kind
 }
 
-/// Result-side-only equivalent of rc.2 `webCardModel`.
+/// Result-side-only equivalent of rc.1 `webCardModel`.
 struct NativeWebCardPresentation: Equatable, Sendable {
     let kind: NativeToolWebView.Kind
 
@@ -29,7 +29,7 @@ struct NativeWebCardPresentation: Equatable, Sendable {
 
 /// Foundation decision used by native AppKit/SwiftUI links. It deliberately
 /// admits http(s) only; untrusted other schemes always render as noninteractive
-/// plain text, matching rc.2 WebBlock's external-link contract.
+/// plain text, matching rc.1 WebBlock's external-link contract.
 struct NativeSafeWebLink: Equatable, Sendable {
     let url: String
     let label: String

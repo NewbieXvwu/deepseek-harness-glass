@@ -5,7 +5,7 @@ import SwiftUI
 enum OfficialUISpec {
     static let deepSeekHarnessCommit = Build.sourceCommit
     static let hostBuildID = Build.id
-    /// Source: RC8 `SidebarRoot.tsx` uses `DSH_CLIENT_COMMIT_HASH` in its
+    /// Source: rc.1 `SidebarRoot.tsx` uses `DSH_CLIENT_COMMIT_HASH` in its
     /// fallback brand slot. The native fixed-build client projects the same
     /// locked source revision rather than accepting runtime-provided copy.
     static var sidebarBuildRevision: String { String(Build.sourceCommit.prefix(7)) }
@@ -67,9 +67,9 @@ enum OfficialUISpec {
         static let sidebarBrandMarkSize: CGFloat = 24
         static let sidebarBuildBadgeHeight: CGFloat = 16
         static let sidebarNewSessionHeight: CGFloat = 38
-        /// RC8 WindowServer paired measurement for NSSplitViewItem.sidebar.
+        /// rc.1 WindowServer paired measurement for NSSplitViewItem.sidebar.
         static let sidebarNativeExpandedLeadingInset: CGFloat = 5
-        /// RC8 paired footer measurement: the injected Settings slot needs the
+        /// rc.1 paired footer measurement: the injected Settings slot needs the
         /// same effective 12px official leading axis after its AppKit label
         /// composition, five points beyond the shell's upper-content inset.
         static let sidebarNativeExpandedFooterLeadingAdjustment: CGFloat = 5
@@ -410,7 +410,7 @@ enum OfficialUISpec {
         static let copied = "Copied"
         // Source: packages/client/ui-conversation/src/client/chat/ChatView.tsx:144
         static let deepDiving = "Deep diving..."
-        /// Source: RC8 locked jobs capture session summary/title projection.
+        /// Source: rc.1 locked jobs capture session summary/title projection.
         static let fixtureJobsSessionTitle = "Reply with the single word"
         static let sessionHierarchy = "Session hierarchy"
         static let sessionHierarchySeparator = "/"
@@ -422,7 +422,7 @@ enum OfficialUISpec {
         static let composerHeroPlaceholder = "Describe what you want to build... / commands, @ files or sessions"
         // Source: packages/client/connection/src/client/fixture.ts / ui-conversation PermissionSelect
         static let fixtureWorkspaceWrite = "Workspace Write"
-        /// Source: RC8 `ui-conversation/PermissionSelect.tsx:60-62`.
+        /// Source: rc.1 `ui-conversation/PermissionSelect.tsx:60-62`.
         static let permissionFullAccess = "Full access"
         static let fixtureModelName = "DeepSeek-V4-Flash"
         static let fixtureReasoningEffort = "High"
@@ -451,7 +451,7 @@ enum OfficialUISpec {
         static let toolFailed = "Failed"
         static let toolStopped = "Stopped"
         static let toolDetailsRunning = "Running…"
-        // Source: rc.2 ui-primitives/ReadBlock.tsx. These chrome strings are
+        // Source: rc.1 ui-primitives/ReadBlock.tsx. These chrome strings are
         // intentionally literal in the official primitive rather than locale
         // keys, and are registered here solely for faithful native rendering.
         static let readWindowTemplate = "显示 {shown} / {total} 行"
@@ -459,18 +459,18 @@ enum OfficialUISpec {
         static let readExpandAccessibilityTemplate = "展开其余 {n} 行"
         static let readCollapse = "收起"
         static let readCollapseAccessibility = "收起内容"
-        // Source: rc.2 ui-primitives/DiffBlock.tsx literal chrome.
+        // Source: rc.1 ui-primitives/DiffBlock.tsx literal chrome.
         static let diffExpandAccessibilityTemplate = "展开其余 {n} 行差异"
         static let diffCollapseAccessibility = "收起差异"
         static let diffFooterTemplate = "└ +{added} -{removed} · {files} file{suffix}"
-        // Source: rc.2 ui-primitives/SearchBlock.tsx literal chrome.
+        // Source: rc.1 ui-primitives/SearchBlock.tsx literal chrome.
         static let searchPathsSummaryTemplate = "{count} 个路径"
         static let searchMatchesSummaryTemplate = "{count} 处匹配 · {files} 个文件"
         static let searchTruncatedCountTemplate = "显示 {shown} / 共 {total}"
         static let searchEmpty = "无结果"
         static let searchExpandAccessibilityTemplate = "展开其余 {n} 行结果"
         static let searchCollapseAccessibility = "收起结果"
-        // Source: rc.2 ui-primitives/WebBlock.tsx literal chrome.
+        // Source: rc.1 ui-primitives/WebBlock.tsx literal chrome.
         static let webEmpty = "未找到结果"
         static let webSourcesTruncated = "来源列表已截断"
         static let webContentTruncated = "内容已截断"
@@ -511,13 +511,13 @@ enum OfficialUISpec {
         static let base = Theme.aliasBgBase.adaptiveColor
         static let sidebar = Theme.specificSidebarFill.adaptiveColor
         static let elevated = Theme.aliasBgLayer1.adaptiveColor
-        /// Source: rc.2 `ui-primitives/Pill.module.css` static pill surface.
+        /// Source: rc.1 `ui-primitives/Pill.module.css` static pill surface.
         static let pillLayer2 = Theme.aliasBgLayer2.adaptiveColor
-        /// Source: rc.2 `ui-primitives/ReadBlock.module.css` code surface.
+        /// Source: rc.1 `ui-primitives/ReadBlock.module.css` code surface.
         static let markdownCodeBlock = Theme.aliasMarkdownCodeBlock.adaptiveColor
-        /// Source: rc.2 `ui-primitives/ReadBlock.module.css` banner surface.
+        /// Source: rc.1 `ui-primitives/ReadBlock.module.css` banner surface.
         static let markdownCodeBlockBanner = Theme.aliasMarkdownCodeBlockBanner.adaptiveColor
-        /// Source: `--dsw-specific-tip`, used by RC8 Todo/Goal composer strips.
+        /// Source: `--dsw-specific-tip`, used by rc.1 Todo/Goal composer strips.
         static let specificTip = Theme.specificTip.adaptiveColor
         static let primary = Theme.aliasLabelPrimary.adaptiveColor
         static let primaryForeground = Theme.aliasLabelPrimaryForeground.adaptiveColor
@@ -574,7 +574,7 @@ enum OfficialUISpec {
         static let p6: CGFloat = 6
         static let p7: CGFloat = 7
         static let p8: CGFloat = 8
-        /// Source: rc.2 `ui-primitives/ReadBlock.module.css` banner vertical inset.
+        /// Source: rc.1 `ui-primitives/ReadBlock.module.css` banner vertical inset.
         static let p9: CGFloat = 9
         static let p10: CGFloat = 10
         static let p12: CGFloat = 12
@@ -704,5 +704,23 @@ struct OfficialColumnLayout: Equatable {
         }
 
         return OfficialColumnLayout(sidebar: sidebar, center: max(0, viewport - sidebar), details: 0)
+    }
+}
+
+extension OfficialUISpec.LocaleCatalog {
+    /// Shared locale lookup with `{token}` substitution. `fallback` is returned
+    /// when the key is absent; callers that need a visible key echo pass `key`.
+    static func string(
+        namespace: String,
+        key: String,
+        language: String = "en",
+        fallback: String = "",
+        replacing values: [String: String] = [:]
+    ) -> String {
+        var text = value(namespace: namespace, key: key, language: language) ?? fallback
+        for (token, replacement) in values {
+            text = text.replacingOccurrences(of: "{\(token)}", with: replacement)
+        }
+        return text
     }
 }

@@ -19,7 +19,7 @@ struct NativeConversationContributionContext {
     let openSession: (String) -> Void
 }
 
-/// The two strict RC8 header extension seats. Keeping actions and utilities
+/// The two strict rc.1 header extension seats. Keeping actions and utilities
 /// separate preserves the upstream title-cluster/utility spacing semantics.
 enum NativeConversationHeaderSlot: String, Equatable {
     case actions
@@ -39,7 +39,7 @@ enum NativeConversationContributionRegistryError: Error, Equatable {
     case duplicateHeaderContribution(slot: NativeConversationHeaderSlot, id: String)
 }
 
-/// RC8's `conversation.view` ledger represented as a native, scoped registry.
+/// rc.1's `conversation.view` ledger represented as a native, scoped registry.
 /// Chat is a stable built-in entry at order zero. Other views must supply a
 /// real renderer; attempting to expose an unrenderable tab is rejected at the
 /// typed boundary rather than producing a blank SwiftUI page.
@@ -116,7 +116,7 @@ final class NativeConversationViewRegistry: ObservableObject {
     }
 }
 
-/// Native additive projection of RC8's distinct
+/// Native additive projection of rc.1's distinct
 /// `conversation.session.header.actions` and `.utilities` list slots.
 @MainActor
 final class NativeConversationHeaderContributionRegistry: ObservableObject {

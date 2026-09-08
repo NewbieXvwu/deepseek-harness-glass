@@ -132,7 +132,7 @@ struct GhostPlaneSkeleton: Equatable, Sendable {
         )
         let chatSlots = registry.greenSlots.filter { $0.anchor == .chat && $0.name != "conversation.chat.turnTail" }
         let rows = input.anchors.map { anchor in
-            let id = anchorElementIDs[anchor.key]!
+            let id = anchorElementIDs[anchor.key] ?? "ghost-chat-anchor-\(elementSuffix(anchor.key))"
             let seats = chatSlots.map { slot in
                 "<div data-ghost-slot=\"\(escape(slot.name))\" data-ghost-owner-key=\"\(escape(anchor.key))\"></div>"
             }.joined()
@@ -142,7 +142,7 @@ struct GhostPlaneSkeleton: Equatable, Sendable {
             registry.greenSlots
                 .filter { $0.anchor == anchor && !excluded.contains($0.name) }
                 .map { slot in
-                    let id = slotSeatIDs[slot.name]!
+                    let id = slotSeatIDs[slot.name] ?? "ghost-slot-\(elementSuffix(slot.name))"
                     return "<div id=\"\(id)\" data-ghost-slot=\"\(escape(slot.name))\"></div>"
                 }
                 .joined(separator: "\n")

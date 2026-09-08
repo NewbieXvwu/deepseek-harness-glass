@@ -16,7 +16,7 @@ public struct NativeToolTodoSummary: Equatable, Sendable {
     }
 }
 
-/// Foundation-only admission for rc.2's keyed `todo_write` row. It reads only
+/// Foundation-only admission for rc.1's keyed `todo_write` row. It reads only
 /// the call args retained by the generic tool node: a failure to parse or an
 /// invalid `todos` envelope is not a partial todo card and must fall back.
 public enum NativeToolTodoPresentation {

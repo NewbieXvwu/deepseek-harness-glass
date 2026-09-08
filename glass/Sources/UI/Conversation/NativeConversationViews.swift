@@ -63,7 +63,7 @@ struct NativeConversationColumn: View {
     }
 
     var body: some View {
-        // Source: RC8 ConversationRoot. A nonblank session whose authority
+        // Source: rc.1 ConversationRoot. A nonblank session whose authority
         // baseline is still landing must not briefly render the active composer
         // before the Host establishes whether the session is hero or docked.
         if rootPhase == .settling {
@@ -95,7 +95,7 @@ struct NativeConversationColumn: View {
     }
 }
 
-/// Source: RC8 `ConversationRoot` phase selection. This pure mapping keeps the
+/// Source: rc.1 `ConversationRoot` phase selection. This pure mapping keeps the
 /// no-session/summary-blank/loading distinction explicit before the resident
 /// composer tree is consolidated: a session summary is the only native fact
 /// allowed to prove that a loading session belongs on the hero.
@@ -125,7 +125,7 @@ enum NativeConversationRootPhase: Equatable {
     }
 }
 
-/// Source: RC8 `ConversationRoot`: one root-owned input bar receives either a
+/// Source: rc.1 `ConversationRoot`: one root-owned input bar receives either a
 /// hero or docked layout posture. `hero` keeps no-workspace as an inert property
 /// rather than constructing a second static composer tree, so the bound draft
 /// and AppKit focus identity remain owned by the same native control.
@@ -472,7 +472,7 @@ private struct NativeTranscriptScrollView: View {
         return merged
     }
 
-    /// Mirrors RC8's follow signature: a streaming delta changes only the tail
+    /// Mirrors rc.1's follow signature: a streaming delta changes only the tail
     /// signature, leaving all preceding LazyVStack identities untouched.
     private var tailSignature: String {
         let tail = timeline.last

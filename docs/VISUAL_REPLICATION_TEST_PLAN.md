@@ -41,7 +41,7 @@ Apple 的迁移指南建议优先采用系统导航和标准控件，以便自�
 
 ## 3. 机器阈值与场景状态机
 
-政策文件为 [`glass/Sources/Spec/Fixtures/visual-validation-policy.json`](../glass/Sources/Spec/Fixtures/visual-validation-policy.json)。
+政策文件为 `glass/Sources/Spec/Fixtures/visual-validation-policy.json`。
 它将每个场景置为以下一种状态：
 
 | 政策模式 | CI 行为 | 可否作为 TODO 完成证据 |

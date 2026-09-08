@@ -4,58 +4,62 @@ import XCTest
 @testable import GlassCore
 
 final class WorkspaceRuntimeLifecycleTests: XCTestCase {
-    func testStreamEndAfterBaselineInvalidatesPublishedAuthority() async throws {
+    func testStreamEndKeepsAuthorityAndReconnectsWithABackoffLoop() async throws {
         let source = WorkspaceFollowSource()
         let runtime = WorkspaceRuntime(controller: source)
         let generation = RemoteConnectionGeneration(rawValue: 11)
         let starting = Task { try await runtime.start(generation: generation) }
 
-        source.continuation.yield(.baseline(.init(items: [], archivedSessionIds: [])))
+        try await yieldOpening(to: source)
         try await starting.value
-        let currentGeneration = await runtime.current()?.generation
-        XCTAssertEqual(currentGeneration, generation)
+        let opened = await runtime.current()
+        XCTAssertEqual(opened?.generation, generation)
 
-        source.continuation.finish()
-        try await assertEventuallyInvalid(runtime)
+        try await finishStream(of: source)
+        try await waitUntil("runtime re-follows after a normal stream end") { await source.followCount >= 2 }
+        let retained = await runtime.current()
+        XCTAssertNotNil(retained, "a transient carrier end must not blank the workspace")
     }
 
-    func testStreamEndPublishesAuthorityInvalidationToObservers() async throws {
+    func testReconnectBaselineReplacesRetainedAuthority() async throws {
         let source = WorkspaceFollowSource()
         let runtime = WorkspaceRuntime(controller: source)
         let generation = RemoteConnectionGeneration(rawValue: 13)
         let starting = Task { try await runtime.start(generation: generation) }
 
-        source.continuation.yield(.baseline(.init(items: [], archivedSessionIds: [])))
+        try await yieldOpening(to: source)
         try await starting.value
 
-        let snapshots = await runtime.snapshots()
-        var iterator = snapshots.makeAsyncIterator()
-        guard let initialEvent = await iterator.next(), let initialState = initialEvent else {
-            XCTFail("Workspace observer did not receive the accepted opening baseline")
-            return
-        }
-        XCTAssertEqual(initialState.generation, generation)
+        try await finishStream(of: source)
+        try await waitUntil("runtime re-follows after a normal stream end") { await source.followCount >= 2 }
 
-        source.continuation.finish()
-        guard let invalidationEvent = await iterator.next() else {
-            XCTFail("Workspace observer ended before authority invalidation was published")
-            return
+        let workspace = RemoteWorkspaceView(
+            workspaceId: "ws-recovered",
+            path: "/path/recovered",
+            title: "Recovered",
+            sessionIds: [],
+            createdAt: "2026-09-08T00:00:00Z",
+            updatedAt: "2026-09-08T00:00:00Z"
+        )
+        try await yieldFrame(.baseline(.init(items: [workspace], archivedSessionIds: [])), to: source)
+        try await waitUntil("reconnect baseline is installed") {
+            let current = await runtime.current()
+            return current?.items.map(\.workspaceId) == ["ws-recovered"]
         }
-        XCTAssertNil(invalidationEvent)
+        let recovered = await runtime.current()
+        XCTAssertEqual(recovered?.generation, generation)
     }
 
-    func testSecondBaselineReplacesCurrentBaseline() async throws {
+    func testSecondBaselineOnOneStreamReplacesCurrentBaseline() async throws {
         let source = WorkspaceFollowSource()
         let runtime = WorkspaceRuntime(controller: source)
         let generation = RemoteConnectionGeneration(rawValue: 12)
         let starting = Task { try await runtime.start(generation: generation) }
 
-        source.continuation.yield(.baseline(.init(items: [], archivedSessionIds: [])))
+        try await yieldOpening(to: source)
         try await starting.value
-        let currentGeneration = await runtime.current()?.generation
-        XCTAssertEqual(currentGeneration, generation)
 
-        let newWorkspace = RemoteWorkspaceView(
+        let workspace = RemoteWorkspaceView(
             workspaceId: "ws-2",
             path: "/path/2",
             title: "Workspace 2",
@@ -63,39 +67,72 @@ final class WorkspaceRuntimeLifecycleTests: XCTestCase {
             createdAt: "2026-09-08T00:00:00Z",
             updatedAt: "2026-09-08T00:00:00Z"
         )
-        source.continuation.yield(.baseline(.init(items: [newWorkspace], archivedSessionIds: [])))
-
-        for _ in 0..<100 {
-            if let items = await runtime.current()?.items, items.contains(where: { $0.workspaceId == "ws-2" }) {
-                break
-            }
-            try await Task.sleep(nanoseconds: 10_000_000)
+        try await yieldFrame(.baseline(.init(items: [workspace], archivedSessionIds: [])), to: source)
+        try await waitUntil("second baseline replaces the first") {
+            let current = await runtime.current()
+            return current?.items.map(\.workspaceId) == ["ws-2"]
         }
-        let updatedState = await runtime.current()
-        XCTAssertEqual(updatedState?.items.map(\.workspaceId), ["ws-2"])
-        XCTAssertEqual(updatedState?.generation, generation)
+        let updated = await runtime.current()
+        XCTAssertEqual(updated?.generation, generation)
     }
 
-    private func assertEventuallyInvalid(_ runtime: WorkspaceRuntime) async throws {
-        for _ in 0..<100 {
-            if await runtime.current() == nil { return }
+    func testStopClearsPublishedAuthority() async throws {
+        let source = WorkspaceFollowSource()
+        let runtime = WorkspaceRuntime(controller: source)
+        let generation = RemoteConnectionGeneration(rawValue: 14)
+        let starting = Task { try await runtime.start(generation: generation) }
+        try await yieldOpening(to: source)
+        try await starting.value
+
+        await runtime.stop()
+        let stopped = await runtime.current()
+        XCTAssertNil(stopped)
+    }
+
+    private func yieldOpening(to source: WorkspaceFollowSource) async throws {
+        try await yieldFrame(.baseline(.init(items: [], archivedSessionIds: [])), to: source)
+    }
+
+    private func yieldFrame(_ frame: RemoteWorkspaceFollowFrame, to source: WorkspaceFollowSource) async throws {
+        try await waitUntil("follow stream is opened") { await source.continuation != nil }
+        await source.continuation?.yield(frame)
+    }
+
+    private func finishStream(of source: WorkspaceFollowSource) async throws {
+        try await waitUntil("follow stream is opened") { await source.continuation != nil }
+        await source.continuation?.finish()
+    }
+
+    private func waitUntil(
+        _ message: String,
+        iterations: Int = 300,
+        condition: () async -> Bool
+    ) async throws {
+        for _ in 0..<iterations {
+            if await condition() { return }
             try await Task.sleep(nanoseconds: 10_000_000)
         }
-        XCTFail("Workspace authority remained published after the stream generation became invalid")
+        XCTFail(message)
     }
 }
 
-private final class WorkspaceFollowSource: WorkspaceControllerAPI, @unchecked Sendable {
-    let stream: AsyncThrowingStream<RemoteWorkspaceFollowFrame, Error>
-    let continuation: AsyncThrowingStream<RemoteWorkspaceFollowFrame, Error>.Continuation
+/// Hands out a fresh stream per `follow()` call so a reconnect can be observed.
+private actor WorkspaceFollowSource: WorkspaceControllerAPI {
+    private var latestContinuation: AsyncThrowingStream<RemoteWorkspaceFollowFrame, Error>.Continuation?
+    private var followCalls = 0
 
-    init() {
-        let pair = AsyncThrowingStream<RemoteWorkspaceFollowFrame, Error>.makeStream()
-        stream = pair.stream
-        continuation = pair.continuation
+    var continuation: AsyncThrowingStream<RemoteWorkspaceFollowFrame, Error>.Continuation? {
+        latestContinuation
     }
 
-    func follow() async throws -> AsyncThrowingStream<RemoteWorkspaceFollowFrame, Error> { stream }
+    var followCount: Int { followCalls }
+
+    func follow() async throws -> AsyncThrowingStream<RemoteWorkspaceFollowFrame, Error> {
+        let pair = AsyncThrowingStream<RemoteWorkspaceFollowFrame, Error>.makeStream()
+        latestContinuation = pair.continuation
+        followCalls += 1
+        return pair.stream
+    }
 
     func create(path: String) async throws -> RemoteWorkspaceCreateValue { throw WorkspaceFollowSourceError.unused }
     func rename(workspaceID: String, title: String) async throws -> RemoteWorkspaceValue { throw WorkspaceFollowSourceError.unused }

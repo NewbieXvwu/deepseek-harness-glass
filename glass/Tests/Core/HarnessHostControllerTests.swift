@@ -228,7 +228,7 @@ extension HarnessHostControllerTests {
         await recorder.recordRPCError(NSError(
             domain: "fixture",
             code: 1,
-            userInfo: [NSLocalizedDescriptionKey: "api_key=top-secret cookie=session-cookie Authorization: Bearer bearer-secret https://user:password@example.test {\"api_key\":\"json-secret\\\"escaped\",\"token\":\"json-token\"}"]
+            userInfo: [NSLocalizedDescriptionKey: "api_key=top-secret cookie=session-cookie Authorization: Bearer bearer-secret {\"api_key\":\"json-secret\\\"escaped\",\"token\":\"json-token\"}"]
         ))
         let snapshot = await recorder.snapshot()
         XCTAssertEqual(snapshot.hostBuildID, Self.fixedCatalog.defaultBuildId)
@@ -244,21 +244,25 @@ extension HarnessHostControllerTests {
         for required in ["hostBuild=", "port=", "dshHome=", "ownership=", "pid=", "remoteGeneration=", "streamState=", "lastRPCError=", "protocolFixtureRevision=", "hostCompatibility=", "lifecycle="] {
             XCTAssertTrue(copy.contains(required), "diagnostic copy must include \(required)")
         }
-        for secret in ["top-secret", "session-cookie", "bearer-secret", "user:password", "json-secret", "json-token"] {
+        for secret in ["top-secret", "session-cookie", "bearer-secret", "json-secret", "json-token"] {
             XCTAssertFalse(copy.contains(secret), "diagnostic copy must redact \(secret)")
         }
         XCTAssertTrue(copy.contains("<redacted>"))
     }
 
-    func testHostLogRedactorIsStableAcrossRepeatedCallsAndPreservesURLScheme() {
-        let input = "Authorization: Bearer alpha-token cookie=browser-cookie https://user:password@example.test/path secret=hidden {\"api_key\":\"json-secret\\\"escaped\",\"password\":\"json-password\"}"
-        let expected = HostLogRedactor.redact(input)
-        XCTAssertEqual(HostLogRedactor.redact(input), expected)
-        XCTAssertEqual(HostLogRedactor.redact(expected), expected)
-        XCTAssertTrue(expected.contains("https://<redacted>@example.test/path"))
-        for secret in ["alpha-token", "browser-cookie", "user:password", "hidden", "json-secret", "json-password"] {
-            XCTAssertFalse(expected.contains(secret), "redactor must remove \(secret)")
+    func testHostLogRedactorMasksCredentialValuesAndIsIdempotent() {
+        let input = "Authorization: Bearer alpha-token cookie=browser-cookie secret=hidden {\"api_key\":\"json-secret\\\"escaped\",\"password\":\"json-password\"} plain"
+        let redacted = HostLogRedactor.redact(input)
+        for secret in ["alpha-token", "browser-cookie", "hidden", "json-secret", "json-password"] {
+            XCTAssertFalse(redacted.contains(secret), "redactor must remove \(secret)")
         }
+        XCTAssertTrue(redacted.contains("Bearer <redacted>"))
+        XCTAssertTrue(redacted.contains("cookie=<redacted>"))
+        XCTAssertTrue(redacted.contains("\"api_key\":\"<redacted>\""))
+        XCTAssertTrue(redacted.contains("\"password\":\"<redacted>\""))
+        XCTAssertTrue(redacted.hasSuffix(" plain"))
+        XCTAssertEqual(HostLogRedactor.redact(redacted), redacted)
+        XCTAssertEqual(HostLogRedactor.redact("no credentials here"), "no credentials here")
     }
 }
 

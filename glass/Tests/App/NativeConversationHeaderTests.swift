@@ -179,7 +179,7 @@ final class NativeConversationHeaderTests: XCTestCase {
         XCTAssertEqual(selected.agentPreset, "standard")
     }
 
-    func testSubagentAncestryAndBlankHeaderVisibilityMirrorRC8Rules() {
+    func testSubagentAncestryAndBlankHeaderVisibilityMirrorRC1Rules() {
         let root = summary(
             id: "root",
             title: "Parent session",

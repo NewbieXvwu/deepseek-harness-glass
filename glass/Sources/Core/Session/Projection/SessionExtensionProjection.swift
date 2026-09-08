@@ -16,14 +16,14 @@ struct CoreSessionExtensionState: Equatable {
     let todos: [CoreTodoItem]?
     /// `nil` denotes an absent, tombstoned, or malformed `goal` projection.
     let goal: CoreGoalProjection?
-    /// The three-state identity preserves both absent capability and the RC8
+    /// The three-state identity preserves both absent capability and the rc.1
     /// `null` no-valid-descriptor sentinel; timing remains independently optional.
     let subagentIdentity: CoreSubagentIdentityProjection
     let subagentTiming: CoreSubagentTimingProjection?
     /// Per-session Host model catalog; nil is an unloaded/unsupported directory,
     /// never a locally invented fallback route.
     let modelDirectory: CoreSessionModelDirectory?
-    /// Optional RC8 session permission capability. Nil means its complete
+    /// Optional rc.1 session permission capability. Nil means its complete
     /// `permissions` projection is absent, tombstoned, or malformed.
     let permissions: CoreSessionPermissionSelect?
     /// Complete transient Host snapshot. Empty means the Host explicitly has no

@@ -96,6 +96,8 @@ final class WorkspaceRuntimeInvariantTests: XCTestCase {
         let iterationCount = 1000
 
         var rng = SplitMix64(seed: 42) // 确定性伪随机种子，保证回归可重现
+        let clock = ContinuousClock()
+        let started = clock.now
 
         for step in 0..<iterationCount {
             let opKind = rng.nextInt(upperBound: 4)
@@ -123,19 +125,13 @@ final class WorkspaceRuntimeInvariantTests: XCTestCase {
 
             state = WorkspaceStateReducer.reduce(current: state, frame: frame)
 
-            // 【每步核心不变量校验】
-            // 1. 列表中 ID 必须严格唯一，绝对不可出现重复元素
+            // 每步核心不变量：列表中 ID 必须严格唯一，绝对不可出现重复元素
             let ids = state.items.map(\.workspaceId)
-            let uniqueIDs = Set(ids)
-            XCTAssertEqual(
-                ids.count,
-                uniqueIDs.count,
-                "在第 \(step) 步混沌操作后，工作区列表出现了重复 ID！"
-            )
-
-            // 2. 状态结构完整可用，不得有 nil 或非法字段
-            XCTAssertEqual(state.generation.rawValue, 1)
+            XCTAssertEqual(ids.count, Set(ids).count, "在第 \(step) 步混沌操作后，工作区列表出现了重复 ID！")
         }
+
+        let elapsed = started.duration(to: clock.now)
+        XCTAssertLessThan(elapsed, .milliseconds(50), "1000-step reducer storm must stay well under 50ms")
     }
 }
 

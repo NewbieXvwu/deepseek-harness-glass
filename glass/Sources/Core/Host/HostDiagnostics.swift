@@ -91,6 +91,7 @@ actor HostDiagnosticRecorder {
             remoteGeneration = nil
         case .ready:
             ownership = "owned"
+            streamState = "ready"
         case .failed, .stopping:
             streamState = "disconnected"
             remoteGeneration = nil
@@ -132,63 +133,74 @@ actor HostDiagnosticRecorder {
     }
 }
 
+/// Masks credential-shaped substrings before host diagnostics reach the log.
+/// Host stderr can echo the bootstrap URL and request headers, so a single
+/// linear scan masks the value that follows a small set of literal markers.
+/// Keys the loopback host never emits (URL userinfo, exotic auth schemes) are
+/// deliberately not modeled.
 enum HostLogRedactor {
-    private struct Rule {
-        let expression: NSRegularExpression
-        let replacementTemplate: String
-
-        init(pattern: String, replacementTemplate: String) {
-            self.expression = (try? NSRegularExpression(pattern: pattern)) ?? NSRegularExpression()
-            self.replacementTemplate = replacementTemplate
-        }
-    }
-
-    // Compile once at process initialization. Each rule owns its replacement
-    // semantics so reordering or changing a pattern cannot silently select the
-    // wrong template through pattern-string inspection.
-    private static let rules: [Rule] = [
-        .init(
-            pattern: #"(?i)\bauthorization\s*:\s*bearer\s+[A-Za-z0-9._~+\-/=]+"#,
-            replacementTemplate: "<redacted>"
-        ),
-        .init(
-            pattern: #"(?i)\bbearer\s+[A-Za-z0-9._~+\-/=]+"#,
-            replacementTemplate: "<redacted>"
-        ),
-        .init(
-            pattern: #"(?i)\"(?:api[_-]?key|cookie|token|secret|password)\"\s*:\s*\"(?:\\.|[^\"])*\""#,
-            replacementTemplate: "\"<redacted>\""
-        ),
-        .init(
-            pattern: #"(?i)\b(api[_-]?key|cookie|token|secret|password)\s*[:=]\s*([^\s,;]+)"#,
-            replacementTemplate: "<redacted>"
-        ),
-        .init(
-            pattern: #"(?i)(https?://)[^\s/@:]+:[^\s/@]+@"#,
-            replacementTemplate: "$1<redacted>@"
-        ),
+    private static let markers = [
+        "\"api_key\"", "\"apikey\"", "api_key=", "apikey=",
+        "\"token\"", "token=", "bearer ",
+        "\"cookie\"", "cookie=",
+        "\"secret\"", "secret=",
+        "\"password\"", "password=",
     ]
 
     static func redact(_ text: String) -> String {
-        // Fast-path O(1) keyword scan: skip all regex passes if no credential hints exist.
-        let lowered = text.lowercased()
-        guard lowered.contains("bearer") ||
-              lowered.contains("key") ||
-              lowered.contains("cookie") ||
-              lowered.contains("token") ||
-              lowered.contains("secret") ||
-              lowered.contains("password") ||
-              lowered.contains("@")
-        else {
-            return text
+        var output = ""
+        var rest = Substring(text)
+        while let marker = firstMarker(in: rest) {
+            var valueStart = marker.upperBound
+            var quoted = false
+            while valueStart < rest.endIndex, isSeparator(rest[valueStart]) {
+                if rest[valueStart] == "\"" { quoted = true }
+                valueStart = rest.index(after: valueStart)
+            }
+            guard valueStart < rest.endIndex else {
+                return output + rest
+            }
+            output += rest[rest.startIndex..<valueStart]
+            output += "<redacted>"
+            var valueEnd = valueStart
+            if quoted {
+                while valueEnd < rest.endIndex {
+                    let character = rest[valueEnd]
+                    if character == "\\" {
+                        valueEnd = rest.index(after: valueEnd)
+                        if valueEnd < rest.endIndex { valueEnd = rest.index(after: valueEnd) }
+                    } else if character == "\"" {
+                        break
+                    } else {
+                        valueEnd = rest.index(after: valueEnd)
+                    }
+                }
+            } else {
+                while valueEnd < rest.endIndex, !isDelimiter(rest[valueEnd]) {
+                    valueEnd = rest.index(after: valueEnd)
+                }
+            }
+            rest = rest[valueEnd...]
         }
-        return rules.reduce(text) { result, rule in
-            let range = NSRange(result.startIndex..., in: result)
-            return rule.expression.stringByReplacingMatches(
-                in: result,
-                range: range,
-                withTemplate: rule.replacementTemplate
-            )
+        return output + rest
+    }
+
+    private static func firstMarker(in text: Substring) -> Range<String.Index>? {
+        var earliest: Range<String.Index>?
+        for marker in markers {
+            guard let range = text.range(of: marker, options: .caseInsensitive) else { continue }
+            if earliest == nil || range.lowerBound < earliest!.lowerBound {
+                earliest = range
+            }
         }
+        return earliest
+    }
+
+    private static func isSeparator(_ character: Character) -> Bool {
+        character == ":" || character == "=" || character == " " || character == "\"" || character == "'"
+    }
+
+    private static func isDelimiter(_ character: Character) -> Bool {
+        character == "&" || character == "," || character == ";" || character == "\"" || character.isWhitespace
     }
 }

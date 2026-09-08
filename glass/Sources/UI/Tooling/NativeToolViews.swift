@@ -6,6 +6,7 @@ import Foundation
 @testable import GlassCore
 @testable import GlassSpec
 #endif
+
 /// Native generic fallback for tool calls without a reviewed native projector.
 ///
 /// Sources: `ui-tool/tool/components/ToolRow.tsx` and
@@ -197,10 +198,7 @@ struct NativeToolRow: View {
     }
 
     private func conversationLocale(_ key: String, replacing values: [String: String] = [:]) -> String {
-        let template = OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: key, language: "en") ?? ""
-        return values.reduce(template) { partial, replacement in
-            partial.replacingOccurrences(of: "{\(replacement.key)}", with: replacement.value)
-        }
+        OfficialUISpec.LocaleCatalog.string(namespace: "ui-conversation", key: key, replacing: values)
     }
 
     private var filePath: String? {
@@ -228,7 +226,7 @@ struct NativeToolRow: View {
     }
 
     private var web: NativeWebCardPresentation? {
-        guard invocation.name == "web_search" else { return nil }
+        guard NativeToolRowModel.isWebTool(invocation.name) else { return nil }
         return NativeRawToolCardProjector.web(invocation)
     }
 
@@ -312,7 +310,7 @@ struct NativeToolRow: View {
 ///
 /// The Host card owns command/output/status facts. This view deliberately has no
 /// local card selection and no generic input section: a terminal card replaces
-/// the generic body exactly as rc.2 `ToolRow` does. Unknown or mismatched views
+/// the generic body exactly as rc.1 `ToolRow` does. Unknown or mismatched views
 /// never construct this body and remain in the safe raw fallback above.
 private struct NativeTerminalToolCardBody: View {
     let presentation: NativeTerminalCardPresentation
@@ -488,15 +486,12 @@ private struct NativeTerminalToolCardBody: View {
     }
 
     private func locale(_ key: String, replacing values: [String: String] = [:]) -> String {
-        let template = OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: key, language: "en") ?? ""
-        return values.reduce(template) { partial, replacement in
-            partial.replacingOccurrences(of: "{\(replacement.key)}", with: replacement.value)
-        }
+        OfficialUISpec.LocaleCatalog.string(namespace: "ui-conversation", key: key, replacing: values)
     }
 }
 
 /// SwiftUI renderer for a Foundation-admitted ANSI span. Basic terminal colors
-/// use the same official semantic roles as rc.2; palette/truecolor values are
+/// use the same official semantic roles as rc.1; palette/truecolor values are
 /// Host-authored terminal data and retain their literal RGB appearance.
 private struct NativeTerminalANSISpanText: View {
     let span: NativeTerminalANSISpan
@@ -1160,7 +1155,7 @@ struct NativeToolDetailsBody: View {
                                   let search = NativeRawToolCardProjector.search(invocation) {
                             NativeSearchToolCardBody(presentation: search, maxLines: 16)
                                 .id(invocation.id)
-                        } else if invocation.name == "web_search",
+                        } else if NativeToolRowModel.isWebTool(invocation.name),
                                   let web = NativeRawToolCardProjector.web(invocation) {
                             NativeWebToolCardBody(presentation: web)
                                 .id(invocation.id)
@@ -1196,8 +1191,7 @@ struct NativeToolDetailsBody: View {
     }
 
     private func locale(_ key: String) -> String {
-        OfficialUISpec.LocaleCatalog.value(namespace: "ui-chat", key: key, language: "en")
-            ?? OfficialUISpec.LocaleCatalog.value(namespace: "ui-conversation", key: key, language: "en")
-            ?? ""
+        let chat = OfficialUISpec.LocaleCatalog.string(namespace: "ui-chat", key: key)
+        return chat.isEmpty ? OfficialUISpec.LocaleCatalog.string(namespace: "ui-conversation", key: key) : chat
     }
 }

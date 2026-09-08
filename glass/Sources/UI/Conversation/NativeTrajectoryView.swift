@@ -5,7 +5,7 @@ import SwiftUI
 @testable import GlassSpec
 #endif
 
-/// Native base of RC8's separately registered `trajectory` target. The full web
+/// Native base of rc.1's separately registered `trajectory` target. The full web
 /// view owns richer timing and details panes; this native stage keeps the same
 /// toolbar vocabulary while consuming only target-owned typed input nodes and
 /// already-materialized typed tool invocations.

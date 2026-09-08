@@ -33,10 +33,6 @@ enum GlassPolicy: String, CaseIterable, Sendable {
     var permitsCustomGlassEffect: Bool {
         self == .regularGlassCustomControl
     }
-
-    var ownsSystemNavigationMaterial: Bool {
-        self == .systemNavigation
-    }
 }
 
 /// Limits custom glass to the already-official floating action layer. System
@@ -85,7 +81,7 @@ enum NativeGlassNavigationAnimation {
     }
 }
 
-/// RC8's sidebar changes between its expanded column and the 56px rail using
+/// rc.1's sidebar changes between its expanded column and the 56px rail using
 /// the established 0.3-second easing. This decision remains separate from the
 /// custom-glass control animation because the sidebar itself is AppKit-owned
 /// system navigation, but it follows the same Reduce Motion contract.

@@ -37,15 +37,6 @@ final class OfficialSidebarHostController: NSViewController {
         view = container
     }
 
-    override func viewDidLayout() {
-        super.viewDidLayout()
-        guard let splitController = parent as? NSSplitViewController,
-              let item = splitController.splitViewItems.first(where: { $0.viewController === self }),
-              item.minimumThickness != OfficialUISpec.Layout.sidebarCollapsed
-        else { return }
-        item.minimumThickness = OfficialUISpec.Layout.sidebarCollapsed
-    }
-
     func update(rootView: NativeSidebarView) {
         hostingController.rootView = rootView
     }

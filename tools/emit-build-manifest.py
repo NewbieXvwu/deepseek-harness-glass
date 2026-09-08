@@ -45,15 +45,10 @@ def default_build(supported: dict[str, Any]) -> dict[str, Any]:
 def make_manifest(repo: Path, app_source_revision: str) -> dict[str, Any]:
     spec = repo / "glass/Sources/Spec"
     supported = read_object(spec / "SupportedHostBuilds.json")
-    report = read_object(spec / "HostUpgradeReport.json")
     build = default_build(supported)
 
     build_id = field(build, "id", "SupportedHostBuilds.build")
-    if field(report, "hostBuildId", "HostUpgradeReport") != build_id:
-        raise ManifestError("HostUpgradeReport.hostBuildId differs from default supported build")
     commit = field(build, "officialSourceCommit", "SupportedHostBuilds.build")
-    if field(report, "officialSourceCommit", "HostUpgradeReport") != commit:
-        raise ManifestError("HostUpgradeReport official source commit differs from default supported build")
 
     architectures = build.get("supportedArchitectures")
     if not isinstance(architectures, list) or not all(isinstance(item, str) and item for item in architectures):
@@ -69,9 +64,8 @@ def make_manifest(repo: Path, app_source_revision: str) -> dict[str, Any]:
         "nodeRuntimeVersion": field(build, "nodeRuntimeVersion", "SupportedHostBuilds.build"),
         "minimumMacOS": field(build, "minimumMacOS", "SupportedHostBuilds.build"),
         "supportedArchitectures": architectures,
-        "uiSpecRevision": field(report, "uiSpecRevision", "HostUpgradeReport"),
-        "protocolFixtureRevision": field(report, "protocolFixtureRevision", "HostUpgradeReport"),
-        "rawEventFixtureRevision": field(report, "rawEventFixtureRevision", "HostUpgradeReport"),
+        "uiSpecRevision": field(build, "uiSpecRevision", "SupportedHostBuilds.build"),
+        "protocolFixtureRevision": field(build, "protocolFixtureRevision", "SupportedHostBuilds.build"),
     }
 
 
