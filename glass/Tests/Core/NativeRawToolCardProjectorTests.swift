@@ -171,12 +171,12 @@ final class NativeRawToolCardProjectorTests: XCTestCase {
     private func invocation(
         name: String,
         arguments: String,
-        state: NativeSessionStore.ToolInvocation.State,
+        state: SessionToolInvocation.State,
         resultContent: [JSONValue]? = nil,
         resultMeta: JSONValue? = nil,
         resultIsError: Bool? = nil,
         sessionCWD: String? = nil
-    ) -> NativeSessionStore.ToolInvocation {
+    ) -> SessionToolInvocation {
         .init(
             id: "call-1",
             name: name,

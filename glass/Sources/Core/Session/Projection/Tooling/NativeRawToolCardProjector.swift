@@ -4,7 +4,7 @@ import Foundation
 /// consumes arguments, inner tool-result content and result metadata instead of
 /// the removed rc.2 `ToolEventView` presenter carrier.
 enum NativeRawToolCardProjector {
-    static func terminal(_ invocation: NativeSessionStore.ToolInvocation) -> NativeTerminalCardPresentation? {
+    static func terminal(_ invocation: SessionToolInvocation) -> NativeTerminalCardPresentation? {
         guard invocation.parentCallID == nil, let args = arguments(invocation.arguments) else { return nil }
         let shell = shellCall(name: invocation.name, args: args)
         let send = terminalSendCall(name: invocation.name, args: args)
@@ -37,7 +37,7 @@ enum NativeRawToolCardProjector {
         )
     }
 
-    static func read(_ invocation: NativeSessionStore.ToolInvocation) -> NativeReadCardPresentation? {
+    static func read(_ invocation: SessionToolInvocation) -> NativeReadCardPresentation? {
         guard invocation.parentCallID == nil,
               invocation.state != .running,
               invocation.resultIsError == false,
@@ -54,7 +54,7 @@ enum NativeRawToolCardProjector {
         )
     }
 
-    static func diff(_ invocation: NativeSessionStore.ToolInvocation) -> NativeDiffCardPresentation? {
+    static func diff(_ invocation: SessionToolInvocation) -> NativeDiffCardPresentation? {
         guard invocation.parentCallID == nil,
               let args = arguments(invocation.arguments),
               let intended = intendedDiff(name: invocation.name, args: args)
@@ -70,7 +70,7 @@ enum NativeRawToolCardProjector {
         }
     }
 
-    static func search(_ invocation: NativeSessionStore.ToolInvocation) -> NativeSearchCardPresentation? {
+    static func search(_ invocation: SessionToolInvocation) -> NativeSearchCardPresentation? {
         guard invocation.parentCallID == nil,
               invocation.state != .running,
               invocation.resultIsError == false,
@@ -99,7 +99,7 @@ enum NativeRawToolCardProjector {
         }
     }
 
-    static func web(_ invocation: NativeSessionStore.ToolInvocation) -> NativeWebCardPresentation? {
+    static func web(_ invocation: SessionToolInvocation) -> NativeWebCardPresentation? {
         guard invocation.parentCallID == nil,
               invocation.state != .running,
               invocation.resultIsError == false,
