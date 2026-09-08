@@ -60,14 +60,14 @@ def load(path: Path) -> dict[str, Any]:
 
 
 def validate_type_syntax(type_str: str, context: str) -> None:
-    """Validate that type strings are not truncated and have balanced brackets."""
+    """Validate that type strings are not truncated and have balanced unambiguous brackets."""
     if not isinstance(type_str, str) or not type_str.strip():
         fail(f"{context}: empty type declaration")
     s = type_str.strip()
-    if len(s) == 1 and s in "{[(<":
+    if len(s) == 1 and s in "{[(":
         fail(f"{context}: severely truncated type '{s}'")
 
-    pairs = {"{": "}", "[": "]", "(": ")", "<": ">"}
+    pairs = {"{": "}", "[": "]", "(": ")"}
     stack: list[str] = []
     in_quote: str | None = None
     escaped = False
