@@ -282,7 +282,7 @@
       "strict": { "maxMateriallyChangedRatio": 0.008, "maxMeanAbsoluteChannelDifference": 1.15, "maxExactChangedRatio": 0.2 },
       "systemRenderingExceptions": ["Liquid Glass and font rasterization may differ only under the recorded material and glyph-review rules."],
       "humanReviewRequired": true,
-      "humanReviewCriteria": ["Verify the rc.2 Full access label, confirmation title, risk description, acknowledgement toggle, disabled primary action, button order and accessible names against the official ARIA capture.", "Verify that the current Host-provided workspace label remains visible behind the confirmation and that no local fixed label replaces an advertised Host name.", "Classify every remaining difference as a native defect or documented system-material exception and attach paired PNG, diff and report before closing the rc.2 permission review."],
+      "humanReviewCriteria": ["Verify the Full access label, confirmation title, risk description, acknowledgement toggle, disabled primary action, button order and accessible names against the official rc.1 ARIA capture.", "Verify that the current Host-provided workspace label remains visible behind the confirmation and that no local fixed label replaces an advertised Host name.", "Classify every remaining difference as a native defect or documented system-material exception and attach paired PNG, diff and report before closing the rc.1 permission review."],
       "materialRegionExclusion": { "source": "glass/Sources/Spec/Fixtures/official-column-layout-fixtures.json", "derivedColumns": ["sidebar", "details"] }
     }
   }
