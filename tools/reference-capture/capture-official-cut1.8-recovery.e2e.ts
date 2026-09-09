@@ -71,7 +71,13 @@ describe('reference capture: rc.1 CUT1.8 reload recovery', () => {
       replayOverride: lifecycleOverride,
       paceMs: 100,
     })
-    const context = await browser.newContext({ viewport, locale: 'en-US', colorScheme: 'light', deviceScaleFactor: 1 })
+    const context = await browser.newContext({
+      viewport,
+      locale: 'en-US',
+      colorScheme: 'light',
+      deviceScaleFactor: 1,
+      timezoneId: 'Asia/Shanghai',
+    })
     const page = await context.newPage()
     const tripwire = watchConsole(page)
     try {
