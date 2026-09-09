@@ -65,6 +65,7 @@ def registered_path(root: Path, path: str, require_artifact: bool) -> None:
 
 
 def main() -> None:
+    args = arguments()
     policy = json.loads(VISUAL_POLICY.read_text(encoding="utf-8"))
     if policy.get("schemaVersion") != 1 or policy.get("officialSourceCommit") != EXPECTED_COMMIT:
         raise SystemExit("visual validation policy has an invalid schema or source commit")
