@@ -48,7 +48,9 @@ const SOURCE_PATHS = [
   'packages/llm/llm/src/index.ts',
   'packages/feedback/message-feedback/src/index.ts',
   'packages/subagent/subagent/src/index.ts',
+  'packages/interaction/commands/src/index.ts',
   'packages/api/session-controller/src/index.ts',
+  'packages/api/session-controller/src/skill-catalog.ts',
   'packages/api/workspace-controller/src/index.ts',
 ]
 
@@ -59,6 +61,7 @@ const ERROR_SCAN_ROOTS = [
   'packages/llm/llm/src',
   'packages/feedback/message-feedback/src',
   'packages/subagent/subagent/src',
+  'packages/interaction/commands/src',
   'packages/api/session-controller/src',
   'packages/api/workspace-controller/src',
   'packages/core/session/src',
@@ -127,7 +130,6 @@ function normalizeType(text) {
   return text.replace(/\s+/g, ' ').replace(/\s*([<>{}\[\](),|&?:])\s*/g, '$1').trim()
 }
 
-// 1. Extract Procedures
 const procedures = []
 for (const relativePath of SOURCE_PATHS) {
   const absolutePath = resolve(officialRoot, relativePath)
@@ -173,7 +175,6 @@ for (const relativePath of SOURCE_PATHS) {
 }
 procedures.sort((a, b) => a.endpoint.localeCompare(b.endpoint))
 
-// 2. Extract Errors via AST
 function getAllTsFiles(dir) {
   let results = []
   if (!existsSync(dir)) return results
@@ -210,9 +211,7 @@ function scanErrorFile(filePath) {
       const target = node.expression
       if (ts.isIdentifier(target) && target.text === 'RemoteError' && node.arguments && node.arguments.length > 0) {
         const firstArg = node.arguments[0]
-        if (ts.isStringLiteral(firstArg)) {
-          thrownErrorCodes.add(firstArg.text)
-        }
+        if (ts.isStringLiteral(firstArg)) thrownErrorCodes.add(firstArg.text)
       }
     }
     ts.forEachChild(node, visit)
@@ -221,30 +220,19 @@ function scanErrorFile(filePath) {
 }
 
 for (const root of ERROR_SCAN_ROOTS) {
-  for (const file of getAllTsFiles(resolve(officialRoot, root))) {
-    scanErrorFile(file)
-  }
+  for (const file of getAllTsFiles(resolve(officialRoot, root))) scanErrorFile(file)
 }
 scanErrorFile(resolve(officialRoot, 'packages/typert/protocol/src/types.ts'))
 scanErrorFile(resolve(officialRoot, 'packages/api/gateway/src/remote-error-codes.ts'))
 
-for (const extra of EXTRA_GATEWAY_ERRORS) {
-  thrownErrorCodes.add(extra)
-}
+for (const extra of EXTRA_GATEWAY_ERRORS) thrownErrorCodes.add(extra)
 
 const missing = [...thrownErrorCodes].filter(c => !declaredErrors.has(c))
-if (missing.length > 0) {
-  throw new Error('Remote errors lack declared details: ' + missing.join(', '))
-}
+if (missing.length > 0) throw new Error('Remote errors lack declared details: ' + missing.join(', '))
 
 const closedRemoteErrors = [...thrownErrorCodes].sort().map(code => {
   const decl = declaredErrors.get(code)
-  return {
-    code,
-    detailsType: decl.detailsType,
-    sourcePath: decl.sourcePath,
-  }
+  return { code, detailsType: decl.detailsType, sourcePath: decl.sourcePath }
 })
 
 process.stdout.write(JSON.stringify({ procedures, closedRemoteErrors }, null, 2))
-
