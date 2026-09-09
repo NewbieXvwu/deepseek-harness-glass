@@ -79,6 +79,8 @@ def main() -> None:
     policy_scenes = policy.get("scenes")
     if not isinstance(policy_scenes, dict):
         raise SystemExit("visual validation policy must contain a scene map")
+    if "rc.2" in json.dumps(policy_scenes).lower():
+        raise SystemExit("visual validation policy still references rc.2 as active review evidence")
 
     documents = [
         json.loads(SCENES.read_text(encoding="utf-8")),
