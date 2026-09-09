@@ -44,7 +44,7 @@ describe('reference capture: rc.1 history image lightbox', () => {
 
   beforeAll(async () => {
     await mkdir(outputDirectory, { recursive: true })
-    scaffold = await launchWebScaffold({ extraOverlayPath: fixtureOverlay })
+    scaffold = await launchWebScaffold({ extraOverlayPath: fixtureOverlay, welcomeNoticePending: true })
     browser = await chromium.launch({ headless: true })
     const context = await browser.newContext({ viewport, locale: 'en-US', colorScheme: 'light', deviceScaleFactor: 1 })
     page = await context.newPage()
