@@ -60,13 +60,13 @@ def registered_path(root: Path, path: str, require_artifact: bool) -> None:
         if not target.is_file():
             raise SystemExit(f"registered upstream scene path does not exist under official root: {path}")
     elif first == "artifacts" and len(parts) >= 2 and parts[1] == "official-webui":
-        # Catalog-only scenes may be registered before their visual recapture is
-        # complete. Once a scene also has a visual-validation policy, it belongs
-        # to the paired artifact pipeline and its registered files must exist on
-        # macOS after the baseline cache/capture step has populated the root.
         artifact_root = REPO_ROOT / "artifacts" / "official-webui"
-        if require_artifact and artifact_root.exists() and not (REPO_ROOT / path).is_file():
-            raise SystemExit(f"registered paired official WebUI artifact does not exist: {path}")
+        if require_artifact and artifact_root.exists():
+            target = REPO_ROOT / path
+            if not target.is_file():
+                raise SystemExit(f"registered paired official WebUI artifact does not exist: {path}")
+            if target.stat().st_size <= 0:
+                raise SystemExit(f"registered paired official WebUI artifact is empty: {path}")
     else:
         raise SystemExit(f"unrecognized or unsupported path root prefix for registered scene path: {path}")
 
@@ -109,9 +109,9 @@ def main() -> None:
         if not isinstance(identifier, str) or identifier in ids:
             raise SystemExit(f"scene has invalid or duplicate id: {identifier!r}")
         ids.add(identifier)
-        paired_visual_scene = identifier in policy_scenes
-        registered_path(args.official_root, scene["officialTest"], paired_visual_scene)
-        registered_path(args.official_root, scene["ariaBaseline"], paired_visual_scene)
+        require_artifact = identifier in policy_scenes or identifier in REQUIRED_SCENES
+        registered_path(args.official_root, scene["officialTest"], require_artifact)
+        registered_path(args.official_root, scene["ariaBaseline"], require_artifact)
         fixture = scene["hostFixture"]
         if not isinstance(fixture, dict) or not fixture.get("kind") or not fixture.get("workspace"):
             raise SystemExit(f"scene {identifier} has an incomplete Host fixture contract")
@@ -119,7 +119,7 @@ def main() -> None:
         if replay is not None:
             if not isinstance(replay, str):
                 raise SystemExit(f"scene {identifier} has a non-string replayFixture")
-            registered_path(args.official_root, replay, paired_visual_scene)
+            registered_path(args.official_root, replay, require_artifact)
         viewport = scene["viewport"]
         if not isinstance(viewport, dict) or not all(isinstance(viewport.get(key), int) and viewport[key] > 0 for key in ("width", "height")):
             raise SystemExit(f"scene {identifier} has an invalid viewport")
@@ -132,9 +132,15 @@ def main() -> None:
             value = scene[list_field]
             if not isinstance(value, list) or not value or not all(isinstance(item, str) and item for item in value):
                 raise SystemExit(f"scene {identifier} has an empty or invalid {list_field}")
-        if not isinstance(scene["screenshotBaseline"], str) or not scene["screenshotBaseline"].endswith(".png"):
+        screenshot = scene["screenshotBaseline"]
+        if not isinstance(screenshot, str) or not screenshot.endswith(".png"):
             raise SystemExit(f"scene {identifier} lacks a PNG screenshot baseline contract")
-        registered_path(args.official_root, scene["screenshotBaseline"], paired_visual_scene)
+        registered_path(args.official_root, screenshot, require_artifact)
+        if identifier in REQUIRED_SCENES:
+            screenshot_path = Path(screenshot)
+            if screenshot_path.parts[:2] != ("artifacts", "official-webui"):
+                raise SystemExit(f"required scene {identifier} must register an official WebUI screenshot artifact")
+            registered_path(args.official_root, str(screenshot_path.with_suffix(".json")), True)
     missing_scenes = REQUIRED_SCENES - ids
     if missing_scenes:
         raise SystemExit("interaction scene catalog lacks required coverage: " + ", ".join(sorted(missing_scenes)))
