@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 1,
+  "officialSourceCommit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d",
+  "fixtureRevision": "official-a66e470-workspace-follow-r1",
+  "sourcePaths": [
+    "packages/api/workspace-controller/src/types.ts",
+    "packages/api/workspace-controller/src/feed.ts"
+  ],
+  "cases": [
+    {
+      "id": "closed-increment-union",
+      "streams": [
+        [
+          {
+            "type": "baseline",
+            "value": {
+              "items": [
+                {
+                  "workspaceId": "a",
+                  "path": "<fixture-workspace-a>",
+                  "title": "A",
+                  "sessionIds": [
+                    "s-a"
+                  ],
+                  "createdAt": "2026-09-08T00:00:00Z",
+                  "updatedAt": "2026-09-08T00:00:00Z"
+                },
+                {
+                  "workspaceId": "b",
+                  "path": "<fixture-workspace-b>",
+                  "title": "B",
+                  "sessionIds": [],
+                  "createdAt": "2026-09-08T00:00:00Z",
+                  "updatedAt": "2026-09-08T00:00:00Z"
+                }
+              ],
+              "archivedSessionIds": []
+            }
+          },
+          {
+            "type": "upsert",
+            "workspace": {
+              "workspaceId": "c",
+              "path": "<fixture-workspace-c>",
+              "title": "C",
+              "sessionIds": [],
+              "createdAt": "2026-09-08T00:00:00Z",
+              "updatedAt": "2026-09-08T00:00:00Z"
+            }
+          },
+          {
+            "type": "order",
+            "workspaceIds": [
+              "c",
+              "a",
+              "b"
+            ]
+          },
+          {
+            "type": "archived",
+            "archivedSessionIds": [
+              "s-old"
+            ]
+          },
+          {
+            "type": "remove",
+            "workspaceId": "b"
+          },
+          {
+            "type": "upsert",
+            "workspace": {
+              "workspaceId": "a",
+              "path": "<fixture-workspace-a>",
+              "title": "A renamed",
+              "sessionIds": [
+                "s-a"
+              ],
+              "createdAt": "2026-09-08T00:00:00Z",
+              "updatedAt": "2026-09-08T00:00:00Z"
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "id": "reconnect-replacement-baseline",
+      "streams": [
+        [
+          {
+            "type": "baseline",
+            "value": {
+              "items": [
+                {
+                  "workspaceId": "old",
+                  "path": "<fixture-workspace-old>",
+                  "title": "Old",
+                  "sessionIds": [],
+                  "createdAt": "2026-09-08T00:00:00Z",
+                  "updatedAt": "2026-09-08T00:00:00Z"
+                }
+              ],
+              "archivedSessionIds": [
+                "s-old"
+              ]
+            }
+          }
+        ],
+        [
+          {
+            "type": "baseline",
+            "value": {
+              "items": [
+                {
+                  "workspaceId": "new",
+                  "path": "<fixture-workspace-new>",
+                  "title": "New",
+                  "sessionIds": [],
+                  "createdAt": "2026-09-08T00:00:00Z",
+                  "updatedAt": "2026-09-08T00:00:00Z"
+                }
+              ],
+              "archivedSessionIds": []
+            }
+          }
+        ]
+      ]
+    }
+  ]
+}

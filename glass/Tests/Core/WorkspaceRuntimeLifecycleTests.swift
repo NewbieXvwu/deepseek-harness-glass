@@ -22,29 +22,29 @@ final class WorkspaceRuntimeLifecycleTests: XCTestCase {
     }
 
     func testReconnectBaselineReplacesRetainedAuthority() async throws {
+        let fixture = try OfficialWorkspaceFollowFixtureCatalog.load()
+        let replay = try XCTUnwrap(fixture.cases.first { $0.id == "reconnect-replacement-baseline" })
+        XCTAssertEqual(replay.streams.count, 2)
+        let first = try XCTUnwrap(replay.streams.first?.first)
+        let second = try XCTUnwrap(replay.streams.last?.first)
+
         let source = WorkspaceFollowSource()
         let runtime = WorkspaceRuntime(controller: source)
         let generation = RemoteConnectionGeneration(rawValue: 13)
         let starting = Task { try await runtime.start(generation: generation) }
 
-        try await yieldOpening(to: source)
+        try await yieldFrame(first, to: source)
         try await starting.value
+        let retained = await runtime.current()
+        XCTAssertEqual(retained?.items.map(\.workspaceId), ["old"])
+        XCTAssertEqual(retained?.archivedSessionIDs, ["s-old"])
 
         try await finishStream(of: source)
         try await waitUntil("runtime re-follows after a normal stream end") { await source.followCount >= 2 }
-
-        let workspace = RemoteWorkspaceView(
-            workspaceId: "ws-recovered",
-            path: "/path/recovered",
-            title: "Recovered",
-            sessionIds: [],
-            createdAt: "2026-09-08T00:00:00Z",
-            updatedAt: "2026-09-08T00:00:00Z"
-        )
-        try await yieldFrame(.baseline(.init(items: [workspace], archivedSessionIds: [])), to: source)
+        try await yieldFrame(second, to: source)
         try await waitUntil("reconnect baseline is installed") {
             let current = await runtime.current()
-            return current?.items.map(\.workspaceId) == ["ws-recovered"]
+            return current?.items.map(\.workspaceId) == ["new"] && current?.archivedSessionIDs.isEmpty == true
         }
         let recovered = await runtime.current()
         XCTAssertEqual(recovered?.generation, generation)
