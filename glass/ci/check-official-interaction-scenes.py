@@ -11,6 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = ROOT.parent
 SCENES = ROOT / "Sources/Spec/Fixtures/official-interaction-scenes.json"
+CUT18_SCENES = ROOT / "Sources/Spec/Fixtures/official-interaction-scenes-cut1.8.json"
 VISUAL_POLICY = ROOT / "Sources/Spec/Fixtures/visual-validation-policy.json"
 EXPECTED_COMMIT = "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
 REQUIRED_SCENES = {
@@ -28,6 +29,12 @@ REQUIRED_SCENES = {
     "sidebar-rail-narrow-light",
     "details-closed-and-reopen",
     "error-recovery-reload",
+    "models-settings-provider-zh",
+    "plugins-settings-zh",
+    "settings-font-size-zh",
+    "queued-image-light",
+    "history-image-lightbox",
+    "markdown-wide-table-scaling",
 }
 REQUIRED_FIELDS = {
     "id", "officialTest", "sourceLines", "hostFixture", "viewport", "colorScheme",
@@ -73,15 +80,22 @@ def main() -> None:
     if not isinstance(policy_scenes, dict):
         raise SystemExit("visual validation policy must contain a scene map")
 
-    document = json.loads(SCENES.read_text(encoding="utf-8"))
-    if document.get("schemaVersion") != 1 or document.get("officialSourceCommit") != EXPECTED_COMMIT:
-        raise SystemExit("official interaction scene catalog has an invalid schema or source commit")
-    contract = document.get("captureContract")
+    documents = [
+        json.loads(SCENES.read_text(encoding="utf-8")),
+        json.loads(CUT18_SCENES.read_text(encoding="utf-8")),
+    ]
+    for document in documents:
+        if document.get("schemaVersion") != 1 or document.get("officialSourceCommit") != EXPECTED_COMMIT:
+            raise SystemExit("official interaction scene catalog has an invalid schema or source commit")
+    contract = documents[0].get("captureContract")
     if not isinstance(contract, dict) or contract.get("deviceScaleFactor") != 1 or not isinstance(contract.get("accessibility"), dict):
         raise SystemExit("official interaction catalog must pin a 1x accessibility capture contract")
-    scenes = document.get("scenes")
-    if not isinstance(scenes, list):
-        raise SystemExit("official interaction scene catalog must contain a scene array")
+    scenes: list[object] = []
+    for document in documents:
+        entries = document.get("scenes")
+        if not isinstance(entries, list):
+            raise SystemExit("official interaction scene catalog must contain a scene array")
+        scenes.extend(entries)
     ids: set[str] = set()
     for scene in scenes:
         if not isinstance(scene, dict):
