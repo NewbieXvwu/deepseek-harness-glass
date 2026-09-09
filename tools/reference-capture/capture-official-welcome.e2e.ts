@@ -15,6 +15,7 @@ for (const name of [
   'capture-official-cut1.8-recovery.e2e.ts',
   'capture-official-cut1.8-tool-details.e2e.ts',
   'capture-official-cut1.8-streaming.e2e.ts',
+  'capture-official-cut1.8-details.e2e.ts',
 ]) {
   await copyFile(join(workspace, 'tools/reference-capture', name), join(destination, name))
 }
@@ -27,3 +28,4 @@ await import('./capture-official-cut1.8-history-image.e2e.ts')
 await import('./capture-official-cut1.8-recovery.e2e.ts')
 await import('./capture-official-cut1.8-tool-details.e2e.ts')
 await import('./capture-official-cut1.8-streaming.e2e.ts')
+await import('./capture-official-cut1.8-details.e2e.ts')
