@@ -1,12 +1,14 @@
 import { execFileSync } from 'node:child_process'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { chromium, type Page } from 'playwright'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { launchWebScaffold, watchConsole, type WebScaffold } from './scaffold.ts'
 
 const outputDirectory = resolve(process.env.DSH_REFERENCE_SCREENSHOT_DIR ?? '.artifacts/reference-webui')
 const viewport = { width: 1280, height: 840 }
+const fixtureOverlay = fileURLToPath(new URL('./goal-bar.overlay.yml', import.meta.url))
 const officialSourceCommit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: process.cwd(), encoding: 'utf8' }).trim()
 
 async function capture(page: Page, tripwire: ReturnType<typeof watchConsole>): Promise<void> {
@@ -42,7 +44,7 @@ describe('reference capture: rc.1 history image lightbox', () => {
 
   beforeAll(async () => {
     await mkdir(outputDirectory, { recursive: true })
-    scaffold = await launchWebScaffold()
+    scaffold = await launchWebScaffold({ extraOverlayPath: fixtureOverlay })
     browser = await chromium.launch({ headless: true })
     const context = await browser.newContext({ viewport, locale: 'en-US', colorScheme: 'light', deviceScaleFactor: 1 })
     page = await context.newPage()
