@@ -1,5 +1,9 @@
 import Foundation
 
+#if DEEPSEEK_HARNESS_PACKAGE
+@testable import GlassSpec
+#endif
+
 /// Reviewed rc.1 Session journal wire fixtures. The JSON decodes directly into
 /// production Remote/session types so fixture drift cannot hide behind a test DTO.
 enum OfficialSessionJournalFixtureCatalog {
