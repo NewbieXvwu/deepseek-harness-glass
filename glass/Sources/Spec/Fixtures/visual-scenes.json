@@ -18,7 +18,7 @@
       "state": "no-workspace",
       "officialComponents": ["SidebarRoot", "EmptyHero", "InputBar"],
       "nativeEntry": "NativeAppShell.PresentationMode.welcome",
-      "requiredEvidence": ["source-map", "official-screenshot", "native-screenshot", "layout-rectangles", "accessibility"],
+      "requiredEvidence": ["source-map", "official-screenshot", "native-screenshot", "paired-viewport", "difference-ledger", "post-fix-recapture", "layout-rectangles", "accessibility"],
       "allowedDifferenceClasses": ["font-rendering", "system-glass"]
     },
     {
