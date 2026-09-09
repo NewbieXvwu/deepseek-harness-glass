@@ -80,6 +80,22 @@ describe('reference capture: rc.1 CUT1.8 settings surfaces', () => {
     return { scaffold, page, tripwire, close: async () => { await context.close(); await scaffold.close() } }
   }
 
+  it('captures the rc.1 General settings surface', async () => {
+    const fixture = await freshPage()
+    try {
+      await fixture.page.getByRole('button', { name: '设置', exact: true }).click()
+      const dialog = fixture.page.getByRole('dialog', { name: '设置' })
+      await dialog.waitFor({ timeout: 10_000 })
+      await dialog.getByRole('button', { name: '通用设置' }).waitFor({ timeout: 10_000 })
+      await dialog.getByRole('button', { name: '工作区内修改' }).waitFor({ timeout: 10_000 })
+      await dialog.getByText('语言', { exact: true }).waitFor({ timeout: 10_000 })
+      await dialog.getByText('外观', { exact: true }).waitFor({ timeout: 10_000 })
+      await capture(fixture.page, 'settings-general-zh', fixture.tripwire)
+    } finally {
+      await fixture.close()
+    }
+  }, 60_000)
+
   it('captures the rc.1 Models provider editor', async () => {
     const fixture = await freshPage()
     try {
