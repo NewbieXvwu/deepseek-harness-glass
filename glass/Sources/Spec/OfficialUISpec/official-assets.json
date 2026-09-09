@@ -1,0 +1,622 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d",
+  "sourceInputRevision": "sha256:ff899242889ff454942be4a1b14b53aa8c29115c79cd99dc3825bf336096a9b4",
+  "assetSetRevision": "sha256:5915a937789d0199ee0ba2e07d934c4ac24eaa278809b996cf415b15a8cc865a",
+  "generatedAt": "2026-09-03T02:27:19+08:00",
+  "generator": {
+    "name": "generate_official_assets.py",
+    "version": "1.0.0"
+  },
+  "assets": [
+    {
+      "name": "brand-wordmark",
+      "file": "brand-wordmark.svg",
+      "source": {
+        "path": "packages/client/ui-primitives/src/BrandWordmark.tsx",
+        "gitBlobSha1": "a9df992179c7cc8f0792142f2dde66dbbb3b5464",
+        "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
+      },
+      "astSelector": {
+        "kind": "component-inner",
+        "value": "BrandWordmark"
+      },
+      "transform": {
+        "root": {
+          "width": 182,
+          "height": 24,
+          "viewBox": "0 0 182 24",
+          "fill": "none"
+        },
+        "fills": {
+          "currentColor": "#0F1115",
+          "var(--dsw-alias-label-primary-inverted)": "#FFFFFF"
+        }
+      }
+    },
+    {
+      "name": "fish-logo",
+      "file": "fish-logo.svg",
+      "source": {
+        "path": "packages/client/ui-primitives/src/FishLogo.tsx",
+        "gitBlobSha1": "8621f17273c0d192feb14a988816c8052360b908",
+        "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
+      },
+      "astSelector": {
+        "kind": "component-inner",
+        "value": "FishLogo"
+      },
+      "transform": {
+        "root": {
+          "width": 23.16,
+          "height": 17.04,
+          "viewBox": "0 0 23.16 17.04",
+          "fill": "none"
+        },
+        "currentColor": "#0F1115"
+      }
+    },
+    {
+      "name": "fish",
+      "file": "fish.svg",
+      "source": {
+        "path": "packages/client/ui-primitives/src/FishLogo.tsx",
+        "gitBlobSha1": "8621f17273c0d192feb14a988816c8052360b908",
+        "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
+      },
+      "astSelector": {
+        "kind": "component-inner",
+        "value": "FishLogo"
+      },
+      "transform": {
+        "root": {
+          "width": 23.16,
+          "height": 17.04,
+          "viewBox": "0 0 23.16 17.04"
+        },
+        "currentColor": "black"
+      }
+    },
+    {
+      "name": "icon-new-chat",
+      "file": "icon-new-chat.svg",
+      "source": {
+        "path": "packages/client/ui-primitives/src/icons/index.tsx",
+        "gitBlobSha1": "b2d52182cf04f0a8f8b4a2fa30f59b51aaa576aa",
+        "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
+      },
+      "astSelector": {
+        "kind": "component-svg",
+        "value": "IconNewChatOutline16"
+      },
+      "transform": {
+        "currentColor": "#0F1115"
+      }
+    },
+    {
+      "name": "icon-panel-left",
+      "file": "icon-panel-left.svg",
+      "source": {
+        "path": "packages/client/ui-primitives/src/icons/index.tsx",
+        "gitBlobSha1": "b2d52182cf04f0a8f8b4a2fa30f59b51aaa576aa",
+        "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
+      },
+      "astSelector": {
+        "kind": "component-svg",
+        "value": "IconPanelLeftOutline16"
+      },
+      "transform": {
+        "currentColor": "#0F1115"
+      }
+    },
+    {
+      "name": "icon-search",
+      "file": "icon-search.svg",
+      "source": {
+        "path": "packages/client/ui-primitives/src/icons/index.tsx",
+        "gitBlobSha1": "b2d52182cf04f0a8f8b4a2fa30f59b51aaa576aa",
+        "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
+      },
+      "astSelector": {
+        "kind": "component-svg",
+        "value": "IconSearchOutline16"
+      },
+      "transform": {
+        "currentColor": "#0F1115"
+      }
+    },
+    {
+      "name": "icon-personalization",
+      "file": "icon-personalization.svg",
+      "source": {
+        "path": "packages/client/ui-primitives/src/icons/index.tsx",
+        "gitBlobSha1": "b2d52182cf04f0a8f8b4a2fa30f59b51aaa576aa",
+        "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
+      },
+      "astSelector": {
+        "kind": "component-svg",
+        "value": "IconPersonalizationOutline16"
+      },
+      "transform": {
+        "currentColor": "#0F1115"
+      }
+    },
+    {
+      "name": "icon-project-add",
+      "file": "icon-project-add.svg",
+      "source": {
+        "path": "packages/client/ui-primitives/src/icons/index.tsx",
+        "gitBlobSha1": "b2d52182cf04f0a8f8b4a2fa30f59b51aaa576aa",
+        "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
+      },
+      "astSelector": {
+        "kind": "component-svg",
+        "value": "IconProjectAddOutline16"
+      },
+      "transform": {
+        "currentColor": "#0F1115"
+      }
+    },
+    {
+      "name": "icon-settings",
+      "file": "icon-settings.svg",
+      "source": {
+        "path": "packages/client/ui-primitives/src/icons/index.tsx",
+        "gitBlobSha1": "b2d52182cf04f0a8f8b4a2fa30f59b51aaa576aa",
+        "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
+      },
+      "astSelector": {
+        "kind": "component-svg",
+        "value": "IconSettingsOutline16"
+      },
+      "transform": {
+        "currentColor": "#0F1115"
+      }
+    },
+    {
+      "name": "icon-folder-close",
+      "file": "icon-folder-close.svg",
+      "source": {
+        "path": "packages/client/ui-primitives/src/icons/index.tsx",
+        "gitBlobSha1": "b2d52182cf04f0a8f8b4a2fa30f59b51aaa576aa",
+        "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
+      },
+      "astSelector": {
+        "kind": "component-svg",
+        "value": "IconFolderClose16"
+      },
+      "transform": {
+        "currentColor": "#0F1115"
+      }
+    },
+    {
+      "name": "icon-agent-preset",
+      "file": "icon-agent-preset.svg",
+      "source": {
+        "path": "packages/client/ui-primitives/src/icons/index.tsx",
+        "gitBlobSha1": "b2d52182cf04f0a8f8b4a2fa30f59b51aaa576aa",
+        "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
+      },
+      "astSelector": {
+        "kind": "component-svg",
+        "value": "IconAgentPresetOutline16"
+      },
+      "transform": {
+        "currentColor": "#0F1115"
+      }
+    },
+    {
+      "name": "icon-permission-workspace-write",
+      "file": "icon-permission-workspace-write.svg",
+      "source": {
+        "path": "packages/client/ui-conversation/src/client/skeleton/PermissionSelect.tsx",
+        "gitBlobSha1": "b54049efef6fdb7ada5289897c13e9b87003d33b",
+        "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
+      },
+      "astSelector": {
+        "kind": "map-entry-svg",
+        "value": "permissionGlyphs:workspace-write"
+      }
+    },
+    {
+      "name": "icon-plus",
+      "file": "icon-plus.svg",
+      "source": {
+        "path": "packages/client/ui-primitives/src/icons/index.tsx",
+        "gitBlobSha1": "b2d52182cf04f0a8f8b4a2fa30f59b51aaa576aa",
+        "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
+      },
+      "astSelector": {
+        "kind": "component-svg",
+        "value": "IconPlusOutline16"
+      },
+      "transform": {
+        "currentColor": "#0F1115"
+      }
+    },
+    {
+      "name": "icon-send-up",
+      "file": "icon-send-up.svg",
+      "source": {
+        "path": "packages/client/ui-primitives/src/icons/index.tsx",
+        "gitBlobSha1": "b2d52182cf04f0a8f8b4a2fa30f59b51aaa576aa",
+        "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
+      },
+      "astSelector": {
+        "kind": "component-svg",
+        "value": "IconSendOutline16"
+      },
+      "transform": {
+        "currentColor": "#0F1115"
+      }
+    },
+    {
+      "name": "icon-close",
+      "file": "icon-close.svg",
+      "source": {
+        "path": "packages/client/ui-primitives/src/icons/index.tsx",
+        "gitBlobSha1": "b2d52182cf04f0a8f8b4a2fa30f59b51aaa576aa",
+        "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
+      },
+      "astSelector": {
+        "kind": "component-svg",
+        "value": "IconCloseOutline16"
+      },
+      "transform": {
+        "currentColor": "#0F1115"
+      }
+    },
+    {
+      "name": "icon-chevron-down",
+      "file": "icon-chevron-down.svg",
+      "source": {
+        "path": "packages/client/ui-primitives/src/icons/index.tsx",
+        "gitBlobSha1": "b2d52182cf04f0a8f8b4a2fa30f59b51aaa576aa",
+        "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
+      },
+      "astSelector": {
+        "kind": "component-svg",
+        "value": "IconChevronDownOutline14"
+      },
+      "transform": {
+        "currentColor": "#0F1115"
+      }
+    },
+    {
+      "name": "icon-folder-open",
+      "file": "icon-folder-open.svg",
+      "source": {
+        "path": "packages/client/ui-primitives/src/icons/index.tsx",
+        "gitBlobSha1": "b2d52182cf04f0a8f8b4a2fa30f59b51aaa576aa",
+        "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
+      },
+      "astSelector": {
+        "kind": "component-svg",
+        "value": "IconFolderOpen16"
+      },
+      "transform": {
+        "currentColor": "#0F1115"
+      }
+    },
+    {
+      "name": "icon-ellipsis",
+      "file": "icon-ellipsis.svg",
+      "source": {
+        "path": "packages/client/ui-primitives/src/icons/index.tsx",
+        "gitBlobSha1": "b2d52182cf04f0a8f8b4a2fa30f59b51aaa576aa",
+        "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
+      },
+      "astSelector": {
+        "kind": "component-svg",
+        "value": "IconEllipsisOutline16"
+      },
+      "transform": {
+        "currentColor": "#0F1115"
+      }
+    },
+    {
+      "name": "icon-branch",
+      "file": "icon-branch.svg",
+      "source": {
+        "path": "packages/client/ui-primitives/src/icons/index.tsx",
+        "gitBlobSha1": "b2d52182cf04f0a8f8b4a2fa30f59b51aaa576aa",
+        "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
+      },
+      "astSelector": {
+        "kind": "component-svg",
+        "value": "IconBranchOutline16"
+      },
+      "transform": {
+        "currentColor": "#0F1115"
+      }
+    },
+    {
+      "name": "icon-archive",
+      "file": "icon-archive.svg",
+      "source": {
+        "path": "packages/client/ui-primitives/src/icons/index.tsx",
+        "gitBlobSha1": "b2d52182cf04f0a8f8b4a2fa30f59b51aaa576aa",
+        "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
+      },
+      "astSelector": {
+        "kind": "component-svg",
+        "value": "IconArchiveOutline20"
+      },
+      "transform": {
+        "currentColor": "#0F1115"
+      }
+    },
+    {
+      "name": "icon-stop",
+      "file": "icon-stop.svg",
+      "source": {
+        "path": "packages/client/ui-primitives/src/icons/index.tsx",
+        "gitBlobSha1": "b2d52182cf04f0a8f8b4a2fa30f59b51aaa576aa",
+        "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
+      },
+      "astSelector": {
+        "kind": "component-svg",
+        "value": "IconStopFill16"
+      },
+      "transform": {
+        "currentColor": "#0F1115"
+      }
+    },
+    {
+      "name": "icon-tool-search",
+      "file": "icon-tool-search.svg",
+      "source": {
+        "path": "packages/client/ui-primitives/src/icons/index.tsx",
+        "gitBlobSha1": "b2d52182cf04f0a8f8b4a2fa30f59b51aaa576aa",
+        "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
+      },
+      "astSelector": {
+        "kind": "component-svg",
+        "value": "IconSearchOutline16"
+      },
+      "transform": {
+        "currentColor": "#0F1115"
+      }
+    },
+    {
+      "name": "icon-tool-read",
+      "file": "icon-tool-read.svg",
+      "source": {
+        "path": "packages/client/ui-primitives/src/icons/index.tsx",
+        "gitBlobSha1": "b2d52182cf04f0a8f8b4a2fa30f59b51aaa576aa",
+        "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
+      },
+      "astSelector": {
+        "kind": "component-svg",
+        "value": "IconBrowseOutline16"
+      },
+      "transform": {
+        "currentColor": "#0F1115"
+      }
+    },
+    {
+      "name": "icon-tool-bash",
+      "file": "icon-tool-bash.svg",
+      "source": {
+        "path": "packages/client/ui-primitives/src/icons/index.tsx",
+        "gitBlobSha1": "b2d52182cf04f0a8f8b4a2fa30f59b51aaa576aa",
+        "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
+      },
+      "astSelector": {
+        "kind": "component-svg",
+        "value": "IconApiOutline14"
+      },
+      "transform": {
+        "currentColor": "#0F1115"
+      }
+    },
+    {
+      "name": "icon-tool-edit",
+      "file": "icon-tool-edit.svg",
+      "source": {
+        "path": "packages/client/ui-primitives/src/icons/index.tsx",
+        "gitBlobSha1": "b2d52182cf04f0a8f8b4a2fa30f59b51aaa576aa",
+        "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
+      },
+      "astSelector": {
+        "kind": "component-svg",
+        "value": "IconEditOutline16"
+      },
+      "transform": {
+        "currentColor": "#0F1115"
+      }
+    },
+    {
+      "name": "icon-tool-code",
+      "file": "icon-tool-code.svg",
+      "source": {
+        "path": "packages/client/ui-primitives/src/icons/index.tsx",
+        "gitBlobSha1": "b2d52182cf04f0a8f8b4a2fa30f59b51aaa576aa",
+        "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
+      },
+      "astSelector": {
+        "kind": "component-svg",
+        "value": "IconCodeOutline16"
+      },
+      "transform": {
+        "currentColor": "#0F1115"
+      }
+    },
+    {
+      "name": "icon-tool-others",
+      "file": "icon-tool-others.svg",
+      "source": {
+        "path": "packages/client/ui-primitives/src/icons/index.tsx",
+        "gitBlobSha1": "b2d52182cf04f0a8f8b4a2fa30f59b51aaa576aa",
+        "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
+      },
+      "astSelector": {
+        "kind": "component-svg",
+        "value": "IconSparkle16"
+      },
+      "transform": {
+        "currentColor": "#0F1115"
+      }
+    },
+    {
+      "name": "icon-check",
+      "file": "icon-check.svg",
+      "source": {
+        "path": "packages/client/ui-primitives/src/icons/index.tsx",
+        "gitBlobSha1": "b2d52182cf04f0a8f8b4a2fa30f59b51aaa576aa",
+        "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
+      },
+      "astSelector": {
+        "kind": "component-svg",
+        "value": "IconCheckOutline14"
+      },
+      "transform": {
+        "currentColor": "#0F1115"
+      }
+    },
+    {
+      "name": "icon-checklist",
+      "file": "icon-checklist.svg",
+      "source": {
+        "path": "packages/client/ui-primitives/src/icons/index.tsx",
+        "gitBlobSha1": "b2d52182cf04f0a8f8b4a2fa30f59b51aaa576aa",
+        "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
+      },
+      "astSelector": {
+        "kind": "component-svg",
+        "value": "IconChecklistOutline14"
+      },
+      "transform": {
+        "currentColor": "#0F1115"
+      }
+    },
+    {
+      "name": "icon-question",
+      "file": "icon-question.svg",
+      "source": {
+        "path": "packages/client/ui-primitives/src/icons/index.tsx",
+        "gitBlobSha1": "b2d52182cf04f0a8f8b4a2fa30f59b51aaa576aa",
+        "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
+      },
+      "astSelector": {
+        "kind": "component-svg",
+        "value": "IconQuestionOutline14"
+      },
+      "transform": {
+        "currentColor": "#0F1115"
+      }
+    },
+    {
+      "name": "icon-goal",
+      "file": "icon-goal.svg",
+      "source": {
+        "path": "packages/client/ui-primitives/src/icons/index.tsx",
+        "gitBlobSha1": "b2d52182cf04f0a8f8b4a2fa30f59b51aaa576aa",
+        "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
+      },
+      "astSelector": {
+        "kind": "component-svg",
+        "value": "IconGoalOutline16"
+      },
+      "transform": {
+        "currentColor": "#0F1115"
+      }
+    },
+    {
+      "name": "icon-pause",
+      "file": "icon-pause.svg",
+      "source": {
+        "path": "packages/client/ui-primitives/src/icons/index.tsx",
+        "gitBlobSha1": "b2d52182cf04f0a8f8b4a2fa30f59b51aaa576aa",
+        "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
+      },
+      "astSelector": {
+        "kind": "component-svg",
+        "value": "IconPauseOutline16"
+      },
+      "transform": {
+        "currentColor": "#0F1115"
+      }
+    },
+    {
+      "name": "icon-play",
+      "file": "icon-play.svg",
+      "source": {
+        "path": "packages/client/ui-primitives/src/icons/index.tsx",
+        "gitBlobSha1": "b2d52182cf04f0a8f8b4a2fa30f59b51aaa576aa",
+        "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
+      },
+      "astSelector": {
+        "kind": "component-svg",
+        "value": "IconPlayOutline16"
+      },
+      "transform": {
+        "currentColor": "#0F1115"
+      }
+    },
+    {
+      "name": "icon-trash",
+      "file": "icon-trash.svg",
+      "source": {
+        "path": "packages/client/ui-primitives/src/icons/index.tsx",
+        "gitBlobSha1": "b2d52182cf04f0a8f8b4a2fa30f59b51aaa576aa",
+        "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
+      },
+      "astSelector": {
+        "kind": "component-svg",
+        "value": "IconTrashOutline16"
+      },
+      "transform": {
+        "currentColor": "#0F1115"
+      }
+    },
+    {
+      "name": "icon-queue",
+      "file": "icon-queue.svg",
+      "source": {
+        "path": "packages/client/ui-primitives/src/icons/index.tsx",
+        "gitBlobSha1": "b2d52182cf04f0a8f8b4a2fa30f59b51aaa576aa",
+        "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
+      },
+      "astSelector": {
+        "kind": "component-svg",
+        "value": "IconQueueOutline14"
+      },
+      "transform": {
+        "currentColor": "#0F1115"
+      }
+    },
+    {
+      "name": "icon-chevron-left",
+      "file": "icon-chevron-left.svg",
+      "source": {
+        "path": "packages/client/ui-primitives/src/icons/index.tsx",
+        "gitBlobSha1": "b2d52182cf04f0a8f8b4a2fa30f59b51aaa576aa",
+        "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
+      },
+      "astSelector": {
+        "kind": "component-svg",
+        "value": "IconChevronLeftOutline14"
+      },
+      "transform": {
+        "currentColor": "#0F1115"
+      }
+    },
+    {
+      "name": "icon-chevron-right",
+      "file": "icon-chevron-right.svg",
+      "source": {
+        "path": "packages/client/ui-primitives/src/icons/index.tsx",
+        "gitBlobSha1": "b2d52182cf04f0a8f8b4a2fa30f59b51aaa576aa",
+        "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
+      },
+      "astSelector": {
+        "kind": "component-svg",
+        "value": "IconChevronRightOutline14"
+      },
+      "transform": {
+        "currentColor": "#0F1115"
+      }
+    }
+  ]
+}
