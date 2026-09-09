@@ -17,8 +17,7 @@ const lifecycleFixture = join(process.cwd(), 'snapshots/web/lifecycle-chrome/ses
 const lifecycleOverride = join(process.cwd(), 'snapshots/web/lifecycle-chrome/replay.override.json')
 const prompt = 'Reply with the single word LIGHTHOUSE and stop.'
 
-async function capture(page: Page, tripwire: ReturnType<typeof watchConsole>): Promise<void> {
-  const name = 'error-recovery-reload'
+async function capture(page: Page, name: string, tripwire: ReturnType<typeof watchConsole>): Promise<void> {
   const geometry = await page.locator('#root').evaluate(root => {
     const rect = root.getBoundingClientRect()
     return {
@@ -65,7 +64,7 @@ describe('reference capture: rc.1 CUT1.8 reload recovery', () => {
     await browser?.close()
   })
 
-  it('captures the recovered conversation after reloading the recorded rc.1 turn', async () => {
+  it('captures the empty hero and recovered conversation from the recorded rc.1 lifecycle', async () => {
     const scaffold = await launchWebScaffold({
       replayFixture: lifecycleFixture,
       replayOverride: lifecycleOverride,
@@ -84,8 +83,11 @@ describe('reference capture: rc.1 CUT1.8 reload recovery', () => {
       await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
       await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })
       await connectFreshWorkspace(page, scaffold.workspaceCwd)
+      await page.getByText('Into the Unknown', { exact: false }).waitFor({ timeout: 15_000 })
       const input = page.locator('[data-composer-input]').first()
       await input.waitFor({ timeout: 10_000 })
+      await capture(page, 'startup-empty-hero', tripwire)
+
       const settled = scaffold.whenTurnSettled()
       await input.fill(prompt)
       await input.press('Enter')
@@ -98,7 +100,7 @@ describe('reference capture: rc.1 CUT1.8 reload recovery', () => {
       acknowledgeReloadConnectionLoss(tripwire, warningStart)
       await page.getByText('LIGHTHOUSE', { exact: true }).waitFor({ timeout: 30_000 })
       await page.locator('[role="treeitem"][aria-selected="true"]').waitFor({ timeout: 30_000 })
-      await capture(page, tripwire)
+      await capture(page, 'error-recovery-reload', tripwire)
     } finally {
       await context.close()
       await scaffold.close()
