@@ -129,9 +129,14 @@ actor SessionControlRuntime {
     private func apply(_ frame: RemoteSessionControlFrame) {
         guard let current = snapshot else { return }
         switch frame {
-        case .baseline:
-            // A duplicate baseline is ignored; the opening cut stays authoritative.
-            return
+        case let .baseline(value):
+            snapshot = .init(
+                generation: generation,
+                queues: value.queues,
+                jobs: value.jobs,
+                projections: value.projections
+            )
+            publish(snapshot)
         case let .queue(sessionID, items):
             var queues = current.queues
             queues[sessionID] = items

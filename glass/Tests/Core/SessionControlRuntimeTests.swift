@@ -157,13 +157,19 @@ final class SessionControlRuntimeTests: XCTestCase {
         XCTAssertNil(invalidated)
     }
 
-    func testNormalControlStreamEndRetainsAuthorityAndReconnects() async throws {
+    func testNormalControlStreamEndInstallsReconnectBaselineAuthority() async throws {
+        let fixture = try OfficialSessionControlFixtureCatalog.load()
+        let replay = try XCTUnwrap(fixture.cases.first { $0.id == "replacement-deltas-and-reconnect" })
+        XCTAssertEqual(replay.streams.count, 2)
+
         let controller = MockSessionController()
-        await controller.queueControlStream {
-            let (stream, continuation) = AsyncThrowingStream<RemoteSessionControlFrame, Error>.makeStream()
-            continuation.yield(.baseline(.init(queues: [:], jobs: [:], projections: [:])))
-            continuation.finish()
-            return stream
+        for frames in replay.streams {
+            await controller.queueControlStream {
+                let (stream, continuation) = AsyncThrowingStream<RemoteSessionControlFrame, Error>.makeStream()
+                for frame in frames { continuation.yield(frame) }
+                continuation.finish()
+                return stream
+            }
         }
         let runtime = SessionControlRuntime(
             controller: controller,
@@ -171,14 +177,15 @@ final class SessionControlRuntimeTests: XCTestCase {
         )
 
         _ = try await runtime.open()
-        for _ in 0..<200 {
-            if await controller.controlCallCount >= 2 { break }
-            try await Task.sleep(nanoseconds: 10_000_000)
+        let replacement = try await eventuallySnapshot(runtime) { snapshot in
+            snapshot.queues.isEmpty && snapshot.jobs.isEmpty && snapshot.projections.isEmpty
         }
         let calls = await controller.controlCallCount
         XCTAssertGreaterThanOrEqual(calls, 2, "an ended control stream must be reopened")
-        let retained = await runtime.currentSnapshot()
-        XCTAssertNotNil(retained, "a transient end must not drop retained authority")
+        XCTAssertTrue(replacement.queues.isEmpty)
+        XCTAssertTrue(replacement.jobs.isEmpty)
+        XCTAssertTrue(replacement.projections.isEmpty)
+        await runtime.invalidate()
     }
 
     private static func queuedItem(id: String) -> RemoteSessionQueuedItem {
@@ -208,7 +215,7 @@ final class SessionControlRuntimeTests: XCTestCase {
     ) async throws -> SessionControlSnapshot {
         for _ in 0..<100 {
             if let snapshot = await runtime.currentSnapshot(), predicate(snapshot) { return snapshot }
-            try await Task.sleep(nanoseconds: 1_000_000)
+            try await Task.sleep(nanoseconds: 10_000_000)
         }
         throw MockError()
     }
