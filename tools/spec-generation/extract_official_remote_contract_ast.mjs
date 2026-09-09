@@ -70,7 +70,6 @@ const ERROR_SCAN_ROOTS = [
 
 const EXTRA_GATEWAY_ERRORS = ['gateway/method-unavailable', 'gateway/service-unavailable']
 
-const SKIP_ENDPOINTS = new Set(['settings/update', 'settings/replace'])
 const LOOKUPS = new Map([
   ['Agent', { lookup: 'agent', wire: 'agentId' }],
   ['Session', { lookup: 'session', wire: 'sessionId' }],
@@ -146,7 +145,6 @@ for (const relativePath of SOURCE_PATHS) {
       if (!remote) continue
       const method = remote.exportName ?? member.name.text
       const endpoint = `${namespace}/${method}`
-      if (SKIP_ENDPOINTS.has(endpoint)) continue
       const parameters = []
       const injected = []
       for (const parameter of member.parameters) {
