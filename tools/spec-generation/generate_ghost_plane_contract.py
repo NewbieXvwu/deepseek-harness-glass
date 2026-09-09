@@ -25,14 +25,9 @@ AST_EXTRACTOR = Path(__file__).with_name("extract_ghost_plane_ast.mjs")
 
 
 def sha256(path: Path) -> str:
-    return "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()
-
-
-def read_source(root: Path, relative: str) -> str:
-    path = root / relative
     if not path.is_file():
-        raise SystemExit(f"required upstream Ghost Plane contract source is missing: {relative}")
-    return path.read_text(encoding="utf-8")
+        raise SystemExit(f"required upstream Ghost Plane contract source is missing: {path}")
+    return "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def node_binary(root: Path | None = None) -> str:
@@ -48,7 +43,7 @@ def node_binary(root: Path | None = None) -> str:
     return "node"
 
 
-def extract_ast(root: Path) -> tuple[list[dict[str, str]], list[str]]:
+def extract_ast(root: Path) -> tuple[list[dict[str, str]], list[str], dict[str, object]]:
     process = subprocess.run(
         [node_binary(root), str(AST_EXTRACTOR), str(root)],
         check=True,
@@ -59,12 +54,14 @@ def extract_ast(root: Path) -> tuple[list[dict[str, str]], list[str]]:
         data = json.loads(process.stdout)
     except json.JSONDecodeError as error:
         raise SystemExit(f"AST ghost plane extractor emitted invalid JSON: {process.stdout}") from error
-    return data.get("slots", []), data.get("dataSelectors", [])
+    module_loader = data.get("moduleLoader")
+    if not isinstance(module_loader, dict):
+        raise SystemExit("AST ghost plane extractor emitted no module-loader contract")
+    return data.get("slots", []), data.get("dataSelectors", []), module_loader
 
 
 def build(root: Path, source_commit: str) -> dict[str, object]:
-    sources = {relative: read_source(root, relative) for relative in SOURCE_PATHS}
-    slots, ast_data_selectors = extract_ast(root)
+    slots, ast_data_selectors, module_loader = extract_ast(root)
     if not slots:
         raise SystemExit("official SlotMap extraction produced no slots")
     required_slot_names = {
@@ -121,12 +118,21 @@ def build(root: Path, source_commit: str) -> dict[str, object]:
             "zone": "red" if name in red_slots else "managed" if name in managed_slots else "green",
         })
 
-    module_manifest = sources["packages/client/modules/src/client/manifest.ts"]
-    module_host = sources["packages/client/modules/src/index.ts"]
-    if any(term not in module_manifest for term in ("__DSH_BOOT__", "__ModuleLoader__", "factory", "batches", "initialUrl")):
-        raise SystemExit("official module manifest source no longer supplies the rc.1 loader wire contract")
-    if "return `/plugins/??${resources}&rev=${rev}`" not in module_host:
-        raise SystemExit("official module host no longer supplies the rc.1 combo bundle route")
+    expected_module_loader = {
+        "bootGlobal": "__DSH_BOOT__",
+        "registrationGlobal": "__ModuleLoader__",
+        "registrationMethod": "load",
+        "comboRouteTemplate": "/plugins/??${resources}&rev=${rev}",
+        "bootBatchPhases": ["bootstrap", "application"],
+        "initialURLFromBatches": True,
+        "factoryRegistration": True,
+    }
+    if module_loader != expected_module_loader:
+        raise SystemExit("official module-loader AST contract drifted from reviewed rc.1 semantics")
+
+    route = str(module_loader["comboRouteTemplate"])
+    single_resource = route.replace("${resources}", "<id>/client.js").replace("${rev}", "<rev>")
+    combo_resource = route.replace("${resources}", "<id1>/client.js,<id2>/client.js").replace("${rev}", "<rev>")
 
     return {
         "schemaVersion": 1,
@@ -135,14 +141,14 @@ def build(root: Path, source_commit: str) -> dict[str, object]:
         "selectors": selectors,
         "slots": sorted(reviewed_slots, key=lambda slot: slot["name"]),
         "moduleLoader": {
-            "bootGlobal": "__DSH_BOOT__",
-            "registrationGlobal": "__ModuleLoader__",
-            "registrationMethod": "load",
-            "singleResourcePathTemplate": "/plugins/??<id>/client.js&rev=<rev>",
-            "comboPathTemplate": "/plugins/??<id1>/client.js,<id2>/client.js&rev=<rev>",
-            "bootBatchPhases": ["bootstrap", "application"],
-            "initialURLFromBatches": True,
-            "factoryRegistration": True,
+            "bootGlobal": module_loader["bootGlobal"],
+            "registrationGlobal": module_loader["registrationGlobal"],
+            "registrationMethod": module_loader["registrationMethod"],
+            "singleResourcePathTemplate": single_resource,
+            "comboPathTemplate": combo_resource,
+            "bootBatchPhases": module_loader["bootBatchPhases"],
+            "initialURLFromBatches": module_loader["initialURLFromBatches"],
+            "factoryRegistration": module_loader["factoryRegistration"],
         },
     }
 
