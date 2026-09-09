@@ -81,6 +81,8 @@ describe('reference capture: rc.1 CUT1.8 tool call details', () => {
       await result.waitFor({ timeout: 30_000 })
       await result.click()
       await page.getByText('FIRST_DONE', { exact: true }).waitFor({ timeout: 30_000 })
+      await search.fill('')
+      await expect.poll(() => search.inputValue(), { timeout: 5_000 }).toBe('')
       await page.getByRole('tab', { name: 'Trajectory' }).click()
       const toolRow = page.locator('tr[data-kind="tool"]').first()
       await toolRow.waitFor({ timeout: 30_000 })
