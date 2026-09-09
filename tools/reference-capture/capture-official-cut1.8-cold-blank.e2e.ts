@@ -64,7 +64,7 @@ describe('reference capture: rc.1 CUT1.8 cold blank Session', () => {
     const cwd = join(scaffold.workspaceCwd, workspaceName)
     await mkdir(cwd, { recursive: true })
     await seedBlankSession(scaffold, sessionId, cwd)
-    const header = scaffold.ctx.sessionPersistence.list().find(candidate => candidate.id === sessionId)
+    const header = (await scaffold.ctx.sessionPersistence.list()).find(candidate => candidate.id === sessionId)
     if (header === undefined) throw new Error('blank Session fixture did not materialize')
     const location = scaffold.ctx.sessionPersistence.locate(header)
     if (location === undefined) throw new Error('JSONL fixture has no physical artifact')

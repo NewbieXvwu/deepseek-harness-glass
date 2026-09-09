@@ -17,6 +17,8 @@ const activePrompt = 'Reply with a one-sentence description of event sourcing, t
 const removeText = 'Queue item to remove'
 const editText = 'Queue item to edit'
 const editedText = 'Edited queue item'
+const tailText = 'Queue item preserved after stop'
+const wakeText = 'Wake the preserved queue'
 
 async function capture(page: Page, tripwire: ReturnType<typeof watchConsole>): Promise<void> {
   const name = 'queue-actions-narrow'
@@ -130,9 +132,29 @@ describe('reference capture: rc.1 CUT1.8 queue actions narrow', () => {
       await page.getByRole('button', { name: 'Stop generating' }).waitFor({ timeout: 10_000 })
       await capture(page, tripwire)
 
-      await page.getByRole('button', { name: 'Cancel editing' }).click()
+      await page.getByRole('button', { name: 'Save queued message' }).click()
+      await page.getByText(editedText, { exact: true }).waitFor()
+      const removeRow = page.locator('[data-queue-dock] li', { hasText: removeText })
+      await removeRow.getByRole('button', { name: 'Remove queued message' }).click()
+      await expect.poll(() => page.getByText(removeText, { exact: true }).count()).toBe(0)
+
+      await input.fill(tailText)
+      await input.press('Enter')
+      await expect.poll(
+        () => page.getByRole('button', { name: 'Remove queued message' }).count(),
+        { timeout: 10_000 },
+      ).toBe(2)
+
       await page.getByRole('button', { name: 'Stop generating' }).click()
       await firstSettled
+      await expect.poll(() => page.getByRole('button', { name: 'Stop generating' }).count()).toBe(0)
+      await expect.poll(() => page.getByRole('button', { name: 'Remove queued message' }).count()).toBe(2)
+
+      const settled = scaffold.whenTurnSettled()
+      await input.fill(wakeText)
+      await input.press('Enter')
+      await settled
+      await expect.poll(() => page.locator('[data-queue-dock]').count()).toBe(0)
     } finally {
       await context.close()
       await scaffold.close()
