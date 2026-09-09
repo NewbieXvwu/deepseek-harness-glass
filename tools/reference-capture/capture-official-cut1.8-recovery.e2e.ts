@@ -16,8 +16,14 @@ const officialSourceCommit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: p
 const lifecycleFixture = join(process.cwd(), 'snapshots/web/lifecycle-chrome/session.jsonl')
 const lifecycleOverride = join(process.cwd(), 'snapshots/web/lifecycle-chrome/replay.override.json')
 const prompt = 'Reply with the single word LIGHTHOUSE and stop.'
+type CaptureColorScheme = 'light' | 'dark'
 
-async function capture(page: Page, name: string, tripwire: ReturnType<typeof watchConsole>): Promise<void> {
+async function capture(
+  page: Page,
+  name: string,
+  tripwire: ReturnType<typeof watchConsole>,
+  colorScheme: CaptureColorScheme = 'light',
+): Promise<void> {
   const geometry = await page.locator('#root').evaluate(root => {
     const rect = root.getBoundingClientRect()
     return {
@@ -42,7 +48,7 @@ async function capture(page: Page, name: string, tripwire: ReturnType<typeof wat
     officialSourceCommit,
     viewport,
     locale: 'en-US',
-    colorScheme: 'light',
+    colorScheme,
     geometry,
     ariaSnapshot,
     consoleWarnings: tripwire.warnings,
@@ -52,7 +58,7 @@ async function capture(page: Page, name: string, tripwire: ReturnType<typeof wat
   expect(tripwire.pageErrors).toEqual([])
 }
 
-describe('reference capture: rc.1 CUT1.8 reload recovery', () => {
+describe('reference capture: rc.1 CUT1.8 lifecycle surfaces', () => {
   let browser: Awaited<ReturnType<typeof chromium.launch>>
 
   beforeAll(async () => {
@@ -64,7 +70,7 @@ describe('reference capture: rc.1 CUT1.8 reload recovery', () => {
     await browser?.close()
   })
 
-  it('captures the empty hero and recovered conversation from the recorded rc.1 lifecycle', async () => {
+  it('captures the empty hero, recovered conversation, and dark cascade from the recorded rc.1 lifecycle', async () => {
     const scaffold = await launchWebScaffold({
       replayFixture: lifecycleFixture,
       replayOverride: lifecycleOverride,
@@ -101,6 +107,26 @@ describe('reference capture: rc.1 CUT1.8 reload recovery', () => {
       await page.getByText('LIGHTHOUSE', { exact: true }).waitFor({ timeout: 30_000 })
       await page.locator('[role="treeitem"][aria-selected="true"]').waitFor({ timeout: 30_000 })
       await capture(page, 'error-recovery-reload', tripwire)
+
+      const sample = async (): Promise<{ token: string; sidebarBg: string; bodyBg: string }> => page.evaluate(() => {
+        const sidebar = document.querySelector('[class*="sidebar"], [class*="rail"]') ?? document.body
+        return {
+          token: getComputedStyle(document.body).getPropertyValue('--dsw-alias-bg-base').trim(),
+          sidebarBg: getComputedStyle(sidebar).backgroundColor,
+          bodyBg: getComputedStyle(document.body).backgroundColor,
+        }
+      })
+      const light = await sample()
+      await page.evaluate(async () => {
+        document.body.setAttribute('data-ds-dark-theme', '')
+        await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+      })
+      const dark = await sample()
+      expect(dark.token).not.toBe(light.token)
+      expect(dark.sidebarBg !== light.sidebarBg || dark.bodyBg !== light.bodyBg).toBe(true)
+      await capture(page, 'dark-theme-cascade', tripwire, 'dark')
+      await page.evaluate(() => { document.body.removeAttribute('data-ds-dark-theme') })
+      expect(await sample()).toEqual(light)
     } finally {
       await context.close()
       await scaffold.close()
