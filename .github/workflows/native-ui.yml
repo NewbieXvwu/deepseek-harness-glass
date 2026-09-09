@@ -114,7 +114,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: artifacts/official-webui
-          key: official-webui-baseline-${{ env.OFFICIAL_COMMIT }}-${{ runner.os }}-${{ env.IMAGE_VERSION }}-${{ hashFiles('tools/reference-capture/capture-official-welcome.e2e.ts') }}
+          key: official-webui-baseline-${{ env.OFFICIAL_COMMIT }}-${{ runner.os }}-${{ env.IMAGE_VERSION }}-${{ hashFiles('tools/reference-capture/capture-official-*.e2e.ts') }}
 
       # A cache miss is expected only when baseline inputs change. The dedicated
       # prepare workflow pre-warms main; this fallback keeps PR validation sound.
