@@ -23,7 +23,8 @@ let package = Package(
             exclude: [
                 "HostUpgradeReport.json",
                 "RuntimeAssetInventory.json",
-                "OfficialUISpec/official-ui-catalog.json",
+                "OfficialUISpec/official-assets.json",
+                "OfficialUISpec/official-ui-catalog.rc2-historical.json",
                 "OfficialUISpec/official-ui-spec-build.json",
                 "Tokens/official-theme-tokens.json",
             ],
