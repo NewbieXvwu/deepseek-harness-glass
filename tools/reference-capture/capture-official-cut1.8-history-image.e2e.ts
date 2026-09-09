@@ -81,7 +81,7 @@ describe('reference capture: rc.1 history image lightbox', () => {
     await frame.click()
     const dialog = page.getByRole('dialog')
     await dialog.waitFor({ timeout: 10_000 })
-    const lightboxImage = dialog.getByRole('img')
+    const lightboxImage = dialog.getByLabel('Original image preview', { exact: true }).getByRole('img', { name: 'fixture-image.png' })
     await expect.poll(() => lightboxImage.getAttribute('src')).toMatch(/^blob:/)
     await capture(page, tripwire)
 
