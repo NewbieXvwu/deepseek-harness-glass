@@ -79,13 +79,13 @@ describe('reference capture: rc.1 history image lightbox', () => {
 
     const frame = userImage.locator('xpath=ancestor::button[1]')
     await frame.click()
-    const dialog = page.getByRole('dialog')
+    const dialog = page.getByRole('dialog', { name: 'Original image preview' })
     await dialog.waitFor({ timeout: 10_000 })
-    const lightboxImage = dialog.getByLabel('Original image preview', { exact: true }).getByRole('img', { name: 'fixture-image.png' })
+    const lightboxImage = dialog.getByRole('img', { name: 'fixture-image.png', exact: true })
     await expect.poll(() => lightboxImage.getAttribute('src')).toMatch(/^blob:/)
     await capture(page, tripwire)
 
-    await dialog.getByRole('button', { name: /Close/ }).click()
+    await dialog.getByRole('button', { name: 'Close original image preview' }).click()
     await expect.poll(() => page.getByRole('dialog').count(), { timeout: 5_000 }).toBe(0)
     expect(tripwire.warnings).toEqual([])
     expect(tripwire.pageErrors).toEqual([])
