@@ -15,7 +15,8 @@
       "protocolFixtureRevision": "official-a66e470-remote-r1",
       "uiSpecRevision": "official-a66e470-ui-spec-r1",
       "supportedArchitectures": ["arm64"],
-      "verificationState": "planned"
+      "verifiedAt": "2026-09-10",
+      "verificationState": "verified"
     }
   ]
 }
