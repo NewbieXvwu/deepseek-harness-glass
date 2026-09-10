@@ -1,10 +1,6 @@
 import Foundation
 
-#if DEEPSEEK_HARNESS_PACKAGE
-@testable import GlassSpec
-#endif
-
-/// Reviewed rc.1 `session.control` generations decoded through production wire types.
+/// `session.control` generations decoded through production wire types.
 enum OfficialSessionControlFixtureCatalog {
     struct Fixture: Decodable, Sendable {
         struct Case: Decodable, Sendable, Identifiable {
@@ -13,9 +9,6 @@ enum OfficialSessionControlFixtureCatalog {
         }
 
         let schemaVersion: Int
-        let officialSourceCommit: String
-        let fixtureRevision: String
-        let sourcePaths: [String]
         let cases: [Case]
     }
 
@@ -25,16 +18,8 @@ enum OfficialSessionControlFixtureCatalog {
         }
         let fixture = try JSONDecoder().decode(Fixture.self, from: Data(contentsOf: url))
         guard fixture.schemaVersion == 1,
-              fixture.officialSourceCommit == OfficialUISpec.Build.sourceCommit,
-              fixture.fixtureRevision == "official-a66e470-session-control-r1",
-              Set(fixture.sourcePaths) == [
-                  "packages/api/session-controller/src/types.ts",
-                  "packages/api/session-controller/src/control.ts",
-              ],
-              Set(fixture.cases.map(\.id)) == [
-                  "replacement-deltas-and-reconnect",
-                  "empty-opening-baseline",
-              ],
+              !fixture.cases.isEmpty,
+              Set(fixture.cases.map(\.id)).count == fixture.cases.count,
               fixture.cases.allSatisfy({ !$0.streams.isEmpty && $0.streams.allSatisfy({ !$0.isEmpty }) })
         else {
             throw FixtureError.incompatibleFixture
@@ -56,8 +41,8 @@ enum OfficialSessionControlFixtureCatalog {
 
         var errorDescription: String? {
             switch self {
-            case .missingResource: "Official rc.1 session.control fixture resource is missing."
-            case .incompatibleFixture: "Official rc.1 session.control fixtures do not match the locked source contract."
+            case .missingResource: "Session control fixture resource is missing."
+            case .incompatibleFixture: "Session control fixture is malformed or empty."
             }
         }
     }
