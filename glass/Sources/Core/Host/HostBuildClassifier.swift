@@ -6,13 +6,12 @@ import Foundation
 struct HostBuildClassifier: Sendable {
     private static let lockedOfficialSourceCommit = "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
 
-    func classify(
-        build: SupportedHostBuildCatalog.Build,
-        dshVersion: String?,
-        webFrontendVersion: String?
-    ) -> HostBuildVerification {
+    /// Structural catalog validation is safe before a Host exists. Package-version
+    /// compatibility is intentionally excluded so it can be classified only after
+    /// authenticated rc.1 Remote readiness has been established.
+    func catalogValidationError(for build: SupportedHostBuildCatalog.Build) -> String? {
         guard build.officialSourceCommit == Self.lockedOfficialSourceCommit else {
-            return .unsupported(reason: "Bundled Host catalog does not match the locked official source commit.")
+            return "Bundled Host catalog does not match the locked official source commit."
         }
         guard !build.dshPackageVersion.isEmpty,
               !build.webFrontendPackageVersion.isEmpty,
@@ -20,7 +19,18 @@ struct HostBuildClassifier: Sendable {
               !build.protocolFixtureRevision.isEmpty,
               !build.uiSpecRevision.isEmpty,
               !build.minimumAppVersion.isEmpty else {
-            return .unsupported(reason: "Bundled Host catalog is missing fixed payload support metadata.")
+            return "Bundled Host catalog is missing fixed payload support metadata."
+        }
+        return nil
+    }
+
+    func classify(
+        build: SupportedHostBuildCatalog.Build,
+        dshVersion: String?,
+        webFrontendVersion: String?
+    ) -> HostBuildVerification {
+        if let reason = catalogValidationError(for: build) {
+            return .unsupported(reason: reason)
         }
         guard let dshVersion, let webFrontendVersion else {
             return .bestEffort(
