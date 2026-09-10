@@ -21,7 +21,6 @@ let package = Package(
             name: "GlassSpec",
             path: "Sources/Spec",
             exclude: [
-                "HostUpgradeReport.json",
                 "RuntimeAssetInventory.json",
                 "OfficialUISpec/official-assets.json",
                 "OfficialUISpec/official-ui-catalog.rc2-historical.json",
