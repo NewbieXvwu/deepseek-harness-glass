@@ -46,12 +46,6 @@ cp -RL "build/backend/node_modules" \
 
 echo "== 4/4 Info.plist / 图标 / 签名 / 原子替换 =="
 cp Info.plist "$STAGE/Contents/Info.plist"
-cp Sources/Spec/SupportedHostBuilds.json "$STAGE/Contents/Resources/SupportedHostBuilds.json"
-APP_SOURCE_REVISION="$(git -C .. rev-parse HEAD 2>/dev/null || echo unknown)"
-python3 ../tools/emit-build-manifest.py \
-  --repo .. \
-  --app-source-revision "$APP_SOURCE_REVISION" \
-  --output "$STAGE/Contents/Resources/BuildManifest.json"
 cp ../build/icon.icns "$STAGE/Contents/Resources/icon.icns"
 cp assets/*.svg "$STAGE/Contents/Resources/"
 
