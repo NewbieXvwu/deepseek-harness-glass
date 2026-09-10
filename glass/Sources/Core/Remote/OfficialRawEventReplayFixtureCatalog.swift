@@ -1,25 +1,8 @@
 import Foundation
 
-#if DEEPSEEK_HARNESS_PACKAGE
-@testable import GlassSpec
-#endif
-
-/// Versioned, anonymized event scripts derived from the locked official runtime
-/// test builders. Consumers replay the JSON values without accessing any user
-/// session, Host credential, or local filesystem state.
+/// Anonymized event scripts replayed through production Remote/session types.
 enum OfficialRawEventReplayFixtureCatalog {
     struct Fixture: Decodable, Sendable {
-        struct Source: Decodable, Sendable {
-            let path: String
-            let lines: String
-            let commit: String
-        }
-
-        struct Anonymization: Decodable, Sendable {
-            let policy: String
-            let forbiddenValueClasses: [String]
-        }
-
         struct ReplayCase: Decodable, Sendable, Identifiable {
             let id: String
             let category: String
@@ -29,10 +12,6 @@ enum OfficialRawEventReplayFixtureCatalog {
         }
 
         let schemaVersion: Int
-        let officialSourceCommit: String
-        let fixtureRevision: String
-        let source: Source
-        let anonymization: Anonymization
         let cases: [ReplayCase]
     }
 
@@ -58,15 +37,10 @@ enum OfficialRawEventReplayFixtureCatalog {
             "happy-path", "error", "reconnect", "concurrent", "long-session", "unknown-node",
         ]
         guard fixture.schemaVersion == 1,
-              fixture.officialSourceCommit == OfficialUISpec.Build.sourceCommit,
-              fixture.fixtureRevision == "official-a66e470-raw-event-replay-r1",
-              fixture.source.commit == OfficialUISpec.Build.sourceCommit,
-              fixture.source.path == "packages/api/session-controller/tests/event-script.client.ts",
               Set(fixture.cases.map(\.category)).isSuperset(of: requiredCategories),
               Set(fixture.cases.map(\.id)).count == fixture.cases.count,
               fixture.cases.allSatisfy({ !$0.events.isEmpty }),
-              fixture.cases.first(where: { $0.category == "long-session" })?.repeatCount ?? 0 >= 1_000,
-              Set(fixture.anonymization.forbiddenValueClasses).isSuperset(of: ["credential", "api-key", "private-path", "recorded-user-content"])
+              fixture.cases.first(where: { $0.category == "long-session" })?.repeatCount ?? 0 >= 1_000
         else {
             throw FixtureError.incompatibleFixture
         }
@@ -110,8 +84,8 @@ enum OfficialRawEventReplayFixtureCatalog {
 
         var errorDescription: String? {
             switch self {
-            case .missingResource: return "Official raw-event replay fixture resource is missing."
-            case .incompatibleFixture: return "Official raw-event replay fixture does not match the locked build or anonymization contract."
+            case .missingResource: return "Raw-event replay fixture resource is missing."
+            case .incompatibleFixture: return "Raw-event replay fixture is malformed or incomplete."
             }
         }
     }
