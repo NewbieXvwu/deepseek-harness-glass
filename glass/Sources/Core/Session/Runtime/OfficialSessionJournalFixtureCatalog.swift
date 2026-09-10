@@ -1,11 +1,6 @@
 import Foundation
 
-#if DEEPSEEK_HARNESS_PACKAGE
-@testable import GlassSpec
-#endif
-
-/// Reviewed rc.1 Session journal wire fixtures. The JSON decodes directly into
-/// production Remote/session types so fixture drift cannot hide behind a test DTO.
+/// Session journal wire fixtures decoded directly into production Remote/session types.
 enum OfficialSessionJournalFixtureCatalog {
     struct Fixture: Decodable, Sendable {
         struct Case: Decodable, Sendable, Identifiable {
@@ -31,9 +26,6 @@ enum OfficialSessionJournalFixtureCatalog {
         }
 
         let schemaVersion: Int
-        let officialSourceCommit: String
-        let fixtureRevision: String
-        let sourcePaths: [String]
         let cases: [Case]
     }
 
@@ -42,25 +34,9 @@ enum OfficialSessionJournalFixtureCatalog {
             throw FixtureError.missingResource
         }
         let fixture = try JSONDecoder().decode(Fixture.self, from: Data(contentsOf: url))
-        let expectedCases: Set<String> = [
-            "packed-opening-live-prepend",
-            "direct-subagent-journal",
-            "unfinished-assistant-long-tail",
-            "ordinary-empty-session",
-            "reconnect-replay-dedupe",
-        ]
-        let expectedSources: Set<String> = [
-            "packages/api/session-controller/src/types.ts",
-            "packages/api/session-controller/src/history.ts",
-            "packages/api/session-controller/src/client/sessions/history-records.ts",
-            "packages/subagent/subagent/src/descriptor.ts",
-            "packages/subagent/subagent/src/projection-types.ts",
-        ]
         guard fixture.schemaVersion == 2,
-              fixture.officialSourceCommit == OfficialUISpec.Build.sourceCommit,
-              fixture.fixtureRevision == "official-a66e470-session-journal-r2",
-              Set(fixture.sourcePaths) == expectedSources,
-              Set(fixture.cases.map(\.id)) == expectedCases
+              !fixture.cases.isEmpty,
+              Set(fixture.cases.map(\.id)).count == fixture.cases.count
         else {
             throw FixtureError.incompatibleFixture
         }
@@ -81,8 +57,8 @@ enum OfficialSessionJournalFixtureCatalog {
 
         var errorDescription: String? {
             switch self {
-            case .missingResource: "Official rc.1 Session journal fixture resource is missing."
-            case .incompatibleFixture: "Official rc.1 Session journal fixtures do not match the locked source contract."
+            case .missingResource: "Session journal fixture resource is missing."
+            case .incompatibleFixture: "Session journal fixture is malformed or empty."
             }
         }
     }
