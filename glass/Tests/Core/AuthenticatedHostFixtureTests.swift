@@ -41,7 +41,7 @@ final class AuthenticatedHostFixtureTests: XCTestCase {
             decoder: decoder
         )
         XCTAssertEqual(commands.rpcID, "fixture-commands-list")
-        guard case let .value(commandValues) = decoded.result else {
+        guard case let .value(commandValues) = commands.result else {
             return XCTFail("authenticated commands/list fixture must succeed")
         }
         XCTAssertEqual(commandValues.map(\.name), ["compact", "export", "feedback", "goal", "permission", "plan"])
