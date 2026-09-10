@@ -31,6 +31,12 @@ final class OfficialSessionJournalFixtureCatalogTests: XCTestCase {
                 }
             }
 
+            let projectionFrame = replay.repairOpening ?? replay.opening
+            guard case let .snapshot(_, _, _, _, expectedProjections) = projectionFrame else {
+                XCTFail("\(replay.id) must retain a snapshot projection baseline")
+                continue
+            }
+
             let snapshot = try XCTUnwrap(journal.snapshot, replay.id)
             XCTAssertEqual(snapshot.address, replay.address, replay.id)
             XCTAssertEqual(snapshot.openingCut.rawValue, replay.expected.openingCut, replay.id)
@@ -38,6 +44,7 @@ final class OfficialSessionJournalFixtureCatalogTests: XCTestCase {
             XCTAssertEqual(snapshot.firstSeq?.rawValue, replay.expected.firstSeq, replay.id)
             XCTAssertEqual(snapshot.records.count, replay.expected.recordCount, replay.id)
             XCTAssertEqual(snapshot.hasMore, replay.expected.hasMore, replay.id)
+            XCTAssertEqual(snapshot.projections, expectedProjections, replay.id)
             XCTAssertEqual(snapshot.projections.asOfSeq.rawValue, replay.expected.projectionAsOfSeq, replay.id)
             XCTAssertEqual(snapshot.projections.values.keys.sorted(), replay.expected.projectionKeys.sorted(), replay.id)
             XCTAssertEqual(replayDeduplicatedCount, replay.expected.replayDeduplicatedCount, replay.id)
@@ -76,6 +83,36 @@ final class OfficialSessionJournalFixtureCatalogTests: XCTestCase {
             mode: .continuable
         ))
         XCTAssertNotEqual(snapshot.address, .session(sessionID: "fixture-child"))
+    }
+
+    func testOrdinaryEmptySessionFixtureKeepsMinusOneCut() throws {
+        let fixture = try OfficialSessionJournalFixtureCatalog.load()
+        let replay = try XCTUnwrap(fixture.cases.first { $0.id == "ordinary-empty-session" })
+        guard case let .session(sessionID) = replay.address else {
+            return XCTFail("empty fixture must retain an ordinary Session address")
+        }
+        XCTAssertEqual(sessionID, "fixture-empty")
+
+        guard case let .snapshot(header, cursor, records, hasMore, projections) = replay.opening else {
+            return XCTFail("empty Session fixture must start with a follow snapshot")
+        }
+        XCTAssertEqual(header.id, sessionID)
+        XCTAssertEqual(header.cwd, "<fixture-workspace>")
+        XCTAssertEqual(cursor.rawValue, -1)
+        XCTAssertTrue(records.isEmpty)
+        XCTAssertFalse(hasMore)
+        XCTAssertEqual(projections.asOfSeq.rawValue, -1)
+        XCTAssertTrue(projections.values.isEmpty)
+
+        var journal = SessionJournal()
+        try journal.open(generation: generation, address: replay.address, frame: replay.opening)
+        let snapshot = try XCTUnwrap(journal.snapshot)
+        XCTAssertEqual(snapshot.openingCut.rawValue, -1)
+        XCTAssertEqual(snapshot.appliedThrough.rawValue, -1)
+        XCTAssertNil(snapshot.firstSeq)
+        XCTAssertTrue(snapshot.records.isEmpty)
+        XCTAssertFalse(snapshot.hasMore)
+        XCTAssertEqual(snapshot.projections, projections)
     }
 
     func testReconnectFixtureRepairsThenDeduplicatesReplayedTail() throws {
