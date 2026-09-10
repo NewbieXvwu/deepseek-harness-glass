@@ -8,9 +8,8 @@ on:
       - "README.zh.md"
       - "CONTRIBUTING.md"
       - "TODO.md"
-      - "CONTINUOUS_EXECUTION_PLAN.md"
-      - "notes/**"
-      - "visual-review/**"
+      - "notes/**/*.md"
+      - "visual-review/**/*.md"
       - ".github/workflows/documentation-integrity.yml"
       - "tools/check-markdown-links.py"
   pull_request:
@@ -19,9 +18,8 @@ on:
       - "README.zh.md"
       - "CONTRIBUTING.md"
       - "TODO.md"
-      - "CONTINUOUS_EXECUTION_PLAN.md"
-      - "notes/**"
-      - "visual-review/**"
+      - "notes/**/*.md"
+      - "visual-review/**/*.md"
       - ".github/workflows/documentation-integrity.yml"
       - "tools/check-markdown-links.py"
   workflow_dispatch:
