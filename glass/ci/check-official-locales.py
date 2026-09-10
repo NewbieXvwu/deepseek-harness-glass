@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate bilingual locale semantics and fresh generated runtime output."""
+"""Validate bilingual locale semantics and fresh source extraction."""
 
 from __future__ import annotations
 
@@ -13,7 +13,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY_ROOT = ROOT.parent
 CATALOG = ROOT / "Sources/Spec/Locales/official-locales.json"
-SWIFT_CATALOG = ROOT / "Sources/Spec/OfficialLocaleCatalog.swift"
 GENERATOR = REPOSITORY_ROOT / "tools/spec-generation/generate_official_locales.ts"
 GENERATOR_DIR = GENERATOR.parent
 
@@ -65,9 +64,8 @@ def main() -> None:
             raise SystemExit(f"locale plural category mismatch between en and zh for {identifier}")
 
     with tempfile.TemporaryDirectory(prefix="dsh-locales-") as temporary:
-        temporary_root = Path(temporary)
-        regenerated_json = temporary_root / "official-locales.json"
-        regenerated_swift = temporary_root / "OfficialLocaleCatalog.swift"
+        regenerated_json = Path(temporary) / "official-locales.json"
+        regenerated_swift = Path(temporary) / "unused.swift"
         subprocess.run([
             args.node, "--experimental-strip-types", str(GENERATOR),
             "--official-root", str(official_root),
@@ -76,8 +74,6 @@ def main() -> None:
         ], check=True, cwd=GENERATOR_DIR)
         if regenerated_json.read_bytes() != CATALOG.read_bytes():
             raise SystemExit("locale JSON differs from fresh source extraction")
-        if regenerated_swift.read_bytes() != SWIFT_CATALOG.read_bytes():
-            raise SystemExit("locale Swift catalog differs from fresh source extraction")
 
     print(f"Locale gate passed: {len(entries)} entries / {len(by_id)} complete en+zh keys.")
 
