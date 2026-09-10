@@ -1,33 +1,33 @@
 #!/usr/bin/env python3
-"""Generate the reviewed Ghost Plane structural contract from locked upstream source."""
+"""Generate the Ghost Plane slot contract from upstream client source."""
 
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
-import re
 import subprocess
 from pathlib import Path
 
-SOURCE_PATHS = (
-    "packages/client/ui-conversation/src/client/contract/slots.ts",
-    "packages/client/ui-chat/src/client/contract/slots.ts",
-    "packages/client/ui-conversation/src/client/skeleton/ConversationRoot.tsx",
-    "packages/client/ui-chat/src/client/chat/ChatView.tsx",
-    "packages/client/ui-chat/src/client/chat/ChatNodeSeat.tsx",
-    "packages/client/ui-chat/src/client/chat/AssistantMarkdown.tsx",
-    "packages/client/modules/src/client/manifest.ts",
-    "packages/client/modules/src/index.ts",
-)
 AST_EXTRACTOR = Path(__file__).with_name("extract_ghost_plane_ast.mjs")
-
-
-def sha256(path: Path) -> str:
-    if not path.is_file():
-        raise SystemExit(f"required upstream Ghost Plane contract source is missing: {path}")
-    return "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()
+REQUIRED_SLOTS = {
+    "conversation.session",
+    "conversation.session.header",
+    "conversation.chat.node",
+    "conversation.chat.turnTail",
+    "conversation.details.tool",
+    "conversation.composer",
+}
+REQUIRED_SELECTORS = {
+    "[data-conversation-scroll]",
+    "[data-chat-flow]",
+    "[data-chat-anchor-key]",
+    "[data-chat-flow-key]",
+    "[data-chat-flow-kind]",
+    "[data-streaming]",
+    "[data-phase]",
+    "[data-composer-seat]",
+}
 
 
 def node_binary(root: Path | None = None) -> str:
@@ -43,7 +43,7 @@ def node_binary(root: Path | None = None) -> str:
     return "node"
 
 
-def extract_ast(root: Path) -> tuple[list[dict[str, str]], list[str], dict[str, object]]:
+def extract_ast(root: Path) -> tuple[list[dict[str, str]], list[str]]:
     process = subprocess.run(
         [node_binary(root), str(AST_EXTRACTOR), str(root)],
         check=True,
@@ -53,36 +53,43 @@ def extract_ast(root: Path) -> tuple[list[dict[str, str]], list[str], dict[str, 
     try:
         data = json.loads(process.stdout)
     except json.JSONDecodeError as error:
-        raise SystemExit(f"AST ghost plane extractor emitted invalid JSON: {process.stdout}") from error
-    module_loader = data.get("moduleLoader")
-    if not isinstance(module_loader, dict):
-        raise SystemExit("AST ghost plane extractor emitted no module-loader contract")
-    return data.get("slots", []), data.get("dataSelectors", []), module_loader
+        raise SystemExit(f"Ghost Plane AST extractor emitted invalid JSON: {process.stdout}") from error
+    slots = data.get("slots")
+    selectors = data.get("dataSelectors")
+    if not isinstance(slots, list) or not slots:
+        raise SystemExit("upstream SlotMap extraction produced no slots")
+    if not isinstance(selectors, list):
+        raise SystemExit("upstream Ghost Plane AST extraction produced no DOM selectors")
+    return slots, selectors
 
 
-def build(root: Path, source_commit: str) -> dict[str, object]:
-    slots, ast_data_selectors, module_loader = extract_ast(root)
-    if not slots:
-        raise SystemExit("official SlotMap extraction produced no slots")
-    required_slot_names = {
-        "conversation.session", "conversation.session.header", "conversation.chat.node",
-        "conversation.chat.turnTail", "conversation.details.tool", "conversation.composer",
-    }
-    actual_slot_names = {slot["name"] for slot in slots}
-    missing_slots = required_slot_names - actual_slot_names
+def slot_anchor(name: str) -> str:
+    if name == "conversation.session":
+        return "conversation"
+    if name.startswith("conversation.session.header"):
+        return "header"
+    if name.startswith("conversation.hero."):
+        return "hero"
+    if name.startswith("conversation.chat.") or name == "conversation.message.images":
+        return "chat"
+    if name.startswith("conversation.composer") or name.startswith("conversation.input."):
+        return "composer"
+    if name == "conversation.details.tool":
+        return "details"
+    if name == "conversation.view":
+        return "managed-view"
+    raise SystemExit(f"unclassified Ghost Plane slot anchor: {name}")
+
+
+def build(root: Path) -> dict[str, object]:
+    slots, selectors = extract_ast(root)
+    names = {slot.get("name") for slot in slots if isinstance(slot, dict)}
+    missing_slots = REQUIRED_SLOTS - names
     if missing_slots:
-        raise SystemExit("official SlotMap lacks required Ghost Plane seats: " + ", ".join(sorted(missing_slots)))
-
-    data_selectors = set(ast_data_selectors)
-    required_data_selectors = {
-        "[data-conversation-scroll]", "[data-chat-flow]", "[data-chat-anchor-key]",
-        "[data-chat-flow-key]", "[data-chat-flow-kind]", "[data-streaming]",
-        "[data-phase]", "[data-composer-seat]",
-    }
-    missing_selectors = required_data_selectors - data_selectors
+        raise SystemExit("upstream SlotMap lacks required Ghost Plane seats: " + ", ".join(sorted(missing_slots)))
+    missing_selectors = REQUIRED_SELECTORS - set(selectors)
     if missing_selectors:
-        raise SystemExit("official conversation DOM lacks required anchors: " + ", ".join(sorted(missing_selectors)))
-    selectors = sorted(required_data_selectors)
+        raise SystemExit("upstream conversation DOM lacks required anchors: " + ", ".join(sorted(missing_selectors)))
 
     red_slots = {
         "conversation.session",
@@ -91,77 +98,27 @@ def build(root: Path, source_commit: str) -> dict[str, object]:
         "conversation.composer",
     }
     managed_slots = {"conversation.view"}
-
-    def slot_anchor(name: str) -> str:
-        if name == "conversation.session":
-            return "conversation"
-        if name.startswith("conversation.session.header"):
-            return "header"
-        if name.startswith("conversation.hero."):
-            return "hero"
-        if name.startswith("conversation.chat.") or name == "conversation.message.images":
-            return "chat"
-        if name.startswith("conversation.composer") or name.startswith("conversation.input."):
-            return "composer"
-        if name == "conversation.details.tool":
-            return "details"
-        if name == "conversation.view":
-            return "managed-view"
-        raise SystemExit(f"unclassified official Ghost Plane slot anchor: {name}")
-
-    reviewed_slots = []
+    reviewed_slots: list[dict[str, str]] = []
     for slot in slots:
-        name = slot["name"]
+        if not isinstance(slot, dict):
+            raise SystemExit("upstream SlotMap contains a malformed entry")
+        name = slot.get("name")
+        if not isinstance(name, str):
+            raise SystemExit("upstream SlotMap entry has no name")
         reviewed_slots.append({
             **slot,
             "anchor": slot_anchor(name),
             "zone": "red" if name in red_slots else "managed" if name in managed_slots else "green",
         })
-
-    expected_module_loader = {
-        "bootGlobal": "__DSH_BOOT__",
-        "registrationGlobal": "__ModuleLoader__",
-        "registrationMethod": "load",
-        "comboRouteTemplate": "/plugins/??${resources}&rev=${rev}",
-        "bootBatchPhases": ["bootstrap", "application"],
-        "initialURLFromBatches": True,
-        "factoryRegistration": True,
-    }
-    if module_loader != expected_module_loader:
-        raise SystemExit("official module-loader AST contract drifted from reviewed rc.1 semantics")
-
-    route = str(module_loader["comboRouteTemplate"])
-    single_resource = route.replace("${resources}", "<id>/client.js").replace("${rev}", "<rev>")
-    combo_resource = route.replace("${resources}", "<id1>/client.js,<id2>/client.js").replace("${rev}", "<rev>")
-
-    return {
-        "schemaVersion": 1,
-        "sourceCommit": source_commit,
-        "sources": [{"path": relative, "sha256": sha256(root / relative)} for relative in SOURCE_PATHS],
-        "selectors": selectors,
-        "slots": sorted(reviewed_slots, key=lambda slot: slot["name"]),
-        "moduleLoader": {
-            "bootGlobal": module_loader["bootGlobal"],
-            "registrationGlobal": module_loader["registrationGlobal"],
-            "registrationMethod": module_loader["registrationMethod"],
-            "singleResourcePathTemplate": single_resource,
-            "comboPathTemplate": combo_resource,
-            "bootBatchPhases": module_loader["bootBatchPhases"],
-            "initialURLFromBatches": module_loader["initialURLFromBatches"],
-            "factoryRegistration": module_loader["factoryRegistration"],
-        },
-    }
+    return {"schemaVersion": 1, "slots": sorted(reviewed_slots, key=lambda slot: slot["name"])}
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--official-root", required=True, type=Path)
-    parser.add_argument("--source-commit", required=True)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
-    if not re.fullmatch(r"[0-9a-f]{40}", args.source_commit):
-        raise SystemExit("source commit must be a 40-character lowercase SHA")
-    result = build(args.official_root, args.source_commit)
+    result = build(args.official_root.resolve())
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
