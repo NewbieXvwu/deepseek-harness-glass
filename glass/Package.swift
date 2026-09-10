@@ -21,8 +21,6 @@ let package = Package(
             name: "GlassSpec",
             path: "Sources/Spec",
             exclude: [
-                "OfficialUISpec/official-assets.json",
-                "OfficialUISpec/official-ui-catalog.rc2-historical.json",
                 "Tokens/official-theme-tokens.json",
             ],
             resources: [

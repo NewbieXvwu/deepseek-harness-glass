@@ -1,26 +1,13 @@
 #!/usr/bin/env python3
-"""Fresh-extract the registered official SVG assets from the locked rc.1 TSX tree.
-
-The checked manifest is generated from the same run as the SVG bytes. Every
-entry records the upstream source hash, AST selector, and deterministic
-transform, so additions, removals, or source drift are visible in review.
-Generated SVG bytes are byte-compared by the provenance gate, so output drift
-fails closed in CI.
-"""
+"""Extract the SVG assets used by Glass from a supplied Harness source tree."""
 from __future__ import annotations
 
 import argparse
-import hashlib
-import json
 import os
 import subprocess
 import textwrap
 from dataclasses import dataclass
 from pathlib import Path
-
-EXPECTED_COMMIT = "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
-GENERATOR_NAME = "generate_official_assets.py"
-GENERATOR_VERSION = "1.0.0"
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 ICON_EXTRACTOR = PROJECT_ROOT / "tools/spec-generation/extract_official_icon_ast.mjs"
@@ -86,18 +73,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--official-root", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
-    parser.add_argument("--manifest-output", type=Path, required=True)
     parser.add_argument("--node", default=os.environ.get("DSH_NODE") or os.environ.get("NODE") or "node")
     return parser.parse_args()
-
-
-def git_blob_sha1(data: bytes) -> str:
-    payload = b"blob " + str(len(data)).encode("ascii") + b"\0" + data
-    return hashlib.sha1(payload).hexdigest()
-
-
-def git(root: Path, *arguments: str) -> str:
-    return subprocess.check_output(["git", "-C", str(root), *arguments], text=True).strip()
 
 
 def run_node(node: str, script: Path, *arguments: str) -> str:
@@ -114,13 +91,12 @@ def run_node(node: str, script: Path, *arguments: str) -> str:
     return completed.stdout
 
 
-def component_inner(node: str, official_root: Path, source: Path, component: str) -> str:
-    output = run_node(node, ICON_EXTRACTOR, str(official_root), str(source), component, "--inner")
-    return output.rstrip("\n")
+def component_inner(node: str, source_root: Path, source: Path, component: str) -> str:
+    return run_node(node, ICON_EXTRACTOR, str(source_root), str(source), component, "--inner").rstrip("\n")
 
 
-def component_svg(node: str, official_root: Path, source: Path, component: str, fill: str) -> bytes:
-    output = run_node(node, ICON_EXTRACTOR, str(official_root), str(source), component, fill)
+def component_svg(node: str, source_root: Path, source: Path, component: str, fill: str) -> bytes:
+    output = run_node(node, ICON_EXTRACTOR, str(source_root), str(source), component, fill)
     return (output.rstrip("\n") + "\n").encode("utf-8")
 
 
@@ -144,16 +120,16 @@ def wrapped_inner(kind: str, inner: str, fill: str | None) -> bytes:
     return f"{root}\n{body}\n</svg>\n".encode("utf-8")
 
 
-def extract(recipe: Recipe, node: str, official_root: Path) -> bytes:
-    source = official_root / recipe.source
+def extract(recipe: Recipe, node: str, source_root: Path) -> bytes:
+    source = source_root / recipe.source
     if not source.is_file():
-        raise SystemExit(f"official asset source is missing: {recipe.source}")
+        raise SystemExit(f"asset source is missing: {recipe.source}")
     if recipe.kind == "component-svg":
         if recipe.fill is None:
             raise AssertionError("component SVG requires a fill")
-        return component_svg(node, official_root, source, recipe.selector, recipe.fill)
+        return component_svg(node, source_root, source, recipe.selector, recipe.fill)
     if recipe.kind == "component-inner":
-        inner = component_inner(node, official_root, source, recipe.selector)
+        inner = component_inner(node, source_root, source, recipe.selector)
         if recipe.name == "brand-wordmark":
             return wrapped_inner("brand-wordmark", inner, recipe.fill)
         if recipe.name == "fish":
@@ -163,101 +139,21 @@ def extract(recipe: Recipe, node: str, official_root: Path) -> bytes:
         map_name, separator, key = recipe.selector.partition(":")
         if not separator:
             raise AssertionError("map selector must be MAP:KEY")
-        output = run_node(node, MAP_EXTRACTOR, str(official_root), str(source), map_name, key)
+        output = run_node(node, MAP_EXTRACTOR, str(source_root), str(source), map_name, key)
         return (output.rstrip("\n") + "\n").encode("utf-8")
     raise AssertionError(f"unknown extraction kind: {recipe.kind}")
 
 
-def transform_record(recipe: Recipe) -> dict[str, object] | None:
-    if recipe.name == "brand-wordmark":
-        return {
-            "root": {"width": 182, "height": 24, "viewBox": "0 0 182 24", "fill": "none"},
-            "fills": {
-                "currentColor": "#0F1115",
-                "var(--dsw-alias-label-primary-inverted)": "#FFFFFF",
-            },
-        }
-    if recipe.name in {"fish-logo", "fish"}:
-        root: dict[str, object] = {"width": 23.16, "height": 17.04, "viewBox": "0 0 23.16 17.04"}
-        if recipe.name == "fish-logo":
-            root["fill"] = "none"
-        return {"root": root, "currentColor": recipe.fill}
-    if recipe.fill is not None:
-        return {"currentColor": recipe.fill}
-    return None
-
-
 def main() -> None:
     args = parse_args()
-    official_root = args.official_root.resolve()
+    source_root = args.official_root.resolve()
     output_dir = args.output_dir.resolve()
-    manifest_output = args.manifest_output.resolve()
-    if git(official_root, "rev-parse", "HEAD") != EXPECTED_COMMIT:
-        raise SystemExit(f"official root must be locked to {EXPECTED_COMMIT}")
-
     output_dir.mkdir(parents=True, exist_ok=True)
-    manifest_output.parent.mkdir(parents=True, exist_ok=True)
 
-    source_paths = sorted({recipe.source for recipe in RECIPES})
-    source_records: dict[str, dict[str, str]] = {}
-    input_digest = hashlib.sha256()
-    for relative_path in source_paths:
-        data = (official_root / relative_path).read_bytes()
-        blob_hash = git_blob_sha1(data)
-        input_digest.update(relative_path.encode("utf-8"))
-        input_digest.update(b"\0")
-        input_digest.update(blob_hash.encode("ascii"))
-        source_records[relative_path] = {"gitBlobSha1": blob_hash}
-
-    asset_set_digest = hashlib.sha256()
-    entries = []
     for recipe in RECIPES:
-        data = extract(recipe, args.node, official_root)
-        target = output_dir / f"{recipe.name}.svg"
-        target.write_bytes(data)
-        source_hash = source_records[recipe.source]["gitBlobSha1"]
-        entry = {
-            "name": recipe.name,
-            "file": f"{recipe.name}.svg",
-            "source": {
-                "path": recipe.source,
-                **source_records[recipe.source],
-                "commit": EXPECTED_COMMIT,
-            },
-            "astSelector": {
-                "kind": recipe.kind,
-                "value": recipe.selector,
-            },
-        }
-        transform = transform_record(recipe)
-        if transform is not None:
-            entry["transform"] = transform
-        revision_record = {
-            "name": recipe.name,
-            "file": entry["file"],
-            "sourcePath": recipe.source,
-            "sourceGitBlobSha1": source_hash,
-            "astSelector": entry["astSelector"],
-            "transform": transform,
-        }
-        asset_set_digest.update(json.dumps(revision_record, sort_keys=True, separators=(",", ":")).encode("utf-8"))
-        asset_set_digest.update(b"\n")
-        entries.append(entry)
+        (output_dir / f"{recipe.name}.svg").write_bytes(extract(recipe, args.node, source_root))
 
-    manifest = {
-        "schemaVersion": 1,
-        "sourceCommit": EXPECTED_COMMIT,
-        "sourceInputRevision": f"sha256:{input_digest.hexdigest()}",
-        "assetSetRevision": f"sha256:{asset_set_digest.hexdigest()}",
-        "generatedAt": git(official_root, "show", "-s", "--format=%cI", EXPECTED_COMMIT),
-        "generator": {"name": GENERATOR_NAME, "version": GENERATOR_VERSION},
-        "assets": entries,
-    }
-    manifest_output.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    print(
-        f"Generated {len(entries)} official SVG assets from {len(source_records)} rc.1 TSX sources; "
-        f"asset set revision {manifest['assetSetRevision']}."
-    )
+    print(f"Generated {len(RECIPES)} SVG assets from the supplied Harness source tree.")
 
 
 if __name__ == "__main__":
