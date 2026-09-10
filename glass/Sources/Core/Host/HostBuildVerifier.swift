@@ -32,6 +32,20 @@ enum HostBuildVerification: Equatable, Sendable {
     case unsupported(reason: String)
 }
 
+/// Pre-connection facts for one launch candidate. Keeping the package versions
+/// here lets the controller validate a runnable local payload before launch while
+/// deferring compatibility classification until authenticated Remote readiness.
+struct HostBuildCandidate: Equatable, Sendable {
+    let build: SupportedHostBuildCatalog.Build
+    let dshVersion: String?
+    let webFrontendVersion: String?
+}
+
+enum HostBuildPreparation: Equatable, Sendable {
+    case candidate(HostBuildCandidate)
+    case unsupported(reason: String)
+}
+
 struct HostBuildVerifier: Sendable {
     private struct PackageManifest: Decodable {
         let version: String
@@ -52,7 +66,11 @@ struct HostBuildVerifier: Sendable {
         return try HostBuildVerifier(catalog: decoder.decode(SupportedHostBuildCatalog.self, from: Data(contentsOf: url)))
     }
 
-    func verify(runtime: HostRuntimeConfiguration, fileManager: FileManager = .default) -> HostBuildVerification {
+    /// Performs only checks that can be known before a Host is contacted: the
+    /// bundled runtime must be launchable and the selected catalog entry must be
+    /// structurally valid. Package versions are captured as candidate facts but
+    /// do not become a compatibility decision here.
+    func prepare(runtime: HostRuntimeConfiguration, fileManager: FileManager = .default) -> HostBuildPreparation {
         guard fileManager.isExecutableFile(atPath: runtime.nodeExecutable.path) else {
             return .unsupported(reason: "Bundled Node runtime is missing or not executable.")
         }
@@ -62,6 +80,10 @@ struct HostBuildVerifier: Sendable {
         guard let build = catalog.builds.first(where: { $0.id == catalog.defaultBuildId }) else {
             return .unsupported(reason: "The bundled Host catalog has no default build.")
         }
+        if let reason = classifier.catalogValidationError(for: build) {
+            return .unsupported(reason: reason)
+        }
+
         let dshPackageRoot = runtime.dshEntrypoint
             .deletingLastPathComponent() // lib
             .deletingLastPathComponent() // @deepseek-ai/dsh
@@ -72,11 +94,33 @@ struct HostBuildVerifier: Sendable {
         let webManifestURL = nodeModulesRoot
             .appendingPathComponent("@deepseek-ai/dsh-web-frontend/package.json")
 
-        return classifier.classify(
+        return .candidate(HostBuildCandidate(
             build: build,
             dshVersion: packageVersion(at: dshManifestURL),
             webFrontendVersion: packageVersion(at: webManifestURL)
+        ))
+    }
+
+    /// Called only after the rc.1 authentication and Remote-ready handshake have
+    /// succeeded. The same entry point is reusable by an external Attach/Adopt
+    /// path when it can supply package facts from that installation.
+    func classify(candidate: HostBuildCandidate) -> HostBuildVerification {
+        classifier.classify(
+            build: candidate.build,
+            dshVersion: candidate.dshVersion,
+            webFrontendVersion: candidate.webFrontendVersion
         )
+    }
+
+    /// Compatibility shim for focused verifier tests and non-lifecycle callers.
+    /// Lifecycle code must use `prepare` followed by post-handshake `classify`.
+    func verify(runtime: HostRuntimeConfiguration, fileManager: FileManager = .default) -> HostBuildVerification {
+        switch prepare(runtime: runtime, fileManager: fileManager) {
+        case let .candidate(candidate):
+            return classify(candidate: candidate)
+        case let .unsupported(reason):
+            return .unsupported(reason: reason)
+        }
     }
 
     private func packageVersion(at url: URL) -> String? {
