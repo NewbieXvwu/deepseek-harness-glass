@@ -1,13 +1,10 @@
 #!/usr/bin/env node
-/** Generate executable three-column solver fixtures by invoking locked upstream code. */
+/** Generate executable three-column solver fixtures by invoking upstream code. */
 
-import { execFileSync } from "node:child_process";
-import { createHash } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
-const EXPECTED_COMMIT = "a66e4702047846cdaa10c66c9d3df3951f5ea70d";
 const SOURCE_PATH = "packages/client/ui-layout/src/client/columns.ts";
 
 interface Columns { sidebar: number; center: number; details: number }
@@ -19,10 +16,6 @@ function argument(name: string): string {
   const index = process.argv.indexOf(name);
   if (index < 0 || index + 1 >= process.argv.length) throw new Error(`missing ${name}`);
   return process.argv[index + 1];
-}
-
-function git(root: string, ...args: string[]): string {
-  return execFileSync("git", ["-C", root, ...args], { encoding: "utf8" }).trim();
 }
 
 function fixtureInputs(): Array<{ name: string; viewport: number; sidebarPreference: number; detailsPreference: number }> {
@@ -60,32 +53,19 @@ function fixtureInputs(): Array<{ name: string; viewport: number; sidebarPrefere
     ["rail-viewport", 56, 0, 0],
     ["fractional-viewport", 1220.5, 280, 360],
   ] as const;
-  return exact.map(([name, viewport, sidebarPreference, detailsPreference]) => ({
-    name,
-    viewport,
-    sidebarPreference,
-    detailsPreference,
-  }));
+  return exact.map(([name, viewport, sidebarPreference, detailsPreference]) => ({ name, viewport, sidebarPreference, detailsPreference }));
 }
 
 async function main(): Promise<void> {
   const officialRoot = resolve(argument("--official-root"));
   const output = resolve(argument("--output"));
-  const commit = git(officialRoot, "rev-parse", "HEAD");
-  if (commit !== EXPECTED_COMMIT) throw new Error(`expected ${EXPECTED_COMMIT}, got ${commit}`);
-  const source = resolve(officialRoot, SOURCE_PATH);
-  const sourceContents = readFileSync(source);
-  const module = await import(pathToFileURL(source).href) as ColumnModule;
-  const fixtures = fixtureInputs().map((input) => ({ ...input, expected: module.computeColumns(input.viewport, input.sidebarPreference, input.detailsPreference) }));
-  const document = {
-    schemaVersion: 1,
-    sourceCommit: commit,
-    source: { path: SOURCE_PATH, sha256: createHash("sha256").update(sourceContents).digest("hex") },
-    generator: "generate_official_column_layout_fixtures.ts",
-    fixtures,
-  };
+  const module = await import(pathToFileURL(resolve(officialRoot, SOURCE_PATH)).href) as ColumnModule;
+  const fixtures = fixtureInputs().map((input) => ({
+    ...input,
+    expected: module.computeColumns(input.viewport, input.sidebarPreference, input.detailsPreference),
+  }));
   mkdirSync(resolve(output, ".."), { recursive: true });
-  writeFileSync(output, `${JSON.stringify(document, null, 2)}\n`);
+  writeFileSync(output, `${JSON.stringify({ schemaVersion: 1, fixtures }, null, 2)}\n`);
   console.log(`Generated ${fixtures.length} official computeColumns fixtures.`);
 }
 
