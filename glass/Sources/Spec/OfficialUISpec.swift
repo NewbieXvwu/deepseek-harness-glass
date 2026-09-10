@@ -3,13 +3,6 @@ import SwiftUI
 /// 已锁定 DeepSeek Harness WebUI 基线的原生规格。
 /// 首屏文本、token 和布局值只来自该基线的 locale/CSS/组件源码，禁止由 View 自行创造产品文案。
 enum OfficialUISpec {
-    static let deepSeekHarnessCommit = Build.sourceCommit
-    static let hostBuildID = Build.id
-    /// Source: rc.1 `SidebarRoot.tsx` uses `DSH_CLIENT_COMMIT_HASH` in its
-    /// fallback brand slot. The native fixed-build client projects the same
-    /// locked source revision rather than accepting runtime-provided copy.
-    static var sidebarBuildRevision: String { String(Build.sourceCommit.prefix(7)) }
-
     enum Layout {
         // Source: packages/client/ui-layout/src/client/columns.ts
         static let sidebarDefault: CGFloat = 280
