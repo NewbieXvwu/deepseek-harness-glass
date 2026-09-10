@@ -10,6 +10,7 @@ import Foundation
 @MainActor
 final class HostLifecycleCoordinator {
     private var hostController: HarnessHostController?
+    private var externalHostController: ExternalHarnessHostController?
     private var observation: AnyCancellable?
     private let onState: (HostLifecycleState) -> Void
 
@@ -18,11 +19,11 @@ final class HostLifecycleCoordinator {
     }
 
     func start() {
-        guard hostController == nil else { return }
+        guard hostController == nil, externalHostController == nil else { return }
         do {
             let controller = try HarnessHostController()
             hostController = controller
-            observation = controller.$state.sink { [onState] state in onState(state) }
+            observe(controller.$state)
             controller.start()
         } catch {
             onState(.failed(HostFailure(
@@ -32,6 +33,14 @@ final class HostLifecycleCoordinator {
                 logPath: ""
             )))
         }
+    }
+
+    func attachExternalHost(launchURL: URL) {
+        stop()
+        let controller = ExternalHarnessHostController()
+        externalHostController = controller
+        observe(controller.$state)
+        controller.attach(launchURL: launchURL)
     }
 
     func restart() {
@@ -44,5 +53,11 @@ final class HostLifecycleCoordinator {
         observation = nil
         hostController?.stop()
         hostController = nil
+        externalHostController?.stop()
+        externalHostController = nil
+    }
+
+    private func observe(_ publisher: Published<HostLifecycleState>.Publisher) {
+        observation = publisher.sink { [onState] state in onState(state) }
     }
 }
