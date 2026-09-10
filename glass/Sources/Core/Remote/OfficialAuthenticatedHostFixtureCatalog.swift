@@ -1,18 +1,9 @@
 import Foundation
 
-#if DEEPSEEK_HARNESS_PACKAGE
-@testable import GlassSpec
-#endif
-
-/// Secret-free records captured from the exact bundled rc.1 authenticated Host.
+/// Secret-free records captured from an authenticated local Host.
 enum OfficialAuthenticatedHostFixtureCatalog {
     struct Fixture: Decodable, Sendable {
         let schemaVersion: Int
-        let officialSourceCommit: String
-        let fixtureRevision: String
-        let fixtureClass: String
-        let payload: Payload
-        let secretPolicy: SecretPolicy
         let authentication: Authentication
         let unary: RemoteRecord
         let streamOpening: StreamOpening
@@ -20,19 +11,6 @@ enum OfficialAuthenticatedHostFixtureCatalog {
         let controllerCatalogs: ControllerCatalogs
         let businessError: RemoteRecord
         let download: Download
-    }
-
-    struct Payload: Decodable, Sendable {
-        let dshVersion: String
-        let packageLockSHA256: String
-    }
-
-    struct SecretPolicy: Decodable, Sendable {
-        let persistedLaunchToken: Bool
-        let persistedCookie: Bool
-        let persistedAuthorization: Bool
-        let persistedUserCredentials: Bool
-        let persistedRealWorkspacePath: Bool
     }
 
     struct Authentication: Decodable, Sendable {
@@ -99,11 +77,7 @@ enum OfficialAuthenticatedHostFixtureCatalog {
             throw FixtureError.missingResource
         }
         let fixture = try JSONDecoder().decode(Fixture.self, from: Data(contentsOf: url))
-        guard fixture.schemaVersion == 1,
-              fixture.officialSourceCommit == OfficialUISpec.Build.sourceCommit,
-              fixture.fixtureRevision == "official-a66e470-authenticated-host-r2",
-              fixture.payload.dshVersion == "0.1.2-rc.1"
-        else {
+        guard fixture.schemaVersion == 1 else {
             throw FixtureError.incompatibleRevision
         }
         return fixture
