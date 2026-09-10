@@ -4,7 +4,6 @@ struct HostFailure: Equatable, Sendable, LocalizedError {
     enum Kind: String, Sendable {
         case missingNodeRuntime
         case missingPayload
-        case invalidBundledBaseline
         case launchFailed
         case endpointNotAnnounced
         case verificationFailed

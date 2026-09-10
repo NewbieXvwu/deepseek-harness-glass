@@ -1,9 +1,6 @@
 import Combine
 import Foundation
 
-#if DEEPSEEK_HARNESS_PACKAGE
-@testable import GlassSpec
-#endif
 /// Main-actor owner for the bundled local DeepSeek Harness Host. It deliberately
 /// exposes a lifecycle state rather than a Web URL because the native app uses
 /// authenticated Remote transport, not an embedded browser surface.
@@ -26,7 +23,6 @@ final class HarnessHostController: ObservableObject {
     @Published private(set) var stateTransitions: [HostLifecycleTransition] = []
 
     private let runtime: HostRuntimeConfiguration
-    private let verifier: HostBuildVerifier
     private let fileManager: FileManager
     private let diagnostics: HostDiagnosticRecorder
     private var authenticatedHost: AuthenticatedHostSession?
@@ -50,19 +46,17 @@ final class HarnessHostController: ObservableObject {
 
     init(
         runtime: HostRuntimeConfiguration,
-        verifier: HostBuildVerifier,
         fileManager: FileManager = .default,
         startupTimeoutNanoseconds: UInt64 = 20_000_000_000
     ) {
         self.runtime = runtime
-        self.verifier = verifier
         self.fileManager = fileManager
         self.diagnostics = HostDiagnosticRecorder(dshHome: runtime.homeDirectory.path)
         self.startupTimeoutNanoseconds = startupTimeoutNanoseconds
     }
 
     convenience init() throws {
-        try self.init(runtime: .bundled(), verifier: .bundled())
+        try self.init(runtime: .bundled())
     }
 
     deinit {
@@ -89,33 +83,7 @@ final class HarnessHostController: ObservableObject {
             appendLog("[host] start reused existing owned process pid=\(process?.processIdentifier ?? 0)")
             return
         }
-        let preparation = verifier.prepare(runtime: runtime, fileManager: fileManager)
-        switch preparation {
-        case let .unsupported(reason):
-            state = .failed(HostFailure(
-                kind: .invalidBundledBaseline,
-                message: reason,
-                exitStatus: nil,
-                logPath: runtime.logFile.path
-            ))
-            return
-        case let .candidate(candidate):
-            let build = candidate.build
-            guard OfficialUISpec.Build.isCompatible(with: build.id),
-                  build.officialSourceCommit == OfficialUISpec.Build.sourceCommit,
-                  build.uiSpecRevision == OfficialUISpec.Build.uiSpecRevision
-            else {
-                state = .failed(HostFailure(
-                    kind: .invalidBundledBaseline,
-                    message: "Bundled Host build does not match the generated Official UI specification.",
-                    exitStatus: nil,
-                    logPath: runtime.logFile.path
-                ))
-                return
-            }
-            appendLog("[host] prepared build candidate=\(build.id); compatibility deferred until authenticated Remote readiness")
-            launch(candidate: candidate)
-        }
+        launch()
     }
 
     func retryOnce() {
@@ -153,8 +121,7 @@ final class HarnessHostController: ObservableObject {
         }
     }
 
-    private func launch(candidate: HostBuildCandidate) {
-        let build = candidate.build
+    private func launch() {
         guard fileManager.isExecutableFile(atPath: runtime.nodeExecutable.path) else {
             state = .failed(HostFailure(
                 kind: .missingNodeRuntime,
@@ -200,7 +167,7 @@ final class HarnessHostController: ObservableObject {
             let data = handle.availableData
             guard !data.isEmpty else { return }
             let text = String(decoding: data, as: UTF8.self)
-            Task { @MainActor [weak self] in self?.consumeHostOutput(text, candidate: candidate) }
+            Task { @MainActor [weak self] in self?.consumeHostOutput(text) }
         }
         process.terminationHandler = { [weak self] terminated in
             Task { @MainActor [weak self] in self?.handleTermination(terminated) }
@@ -210,7 +177,7 @@ final class HarnessHostController: ObservableObject {
             try process.run()
             self.process = process
             self.outputPipe = pipe
-            appendLog("[host] started build=\(build.id) pid=\(process.processIdentifier)")
+            appendLog("[host] started pid=\(process.processIdentifier)")
             armStartupTimeout(for: process)
         } catch {
             pipe.fileHandleForReading.readabilityHandler = nil
@@ -223,7 +190,7 @@ final class HarnessHostController: ObservableObject {
         }
     }
 
-    private func consumeHostOutput(_ text: String, candidate: HostBuildCandidate) {
+    private func consumeHostOutput(_ text: String) {
         appendLog(text)
         let previousUTF16Length = (announcedOutput as NSString).length
         announcedOutput += text
@@ -249,7 +216,7 @@ final class HarnessHostController: ObservableObject {
         } catch {
             state = .failed(HostFailure(
                 kind: .verificationFailed,
-                message: "DeepSeek Harness Host announced an invalid rc.1 launch URL.",
+                message: "DeepSeek Harness Host announced an invalid launch URL.",
                 exitStatus: nil,
                 logPath: runtime.logFile.path
             ))
@@ -260,7 +227,7 @@ final class HarnessHostController: ObservableObject {
         startupTimeoutTask?.cancel()
         startupTimeoutTask = nil
         state = .authenticating(descriptor.cleanBaseURL)
-        verify(descriptor: descriptor, candidate: candidate)
+        verify(descriptor: descriptor)
     }
 
     /// Parses only the bounded append window selected by `consumeHostOutput`.
@@ -281,10 +248,7 @@ final class HarnessHostController: ObservableObject {
         return endpoint
     }
 
-    private func verify(
-        descriptor: HostLaunchDescriptor,
-        candidate: HostBuildCandidate
-    ) {
+    private func verify(descriptor: HostLaunchDescriptor) {
         verificationTask?.cancel()
         verificationTask = Task { [weak self] in
             do {
@@ -305,27 +269,10 @@ final class HarnessHostController: ObservableObject {
                     await remote.closeStreams()
                     return
                 }
-
-                // Reaching this point means the process-token bootstrap and rc.1
-                // `$events` ready handshake both succeeded. Package/version facts
-                // become a compatibility guarantee only now.
-                self.state = .classifying(authenticatedHost.baseURL)
-                let verification = self.verifier.classify(candidate: candidate)
-                let compatibility: HostCompatibility
-                switch verification {
-                case .verified:
-                    compatibility = .verified
-                case let .bestEffort(_, reason):
-                    compatibility = .bestEffort(reason: reason)
-                case let .unsupported(reason):
-                    throw HostBuildClassificationError.unsupportedAfterHandshake(reason)
-                }
                 await self.publishReady(
                     authenticatedHost: authenticatedHost,
                     remote: remote,
-                    events: events,
-                    build: candidate.build,
-                    compatibility: compatibility
+                    events: events
                 )
             } catch {
                 guard !Task.isCancelled else { return }
@@ -344,9 +291,7 @@ final class HarnessHostController: ObservableObject {
     private func publishReady(
         authenticatedHost: AuthenticatedHostSession,
         remote: RemoteConnection,
-        events: RemoteEventChannel,
-        build: SupportedHostBuildCatalog.Build,
-        compatibility: HostCompatibility
+        events: RemoteEventChannel
     ) async {
         guard let activeHost = self.authenticatedHost,
               activeHost.urlSession === authenticatedHost.urlSession,
@@ -361,8 +306,6 @@ final class HarnessHostController: ObservableObject {
         restartAfterTermination = false
         let endpoint = authenticatedHost.baseURL
         await diagnostics.recordConnected(
-            build: build,
-            compatibility: compatibility,
             endpoint: endpoint,
             pid: process?.processIdentifier,
             generation: events.generation
@@ -371,19 +314,16 @@ final class HarnessHostController: ObservableObject {
             authenticatedHost: authenticatedHost,
             remote: remote,
             events: events,
-            compatibility: compatibility,
             diagnostics: diagnostics
         )
         let connection = HostConnection(
             endpoint: endpoint,
-            build: build,
-            compatibility: compatibility,
             context: context,
             startedAt: Date(),
             diagnostics: diagnostics
         )
         state = .ready(connection)
-        appendLog("[host] remote ready endpoint=\(endpoint.absoluteString) build=\(build.id) generation=\(events.generation.rawValue)")
+        appendLog("[host] remote ready endpoint=\(endpoint.absoluteString) generation=\(events.generation.rawValue)")
         monitorEventTermination(for: connection)
     }
 
@@ -446,9 +386,7 @@ final class HarnessHostController: ObservableObject {
                     await self.publishReady(
                         authenticatedHost: authenticatedHost,
                         remote: remote,
-                        events: events,
-                        build: connection.build,
-                        compatibility: connection.compatibility
+                        events: events
                     )
                     return
                 } catch {
@@ -595,16 +533,6 @@ final class HarnessHostController: ObservableObject {
         } catch {
             Task { [diagnostics] in await diagnostics.recordRPCError(error) }
             fputs("[HostLog] writeLog failed: \(error.localizedDescription)\n", stderr)
-        }
-    }
-}
-
-private enum HostBuildClassificationError: LocalizedError {
-    case unsupportedAfterHandshake(String)
-
-    var errorDescription: String? {
-        switch self {
-        case let .unsupportedAfterHandshake(reason): return reason
         }
     }
 }

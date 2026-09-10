@@ -11,7 +11,7 @@ final class HarnessHostControllerTests: XCTestCase {
         let environment = ProcessInfo.processInfo.environment
         guard let nodePath = environment["DSH_GLASS_HOST_NODE"],
               let entrypointPath = environment["DSH_GLASS_HOST_ENTRY"] else {
-            throw XCTSkip("T3.1 Host command-line test requires DSH_GLASS_HOST_NODE and DSH_GLASS_HOST_ENTRY")
+            throw XCTSkip("Host command-line test requires DSH_GLASS_HOST_NODE and DSH_GLASS_HOST_ENTRY")
         }
 
         let root = FileManager.default.temporaryDirectory
@@ -25,14 +25,12 @@ final class HarnessHostControllerTests: XCTestCase {
         )
         let controller = HarnessHostController(
             runtime: runtime,
-            verifier: HostBuildVerifier(catalog: Self.fixedCatalog),
             startupTimeoutNanoseconds: 30_000_000_000
         )
         defer { controller.stop() }
 
         controller.start()
         let connection = try await waitForReady(controller, timeout: 30)
-        XCTAssertEqual(connection.buildID, Self.fixedCatalog.defaultBuildId)
         XCTAssertEqual(connection.endpoint.scheme, "http")
         XCTAssertEqual(connection.endpoint.host, "127.0.0.1")
         XCTAssertNotNil(connection.endpoint.port)
@@ -51,6 +49,95 @@ final class HarnessHostControllerTests: XCTestCase {
         XCTAssertNil(controller.ownedProcessIdentifier)
         XCTAssertEqual(kill(firstPID, 0), -1, "stopped Host PID must not remain alive")
         XCTAssertEqual(errno, ESRCH, "stopped Host PID must be absent rather than merely inaccessible")
+    }
+
+    func testLifecycleTransitionsFollowLaunchAuthenticationAndRemoteReadiness() async throws {
+        let environment = ProcessInfo.processInfo.environment
+        guard let nodePath = environment["DSH_GLASS_HOST_NODE"],
+              let entrypointPath = environment["DSH_GLASS_HOST_ENTRY"] else {
+            throw XCTSkip("Host command-line test requires DSH_GLASS_HOST_NODE and DSH_GLASS_HOST_ENTRY")
+        }
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("dsh-glass-transition-test-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let runtime = HostRuntimeConfiguration(
+            nodeExecutable: URL(fileURLWithPath: nodePath),
+            dshEntrypoint: URL(fileURLWithPath: entrypointPath),
+            homeDirectory: root.appendingPathComponent("dsh", isDirectory: true),
+            logFile: root.appendingPathComponent("logs/host.log")
+        )
+        let controller = HarnessHostController(runtime: runtime)
+        defer { controller.stop() }
+        controller.start()
+        _ = try await waitForReady(controller, timeout: 15)
+        controller.stop()
+        try await waitForIdle(controller, timeout: 8)
+
+        XCTAssertEqual(
+            controller.stateTransitions.map(\.summary),
+            ["idle -> starting", "starting -> authenticating", "authenticating -> connecting", "connecting -> ready", "ready -> stopping", "stopping -> idle"]
+        )
+        XCTAssertTrue(controller.recentLogLines.contains(where: { $0.contains("[host] transition") }))
+
+        let failed = HostLifecyclePresentation.make(state: .failed(HostFailure(
+            kind: .verificationFailed,
+            message: "fixture failure",
+            exitStatus: nil,
+            logPath: runtime.logFile.path
+        )))
+        XCTAssertEqual(failed.title, OfficialUISpec.LocaleCatalog.value(namespace: "locale", key: "load.failed", language: "en"))
+        XCTAssertEqual(failed.retryTitle, OfficialUISpec.LocaleCatalog.value(namespace: "locale", key: "retry", language: "en"))
+    }
+
+    func testAnnouncementParserAcceptsBoundedSplitLoopbackEndpointAndRejectsMalformedInput() {
+        let prefix = String(repeating: "x", count: 1_200)
+        let output = prefix + "dsh web: http://127.0.0.1:43123/api\n"
+        let endpoint = HarnessHostController.announcedEndpoint(in: output, fromUTF16Offset: 1_100)
+        XCTAssertEqual(endpoint?.absoluteString, "http://127.0.0.1:43123/api")
+        XCTAssertNil(HarnessHostController.announcedEndpoint(in: "dsh web: https://127.0.0.1:43123", fromUTF16Offset: 0))
+        XCTAssertNil(HarnessHostController.announcedEndpoint(in: "dsh web: http://localhost:43123", fromUTF16Offset: 0))
+        XCTAssertNil(HarnessHostController.announcedEndpoint(in: "dsh web: http://127.0.0.1", fromUTF16Offset: 0))
+        XCTAssertNil(HarnessHostController.announcedEndpoint(in: "dsh web: http://fixture-user@127.0.0.1:43123", fromUTF16Offset: 0))
+        XCTAssertNil(HarnessHostController.announcedEndpoint(in: "dsh web: http://127.0.0.1:0", fromUTF16Offset: 0))
+        XCTAssertNil(HarnessHostController.announcedEndpoint(in: output, fromUTF16Offset: -1))
+    }
+
+    func testDiagnosticsReportRuntimeFactsAndRedactSecrets() async throws {
+        let recorder = HostDiagnosticRecorder(dshHome: "/tmp/diagnostic-home")
+        let endpoint = try XCTUnwrap(URL(string: "http://127.0.0.1:43123"))
+        await recorder.recordConnected(endpoint: endpoint, pid: 4321, generation: .init(rawValue: 7))
+        await recorder.recordRPCError(NSError(
+            domain: "fixture",
+            code: 1,
+            userInfo: [NSLocalizedDescriptionKey: "api_key=top-secret cookie=session-cookie Authorization: Bearer bearer-secret {\"api_key\":\"json-secret\\\"escaped\",\"token\":\"json-token\"}"]
+        ))
+        let snapshot = await recorder.snapshot()
+        XCTAssertEqual(snapshot.port, 43123)
+        XCTAssertEqual(snapshot.dshHome, "/tmp/diagnostic-home")
+        XCTAssertEqual(snapshot.ownedProcessID, 4321)
+        XCTAssertEqual(snapshot.ownership, "owned")
+        XCTAssertEqual(snapshot.remoteGeneration, 7)
+        XCTAssertEqual(snapshot.streamState, "ready")
+        let copy = snapshot.copyableText()
+        for secret in ["top-secret", "session-cookie", "bearer-secret", "json-secret", "json-token"] {
+            XCTAssertFalse(copy.contains(secret), "diagnostic copy must redact \(secret)")
+        }
+        XCTAssertTrue(copy.contains("<redacted>"))
+    }
+
+    func testHostLogRedactorMasksCredentialValuesAndIsIdempotent() {
+        let input = "Authorization: Bearer alpha-token cookie=browser-cookie secret=hidden {\"api_key\":\"json-secret\\\"escaped\",\"password\":\"json-password\"} plain"
+        let redacted = HostLogRedactor.redact(input)
+        for secret in ["alpha-token", "browser-cookie", "hidden", "json-secret", "json-password"] {
+            XCTAssertFalse(redacted.contains(secret), "redactor must remove \(secret)")
+        }
+        XCTAssertTrue(redacted.contains("Bearer <redacted>"))
+        XCTAssertTrue(redacted.contains("cookie=<redacted>"))
+        XCTAssertTrue(redacted.contains("\"api_key\":\"<redacted>\""))
+        XCTAssertTrue(redacted.contains("\"password\":\"<redacted>\""))
+        XCTAssertTrue(redacted.hasSuffix(" plain"))
+        XCTAssertEqual(HostLogRedactor.redact(redacted), redacted)
+        XCTAssertEqual(HostLogRedactor.redact("no credentials here"), "no credentials here")
     }
 
     private func waitForReady(_ controller: HarnessHostController, timeout: TimeInterval) async throws -> HostConnection {
@@ -78,244 +165,4 @@ final class HarnessHostControllerTests: XCTestCase {
     }
 
     private enum HostTestError: Error { case failed, timeout }
-
-    private static let fixedCatalog = SupportedHostBuildCatalog(
-        schemaVersion: 1,
-        defaultBuildId: "dsh-0.1.2-rc.1-official-a66e470",
-        builds: [SupportedHostBuildCatalog.Build(
-            id: "dsh-0.1.2-rc.1-official-a66e470",
-            officialSourceCommit: "a66e4702047846cdaa10c66c9d3df3951f5ea70d",
-            dshPackageVersion: "0.1.2-rc.1",
-            webFrontendPackageVersion: "0.1.2-rc.1",
-            nodeRuntimeVersion: "24.19.0",
-            minimumAppVersion: "0.4.0",
-            minimumMacOS: "26.0",
-            ciRunner: "macos-26",
-            minimumXcodeMajor: 26,
-            protocolFixtureRevision: "official-a66e470-remote-r1",
-            uiSpecRevision: "official-a66e470-ui-spec-r1",
-            supportedArchitectures: ["arm64"],
-            verifiedAt: "2026-08-18",
-            verificationState: "verified"
-        )]
-    )
-}
-
-
-extension HarnessHostControllerTests {
-    func testMismatchedBuildIsUnsupportedAndNeverLaunches() throws {
-        let environment = ProcessInfo.processInfo.environment
-        guard let nodePath = environment["DSH_GLASS_HOST_NODE"],
-              let entrypointPath = environment["DSH_GLASS_HOST_ENTRY"] else {
-            throw XCTSkip("T3.2 Host command-line test requires DSH_GLASS_HOST_NODE and DSH_GLASS_HOST_ENTRY")
-        }
-        let root = FileManager.default.temporaryDirectory
-            .appendingPathComponent("dsh-glass-unsupported-test-\(UUID().uuidString)", isDirectory: true)
-        defer { try? FileManager.default.removeItem(at: root) }
-        let runtime = HostRuntimeConfiguration(
-            nodeExecutable: URL(fileURLWithPath: nodePath),
-            dshEntrypoint: URL(fileURLWithPath: entrypointPath),
-            homeDirectory: root.appendingPathComponent("dsh", isDirectory: true),
-            logFile: root.appendingPathComponent("logs/host.log")
-        )
-        let unknownCatalog = SupportedHostBuildCatalog(
-            schemaVersion: 1,
-            defaultBuildId: "unknown-dsh-build",
-            builds: [SupportedHostBuildCatalog.Build(
-                id: "unknown-dsh-build",
-                officialSourceCommit: "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e",
-                dshPackageVersion: "0.0.0-unreviewed",
-                webFrontendPackageVersion: "0.0.0-unreviewed",
-                nodeRuntimeVersion: "24.19.0",
-                minimumAppVersion: "0.4.0",
-                minimumMacOS: "26.0",
-                ciRunner: "macos-26",
-                minimumXcodeMajor: 26,
-                protocolFixtureRevision: "unknown",
-                uiSpecRevision: "unknown",
-                supportedArchitectures: ["arm64"],
-                verifiedAt: nil,
-                verificationState: "unverified"
-            )]
-        )
-        let verifier = HostBuildVerifier(catalog: unknownCatalog)
-        guard case let .unsupported(reason) = verifier.verify(runtime: runtime) else {
-            XCTFail("mismatched owned payload must be unsupported")
-            return
-        }
-        XCTAssertTrue(reason.contains("commit"))
-
-        let controller = HarnessHostController(runtime: runtime, verifier: verifier)
-        controller.start()
-        guard case let .failed(failure) = controller.state else {
-            XCTFail("unsupported owned payload must fail before launch")
-            return
-        }
-        XCTAssertEqual(failure.kind, .invalidBundledBaseline)
-        XCTAssertEqual(failure.message, reason)
-        XCTAssertNil(controller.ownedProcessIdentifier)
-    }
-}
-
-
-extension HarnessHostControllerTests {
-    func testLifecycleTransitionsAreLoggedAndPresentationUsesOfficialLocale() async throws {
-        let environment = ProcessInfo.processInfo.environment
-        guard let nodePath = environment["DSH_GLASS_HOST_NODE"],
-              let entrypointPath = environment["DSH_GLASS_HOST_ENTRY"] else {
-            throw XCTSkip("T3.3 Host command-line test requires DSH_GLASS_HOST_NODE and DSH_GLASS_HOST_ENTRY")
-        }
-        let root = FileManager.default.temporaryDirectory
-            .appendingPathComponent("dsh-glass-transition-test-\(UUID().uuidString)", isDirectory: true)
-        defer { try? FileManager.default.removeItem(at: root) }
-        let runtime = HostRuntimeConfiguration(
-            nodeExecutable: URL(fileURLWithPath: nodePath),
-            dshEntrypoint: URL(fileURLWithPath: entrypointPath),
-            homeDirectory: root.appendingPathComponent("dsh", isDirectory: true),
-            logFile: root.appendingPathComponent("logs/host.log")
-        )
-        let controller = HarnessHostController(runtime: runtime, verifier: HostBuildVerifier(catalog: Self.fixedCatalog))
-        defer { controller.stop() }
-        controller.start()
-        _ = try await waitForReady(controller, timeout: 15)
-        controller.stop()
-        try await waitForIdle(controller, timeout: 8)
-
-        // Lifecycle order is part of the contract: unordered containment could
-        // pass a state machine that oscillates or skips steps.
-        XCTAssertEqual(
-            controller.stateTransitions.map(\.summary),
-            ["idle -> starting", "starting -> authenticating", "authenticating -> connecting", "connecting -> classifying", "classifying -> ready", "ready -> stopping", "stopping -> idle"]
-        )
-        XCTAssertTrue(controller.recentLogLines.contains(where: { $0.contains("[host] transition") }))
-
-        let failed = HostLifecyclePresentation.make(state: .failed(HostFailure(
-            kind: .verificationFailed,
-            message: "fixture failure",
-            exitStatus: nil,
-            logPath: runtime.logFile.path
-        )))
-        XCTAssertEqual(failed.title, OfficialUISpec.LocaleCatalog.value(namespace: "locale", key: "load.failed", language: "en"))
-        XCTAssertEqual(failed.retryTitle, OfficialUISpec.LocaleCatalog.value(namespace: "locale", key: "retry", language: "en"))
-    }
-}
-
-
-extension HarnessHostControllerTests {
-    func testAnnouncementParserAcceptsBoundedSplitLoopbackEndpointAndRejectsMalformedInput() {
-        let prefix = String(repeating: "x", count: 1_200)
-        let output = prefix + "dsh web: http://127.0.0.1:43123/api\n"
-        let endpoint = HarnessHostController.announcedEndpoint(in: output, fromUTF16Offset: 1_100)
-        XCTAssertEqual(endpoint?.absoluteString, "http://127.0.0.1:43123/api")
-        XCTAssertNil(HarnessHostController.announcedEndpoint(in: "dsh web: https://127.0.0.1:43123", fromUTF16Offset: 0))
-        XCTAssertNil(HarnessHostController.announcedEndpoint(in: "dsh web: http://localhost:43123", fromUTF16Offset: 0))
-        XCTAssertNil(HarnessHostController.announcedEndpoint(in: "dsh web: http://127.0.0.1", fromUTF16Offset: 0))
-        XCTAssertNil(HarnessHostController.announcedEndpoint(in: "dsh web: http://fixture-user@127.0.0.1:43123", fromUTF16Offset: 0))
-        XCTAssertNil(HarnessHostController.announcedEndpoint(in: "dsh web: http://127.0.0.1:0", fromUTF16Offset: 0))
-        XCTAssertNil(HarnessHostController.announcedEndpoint(in: output, fromUTF16Offset: -1))
-    }
-
-    func testDiagnosticsAreCopyableCompleteAndRedacted() async throws {
-        let recorder = HostDiagnosticRecorder(dshHome: "/tmp/diagnostic-home")
-        let endpoint = try XCTUnwrap(URL(string: "http://127.0.0.1:43123"))
-        await recorder.recordConnected(
-            build: Self.fixedCatalog.builds[0],
-            compatibility: .verified,
-            endpoint: endpoint,
-            pid: 4321,
-            generation: .init(rawValue: 7)
-        )
-        await recorder.recordRPCError(NSError(
-            domain: "fixture",
-            code: 1,
-            userInfo: [NSLocalizedDescriptionKey: "api_key=top-secret cookie=session-cookie Authorization: Bearer bearer-secret {\"api_key\":\"json-secret\\\"escaped\",\"token\":\"json-token\"}"]
-        ))
-        let snapshot = await recorder.snapshot()
-        XCTAssertEqual(snapshot.hostBuildID, Self.fixedCatalog.defaultBuildId)
-        XCTAssertEqual(snapshot.port, 43123)
-        XCTAssertEqual(snapshot.dshHome, "/tmp/diagnostic-home")
-        XCTAssertEqual(snapshot.ownedProcessID, 4321)
-        XCTAssertEqual(snapshot.ownership, "owned")
-        XCTAssertEqual(snapshot.remoteGeneration, 7)
-        XCTAssertEqual(snapshot.streamState, "ready")
-        XCTAssertEqual(snapshot.protocolFixtureRevision, "official-a66e470-remote-r1")
-        XCTAssertEqual(snapshot.hostCompatibility, "verified")
-        let copy = snapshot.copyableText()
-        for required in ["hostBuild=", "port=", "dshHome=", "ownership=", "pid=", "remoteGeneration=", "streamState=", "lastRPCError=", "protocolFixtureRevision=", "hostCompatibility=", "lifecycle="] {
-            XCTAssertTrue(copy.contains(required), "diagnostic copy must include \(required)")
-        }
-        for secret in ["top-secret", "session-cookie", "bearer-secret", "json-secret", "json-token"] {
-            XCTAssertFalse(copy.contains(secret), "diagnostic copy must redact \(secret)")
-        }
-        XCTAssertTrue(copy.contains("<redacted>"))
-    }
-
-    func testHostLogRedactorMasksCredentialValuesAndIsIdempotent() {
-        let input = "Authorization: Bearer alpha-token cookie=browser-cookie secret=hidden {\"api_key\":\"json-secret\\\"escaped\",\"password\":\"json-password\"} plain"
-        let redacted = HostLogRedactor.redact(input)
-        for secret in ["alpha-token", "browser-cookie", "hidden", "json-secret", "json-password"] {
-            XCTAssertFalse(redacted.contains(secret), "redactor must remove \(secret)")
-        }
-        XCTAssertTrue(redacted.contains("Bearer <redacted>"))
-        XCTAssertTrue(redacted.contains("cookie=<redacted>"))
-        XCTAssertTrue(redacted.contains("\"api_key\":\"<redacted>\""))
-        XCTAssertTrue(redacted.contains("\"password\":\"<redacted>\""))
-        XCTAssertTrue(redacted.hasSuffix(" plain"))
-        XCTAssertEqual(HostLogRedactor.redact(redacted), redacted)
-        XCTAssertEqual(HostLogRedactor.redact("no credentials here"), "no credentials here")
-    }
-}
-
-
-extension HarnessHostControllerTests {
-    func testPlannedBuildUsesBestEffortAfterPayloadMetadataMatches() throws {
-        let root = FileManager.default.temporaryDirectory
-            .appendingPathComponent("dsh-glass-planned-build-\(UUID().uuidString)", isDirectory: true)
-        defer { try? FileManager.default.removeItem(at: root) }
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        let node = root.appendingPathComponent("node")
-        FileManager.default.createFile(atPath: node.path, contents: Data("#!/bin/sh\n".utf8))
-        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: node.path)
-        let entry = root.appendingPathComponent("payload/node_modules/@deepseek-ai/dsh/lib/cli.js")
-        try FileManager.default.createDirectory(at: entry.deletingLastPathComponent(), withIntermediateDirectories: true)
-        FileManager.default.createFile(atPath: entry.path, contents: Data())
-        try Data("{\"version\":\"0.1.2-rc.1\"}".utf8).write(
-            to: entry.deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("package.json")
-        )
-        let webManifest = root.appendingPathComponent("payload/node_modules/@deepseek-ai/dsh-web-frontend/package.json")
-        try FileManager.default.createDirectory(at: webManifest.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try Data("{\"version\":\"0.1.2-rc.1\"}".utf8).write(to: webManifest)
-
-        let build = SupportedHostBuildCatalog.Build(
-            id: "planned-rc8",
-            officialSourceCommit: "a66e4702047846cdaa10c66c9d3df3951f5ea70d",
-            dshPackageVersion: "0.1.2-rc.1",
-            webFrontendPackageVersion: "0.1.2-rc.1",
-            nodeRuntimeVersion: "24.19.0",
-            minimumAppVersion: "0.4.0",
-            minimumMacOS: "26.0",
-            ciRunner: "macos-26",
-            minimumXcodeMajor: 26,
-            protocolFixtureRevision: "official-a66e470-remote-r1",
-            uiSpecRevision: "official-a66e470-ui-spec-r1",
-            supportedArchitectures: ["arm64"],
-            verifiedAt: nil,
-            verificationState: "planned"
-        )
-        let runtime = HostRuntimeConfiguration(
-            nodeExecutable: node,
-            dshEntrypoint: entry,
-            homeDirectory: root.appendingPathComponent("dsh", isDirectory: true),
-            logFile: root.appendingPathComponent("host.log")
-        )
-        let catalog = SupportedHostBuildCatalog(schemaVersion: 1, defaultBuildId: build.id, builds: [build])
-
-        XCTAssertEqual(
-            HostBuildVerifier(catalog: catalog).verify(runtime: runtime),
-            .bestEffort(
-                build,
-                reason: "Bundled rc.1 payload matches the supported build but macOS verification is still pending."
-            )
-        )
-    }
 }

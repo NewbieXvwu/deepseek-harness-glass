@@ -3,11 +3,10 @@ import Foundation
 import XCTest
 
 @testable import GlassCore
-@testable import GlassSpec
 
 @MainActor
 final class HarnessHostTransportSmokeTests: XCTestCase {
-    func testVerifiedHostRemoteRecoversAndReopensSessionFollowAfterUnexpectedRestart() async throws {
+    func testHostRemoteRecoversAndReopensSessionFollowAfterUnexpectedRestart() async throws {
         let environment = ProcessInfo.processInfo.environment
         guard let nodePath = environment["DSH_GLASS_HOST_NODE"],
               let entrypointPath = environment["DSH_GLASS_HOST_ENTRY"] else {
@@ -25,14 +24,12 @@ final class HarnessHostTransportSmokeTests: XCTestCase {
         )
         let controller = HarnessHostController(
             runtime: runtime,
-            verifier: HostBuildVerifier(catalog: Self.fixedCatalog),
             startupTimeoutNanoseconds: 15_000_000_000
         )
         defer { controller.stop() }
 
         controller.start()
         let initial = try await waitForReady(controller, excludingPID: nil, timeout: 15)
-        XCTAssertEqual(initial.buildID, Self.fixedCatalog.defaultBuildId)
         XCTAssertFalse(
             initial.context.authenticatedHost.urlSession.configuration.httpCookieStorage === HTTPCookieStorage.shared,
             "authenticated Host must not use the process-global cookie jar"
@@ -48,10 +45,6 @@ final class HarnessHostTransportSmokeTests: XCTestCase {
         let initialSessions = try await initialControllers.sessions.list()
         XCTAssertTrue(initialSessions.items.contains { $0.sessionId == requestedID })
 
-        // Production downloads must use the same authenticated Host URLSession as
-        // Remote. Supplying `.shared` to the test-only exporter seam makes this
-        // fail authentication if `export(... authenticatedHost:)` ever regresses
-        // to its constructor session instead of the process-scoped cookie jar.
         let exportDirectory = root.appendingPathComponent("exports", isDirectory: true)
         let exported = try await SessionLogExporter(
             session: .shared,
@@ -116,7 +109,7 @@ final class HarnessHostTransportSmokeTests: XCTestCase {
         let transitionSummaries = controller.stateTransitions.map(\.summary)
         XCTAssertTrue(transitionSummaries.contains("ready -> recovering"))
         XCTAssertTrue(transitionSummaries.contains("recovering -> starting"))
-        XCTAssertTrue(transitionSummaries.contains("classifying -> ready"))
+        XCTAssertTrue(transitionSummaries.contains("connecting -> ready"))
 
         let recoveredControllers = HarnessControllers(remote: recovered.context.remote)
         let recoveredSessions = try await recoveredControllers.sessions.list()
@@ -171,25 +164,4 @@ final class HarnessHostTransportSmokeTests: XCTestCase {
     }
 
     private enum SmokeError: Error { case timeout, hostFailed }
-
-    private static let fixedCatalog = SupportedHostBuildCatalog(
-        schemaVersion: 1,
-        defaultBuildId: "dsh-0.1.2-rc.1-official-a66e470",
-        builds: [SupportedHostBuildCatalog.Build(
-            id: "dsh-0.1.2-rc.1-official-a66e470",
-            officialSourceCommit: "a66e4702047846cdaa10c66c9d3df3951f5ea70d",
-            dshPackageVersion: "0.1.2-rc.1",
-            webFrontendPackageVersion: "0.1.2-rc.1",
-            nodeRuntimeVersion: "24.19.0",
-            minimumAppVersion: "0.4.0",
-            minimumMacOS: "26.0",
-            ciRunner: "macos-26",
-            minimumXcodeMajor: 26,
-            protocolFixtureRevision: "official-a66e470-remote-r1",
-            uiSpecRevision: "official-a66e470-ui-spec-r1",
-            supportedArchitectures: ["arm64"],
-            verifiedAt: "2026-08-18",
-            verificationState: "verified"
-        )]
-    )
 }

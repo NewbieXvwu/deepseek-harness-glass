@@ -1,13 +1,8 @@
 import Foundation
 
-#if DEEPSEEK_HARNESS_PACKAGE
-@testable import GlassSpec
-#endif
-
 /// Copy-safe Host diagnostics. Endpoint data is reduced to a port and every
-/// free-form error/compatibility reason is redacted before it enters storage.
+/// free-form error is redacted before it enters storage.
 struct HostDiagnosticSnapshot: Equatable, Sendable {
-    let hostBuildID: String?
     let port: Int?
     let dshHome: String
     let ownedProcessID: Int32?
@@ -15,13 +10,10 @@ struct HostDiagnosticSnapshot: Equatable, Sendable {
     let remoteGeneration: UInt64?
     let streamState: String
     let lastRPCError: String?
-    let protocolFixtureRevision: String?
-    let hostCompatibility: String
     let lifecycle: String
 
     func copyableText() -> String {
         [
-            "hostBuild=\(hostBuildID ?? "unverified")",
             "port=\(port.map { String($0) } ?? "none")",
             "dshHome=\(dshHome)",
             "ownership=\(ownership)",
@@ -29,8 +21,6 @@ struct HostDiagnosticSnapshot: Equatable, Sendable {
             "remoteGeneration=\(remoteGeneration.map(String.init) ?? "none")",
             "streamState=\(streamState)",
             "lastRPCError=\(lastRPCError ?? "none")",
-            "protocolFixtureRevision=\(protocolFixtureRevision ?? "none")",
-            "hostCompatibility=\(hostCompatibility)",
             "lifecycle=\(lifecycle)",
         ].joined(separator: "\n")
     }
@@ -40,15 +30,12 @@ struct HostDiagnosticSnapshot: Equatable, Sendable {
 /// Payload bodies, launch tokens, cookies and credential values never enter it.
 actor HostDiagnosticRecorder {
     private let dshHome: String
-    private var hostBuildID: String?
     private var port: Int?
     private var ownedProcessID: Int32?
     private var ownership = "none"
     private var remoteGeneration: UInt64?
     private var streamState = "disconnected"
     private var lastRPCError: String?
-    private var protocolFixtureRevision: String?
-    private var hostCompatibility = "unknown"
     private var lifecycle = "idle"
 
     init(dshHome: String) {
@@ -56,23 +43,15 @@ actor HostDiagnosticRecorder {
     }
 
     func recordConnected(
-        build: SupportedHostBuildCatalog.Build,
-        compatibility: HostCompatibility,
         endpoint: URL,
         pid: Int32?,
         generation: RemoteConnectionGeneration? = nil
     ) {
-        hostBuildID = build.id
         port = endpoint.port
         ownedProcessID = pid
         ownership = "owned"
         remoteGeneration = generation?.rawValue
         streamState = "ready"
-        protocolFixtureRevision = build.protocolFixtureRevision
-        switch compatibility {
-        case .verified: hostCompatibility = "verified"
-        case let .bestEffort(reason): hostCompatibility = "best-effort: \(HostLogRedactor.redact(reason))"
-        }
         lifecycle = "ready"
     }
 
@@ -84,7 +63,7 @@ actor HostDiagnosticRecorder {
             ownership = "none"
             streamState = "disconnected"
             remoteGeneration = nil
-        case .starting, .authenticating, .connecting, .classifying:
+        case .starting, .authenticating, .connecting:
             streamState = "connecting"
         case .recovering:
             streamState = "recovering"
@@ -104,7 +83,6 @@ actor HostDiagnosticRecorder {
         case .starting: return "starting"
         case .authenticating: return "authenticating"
         case .connecting: return "connecting"
-        case .classifying: return "classifying"
         case .recovering: return "recovering"
         case .ready: return "ready"
         case .failed: return "failed"
@@ -118,7 +96,6 @@ actor HostDiagnosticRecorder {
 
     func snapshot() -> HostDiagnosticSnapshot {
         HostDiagnosticSnapshot(
-            hostBuildID: hostBuildID,
             port: port,
             dshHome: dshHome,
             ownedProcessID: ownedProcessID,
@@ -126,18 +103,12 @@ actor HostDiagnosticRecorder {
             remoteGeneration: remoteGeneration,
             streamState: streamState,
             lastRPCError: lastRPCError,
-            protocolFixtureRevision: protocolFixtureRevision,
-            hostCompatibility: hostCompatibility,
             lifecycle: lifecycle
         )
     }
 }
 
 /// Masks credential-shaped substrings before host diagnostics reach the log.
-/// Host stderr can echo the bootstrap URL and request headers, so a single
-/// linear scan masks the value that follows a small set of literal markers.
-/// Keys the loopback host never emits (URL userinfo, exotic auth schemes) are
-/// deliberately not modeled.
 enum HostLogRedactor {
     private static let markers = [
         "\"api_key\"", "\"apikey\"", "api_key=", "apikey=",
