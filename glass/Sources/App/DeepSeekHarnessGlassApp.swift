@@ -48,6 +48,9 @@ final class DeepSeekHarnessGlassApp: NSObject, NSApplicationDelegate {
         menuBarCoordinator = MenuBarCoordinator(
             showWindow: { [weak self] in self?.windowCoordinator.showAndFocus() },
             restartHost: { [weak self] in self?.hostCoordinator?.restart() },
+            attachExternalHost: { [weak self] launchURL in
+                self?.hostCoordinator?.attachExternalHost(launchURL: launchURL)
+            },
             quitApplication: { NSApp.terminate(nil) }
         )
         let coordinator = HostLifecycleCoordinator { [weak self] state in
