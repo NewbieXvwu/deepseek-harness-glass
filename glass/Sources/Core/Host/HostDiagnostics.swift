@@ -49,7 +49,7 @@ actor HostDiagnosticRecorder {
     ) {
         port = endpoint.port
         ownedProcessID = pid
-        ownership = "owned"
+        ownership = pid == nil ? "external" : "owned"
         remoteGeneration = generation?.rawValue
         streamState = "ready"
         lifecycle = "ready"
