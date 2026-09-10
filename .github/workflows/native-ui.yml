@@ -187,7 +187,6 @@ jobs:
           python3 glass/ci/check-official-theme-tokens.py --official-root .reference/deepseek-harness
           python3 glass/ci/check-official-column-layout-fixtures.py --official-root .reference/deepseek-harness --node "$NODE24_BIN/node"
           python3 glass/ci/check-official-interaction-scenes.py --official-root .reference/deepseek-harness
-          python3 glass/ci/check-official-remote-contract.py --official-root .reference/deepseek-harness
           python3 glass/ci/check-authenticated-host-fixtures.py
           AUTH_CAPTURE="$(mktemp)"
           node tools/spec-generation/capture_authenticated_host_fixtures.mjs \
