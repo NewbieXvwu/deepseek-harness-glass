@@ -1,16 +1,5 @@
 {
   "schemaVersion": 1,
-  "officialSourceCommit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d",
-  "fixtureRevision": "official-a66e470-raw-event-replay-r1",
-  "source": {
-    "path": "packages/api/session-controller/tests/event-script.client.ts",
-    "lines": "18-176",
-    "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
-  },
-  "anonymization": {
-    "policy": "Deterministic synthetic identifiers and neutral fixture text only; no captured user dialogue, credentials, private paths, or Host configuration values.",
-    "forbiddenValueClasses": ["credential", "api-key", "private-path", "recorded-user-content"]
-  },
   "cases": [
     {
       "id": "happy-streaming-turn",
