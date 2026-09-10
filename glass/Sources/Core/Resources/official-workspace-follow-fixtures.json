@@ -1,11 +1,5 @@
 {
   "schemaVersion": 1,
-  "officialSourceCommit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d",
-  "fixtureRevision": "official-a66e470-workspace-follow-r1",
-  "sourcePaths": [
-    "packages/api/workspace-controller/src/types.ts",
-    "packages/api/workspace-controller/src/feed.ts"
-  ],
   "cases": [
     {
       "id": "closed-increment-union",
