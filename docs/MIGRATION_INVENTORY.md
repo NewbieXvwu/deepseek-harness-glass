@@ -1,92 +1,61 @@
-# 原生迁移清单
+# rc.1 clean-cut 迁移清单
 
-本清单以 `dsh-0.1.1-rc.1-official-528c682e` 为唯一支持基线。状态含义如下：**保留**表示可直接纳入新模块；**迁移**表示需分解后重新实现；**删除**表示不得留在主应用路径；**对照**表示仅可用于官方或旧行为核验，不得参与发布路径。
+本文件同时承担 CUT0.4 的上游 source-of-truth 清单与 CUT0.5 的当前树迁移盘点。唯一 verified 上游为 `deepseek-ai/deepseek-harness@a66e4702047846cdaa10c66c9d3df3951f5ea70d`（`dsh-v0.1.2-rc.1`）。历史 rc.2 实现和 fixture 只能提供历史线索，任何当前协议、状态机或 UI 结论都必须回链到 rc.1 源码或由 rc.1 生成的仓库资产。
 
-| 当前资产 | 现有职责 | 决策 | 目标归属 | 迁移条件 |
-|---|---|---|---|---|
-| `Sources/main.swift` | AppKit 生命周期、窗口、离屏快照入口、临时欢迎页装配。 | 迁移。 | `Sources/App/`、`Sources/UI/Shell/`、`Sources/Snapshot/`。 | 拆除临时单文件职责；
-窗口、Host、状态和 UI 分离。
-|
-| `Sources/UI/Shell/NativeAppShell.swift` | 官方欢迎态试点、三栏静态骨架、有限导航 Glass。 | 迁移。
-| `Sources/UI/Shell/`、`Sidebar/`、`Workspace/`、`Conversation/`、`LiquidGlass/`。 | 必须接入真实状态、来源映射、可访问性和基线截图；不得以其作为完整 UI 证据。
-|
-| `Sources/Spec/OfficialUISpec.swift` | 初始官方文案、色彩、尺寸与 layout 试点。 | 迁移。 | `Sources/Spec/OfficialUISpec/`、`Locales/`、`Tokens/`。 | 由生成管线替换手工常量，
-并记录来源、commit 和行号。
-|
-| `Sources/Snapshot/SnapshotExporter.swift` | 离屏原生快照导出。 | 保留并扩展。 | `Sources/Tests/Snapshot/`。 | 支持全部标准场景、主题和辅助功能组合。 |
-| `assemble.sh` | Swift 编译、Node/Host 打包、资源复制、ad-hoc 签名。 | 迁移。 | `Scripts/Build` 与 release workflow。 | 生成 build manifest，纳入 Spec/支持矩阵，并支持质量门。
-|
-| `repair-backend.sh` | 既有后端修复辅助。 | 审计后迁移。 | `Core/Host` 或维护工具。 | 明确其对 payload、版本和用户数据的影响；无隐式下载或覆盖。 |
-| `.github/workflows/native-ui.yml` | macOS 26 编译、快照、Host payload 缓存。 | 保留并扩展。 | CI 质量门。 | 增加契约、无 WebView、规格、视觉、无障碍和审查工件。 |
-| `release.yml` | 发布流程。 | 迁移。 | 发布治理。 | 仅在支持矩阵、签名、公证和完整质量门通过后发布。 |
-| 当前/历史 WebView 外壳 | 将本地 WebUI 装进原生窗口。 | 删除主路径；仅作对照。 | `legacy/` 或独立对照 target。 | 主应用和核心模块不得链接 WebKit。 |
-| 官方 SVG 资产与提取脚本 | 上游 wordmark、FishLogo、图标资源。 | 保留。 | `assets/`、Spec 生成管线。 | 每个资源需单根 XML SVG、原始组件来源和 hash。 |
+迁移状态只使用三种终态：`retain-after-reaudit` 表示代码可保留，但必须由 rc.1 来源和当前行为证据重新认证；`rewrite` 表示职责仍需要，但接口、数据流或 ownership 必须按 rc.1 改写；`delete` 表示当前 production/test 默认执行面不再保留该旧实现。尚未完成的 `rewrite` 会明确写出剩余 CUT，不使用模糊的“以后再看”。
 
-## 当前禁止清单
+## rc.1 source-of-truth
 
-主应用及其 `Core`、`UI`、`Features`、内置设置模块不得引入 `WebKit`、`WKWebView`、`WKUserScript`、`evaluateJavaScript`、`MutationObserver`、网页 CSS 注入或网页 DOM
-读取（红区：官方内容渲染权归原生）。
+| 领域 | rc.1 权威路径 | Glass 当前落点 | 约束 |
+| --- | --- | --- | --- |
+| Client connection / Host ready | `packages/client/connection/` | `glass/Sources/Core/Host/`、`glass/Sources/Core/Remote/RemoteEventRuntime.swift` | launch token 只参与 root bootstrap；后续连接使用独立 authenticated session；`$events` ready 建立 generation。 |
+| Remote Gateway / mux | `packages/api/gateway/`、`packages/api/remotes/src/` | `glass/Sources/Core/Remote/` | unary 与 logical stream 共用 rc.1 Remote contract；物理流入口为 `/api/remote.mux`。 |
+| Session controller | `packages/api/session-controller/` | `glass/Sources/Core/Controllers/`、`glass/Sources/Core/Session/` | follow-first journal、page frozen cut、control transient state 与 command 分离。 |
+| Workspace controller | `packages/api/workspace-controller/` | `glass/Sources/Core/Controllers/`、`glass/Sources/Core/Workspace/` | `workspace.follow` opening baseline 是实时 authority，后续只接受 closed-union delta。 |
+| Settings | `packages/api/settings-controller/` | `glass/Sources/Core/Controllers/`、`glass/Sources/Core/Settings/` | describe/mutate 与 revision fence 采用 rc.1 contract。 |
+| Credentials | `packages/credentials/credentials/`、`packages/api/remotes/src/index.ts` | `glass/Sources/Core/Remote/DomainAPIs.swift`、Settings repositories | observable readback 只保留 configured/source/writable 等安全事实；secret 只作为瞬时写参数。 |
+| LLM / provider directory | `packages/llm/llm/`、`packages/api/remotes/src/index.ts` | `glass/Sources/Core/Controllers/`、Settings model repositories | catalog 是 Host-wide state，provider discovery 由 rc.1 Remote 暴露。 |
+| Conversation shell | `packages/client/ui-conversation/` | `glass/Sources/UI/Conversation/` | resident composer、pending interaction、header/slot ownership以 rc.1 当前组件为准。 |
+| Chat visible renderer | `packages/client/ui-chat/` 与 `packages/client/ui-conversation/` 的当前调用边界 | `glass/Sources/UI/Conversation/`、Session projection | node assembler、消息行、running/settled 与 history navigation 必须分别回链当前 owner。 |
+| Workspace UI | `packages/client/ui-workspace/` | `glass/Sources/UI/Workspace/`、`glass/Sources/UI/Sidebar/` | search、rename、archive、order、narrow rail 等行为使用 rc.1 locale/CSS/组件。 |
+| Settings UI / onboarding | `packages/client/ui-settings-*` | `glass/Sources/UI/Settings/`、Settings repositories | section、provider editor、credentials、Models、Plugins、Agent Presets 与 onboarding 逐场景重新认证。 |
+| Locale / theme / layout | `packages/client/locale/`、`packages/client/ui-theme/`、`packages/client/ui-layout/` | `glass/Sources/Spec/OfficialLocaleCatalog.swift`、`OfficialThemeCatalog.swift`、`OfficialUISpec.swift` | 生成器 fresh-extract，View 不新增未登记产品常量。 |
+| Tool presentation | rc.1 tool owner packages及其 client-side presentation，连同 `ui-conversation` / `ui-chat` renderer | Session raw-event projector、`glass/Sources/UI/Tooling/` | typed presentation 只从 raw validated Session events 派生，旧 presenter `view` carrier 不进入当前 DTO。 |
+| Plugin module graph / bundles | `packages/client/modules/`、`packages/extensions/cordis-client-runner/`、Gateway plugin bundle route | `glass/Sources/Core/Plugin/`、PluginWebHost | module graph 与 combo bundle 路径按 rc.1 profile 生成；核心原生红区不让渡渲染权。 |
 
+## 当前树迁移盘点
 
+| 旧/当前组件 | 状态 | 当前终态或目标归属 | 当前事实 / 剩余工作 |
+| --- | --- | --- | --- |
+| `DSHClientTransport` / `Core/Transport` | `delete` | `Core/Remote` | 已从 production target 删除；HTTP、mux 与 download 的认证上下文由 Remote/Host ownership 承担。 |
+| `SSEClient`、旧 `events.mux` / `events.host` | `delete` | `RemoteMuxConnection` / `$events` | 旧 SSE 和旧 event endpoints 已移除。 |
+| `RPCModels`、旧 `server-response` envelope | `delete` | rc.1 Remote wire models | 当前 contract 使用 rc.1 result/error 与 typed procedure。 |
+| `DomainAPIs.swift` 的旧 facade 职责 | `rewrite` | `Core/Controllers` + 仅保留共享 DTO/protocol | production controller 已拆到 `Core/Controllers`；该文件仍含共享 DTO/protocol，后续 CUT4 继续收窄 ownership。 |
+| protocol default `invalidEndpoint` fallback | `rewrite` | required capability 显式实现 | CUT4.6 继续清除剩余默认实现；可选能力使用真实可选类型。 |
+| `SessionHistoryPager` / history→subscribe ingest | `delete` | `SessionRuntime` + `SessionJournal` | 旧 pager、旧 SSE ingest 和 `session.history` 路径已删除。 |
+| Session seq / page / follow merge | `rewrite` | `Core/Session/Runtime` | follow-first、packed history、page prepend、generation ownership 已落地；CUT5/CUT13 继续完成 chaos 与真实 Host 集成验收。 |
+| queue/jobs 从 durable history 推导 | `delete` | `SessionControlRuntime` | transient control fixture 与 journal fixture 已分离；可见 authority 来自 control baseline/delta。 |
+| `NativeSessionStore` 持有 transport/JSON/reconnect | `rewrite` | Runtime snapshot + MainActor local UI state | transport ownership 已移出；CUT6.6/CUT6.7 继续核对 store 中剩余 Host authority 与 local draft/image 生命周期。 |
+| 旧 Workspace list polling 实时性 | `delete` | `WorkspaceRuntime` + `workspace.follow` | opening baseline、`upsert/remove/order/archived` 与 generation replacement 已实现；当前 fixture replay 直接驱动 Runtime。 |
+| `NativeWorkspaceStore` transport ownership | `rewrite` | WorkspaceRuntime snapshot + UI selection/dialog | CUT7.4 继续完成最终瘦身与真实 integration 认证。 |
+| rc.2 Settings/Credentials/Model API shape | `rewrite` | rc.1 controllers/repositories | 当前 tree 已有 Settings、credential 与 Host-wide model repository；CUT8 继续完成 provider/onboarding/UI 全面认证。 |
+| `ToolEventViewDTO`、`view`、`callView`、`resultView` | `delete` | raw-event typed projector | 已从 tracked production/tests 清除；terminal/read/diff/search/web 已 rc.1 重新认证，CUT10.6 处理剩余工具族。 |
+| 旧单插件 bundle loader | `delete` | rc.1 combo bundle resolver | 已删除 `/plugins/<pluginId>/client.js` fallback；当前 resolver 按 module graph 构造 combo bundle。 |
+| 旧 Ghost Plane permission/profile seam | `delete` | rc.1 module graph + 原生 broker | rc.2 虚构 adapter/profile 已清除；external-navigation 等 rc.1 实际边界保留。 |
+| Attach/Adopt/Install 旧生命周期 | `rewrite` | rc.1 plugin module/bundle lifecycle | selector/scanner 可复用；真实第三方插件 zero-modification 路径仍由 CUT11.9 完成。 |
+| 裸 `127.0.0.1:port` 未认证 Host probe | `delete` | authenticated launch-URL attach | 旧 loopback endpoint discovery/probe 已删除；外部 launch URL 的 auth/bootstrap/adopt 仍由 CUT2.7 完成。 |
+| Host version override / unknown 写保护 | `delete` | `verified` / `bestEffort` classification | classification 只影响保证等级和诊断；同一 controller graph 不按版本分叉。 |
+| rc.2 runtime fixtures / active spec | `rewrite` | rc.1 generated spec/fixtures | locale/theme/layout、Remote、Session、control、Workspace fixture 已切 rc.1；CUT1.8 与 CUT15.2 继续清理视觉/AX和默认资源中的历史证据。 |
+| `glass/Sources/Spec` 手写产品常量 | `rewrite` | generated catalogs + 有来源的少量语义 alias | fresh generation 是 token/locale/layout/asset 的权威入口；手写 alias 只能消费生成结果。 |
+| `glass/Tests` rc.2 行为断言 | `rewrite` | rc.1 fixture replay / behavior tests | 历史测试不能单独证明 rc.1 parity；受 contract 影响的 suite 逐项以 rc.1 fixture/真实 Host 重建。 |
+| `glass/ci` 与 `.github/workflows` | `retain-after-reaudit` | contract、architecture、native-ui、release gates | 当前 macOS 26 lane fresh-build 官方基线、Release 编译、XCTest、原生架构、WindowServer snapshot 与 review bundle；不新增专用 legacy-ban gate。 |
+| `glass/tools` spec/fixture generators | `retain-after-reaudit` | rc.1 fresh generators | 生成器输入锁到 exact upstream SHA；输出 drift 可回链输入路径。 |
+| `glass/Sources/Spec/Fixtures` | `rewrite` | rc.1 authenticated Host / raw-event fixtures | 当前 Remote、journal、control、Workspace fixture 已重捕获；后续新增证据必须继续从隔离 Host/锁定源码生成。 |
+| `docs/` 中 rc.2 当前态描述 | `rewrite` | rc.1 architecture / review docs | 本文件已清除旧 528c682/rc.8 当前态；其它文档随各 CUT 只更新其真实 owner，历史事实保留时必须标明历史身份。 |
+| 核心 WebView/DOM/CSS 注入 | `delete` | 原生 SwiftUI/AppKit | WebKit 只允许存在于隔离 PluginWebHost / Ghost Plane 绿区；D0 运行态隔离测试持续约束核心 view tree。 |
 
-第三方插件兼容通过登记制的独立插件平面 target 承载（Ghost Plane 幽灵平面，绿区，唯一允许 WKWebView 之处），详见 [PLUGIN_COMPATIBILITY_PROPOSAL.
-md](PLUGIN_COMPATIBILITY_PROPOSAL.md)；平面内交互必须经原生桥保证键盘可达性、VoiceOver 与 TCC 权限语义，红区断言由既有运行态隔离测试与 loopback same-origin 策略覆盖。
+## clean-cut 执行规则
 
-## T1.1 运行时资产台账
+当前二进制只表达 rc.1 语义。禁止按 Host 版本选择另一套 endpoint、DTO、decoder 或状态机；禁止 404 后尝试旧 API；禁止为历史 fixture 保留 compatibility typealias/deprecated wrapper；Remote carrier 重连可以重建 physical connection 和 generation，但不会自动重放业务 mutation。回滚通过 Git commit/release 完成。
 
-下表是 [`RuntimeAssetInventory.
-json`](../glass/Sources/Spec/RuntimeAssetInventory.json) 的人工审阅视图；JSON 是 CI 的权威输入。它审计的是**当前与可证实的历史行为**，而不是希望未来拥有的功能。
-历史提交 `95c3ad8` 的“3080 外部实例挂接”与当前 T0.2 单一受控 Host 边界冲突，因此明确删除；菜单栏驻留、显示、受控重启和退出则保留为原生协调器行为。
-
-| 资产或隐式行为 | 决策 | 当前归属 | 必须保留/禁止的事实 | CI 验证 |
-|---|---|---|---|---|
-| `Sources/main.swift` 单体入口 | 替换 | `Sources/App/DeepSeekHarnessGlassApp.swift` | snapshot 分流必须先于正常 UI；不得再次把窗口、Host、菜单与状态塞回一个入口文件。
-| legacy 文件不存在；新入口是唯一 `@main`。
-|
-| 1280×840 window、880×600 最小尺寸、透明 titlebar、聚焦 | 迁移 | `Sources/App/WindowCoordinator.swift` | 坐标和标题栏策略保持，关闭主窗只隐藏而不退出。
-| 原生 snapshot 与 window coordinator 代码审阅。
-|
-| 历史 `NSStatusItem` 驻留与菜单 | 迁移 | `Sources/App/MenuBarCoordinator.swift` | 关闭窗口后仍可从菜单显示窗口、重启**内嵌** Host 或退出。 | 资产门禁检查协调器存在；
-后续 UI/accessibility 任务补充菜单自动化。
-|
-| Host 启动、状态订阅、停止和一次恢复 | 迁移 | `Sources/App/HostLifecycleCoordinator.swift` + `Sources/Core/Host/` | 仅由 app bundle 的 Node/DSH 启动；
-保留 `DSH_HOME`、日志、状态与 stop。 | 支持矩阵门禁、Host lifecycle 测试和 app 组装。
-|
-| 历史 `127.0.0.1:3080` / `__DSH_BOOT__` 探测 | 删除 | 无 | 不得把任意外部 `dsh web` 当作读写 Host；这会绕过固定 package/commit 边界。 | 资产门禁扫描所有 Swift 源码。 |
-| 离屏 snapshot export | 保留并扩展 | `Sources/Snapshot/SnapshotExporter.swift` | 环境请求时只渲染目标场景，随后退出，不启动菜单栏/Host。 | native-ui 工件包含场景 PNG。 |
-| 用户数据与日志 | 保留 | `Sources/Core/Host/HostRuntimeConfiguration.swift` | 使用 Application Support 的 app-scoped `DSH_HOME` 和 `logs/host.log`；
-禁止写入任意外部实例目录。 | Host failure 带 log path；支持矩阵与运行时测试。
-|
-| Node、payload、manifest、Info.plist、图标、签名 | 保留 | `assemble.sh`、payload lockfile、Spec | Node 24.19.0 与 rc.8 payload 必须精确对应锁定官方 commit；
-原子 staging 后 ad-hoc 签名。 | `check-supported-host-build.
-py`、codesign 和 artifact manifest。 |
-| `repair-backend.sh` | 保留（维护工具） | `glass/repair-backend.sh` | 只重装 exact rc.8 payload；临时 `DSH_HOME` 冒烟，不覆盖用户数据。 | 脚本静态审阅；后续维护工具测试。 |
-| native CI 与 release workflow | 保留并扩展 | `.github/workflows/` | native CI 是 D0/D1/support/visual 工件门；release 仅使用同一精确 payload，签名/公证仍待发布治理任务。
-| macOS-26 当前提交 run。
-|
-| 历史 WebView/DOM/CSS 注入壳 | 删除主路径，仅官方对照可用 | App target 外部参考目录 | 任何主业务 UI 在真实运行态 `NSView` tree 中均不得装载 `WKWebView` 或以网页 DOM 替代交互。
-| D0 `NativeWebViewIsolationRuntimeTests`：装载核心表面并递归检查 view tree，
-另以真实注入 WebView 的负例证伪。 |
-
-> 资产清单不等于完成所有功能。它只保证 T1.1 的运行时意图已被显式分类、每项都有目标归属和可执行验证，之后的 T1.2–T13 必须逐项实现其产品行为与视觉证据。
-
-## T1.2 编译 target 与依赖方向
-
-`glass/Package.swift` 将现有可编译源树分为 `GlassSpec`、`GlassCore`、`GlassUI`、`GlassSnapshot` 与 `DeepSeekHarnessGlassApp` 五个 SwiftPM target。
-它们是与 `assemble.sh` 的单 app 产物并行的**独立边界编译**，而非第二套实现：CI 同时执行 `swift build --configuration release` 和原有 app 组装，确保目录依赖与最终产物都被验证。
-
-| Target | 可依赖模块 | 不可依赖模块/系统 API | 责任 |
-|---|---|---|---|
-| `GlassSpec` | 系统基础框架 | Core、UI、Snapshot、App | 锁定官方来源、tokens、fixtures 与支持矩阵。 |
-| `GlassCore` | `GlassSpec`、Foundation、Combine | AppKit、SwiftUI、UI、Snapshot、App | Host、Transport、SSE、session/reducer、用户数据与日志；
-只有 Host 子域可创建受控 `Process`。
-|
-| `GlassUI` | `GlassCore`、`GlassSpec`、SwiftUI/AppKit | `Process`、`NSApplication`、`NSStatusItem` | 原生渲染、文件选择和 interaction；仅提交意图/URL 给 Core。 |
-| `GlassSnapshot` | `GlassCore`、`GlassSpec`、`GlassUI` | App lifecycle `@main` | 隔离、离屏的原生场景导出。 |
-| `DeepSeekHarnessGlassApp` | 前四者、AppKit | 无上层模块可反向依赖它 | `@main`、窗口、菜单栏、Host lifecycle 和终止策略。 |
-
-`check-package-target-graph.py` 从 `swift package describe --type json` 读取 SwiftPM 已解析的 target metadata，精确验证这些 target 的实际路径与内部依赖方向；
-`test-package-target-graph.
-py` 以非法 `GlassCore → GlassUI` 反向边和错误 target 路径证明 gate 可证伪。
-该结构化验证、SwiftPM release 编译及运行态 Host/UI integration XCTest 必须同时通过。
-系统 API 的职责边界由真实模块编译与运行态行为测试持续证明，而非通过对 Swift 实现文本的关键词扫描；任何临时跨层访问必须先抽取明确协议或 DTO，不能以单体文件重新耦合。
+`SupportedHostBuilds.json` 的唯一 exact rc.1 条目在 macOS 26 fresh spec/fixture、Release build、全量 XCTest、架构门禁和 WindowServer snapshot 流程通过后标为 `verified`。未知本地 Harness 只有在完成当前 rc.1 认证与 Remote handshake 后才进入 `bestEffort`，其真实 method/schema failure 保持原始分类。
