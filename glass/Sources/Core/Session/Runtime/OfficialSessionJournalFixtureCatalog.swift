@@ -46,6 +46,7 @@ enum OfficialSessionJournalFixtureCatalog {
             "packed-opening-live-prepend",
             "direct-subagent-journal",
             "unfinished-assistant-long-tail",
+            "ordinary-empty-session",
             "reconnect-replay-dedupe",
         ]
         let expectedSources: Set<String> = [
