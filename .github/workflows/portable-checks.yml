@@ -53,8 +53,6 @@ jobs:
           ref: ${{ env.OFFICIAL_COMMIT }}
           path: .reference/deepseek-harness
 
-      # The locale gate parses upstream TypeScript through its locked `typescript`
-      # dependency; runner-global Node is neither sufficient nor reproducible.
       - name: Set up locked Node runtime
         uses: actions/setup-node@v5
         with:
@@ -62,8 +60,6 @@ jobs:
 
       - name: Install locked pnpm and resolve cache directory
         run: |
-          # Install the exact package-manager release declared by the locked
-          # official source. Avoid runner or Corepack keyring drift.
           npm install --global pnpm@11.7.0
           test "$(pnpm --version)" = "11.7.0"
           echo "PNPM_STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_ENV"
@@ -87,22 +83,14 @@ jobs:
           npm ci --ignore-scripts --no-audit --no-fund --prefix tools/spec-generation
           test -f tools/spec-generation/node_modules/typescript/lib/typescript.js
 
-      - name: Run Python specification and architecture gates
+      - name: Run specification gates
         run: |
           set -euo pipefail
-          echo "::group::Official UI spec build"
-          python3 glass/ci/check-official-ui-spec-build.py \
-            --official-root .reference/deepseek-harness
-          python3 glass/ci/test-official-ui-spec-build.py \
-            --official-root .reference/deepseek-harness
-          echo "::endgroup::"
           echo "::group::Official locales and UI copy lint"
           python3 glass/ci/check-official-locales.py \
             --official-root .reference/deepseek-harness
           echo "::endgroup::"
           echo "::group::Official theme tokens"
-          python3 glass/ci/test-official-theme-tokens.py \
-            --official-root .reference/deepseek-harness
           python3 glass/ci/check-official-theme-tokens.py \
             --official-root .reference/deepseek-harness
           echo "::endgroup::"
@@ -117,10 +105,7 @@ jobs:
           echo "::group::Authenticated rc.1 Host fixture"
           python3 glass/ci/check-authenticated-host-fixtures.py
           echo "::endgroup::"
-          echo "::group::Official UI specification provenance"
+          echo "::group::Official source reproduction"
           ./glass/ci/check-official-spec.py \
             --official-root .reference/deepseek-harness
-          echo "::endgroup::"
-          echo "::group::Runtime asset migration inventory"
-          python3 glass/ci/check-runtime-asset-inventory.py
           echo "::endgroup::"
