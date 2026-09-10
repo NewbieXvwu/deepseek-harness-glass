@@ -69,21 +69,6 @@ struct GhostPlaneSkeleton: Equatable, Sendable {
         let slotSeatIDs: [String: String]
     }
 
-    /// Contract inventory consumed by future T11.8 drift checks. Each selector
-    /// comes from the official ConversationRoot/ChatView/SlotMap contracts, not
-    /// an inferred screenshot shape.
-    static let requiredSelectors = [
-        "[data-conversation-scroll]",
-        "[data-chat-flow]",
-        "[data-chat-anchor-key]",
-        "[data-chat-flow-key]",
-        "[data-chat-flow-kind]",
-        "[data-streaming]",
-        "[data-phase]",
-        "[data-composer-seat]",
-    ]
-
-
     let html: String
     let layout: Layout
     let elements: ElementMap
@@ -207,7 +192,7 @@ struct GhostPlaneSkeleton: Equatable, Sendable {
 
     private static func validAnchorScalar(_ scalar: Unicode.Scalar) -> Bool {
         switch scalar.value {
-        case 45, 46, 58, 95, 48...57, 65...90, 97...122: true // - . : _ ASCII alphanumerics
+        case 45, 46, 58, 95, 48...57, 65...90, 97...122: true
         default: false
         }
     }
