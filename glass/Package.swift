@@ -30,7 +30,6 @@ let package = Package(
             resources: [
                 .process("Fixtures"),
                 .process("Locales"),
-                .process("SupportedHostBuilds.json"),
             ],
             swiftSettings: [.define("DEEPSEEK_HARNESS_PACKAGE"), .unsafeFlags(["-enable-testing"])]
         ),

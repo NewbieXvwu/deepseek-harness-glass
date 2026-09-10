@@ -302,7 +302,6 @@ jobs:
             native-shell-snapshot.log
             xcodebuild-version.txt
             macos-sdk-version.txt
-            glass/dist/DeepSeek Harness.app/Contents/Resources/BuildManifest.json
             glass/ci/dsh-backend-payload/package-lock.json
           if-no-files-found: error
           retention-days: 14
