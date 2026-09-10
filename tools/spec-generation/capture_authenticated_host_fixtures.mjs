@@ -1,8 +1,7 @@
 #!/usr/bin/env node
-/** Capture deterministic, secret-free fixtures from an exact bundled rc.1 Host. */
-import { createHash } from 'node:crypto'
+/** Capture deterministic, secret-free behavior from an authenticated local Host. */
 import { spawn } from 'node:child_process'
-import { mkdtemp, mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { createRequire } from 'node:module'
@@ -11,12 +10,6 @@ const ROOT = resolve(import.meta.dirname, '../..')
 const args = parseArgs(process.argv.slice(2))
 const payloadRoot = resolve(args['payload-root'] ?? join(ROOT, 'glass/ci/dsh-backend-payload'))
 const output = resolve(args.output ?? join(ROOT, 'glass/Sources/Core/Resources/official-authenticated-host-fixtures.json'))
-const build = JSON.parse(await readFile(join(ROOT, 'glass/Sources/Spec/OfficialUISpec/official-ui-spec-build.json'), 'utf8'))
-const payloadPackage = JSON.parse(await readFile(join(payloadRoot, 'package.json'), 'utf8'))
-const dshVersion = payloadPackage.dependencies?.['@deepseek-ai/dsh']
-if (dshVersion !== '0.1.2-rc.1') throw new Error(`expected exact dsh 0.1.2-rc.1 payload, got ${String(dshVersion)}`)
-const lockBytes = await readFile(join(payloadRoot, 'package-lock.json'))
-const lockSHA256 = `sha256:${createHash('sha256').update(lockBytes).digest('hex')}`
 const dshBin = join(payloadRoot, 'node_modules/.bin/dsh')
 const require = createRequire(join(payloadRoot, 'package.json'))
 const WebSocket = require('ws')
@@ -140,27 +133,6 @@ try {
 
   const fixture = normalize({
     schemaVersion: 1,
-    officialSourceCommit: build.sourceCommit,
-    fixtureRevision: 'official-a66e470-authenticated-host-r2',
-    fixtureClass: 'isolated exact bundled rc.1 authenticated Host capture',
-    payload: {
-      dshVersion,
-      packageLockSHA256: lockSHA256,
-    },
-    secretPolicy: {
-      persistedLaunchToken: false,
-      persistedCookie: false,
-      persistedAuthorization: false,
-      persistedUserCredentials: false,
-      persistedRealWorkspacePath: false,
-    },
-    normalization: {
-      home: '<fixture-home>',
-      workspacePath: '<fixture-workspace>',
-      eventClientId: '<fixture-client-id>',
-      workspaceId: '<fixture-workspace-id>',
-      workspaceTimestamp: '<fixture-time>',
-    },
     authentication: {
       bootstrapStatus: bootstrap.status,
       redirectLocation: bootstrap.headers.get('location'),
@@ -215,7 +187,7 @@ try {
   }, { home, workspace, workspaceID, eventClientID: eventReady.value.clientId })
   await mkdir(dirname(output), { recursive: true })
   await writeFile(output, `${JSON.stringify(fixture, null, 2)}\n`)
-  console.log(`captured authenticated rc.1 Host fixture: ${output}`)
+  console.log(`captured authenticated Host fixture: ${output}`)
 } finally {
   if (child && child.exitCode === null) {
     const exited = new Promise(resolveExit => child.once('exit', resolveExit))
