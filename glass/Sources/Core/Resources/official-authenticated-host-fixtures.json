@@ -1,26 +1,5 @@
 {
   "schemaVersion": 1,
-  "officialSourceCommit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d",
-  "fixtureRevision": "official-a66e470-authenticated-host-r2",
-  "fixtureClass": "isolated exact bundled rc.1 authenticated Host capture",
-  "payload": {
-    "dshVersion": "0.1.2-rc.1",
-    "packageLockSHA256": "sha256:88bb697cbf50ba582bd0494fc84f7493193053938e699878d46b58cd1e32a255"
-  },
-  "secretPolicy": {
-    "persistedLaunchToken": false,
-    "persistedCookie": false,
-    "persistedAuthorization": false,
-    "persistedUserCredentials": false,
-    "persistedRealWorkspacePath": false
-  },
-  "normalization": {
-    "home": "<fixture-home>",
-    "workspacePath": "<fixture-workspace>",
-    "eventClientId": "<fixture-client-id>",
-    "workspaceId": "<fixture-workspace-id>",
-    "workspaceTimestamp": "<fixture-time>"
-  },
   "authentication": {
     "bootstrapStatus": 303,
     "redirectLocation": "/",
