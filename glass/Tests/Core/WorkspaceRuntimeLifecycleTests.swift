@@ -50,6 +50,37 @@ final class WorkspaceRuntimeLifecycleTests: XCTestCase {
         XCTAssertEqual(recovered?.generation, generation)
     }
 
+    func testOfficialClosedIncrementFixtureReplaysThroughRuntime() async throws {
+        let fixture = try OfficialWorkspaceFollowFixtureCatalog.load()
+        let replay = try XCTUnwrap(fixture.cases.first { $0.id == "closed-increment-union" })
+        XCTAssertEqual(replay.streams.count, 1)
+        let frames = try XCTUnwrap(replay.streams.first)
+        XCTAssertEqual(frames.count, 6)
+        let opening = try XCTUnwrap(frames.first)
+
+        let source = WorkspaceFollowSource()
+        let runtime = WorkspaceRuntime(controller: source)
+        let generation = RemoteConnectionGeneration(rawValue: 15)
+        let starting = Task { try await runtime.start(generation: generation) }
+
+        try await yieldFrame(opening, to: source)
+        try await starting.value
+        for frame in frames.dropFirst() {
+            try await yieldFrame(frame, to: source)
+        }
+
+        try await waitUntil("official workspace fixture applies every closed increment") {
+            let current = await runtime.current()
+            return current?.items.map(\.workspaceId) == ["c", "a"]
+                && current?.items.last?.title == "A renamed"
+                && current?.archivedSessionIDs == ["s-old"]
+        }
+        let replayed = await runtime.current()
+        XCTAssertEqual(replayed?.generation, generation)
+        let followCount = await source.followCount
+        XCTAssertEqual(followCount, 1)
+    }
+
     func testSecondBaselineOnOneStreamReplacesCurrentBaseline() async throws {
         let source = WorkspaceFollowSource()
         let runtime = WorkspaceRuntime(controller: source)
