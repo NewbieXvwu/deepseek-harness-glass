@@ -40,6 +40,7 @@ struct NativeSidebarView: View {
     }
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
     @Namespace private var navigationGlassNamespace
 
     var body: some View {
@@ -116,25 +117,18 @@ struct NativeSidebarView: View {
 
     private var wideBrand: some View {
         Button(action: onNewSession) {
-            HStack(spacing: OfficialUISpec.Spacing.p8) {
-                OfficialAssetImage(name: "fish-logo")
-                    .frame(
-                        width: OfficialUISpec.Layout.sidebarBrandMarkSize,
-                        height: OfficialUISpec.Layout.sidebarBrandMarkSize
-                    )
-                Text(OfficialUISpec.Text.sidebarFallbackBrand)
-                    .font(OfficialUISpec.Typography.sidebarBrand17)
-                    .lineLimit(1)
-                Text(OfficialUISpec.sidebarBuildRevision)
-                    .font(OfficialUISpec.Typography.sidebarBuildBadge8)
-                    .foregroundStyle(OfficialUISpec.Token.primaryForeground)
-                    .padding(.horizontal, OfficialUISpec.Spacing.p4)
-                    .frame(height: OfficialUISpec.Layout.sidebarBuildBadgeHeight)
-                    .background(
-                        OfficialUISpec.Token.primary,
-                        in: RoundedRectangle(cornerRadius: OfficialUISpec.Radius.r3, style: .continuous)
-                    )
+            Group {
+                if colorScheme == .dark {
+                    OfficialAssetImage(name: "brand-wordmark")
+                        .colorInvert()
+                } else {
+                    OfficialAssetImage(name: "brand-wordmark")
+                }
             }
+            .frame(
+                width: OfficialUISpec.Layout.sidebarWordmarkWidth,
+                height: OfficialUISpec.Layout.sidebarWordmarkHeight
+            )
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .buttonStyle(.plain)
