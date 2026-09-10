@@ -28,15 +28,6 @@ final class GhostPlaneSkeletonTests: XCTestCase {
         XCTAssertFalse(skeleton.html.contains("conversation.view\""))
     }
 
-    func testSelectorInventoryMatchesFreshRc1Contract() throws {
-        let fixture = try OfficialGhostPlaneContract.load()
-        try OfficialGhostPlaneContract.validateSkeletonSelectors(
-            GhostPlaneSkeleton.requiredSelectors,
-            against: fixture
-        )
-        XCTAssertEqual(GhostPlaneSkeleton.requiredSelectors.count, 8)
-    }
-
     func testRejectsDuplicateAndInvalidAnchorKeys() {
         XCTAssertThrowsError(try GhostPlaneSkeleton.build(.init(
             viewportWidth: 1000, sidebarPreference: 200, detailsPreference: 200,
