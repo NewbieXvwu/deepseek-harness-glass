@@ -21,15 +21,8 @@ enum GlassPolicy: String, CaseIterable, Sendable {
     /// one regular glass treatment when it improves a pre-existing affordance.
     case regularGlassCustomControl
 
-    /// Reserved for an official media overlay that needs translucent controls
-    /// over live visual content. It is intentionally unused until such an
-    /// official surface is implemented and reviewed.
-    case clearGlassMediaOverlay
-
     /// Only an implemented, reviewed control can request the scarce custom
-    /// glass budget. The media-overlay case stays an explicit taxonomy value,
-    /// but is reserved until its official surface and accessibility behavior are
-    /// separately implemented and reviewed.
+    /// glass budget.
     var permitsCustomGlassEffect: Bool {
         self == .regularGlassCustomControl
     }

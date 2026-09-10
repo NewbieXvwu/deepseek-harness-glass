@@ -6,26 +6,19 @@ final class GlassPolicyTests: XCTestCase {
         XCTAssertFalse(GlassPolicy.content.permitsCustomGlassEffect)
         XCTAssertFalse(GlassPolicy.systemNavigation.permitsCustomGlassEffect)
         XCTAssertTrue(GlassPolicy.regularGlassCustomControl.permitsCustomGlassEffect)
-        XCTAssertFalse(GlassPolicy.clearGlassMediaOverlay.permitsCustomGlassEffect)
     }
-
 
     func testCustomGlassBudgetAllowsOneAndRejectsTwoControls() {
         XCTAssertTrue(GlassPolicyBudget.permits([.content, .regularGlassCustomControl]))
         XCTAssertTrue(GlassPolicyBudget.permits([.systemNavigation, .content]))
         XCTAssertFalse(GlassPolicyBudget.permits([.regularGlassCustomControl, .regularGlassCustomControl]))
-        XCTAssertTrue(
-            GlassPolicyBudget.permits([.regularGlassCustomControl, .clearGlassMediaOverlay]),
-            "a reserved, non-materializing overlay must not consume an approved control budget"
-        )
     }
 
-    func testRuntimeMaterializationDecisionRejectsContentAndUnreviewedPolicies() {
+    func testRuntimeMaterializationDecisionRejectsContentAndSystemNavigation() {
         XCTAssertTrue(NativeGlassEffectDecision.materializes(policy: .regularGlassCustomControl, isEnabled: true))
         XCTAssertFalse(NativeGlassEffectDecision.materializes(policy: .regularGlassCustomControl, isEnabled: false))
         XCTAssertFalse(NativeGlassEffectDecision.materializes(policy: .content, isEnabled: true))
         XCTAssertFalse(NativeGlassEffectDecision.materializes(policy: .systemNavigation, isEnabled: true))
-        XCTAssertFalse(NativeGlassEffectDecision.materializes(policy: .clearGlassMediaOverlay, isEnabled: true))
     }
 
     func testAccessibilityPolicyDisablesCustomGlassForTransparencyAndContrast() {
