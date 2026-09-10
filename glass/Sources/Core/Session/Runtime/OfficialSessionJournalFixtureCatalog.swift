@@ -15,6 +15,9 @@ enum OfficialSessionJournalFixtureCatalog {
                 let firstSeq: Int?
                 let recordCount: Int
                 let hasMore: Bool
+                let projectionAsOfSeq: Int
+                let projectionKeys: [String]
+                let replayDeduplicatedCount: Int
             }
 
             let id: String
@@ -22,6 +25,8 @@ enum OfficialSessionJournalFixtureCatalog {
             let opening: RemoteSessionFollowFrame
             let liveEvents: [RemoteSessionWireEvent]
             let olderPages: [RemoteSessionPageValue]
+            let repairOpening: RemoteSessionFollowFrame?
+            let replayEvents: [RemoteSessionWireEvent]
             let expected: Expected
         }
 
@@ -39,17 +44,20 @@ enum OfficialSessionJournalFixtureCatalog {
         let fixture = try JSONDecoder().decode(Fixture.self, from: Data(contentsOf: url))
         let expectedCases: Set<String> = [
             "packed-opening-live-prepend",
-            "direct-subagent-empty",
+            "direct-subagent-journal",
             "unfinished-assistant-long-tail",
+            "reconnect-replay-dedupe",
         ]
         let expectedSources: Set<String> = [
             "packages/api/session-controller/src/types.ts",
             "packages/api/session-controller/src/history.ts",
             "packages/api/session-controller/src/client/sessions/history-records.ts",
+            "packages/subagent/subagent/src/descriptor.ts",
+            "packages/subagent/subagent/src/projection-types.ts",
         ]
-        guard fixture.schemaVersion == 1,
+        guard fixture.schemaVersion == 2,
               fixture.officialSourceCommit == OfficialUISpec.Build.sourceCommit,
-              fixture.fixtureRevision == "official-a66e470-session-journal-r1",
+              fixture.fixtureRevision == "official-a66e470-session-journal-r2",
               Set(fixture.sourcePaths) == expectedSources,
               Set(fixture.cases.map(\.id)) == expectedCases
         else {
