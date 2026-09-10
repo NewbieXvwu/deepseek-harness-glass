@@ -102,8 +102,10 @@ final class OfficialSessionControlFixtureCatalogTests: XCTestCase {
     func testEmptyOpeningFixtureInstallsEmptyAuthority() async throws {
         let fixture = try OfficialSessionControlFixtureCatalog.load()
         let replay = try XCTUnwrap(fixture.cases.first { $0.id == "empty-opening-baseline" })
-        let frames = try XCTUnwrap(replay.streams.only)
-        let frame = try XCTUnwrap(frames.only)
+        XCTAssertEqual(replay.streams.count, 1)
+        let frames = try XCTUnwrap(replay.streams.first)
+        XCTAssertEqual(frames.count, 1)
+        let frame = try XCTUnwrap(frames.first)
         guard case let .baseline(baseline) = frame else {
             return XCTFail("empty opening fixture must contain one rc.1 control baseline")
         }
@@ -126,7 +128,8 @@ final class OfficialSessionControlFixtureCatalogTests: XCTestCase {
         XCTAssertTrue(opening.queues.isEmpty)
         XCTAssertTrue(opening.jobs.isEmpty)
         XCTAssertTrue(opening.projections.isEmpty)
-        XCTAssertEqual(await controller.controlCallCount, 1)
+        let callCount = await controller.controlCallCount
+        XCTAssertEqual(callCount, 1)
         await runtime.invalidate()
     }
 
@@ -145,8 +148,4 @@ final class OfficialSessionControlFixtureCatalogTests: XCTestCase {
         case missingControlStream
         case snapshotTimeout
     }
-}
-
-private extension Array {
-    var only: Element? { count == 1 ? first : nil }
 }
