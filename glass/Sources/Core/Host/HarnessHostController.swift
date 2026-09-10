@@ -6,7 +6,7 @@ import Foundation
 #endif
 /// Main-actor owner for the bundled local DeepSeek Harness Host. It deliberately
 /// exposes a lifecycle state rather than a Web URL because the native app uses
-/// RPC/SSE, not an embedded browser surface.
+/// authenticated Remote transport, not an embedded browser surface.
 @MainActor
 final class HarnessHostController: ObservableObject {
     @Published private(set) var state: HostLifecycleState = .idle {
@@ -89,11 +89,8 @@ final class HarnessHostController: ObservableObject {
             appendLog("[host] start reused existing owned process pid=\(process?.processIdentifier ?? 0)")
             return
         }
-        let verification = verifier.verify(runtime: runtime, fileManager: fileManager)
-        switch verification {
-        case let .bestEffort(build, reason):
-            appendLog("[host] best-effort build candidate: \(reason)")
-            launch(build: build, verification: verification)
+        let preparation = verifier.prepare(runtime: runtime, fileManager: fileManager)
+        switch preparation {
         case let .unsupported(reason):
             state = .failed(HostFailure(
                 kind: .invalidBundledBaseline,
@@ -102,7 +99,8 @@ final class HarnessHostController: ObservableObject {
                 logPath: runtime.logFile.path
             ))
             return
-        case let .verified(build):
+        case let .candidate(candidate):
+            let build = candidate.build
             guard OfficialUISpec.Build.isCompatible(with: build.id),
                   build.officialSourceCommit == OfficialUISpec.Build.sourceCommit,
                   build.uiSpecRevision == OfficialUISpec.Build.uiSpecRevision
@@ -115,7 +113,8 @@ final class HarnessHostController: ObservableObject {
                 ))
                 return
             }
-            launch(build: build, verification: verification)
+            appendLog("[host] prepared build candidate=\(build.id); compatibility deferred until authenticated Remote readiness")
+            launch(candidate: candidate)
         }
     }
 
@@ -154,7 +153,8 @@ final class HarnessHostController: ObservableObject {
         }
     }
 
-    private func launch(build: SupportedHostBuildCatalog.Build, verification: HostBuildVerification) {
+    private func launch(candidate: HostBuildCandidate) {
+        let build = candidate.build
         guard fileManager.isExecutableFile(atPath: runtime.nodeExecutable.path) else {
             state = .failed(HostFailure(
                 kind: .missingNodeRuntime,
@@ -200,7 +200,7 @@ final class HarnessHostController: ObservableObject {
             let data = handle.availableData
             guard !data.isEmpty else { return }
             let text = String(decoding: data, as: UTF8.self)
-            Task { @MainActor [weak self] in self?.consumeHostOutput(text, build: build, verification: verification) }
+            Task { @MainActor [weak self] in self?.consumeHostOutput(text, candidate: candidate) }
         }
         process.terminationHandler = { [weak self] terminated in
             Task { @MainActor [weak self] in self?.handleTermination(terminated) }
@@ -223,7 +223,7 @@ final class HarnessHostController: ObservableObject {
         }
     }
 
-    private func consumeHostOutput(_ text: String, build: SupportedHostBuildCatalog.Build, verification: HostBuildVerification) {
+    private func consumeHostOutput(_ text: String, candidate: HostBuildCandidate) {
         appendLog(text)
         let previousUTF16Length = (announcedOutput as NSString).length
         announcedOutput += text
@@ -260,7 +260,7 @@ final class HarnessHostController: ObservableObject {
         startupTimeoutTask?.cancel()
         startupTimeoutTask = nil
         state = .authenticating(descriptor.cleanBaseURL)
-        verify(descriptor: descriptor, build: build, verification: verification)
+        verify(descriptor: descriptor, candidate: candidate)
     }
 
     /// Parses only the bounded append window selected by `consumeHostOutput`.
@@ -283,8 +283,7 @@ final class HarnessHostController: ObservableObject {
 
     private func verify(
         descriptor: HostLaunchDescriptor,
-        build: SupportedHostBuildCatalog.Build,
-        verification: HostBuildVerification
+        candidate: HostBuildCandidate
     ) {
         verificationTask?.cancel()
         verificationTask = Task { [weak self] in
@@ -306,6 +305,12 @@ final class HarnessHostController: ObservableObject {
                     await remote.closeStreams()
                     return
                 }
+
+                // Reaching this point means the process-token bootstrap and rc.1
+                // `$events` ready handshake both succeeded. Package/version facts
+                // become a compatibility guarantee only now.
+                self.state = .classifying(authenticatedHost.baseURL)
+                let verification = self.verifier.classify(candidate: candidate)
                 let compatibility: HostCompatibility
                 switch verification {
                 case .verified:
@@ -319,7 +324,7 @@ final class HarnessHostController: ObservableObject {
                     authenticatedHost: authenticatedHost,
                     remote: remote,
                     events: events,
-                    build: build,
+                    build: candidate.build,
                     compatibility: compatibility
                 )
             } catch {
@@ -350,7 +355,6 @@ final class HarnessHostController: ObservableObject {
             await remote.closeStreams()
             return
         }
-        state = .classifying(authenticatedHost.baseURL)
         // A generation that reached readiness restores the recovery budget for a
         // later, independent failure.
         recoveryAttempts = 0
