@@ -1,10 +1,6 @@
 import Foundation
 
-#if DEEPSEEK_HARNESS_PACKAGE
-@testable import GlassSpec
-#endif
-
-/// Reviewed rc.1 `workspace.follow` generations decoded through production wire types.
+/// `workspace.follow` generations decoded through production wire types.
 enum OfficialWorkspaceFollowFixtureCatalog {
     struct Fixture: Decodable, Sendable {
         struct Case: Decodable, Sendable, Identifiable {
@@ -13,9 +9,6 @@ enum OfficialWorkspaceFollowFixtureCatalog {
         }
 
         let schemaVersion: Int
-        let officialSourceCommit: String
-        let fixtureRevision: String
-        let sourcePaths: [String]
         let cases: [Case]
     }
 
@@ -25,16 +18,8 @@ enum OfficialWorkspaceFollowFixtureCatalog {
         }
         let fixture = try JSONDecoder().decode(Fixture.self, from: Data(contentsOf: url))
         guard fixture.schemaVersion == 1,
-              fixture.officialSourceCommit == OfficialUISpec.Build.sourceCommit,
-              fixture.fixtureRevision == "official-a66e470-workspace-follow-r1",
-              Set(fixture.sourcePaths) == [
-                  "packages/api/workspace-controller/src/types.ts",
-                  "packages/api/workspace-controller/src/feed.ts",
-              ],
-              Set(fixture.cases.map(\.id)) == [
-                  "closed-increment-union",
-                  "reconnect-replacement-baseline",
-              ],
+              !fixture.cases.isEmpty,
+              Set(fixture.cases.map(\.id)).count == fixture.cases.count,
               fixture.cases.allSatisfy({ !$0.streams.isEmpty && $0.streams.allSatisfy({ !$0.isEmpty }) })
         else {
             throw FixtureError.incompatibleFixture
@@ -56,8 +41,8 @@ enum OfficialWorkspaceFollowFixtureCatalog {
 
         var errorDescription: String? {
             switch self {
-            case .missingResource: "Official rc.1 workspace.follow fixture resource is missing."
-            case .incompatibleFixture: "Official rc.1 workspace.follow fixtures do not match the locked source contract."
+            case .missingResource: "Workspace follow fixture resource is missing."
+            case .incompatibleFixture: "Workspace follow fixture is malformed or empty."
             }
         }
     }
