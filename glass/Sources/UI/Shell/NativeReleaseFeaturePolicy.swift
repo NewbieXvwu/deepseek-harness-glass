@@ -1,20 +1,18 @@
-import Foundation
-
 struct NativeReleaseFeaturePolicy: Sendable {
-    enum Feature: String, Hashable, Sendable {
-        case trajectory
-        case subagentCatalog
+    enum Surface: String, Hashable, Sendable {
+        case trajectoryTab
+        case subagentCatalogAction
     }
 
-    private let enabledFeatures: Set<Feature>
+    private let enabledSurfaces: Set<Surface>
 
-    init(enabledFeatures: Set<Feature>) {
-        self.enabledFeatures = enabledFeatures
+    init(enabledSurfaces: Set<Surface>) {
+        self.enabledSurfaces = enabledSurfaces
     }
 
-    static let releaseCandidate = NativeReleaseFeaturePolicy(enabledFeatures: [])
+    static let releaseCandidate = NativeReleaseFeaturePolicy(enabledSurfaces: [])
 
-    func isProductionEnabled(_ feature: Feature) -> Bool {
-        enabledFeatures.contains(feature)
+    func permits(_ surface: Surface) -> Bool {
+        enabledSurfaces.contains(surface)
     }
 }
