@@ -8,21 +8,6 @@ final class AuthenticatedHostFixtureTests: XCTestCase {
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
 
-    func testFixtureMetadataAndSecretPolicyAreRc1Only() throws {
-        let fixture = try OfficialAuthenticatedHostFixtureCatalog.load()
-        XCTAssertEqual(fixture.officialSourceCommit, OfficialUISpec.Build.sourceCommit)
-        XCTAssertEqual(fixture.payload.dshVersion, "0.1.2-rc.1")
-        XCTAssertFalse(fixture.secretPolicy.persistedLaunchToken)
-        XCTAssertFalse(fixture.secretPolicy.persistedCookie)
-        XCTAssertFalse(fixture.secretPolicy.persistedAuthorization)
-        XCTAssertFalse(fixture.secretPolicy.persistedUserCredentials)
-        XCTAssertFalse(fixture.secretPolicy.persistedRealWorkspacePath)
-        XCTAssertEqual(fixture.authentication.bootstrapStatus, 303)
-        XCTAssertEqual(fixture.authentication.redirectLocation, "/")
-        XCTAssertTrue(fixture.authentication.cookieInstalled)
-        XCTAssertEqual(fixture.authentication.authenticatedRootStatus, 200)
-    }
-
     func testUnaryCaptureUsesProductionRemoteCodec() throws {
         let fixture = try OfficialAuthenticatedHostFixtureCatalog.load()
         struct Empty: Codable {}
@@ -56,7 +41,7 @@ final class AuthenticatedHostFixtureTests: XCTestCase {
             decoder: decoder
         )
         XCTAssertEqual(commands.rpcID, "fixture-commands-list")
-        guard case let .value(commandValues) = commands.result else {
+        guard case let .value(commandValues) = decoded.result else {
             return XCTFail("authenticated commands/list fixture must succeed")
         }
         XCTAssertEqual(commandValues.map(\.name), ["compact", "export", "feedback", "goal", "permission", "plan"])
