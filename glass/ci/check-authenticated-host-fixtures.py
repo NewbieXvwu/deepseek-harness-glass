@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT = ROOT / 'glass/Sources/Core/Resources/official-authenticated-host-fixtures.json'
+DEFAULT = ROOT / 'glass/Tests/Core/Resources/official-authenticated-host-fixtures.json'
 FORBIDDEN = [
     re.compile(r'(?i)(?:[?&]token=|set-cookie|\bcookie\b\s*[:=]|authorization\s*[:=]|bearer\s+)'),
     re.compile(r'(?i)deepseek_api_key\s*[:=]\s*[^\s,}\]]+'),

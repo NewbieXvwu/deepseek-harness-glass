@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY_ROOT = ROOT.parent
-CATALOG = ROOT / "Sources/Spec/Fixtures/official-column-layout-fixtures.json"
+CATALOG = ROOT / "Tests/Spec/Resources/official-column-layout-fixtures.json"
 GENERATOR = REPOSITORY_ROOT / "tools/spec-generation/generate_official_column_layout_fixtures.ts"
 
 

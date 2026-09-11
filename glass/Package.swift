@@ -24,7 +24,6 @@ let package = Package(
                 "Tokens/official-theme-tokens.json",
             ],
             resources: [
-                .process("Fixtures"),
                 .process("Locales"),
             ],
             swiftSettings: [.define("DEEPSEEK_HARNESS_PACKAGE"), .unsafeFlags(["-enable-testing"])]
@@ -75,7 +74,8 @@ let package = Package(
         .testTarget(
             name: "GlassSpecTests",
             dependencies: ["GlassSpec"],
-            path: "Tests/Spec"
+            path: "Tests/Spec",
+            resources: [.process("Resources")]
         ),
         .testTarget(
             name: "GlassPortableCoreTests",
