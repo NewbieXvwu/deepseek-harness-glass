@@ -1,4 +1,5 @@
 import Foundation
+@testable import GlassCore
 
 /// Session journal wire fixtures decoded directly into production Remote/session types.
 enum OfficialSessionJournalFixtureCatalog {

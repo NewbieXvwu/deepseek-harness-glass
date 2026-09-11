@@ -1,4 +1,5 @@
 import Foundation
+@testable import GlassCore
 
 /// Anonymized event scripts replayed through production Remote/session types.
 enum OfficialRawEventReplayFixtureCatalog {

@@ -85,7 +85,8 @@ let package = Package(
         .testTarget(
             name: "GlassCoreTests",
             dependencies: ["GlassCore", "GlassSpec", "GlassPortableCore"],
-            path: "Tests/Core"
+            path: "Tests/Core",
+            resources: [.process("Resources")]
         ),
         .testTarget(
             name: "GlassAppTests",

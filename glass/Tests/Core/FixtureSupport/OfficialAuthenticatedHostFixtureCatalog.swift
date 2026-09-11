@@ -1,4 +1,5 @@
 import Foundation
+@testable import GlassCore
 
 /// Secret-free records captured from an authenticated local Host.
 enum OfficialAuthenticatedHostFixtureCatalog {

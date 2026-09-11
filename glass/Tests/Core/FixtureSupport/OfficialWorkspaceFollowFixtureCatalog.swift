@@ -1,11 +1,12 @@
 import Foundation
+@testable import GlassCore
 
-/// `session.control` generations decoded through production wire types.
-enum OfficialSessionControlFixtureCatalog {
+/// `workspace.follow` generations decoded through production wire types.
+enum OfficialWorkspaceFollowFixtureCatalog {
     struct Fixture: Decodable, Sendable {
         struct Case: Decodable, Sendable, Identifiable {
             let id: String
-            let streams: [[RemoteSessionControlFrame]]
+            let streams: [[RemoteWorkspaceFollowFrame]]
         }
 
         let schemaVersion: Int
@@ -13,7 +14,7 @@ enum OfficialSessionControlFixtureCatalog {
     }
 
     static func load() throws -> Fixture {
-        guard let url = fixtureBundle.url(forResource: "official-session-control-fixtures", withExtension: "json") else {
+        guard let url = fixtureBundle.url(forResource: "official-workspace-follow-fixtures", withExtension: "json") else {
             throw FixtureError.missingResource
         }
         let fixture = try JSONDecoder().decode(Fixture.self, from: Data(contentsOf: url))
@@ -41,8 +42,8 @@ enum OfficialSessionControlFixtureCatalog {
 
         var errorDescription: String? {
             switch self {
-            case .missingResource: "Session control fixture resource is missing."
-            case .incompatibleFixture: "Session control fixture is malformed or empty."
+            case .missingResource: "Workspace follow fixture resource is missing."
+            case .incompatibleFixture: "Workspace follow fixture is malformed or empty."
             }
         }
     }
