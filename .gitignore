@@ -2,6 +2,7 @@
 *.log
 
 # Build inputs/outputs (not tracked; see README for how to produce them)
+/build/
 glass/build/
 glass/release-glass/
 glass/dist/
