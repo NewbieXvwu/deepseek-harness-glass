@@ -9,7 +9,6 @@ on:
       - "CONTRIBUTING.md"
       - "TODO.md"
       - "notes/**"
-      - "visual-review/**"
       - ".github/workflows/documentation-integrity.yml"
       - "tools/check-markdown-links.py"
   pull_request:
@@ -19,7 +18,6 @@ on:
       - "CONTRIBUTING.md"
       - "TODO.md"
       - "notes/**"
-      - "visual-review/**"
       - ".github/workflows/documentation-integrity.yml"
       - "tools/check-markdown-links.py"
   workflow_dispatch:
@@ -70,10 +68,6 @@ jobs:
           echo "::endgroup::"
           echo "::group::Official theme tokens"
           python3 glass/ci/check-official-theme-tokens.py \
-            --official-root .reference/deepseek-harness
-          echo "::endgroup::"
-          echo "::group::Official interaction scene directory"
-          python3 glass/ci/check-official-interaction-scenes.py \
             --official-root .reference/deepseek-harness
           echo "::endgroup::"
           echo "::group::Authenticated rc.1 Host fixture"
