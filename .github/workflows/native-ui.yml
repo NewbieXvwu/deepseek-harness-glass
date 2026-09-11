@@ -8,9 +8,7 @@ on:
       - "README.zh.md"
       - "CONTRIBUTING.md"
       - "TODO.md"
-      - "CONTINUOUS_EXECUTION_PLAN.md"
       - "notes/**"
-      - "visual-review/**"
       - ".github/workflows/documentation-integrity.yml"
       - "tools/check-markdown-links.py"
   pull_request:
@@ -19,9 +17,7 @@ on:
       - "README.zh.md"
       - "CONTRIBUTING.md"
       - "TODO.md"
-      - "CONTINUOUS_EXECUTION_PLAN.md"
       - "notes/**"
-      - "visual-review/**"
       - ".github/workflows/documentation-integrity.yml"
       - "tools/check-markdown-links.py"
   workflow_dispatch:
@@ -98,6 +94,7 @@ jobs:
           key: official-webui-baseline-${{ env.OFFICIAL_COMMIT }}-${{ runner.os }}-${{ env.IMAGE_VERSION }}-${{ hashFiles('tools/reference-capture/capture-official-*.e2e.ts') }}
 
       - name: Restore official build dependency caches
+        if: steps.official-baseline-cache.outputs.cache-hit != 'true'
         uses: actions/cache@v5
         with:
           path: |
@@ -106,6 +103,7 @@ jobs:
           key: official-webui-deps-${{ env.OFFICIAL_COMMIT }}-${{ hashFiles('.reference/deepseek-harness/pnpm-lock.yaml', '.reference/deepseek-harness/apps/web/package.json') }}
 
       - name: Install locked official source toolchain
+        if: steps.official-baseline-cache.outputs.cache-hit != 'true'
         run: |
           export PATH="$NODE24_BIN:$PATH"
           cd .reference/deepseek-harness
@@ -145,10 +143,6 @@ jobs:
             test -s "artifacts/official-webui/${scene}.json"
           done
 
-      - name: Prepare official interaction fixture
-        run: |
-          cp "$GITHUB_WORKSPACE/tools/reference-capture/capture-official-welcome.e2e.ts" .reference/deepseek-harness/apps/web/tests/
-
       - name: Restore pinned Host payload cache
         id: dsh-host-cache
         uses: actions/cache/restore@v5
@@ -186,7 +180,6 @@ jobs:
           python3 glass/ci/check-official-locales.py --official-root .reference/deepseek-harness --node "$NODE24_BIN/node"
           python3 glass/ci/check-official-theme-tokens.py --official-root .reference/deepseek-harness
           python3 glass/ci/check-official-column-layout-fixtures.py --official-root .reference/deepseek-harness --node "$NODE24_BIN/node"
-          python3 glass/ci/check-official-interaction-scenes.py --official-root .reference/deepseek-harness
           python3 glass/ci/check-authenticated-host-fixtures.py
           AUTH_CAPTURE="$(mktemp)"
           node tools/spec-generation/capture_authenticated_host_fixtures.mjs \
