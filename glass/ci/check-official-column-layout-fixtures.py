@@ -56,13 +56,10 @@ def fixtures(document: object) -> list[dict[str, object]]:
 def main() -> None:
     args = arguments()
     checked = fixtures(json.loads(CATALOG.read_text(encoding="utf-8")))
-    tsx_cli = args.official_root / "node_modules/tsx/dist/cli.mjs"
-    if not tsx_cli.is_file():
-        raise SystemExit(f"upstream tsx runtime is unavailable: {tsx_cli}")
     with tempfile.TemporaryDirectory(prefix="dsh-columns-") as temporary:
         generated_path = Path(temporary) / CATALOG.name
         subprocess.run([
-            str(args.node), str(tsx_cli), str(GENERATOR),
+            str(args.node), str(GENERATOR),
             "--official-root", str(args.official_root),
             "--output", str(generated_path),
         ], check=True)
