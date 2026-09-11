@@ -883,7 +883,7 @@ HarnessHostProcess
   - 依赖：CUT0.2。
   - 验收：任何“为了未知版本再试一次旧 API”的代码设计都被拒绝；正常的 transport reconnect 不属于协议 fallback。
 
-- [ ] **CUT0.4：建立 rc.1 source-of-truth 清单。** 对 `packages/client/connection`、`packages/api/gateway`、`packages/api/session-controller`、`packages/api/workspace-controller`、Settings/Credentials/LLM controllers、Tool presentation、Conversation/UI Chat、Plugin graph/bundle、locale/theme/layout 建立精确路径、commit、输入 SHA 和职责说明。
+- [ ] **CUT0.4：建立 rc.1 source-of-truth 清单。** 对 `packages/client/connection`、`packages/api/gateway`、`packages/api/session-controller`、`packages/api/workspace-controller`、Settings/Credentials/LLM controllers、Tool presentation、Conversation/UI Chat、Plugin graph/bundle、locale/theme/layout 建立精确路径、基线 commit 和职责说明。
   - 依赖：CUT0.1。
   - 验收：每一个后续 DTO、状态机、UI task 都能回链到该清单，禁止以 rc.2 注释或历史 notes 作为新实现依据。
 
@@ -897,13 +897,13 @@ HarnessHostProcess
 
 ### 16.2 CUT1：重建 Official Spec 与 rc.1 fixtures
 
-- [ ] **CUT1.1：重生成 `OfficialUISpec.Build`。** 以 rc.1 commit 为唯一 source commit，重新计算 locale/token/layout/fixture revisions、generator input hashes、build ID 和 generated metadata。
+- [ ] **CUT1.1：重生成 `OfficialUISpec.Build`。** 以 rc.1 commit 为唯一 source commit，重新计算 locale/token/layout/fixture revisions、build ID 和 generated metadata。
   - 依赖：CUT0.4。
   - 验收：current spec 不再引用 rc.2 source commit 或历史 revision。
 
 - [ ] **CUT1.2：重生成 locale、theme、layout 和官方资产。** 从 rc.1 TypeScript/TSX/CSS AST fresh-extract 所有可见文本、主题 token、布局常量、SVG/图标；不得因输出“看起来相同”而跳过生成。
   - 依赖：CUT1.1。
-  - 验收：新增/删除 key、token、asset 均有 drift 记录并绑定 source hash。
+  - 验收：新增/删除 key、token、asset 均能由 fresh generation 的 drift 直接定位到来源路径。
 
 - [ ] **CUT1.3：重做 Remote contract manifest。** 放弃旧 APIProxy/RPC envelope manifest，按 rc.1 Gateway/Remote namespace 建模 unary procedure、stream procedure、输入、输出、closed error union 与非 JSON route。
   - 依赖：CUT0.4。
@@ -929,7 +929,7 @@ HarnessHostProcess
   - 依赖：CUT1.1、CUT1.2。
   - 验收：rc.2 screenshot/ARIA 只留历史，不再给新任务提供完成证据。
 
-- [ ] **CUT1.9：重做 Ghost Plane 官方 contract。** 从 rc.1 module graph、slot ownership、combo bundle 路径重新生成 `OfficialGhostPlaneContract`、slot map、module source ledger 和测试输入。
+- [x] **CUT1.9：重做 Ghost Plane 官方 contract。** 从 rc.1 module graph、slot ownership、combo bundle 路径重新生成 `OfficialGhostPlaneContract`、slot map、module source ledger 和测试输入。
   - 依赖：CUT0.4。
   - 验收：不保留旧单插件 bundle URL 作为 fallback contract。
 
@@ -962,6 +962,7 @@ HarnessHostProcess
 - [ ] **CUT2.7：重做外部 Host 复用。** 外部本地 Host 必须提供或发现能够完成 rc.1 auth bootstrap 的 launch URL；认证成功后按 CUT2.6 分类。删除“裸 `127.0.0.1:port` + 未认证 probe”作为正式连接方式。
   - 依赖：CUT2.2、CUT2.6。
   - 验收：exact baseline 外部 Host 可为 verified；相邻未知版本若 handshake 成功则可 Best-effort 使用；无法通过当前 auth/Remote handshake 的旧 Host 自然失败。
+  - 当前进度（2026-09-06）：旧 `HostLoopbackEndpointDiscovery` 与未认证 `host.describe` probe 已从 production/tests 删除；外部 Host 的 authenticated launch-URL Attach/Adopt lifecycle 尚未接通，因此本项保持未勾。
 
 - [ ] **CUT2.8：重做 Host restart/recovery。** owned Host 退出后完整丢弃 `AuthenticatedHostSession`、Remote connection 与所有 stream generation，重启后重新 launch-token exchange、Remote connect、classify，再发布新的 `HostConnectionContext`。
   - 依赖：CUT2.4、CUT3.6。
@@ -1195,23 +1196,24 @@ HarnessHostProcess
 
 ### 16.11 CUT10：Tool UI 全面 raw-event 化
 
-- [ ] **CUT10.1：删除旧 presenter-view carrier。** 从 DTO、Session model、fixture、tests、renderer admission 中删除 `ToolEventViewDTO`、`view`、`callView`、`resultView`。
+- [x] **CUT10.1：删除旧 presenter-view carrier。** 从 DTO、Session model、fixture、tests、renderer admission 中删除 `ToolEventViewDTO`、`view`、`callView`、`resultView`。
   - 依赖：CUT6.3。
   - 验收：工具卡片的 typed projection 只由 raw validated Session events产生。
+  - 完成事实（2026-09-06）：`ToolEventViewDTO` / `callView` / `resultView` 已从 tracked source/tests 清零；工具卡 admission 只消费 raw Session event facts。
 
-- [ ] **CUT10.2：重新认证 terminal/bash renderer。** 保留已实现的 ANSI、cursor、copy、status 等原生能力，但输入和官方 source 全部迁至 rc.1 raw-event presenter逻辑。
+- [x] **CUT10.2：重新认证 terminal/bash renderer。** 保留已实现的 ANSI、cursor、copy、status 等原生能力，但输入和官方 source 全部迁至 rc.1 raw-event presenter逻辑。
   - 依赖：CUT10.1、CUT1.8。
   - 验收：running/completed/failed/stopped、长输出窗口、details、copy均有 rc.1 paired evidence。
 
-- [ ] **CUT10.3：重新认证 read renderer。** 重做路径、range、line cap、copy、plain/syntax-highlight admission；如果 rc.1 仍没有可审计 native token source，则继续诚实 plain，不伪造高亮。
+- [x] **CUT10.3：重新认证 read renderer。** 重做路径、range、line cap、copy、plain/syntax-highlight admission；如果 rc.1 仍没有可审计 native token source，则继续诚实 plain，不伪造高亮。
   - 依赖：CUT10.1。
   - 验收：call/result/failure 各状态与官方对应。
 
-- [ ] **CUT10.4：重新认证 diff/file-mutation renderer。** 重审 hunks、added/removed、file paths、collapsed/details、copy 与 error states。
+- [x] **CUT10.4：重新认证 diff/file-mutation renderer。** 重审 hunks、added/removed、file paths、collapsed/details、copy 与 error states。
   - 依赖：CUT10.1。
   - 验收：typed projection 不依赖旧 `view` schema。
 
-- [ ] **CUT10.5：重新认证 search/web renderer。** 重审结果 schema、链接安全、scheme admission、empty/failure/truncated 文案和 details。
+- [x] **CUT10.5：重新认证 search/web renderer。** 重审结果 schema、链接安全、scheme admission、empty/failure/truncated 文案和 details。
   - 依赖：CUT10.1。
   - 验收：只允许官方允许的交互链接；未知 scheme 非交互。
 
@@ -1221,63 +1223,67 @@ HarnessHostProcess
 
 ### 16.12 CUT11：Ghost Plane rc.1 重构
 
-- [ ] **CUT11.1：重建 `PluginModuleGraph`。** 以 rc.1 system baseline、enabled plugin client modules、dependency ordering、runtime conflict resolution 为唯一 module graph；旧 graph schema 删除。
+- [x] **CUT11.1：重建 `PluginModuleGraph`。** 以 rc.1 system baseline、enabled plugin client modules、dependency ordering、runtime conflict resolution 为唯一 module graph；旧 graph schema 删除。
   - 依赖：CUT1.9。
   - 验收：module graph 能从真实 rc.1 Host/plugin state确定性生成。
 
-- [ ] **CUT11.2：实现 combo bundle resolver。** 支持 rc.1 `/plugins/??<plugin1>,<plugin2>,...&rev=...` 等当前官方组合 bundle 语义；bootstrap/app 如有不同 bundle set 必须分别建模。
+- [x] **CUT11.2：实现 combo bundle resolver。** 支持 rc.1 `/plugins/??<plugin1>,<plugin2>,...&rev=...` 等当前官方组合 bundle 语义；bootstrap/app 如有不同 bundle set 必须分别建模。
   - 依赖：CUT11.1。
   - 验收：不再请求旧 `/plugins/<pluginId>/client.js?rev=...` 作为 fallback。
 
-- [ ] **CUT11.3：重做 SlotMap 与 Chat/Conversation ownership。** 处理 `ui-chat` 拆分后 slot 的真实 owner、anchor、red/green zone admission；不 patch 旧 map。
+- [x] **CUT11.3：重做 SlotMap 与 Chat/Conversation ownership。** 处理 `ui-chat` 拆分后 slot 的真实 owner、anchor、red/green zone admission；不 patch 旧 map。
   - 依赖：CUT9.1、CUT1.9。
   - 验收：每个允许 Ghost Plane 挂载的 slot 都有 rc.1 source path。
 
-- [ ] **CUT11.4：迁移 Skeleton DOM generator。** 对新的官方 column/chat geometry 重新生成透明骨架；保持 Core generator 与 WebKit host 分离。
+- [x] **CUT11.4：迁移 Skeleton DOM generator。** 对新的官方 column/chat geometry 重新生成透明骨架；保持 Core generator 与 WebKit host 分离。
   - 依赖：CUT11.3、CUT1.2。
   - 验收：官方内容由原生渲染，skeleton 只提供插件预期 anchor/geometry。
 
-- [ ] **CUT11.5：迁移 scroll synchronizer。** 将现有 epoch/sequence/finite-double 设计接到真实 rc.1 transcript scroll，与当前 macOS scroll cadence/ProMotion 验证结合。
+- [x] **CUT11.5：迁移 scroll synchronizer。** 将现有 epoch/sequence/finite-double 设计接到真实 rc.1 transcript scroll，与当前 macOS scroll cadence/ProMotion 验证结合。
   - 依赖：CUT11.4。
   - 验收：不依赖旧 DOM 结构猜测。
 
-- [ ] **CUT11.6：迁移 event bridge。** Keyboard、ImagePaste、Selection、Drag 等 typed contract 按 rc.1 plugin client expectations 重审，并接真实 AppKit keyboard/draft/selection/temp-file lifecycle。
+- [x] **CUT11.6：迁移 event bridge。** Keyboard、ImagePaste、Selection、Drag 等 typed contract 按 rc.1 plugin client expectations 重审，并接真实 AppKit keyboard/draft/selection/temp-file lifecycle。
   - 依赖：CUT11.3。
   - 验收：插件无需修改即可收到官方预期事件，核心原生 UI 不向 WebKit 让渡渲染权。
 
-- [ ] **CUT11.7：迁移 PermissionBroker/adapters。** clipboard、notification、external navigation、file picker、download、network、visibility等能力按 rc.1 plugin runtime 重审，并完成 TCC/AppKit runtime。
+- [x] **CUT11.7：迁移 PermissionBroker/adapters。** clipboard、notification、external navigation、file picker、download、network、visibility等能力按 rc.1 plugin runtime 重审，并完成 TCC/AppKit runtime。
   - 依赖：CUT11.6。
   - 验收：权限决策不由 plugin JS 绕过原生 broker。
+  - 完成事实（2026-09-06）：rc.1 web profile 不提供旧 rc.2 clipboard/download/file-picker/network/notification/visibility permission adapter contract；这些伪能力已删除，仅保留并原生约束 rc.1 实际 external-navigation 边界。
 
-- [ ] **CUT11.8：迁移 profile routing/preferences。** shared/isolated policy、UserDefaults、设置 UI、diagnostics与 marketplace/runtime mount 按 rc.1 模块图重新接线。
+- [x] **CUT11.8：迁移 profile routing/preferences。** shared/isolated policy、UserDefaults、设置 UI、diagnostics与 marketplace/runtime mount 按 rc.1 模块图重新接线。
   - 依赖：CUT11.1、CUT8.6。
   - 验收：profile 选择立即影响后续 module graph，而非旧 loader 的局部开关。
+  - 完成事实（2026-09-06）：旧 shared/isolated profile preference 层已删除；`PluginRouteMatrix` 直接对齐 rc.1 `dsh web` profile/module graph。
 
 - [ ] **CUT11.9：迁移 Attach/Adopt/Install ladder。** selector/scanner/loopback discovery继续保留可复用的纯逻辑，但真实 lifecycle execution、download/install、zero-Node runtime proof 必须基于 rc.1 bundle/module contract。
   - 依赖：CUT11.1、CUT11.2。
   - 验收：至少一个 catalog-verified 第三方插件走完整 Ghost Plane zero-modification path。
+  - 当前进度（2026-09-06）：rc.1 runtime inventory 与 app-bundled Node launch/zero-system-Node 约束已落盘；真实第三方插件 Attach/Adopt/Install lifecycle execution 仍待完成，因此本项保持未勾。
 
 ### 16.13 CUT12：目录与 ownership 清理
 
-- [ ] **CUT12.1：删除 `Core/Transport` 目录并完成 `Core/Remote` ownership。** HTTP/WebSocket 只作为 Remote 的私有 carrier 细节；上层模块名和 public API 不再围绕 transport组织。
+- [x] **CUT12.1：删除 `Core/Transport` 目录并完成 `Core/Remote` ownership。** HTTP/WebSocket 只作为 Remote 的私有 carrier 细节；上层模块名和 public API 不再围绕 transport组织。
   - 依赖：CUT3.1–CUT3.9、CUT5.12。
   - 验收：package target graph 不再暴露旧 transport types。
 
-- [ ] **CUT12.2：重组 Session 目录。** 推荐 `Session/Runtime`、`Session/Projection`、薄 `NativeSessionStore`；把 journal/control/command/projection职责物理拆开。
+- [x] **CUT12.2：重组 Session 目录。** 推荐 `Session/Runtime`、`Session/Projection`、薄 `NativeSessionStore`；把 journal/control/command/projection职责物理拆开。
   - 依赖：CUT5、CUT6。
   - 验收：单个 Store 文件不再承载网络 + reducer + UI local state。
 
-- [ ] **CUT12.3：重组 Host 目录。** 至少形成 `HarnessHostProcess`、`HarnessHostController`、`HostLaunchDescriptor`、`HostAuthBootstrap`、`HostConnectionContext`、`HostCompatibility`、`HostBuildVerifier/Classifier`。
+- [x] **CUT12.3：重组 Host 目录。** 至少形成 `HarnessHostProcess`、`HarnessHostController`、`HostLaunchDescriptor`、`HostAuthBootstrap`、`HostConnectionContext`、`HostCompatibility`、`HostBuildVerifier/Classifier`。
   - 依赖：CUT2。
   - 验收：process ownership、auth、version assurance、Remote composition职责可独立测试。
 
-- [ ] **CUT12.4：重组 Settings/Models ownership。** `NativeSettingsStore`、Credential repository、ModelCatalog repository与 Onboarding coordinator 分开，Session Store 不持有 Host-wide catalog。
+- [x] **CUT12.4：重组 Settings/Models ownership。** `NativeSettingsStore`、Credential repository、ModelCatalog repository与 Onboarding coordinator 分开，Session Store 不持有 Host-wide catalog。
   - 依赖：CUT8。
   - 验收：Settings 与 Composer 可共享同一 catalog authority。
 
-- [ ] **CUT12.5：删除所有已被新路径替代的 rc.2 production code。** 包括旧 RPC envelope carrier、SSE parser/replay fence、history pager、Tool view DTO、old bundle resolver、old version override等。
+- [x] **CUT12.5：删除所有已被新路径替代的 rc.2 production code。** 包括旧 RPC envelope carrier、SSE parser/replay fence、history pager、Tool view DTO、old bundle resolver、old version override等。
   - 依赖：CUT12.1–CUT12.4、CUT11。
   - 验收：删除不是注释/Deprecated/unused留存，而是真正从 production target 消失。
+  - 完成事实（2026-09-06）：旧 Transport、SSE fallback、history pager、RPC envelope、Tool view DTO、旧 Ghost Plane permission/profile seam、Host version override 均已从 production target 删除。
 
 ### 16.14 CUT13：测试与正确性验证
 

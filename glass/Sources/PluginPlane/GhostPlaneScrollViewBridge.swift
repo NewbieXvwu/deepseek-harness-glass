@@ -15,11 +15,13 @@ public final class GhostPlaneScrollViewBridge {
     private var pendingOffset: Double?
     private var observer: NSObjectProtocol?
     private var displayTimer: Timer?
+    private var flushInFlight = false
 
     public init(scrollView: NSScrollView, host: GhostPlaneWebViewHost, documentEpoch: UInt64) {
         self.scrollView = scrollView
         self.host = host
         synchronizer = .init(documentEpoch: documentEpoch)
+        host.beginDocument(epoch: documentEpoch)
         scrollView.contentView.postsBoundsChangedNotifications = true
         observer = NotificationCenter.default.addObserver(
             forName: NSView.boundsDidChangeNotification,
@@ -42,11 +44,17 @@ public final class GhostPlaneScrollViewBridge {
     public func beginDocument(epoch: UInt64) {
         synchronizer = .init(documentEpoch: epoch)
         sourceSequence = 0
+        pendingOffset = nil
+        host?.beginDocument(epoch: epoch)
         captureNativeOffset()
     }
 
     private func startDisplayCadence() {
-        let maximumFramesPerSecond = Double(scrollView?.window?.screen?.maximumFramesPerSecond ?? 60)
+        let maximumFramesPerSecond = Double(
+            scrollView?.window?.screen?.maximumFramesPerSecond
+                ?? NSScreen.main?.maximumFramesPerSecond
+                ?? 60
+        )
         let interval = 1 / max(1, maximumFramesPerSecond)
         displayTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in self?.flushLatestOffset() }
@@ -62,7 +70,7 @@ public final class GhostPlaneScrollViewBridge {
     }
 
     private func flushLatestOffset() {
-        guard let offset = pendingOffset else { return }
+        guard !flushInFlight, let offset = pendingOffset else { return }
         pendingOffset = nil
         sourceSequence &+= 1
         guard case .applied(let scalar) = synchronizer.receive(
@@ -70,6 +78,12 @@ public final class GhostPlaneScrollViewBridge {
             scrollOffset: offset,
             documentEpoch: synchronizer.documentEpoch
         ), let host else { return }
-        Task { @MainActor [weak host] in try? await host?.applyScrollOffset(scalar) }
+        flushInFlight = true
+        Task { @MainActor [weak self, weak host] in
+            try? await host?.applyScrollOffset(scalar)
+            guard let self else { return }
+            self.flushInFlight = false
+            if self.pendingOffset != nil { self.flushLatestOffset() }
+        }
     }
 }

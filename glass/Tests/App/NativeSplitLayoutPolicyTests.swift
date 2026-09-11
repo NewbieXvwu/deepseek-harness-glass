@@ -179,7 +179,7 @@ final class NativeSplitLayoutPolicyTests: XCTestCase {
         XCTAssertFalse(state.isCollapsed)
 
         state.setNarrow(true)
-        XCTAssertTrue(state.isCollapsed, "RC8 narrows to a 56px rail by default")
+        XCTAssertTrue(state.isCollapsed, "rc.1 narrows to a 56px rail by default")
         XCTAssertFalse(state.narrowExpanded)
 
         state.setCollapsed(false)
@@ -189,22 +189,6 @@ final class NativeSplitLayoutPolicyTests: XCTestCase {
         state.setNarrow(false)
         XCTAssertFalse(state.isCollapsed, "re-widening restores the untouched wide preference")
         XCTAssertFalse(state.narrowExpanded, "the narrow-only override must reset at the breakpoint")
-    }
-
-    @MainActor
-    func testDeliverablesSnapshotRetainsRecordedNarrowSidebarExpansionOnly() {
-        let fixture = NativeShellPresentation(
-            mode: .conversation,
-            snapshotSidebarNarrowExpanded: true
-        )
-        fixture.setSidebarViewportNarrow(true)
-        XCTAssertFalse(fixture.sidebarLayout.isCollapsed)
-        XCTAssertTrue(fixture.sidebarLayout.narrowExpanded)
-
-        let production = NativeShellPresentation(mode: .conversation)
-        production.setSidebarViewportNarrow(true)
-        XCTAssertTrue(production.sidebarLayout.isCollapsed)
-        XCTAssertFalse(production.sidebarLayout.narrowExpanded)
     }
 
     func testRepeatedNarrowViewportRefreshPreservesManualExpansion() {

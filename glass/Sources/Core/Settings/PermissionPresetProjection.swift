@@ -133,12 +133,7 @@ private extension JSONValue {
     func permissionObject(named key: String) -> [String: JSONValue]? { permissionValue(named: key)?.objectValue }
     func permissionArray(named key: String) -> [JSONValue]? { permissionValue(named: key)?.arrayValue }
     var permissionType: String? { permissionValue(named: "type")?.stringValue }
-    var permissionReference: Int? {
-        guard let number = numberValue, number.rounded(.towardZero) == number,
-              number >= 0, number <= Double(Int.max)
-        else { return nil }
-        return Int(number)
-    }
+    var permissionReference: Int? { nonNegativeIntValue }
 
     func permissionString(at path: [String]) -> String? {
         var node: JSONValue = self

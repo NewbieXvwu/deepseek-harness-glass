@@ -3,7 +3,7 @@ import UniformTypeIdentifiers
 
 /// SwiftUI transport for a browser row/group drag. The owner retains all
 /// business state; this delegate only converts local pointer geometry into the
-/// RC8 before/after target half and requests one commit from that owner.
+/// rc.1 before/after target half and requests one commit from that owner.
 struct NativeWorkspaceDropDelegate: DropDelegate {
     let isActive: () -> Bool
     let half: (DropInfo) -> NativeWorkspaceBrowserOrdering.DropHalf
@@ -37,7 +37,7 @@ struct NativeWorkspaceDropDelegate: DropDelegate {
 }
 
 extension View {
-    /// Source: RC8 `rowHalf` / `workspaceGroupHalf`: the full target geometry
+    /// Source: rc.1 `rowHalf` / `workspaceGroupHalf`: the full target geometry
     /// decides whether an insertion anchor sits before or after that target.
     func nativeWorkspaceDropTarget(
         active: @escaping () -> Bool,

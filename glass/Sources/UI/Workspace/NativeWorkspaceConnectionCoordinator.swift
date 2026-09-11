@@ -1,4 +1,4 @@
-/// Host-connection coalescer for the RC8 New Session action. The coordinator
+/// Host-connection coalescer for the rc.1 New Session action. The coordinator
 /// retains only an in-flight task keyed by an already Host-projected workspace
 /// id; it never manufactures workspace or session facts.
 @MainActor

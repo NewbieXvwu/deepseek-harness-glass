@@ -48,6 +48,9 @@ final class DeepSeekHarnessGlassApp: NSObject, NSApplicationDelegate {
         menuBarCoordinator = MenuBarCoordinator(
             showWindow: { [weak self] in self?.windowCoordinator.showAndFocus() },
             restartHost: { [weak self] in self?.hostCoordinator?.restart() },
+            attachExternalHost: { [weak self] launchURL in
+                self?.hostCoordinator?.attachExternalHost(launchURL: launchURL)
+            },
             quitApplication: { NSApp.terminate(nil) }
         )
         let coordinator = HostLifecycleCoordinator { [weak self] state in
@@ -76,9 +79,9 @@ final class DeepSeekHarnessGlassApp: NSObject, NSApplicationDelegate {
         switch state {
         case let .ready(connection):
             windowCoordinator.connectVerifiedHost(connection)
-        case .idle, .stopping, .failed, .unverified:
+        case .idle, .stopping, .failed:
             windowCoordinator.disconnectHost()
-        case .probingExternal, .startingOwned, .verifying, .recovering:
+        case .starting, .authenticating, .connecting, .recovering:
             break
         }
     }

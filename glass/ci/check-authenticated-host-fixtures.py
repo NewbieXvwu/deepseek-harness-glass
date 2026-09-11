@@ -1,0 +1,119 @@
+#!/usr/bin/env python3
+"""Validate captured authenticated Host behavior and privacy invariants."""
+from __future__ import annotations
+import argparse, json, re
+from pathlib import Path
+from typing import Any
+
+ROOT = Path(__file__).resolve().parents[2]
+DEFAULT = ROOT / 'glass/Tests/Core/Resources/official-authenticated-host-fixtures.json'
+FORBIDDEN = [
+    re.compile(r'(?i)(?:[?&]token=|set-cookie|\bcookie\b\s*[:=]|authorization\s*[:=]|bearer\s+)'),
+    re.compile(r'(?i)deepseek_api_key\s*[:=]\s*[^\s,}\]]+'),
+    re.compile(r'/(?:Users|home|mnt/data)/[^\s"\\]+'),
+]
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--fixture', type=Path, default=DEFAULT)
+    args = parser.parse_args()
+    raw = args.fixture.read_text(encoding='utf-8')
+    fixture = json.loads(raw)
+
+    auth = fixture.get('authentication', {})
+    require(auth == {
+        'bootstrapStatus': 303,
+        'redirectLocation': '/',
+        'cookieInstalled': True,
+        'authenticatedRootStatus': 200,
+    }, 'auth bootstrap facts drifted')
+
+    unary = fixture.get('unary', {})
+    require(unary.get('endpoint') == 'session/list', 'unary fixture must use session/list')
+    assert_remote_pair(unary, 'fixture-session-list', 'session/list', True)
+    require(unary['response']['result']['value'] == {'items': []}, 'fresh session/list is not empty')
+
+    opening = fixture.get('streamOpening', {})
+    require(opening.get('eventRequest', {}).get('endpoint') == '$events', '$events opening missing')
+    event_ready = opening.get('eventReady', {})
+    require(event_ready.get('type') == 'item' and event_ready.get('streamId') == 'fixture-events', '$events mux carrier drifted')
+    require(event_ready.get('value', {}).get('type') == 'ready', '$events first item must be ready')
+    require(event_ready.get('value', {}).get('clientId') == '<fixture-client-id>', 'event client id was not normalized')
+    require(event_ready.get('value', {}).get('host', {}).get('home') == '<fixture-home>', 'Host home was not normalized')
+    baseline = opening.get('workspaceBaseline', {})
+    require(baseline.get('value') == {
+        'type': 'baseline',
+        'value': {'items': [], 'archivedSessionIds': []},
+    }, 'workspace/follow opening baseline drifted')
+
+    frames = fixture.get('streamDelta', {}).get('frames', [])
+    require([frame.get('value', {}).get('type') for frame in frames] == ['upsert', 'order'], 'workspace delta sequence must be upsert then order')
+    require(frames[0]['value']['workspace']['workspaceId'] == '<fixture-workspace-id>', 'workspace id was not normalized')
+    require(frames[0]['value']['workspace']['path'] == '<fixture-workspace>', 'workspace path was not normalized')
+    require(frames[0]['value']['workspace']['createdAt'] == '<fixture-time>', 'workspace createdAt was not normalized')
+    require(frames[0]['value']['workspace']['updatedAt'] == '<fixture-time>', 'workspace updatedAt was not normalized')
+    require(frames[1]['value']['workspaceIds'] == ['<fixture-workspace-id>'], 'workspace order delta drifted')
+
+    catalogs = fixture.get('controllerCatalogs', {})
+    commands = catalogs.get('commands', {})
+    assert_remote_pair(commands, 'fixture-commands-list', 'commands/list', True)
+    command_values = commands['response']['result']['value']
+    require([command.get('name') for command in command_values] == ['compact', 'export', 'feedback', 'goal', 'permission', 'plan'], 'commands/list catalog drifted')
+    require(commands['request']['payload']['args'] == {'agentId': 'fixture-session'}, 'commands/list request ownership drifted')
+    skills = catalogs.get('skills', {})
+    assert_remote_pair(skills, 'fixture-skills-list', 'skills/list', True)
+    require(skills['request']['payload']['args'] == {'request': {'sessionId': 'fixture-session'}}, 'skills/list request ownership drifted')
+    require(skills['response']['result']['value'] == {'skills': []}, 'fresh skills/list catalog drifted')
+
+    error = fixture.get('businessError', {})
+    assert_remote_pair(error, 'fixture-business-error', 'session/cancel', False)
+    require(error['response']['result']['error']['code'] == 'session/not-found', 'business error code drifted')
+
+    download = fixture.get('download', {})
+    require(download.get('request') == {'method': 'GET', 'path': '/api/session.export?sessionId=fixture-session'}, 'download request drifted')
+    for mode in ('head', 'get'):
+        facts = download.get(mode, {})
+        require(facts.get('status') == 200, f'download {mode} status drifted')
+        require(facts.get('contentType') == 'application/zip', f'download {mode} content type drifted')
+        require(facts.get('contentDisposition') == 'attachment; filename="dsh-session-fixture-session.zip"', f'download {mode} disposition drifted')
+    require(download['get'].get('zipMagicHex') == '504b0304', 'download is not a ZIP local-file stream')
+
+    for pattern in FORBIDDEN:
+        require(pattern.search(raw) is None, f'fixture leaked forbidden secret/path pattern {pattern.pattern!r}')
+    scan_for_unredacted_tokens(fixture)
+    print('Authenticated Host fixture OK: auth, unary, streams, catalogs, business error, download, privacy')
+
+
+def scan_for_unredacted_tokens(node: Any, path: str = '') -> None:
+    if isinstance(node, dict):
+        for key, value in node.items():
+            current = f'{path}.{key}' if path else key
+            if key.lower() in {'token', 'auth_token', 'launchtoken', 'access_token'}:
+                require(value is None or type(value) is bool or value == '<fixture-token>', f'fixture leaked unredacted token at {current}: {value!r}')
+            scan_for_unredacted_tokens(value, current)
+    elif isinstance(node, list):
+        for index, value in enumerate(node):
+            scan_for_unredacted_tokens(value, f'{path}[{index}]')
+    elif isinstance(node, str):
+        token_pattern = re.compile(r'(?i)\b(?:dsh_token_[a-z0-9]+|session_token_[a-z0-9]+)\b')
+        require(token_pattern.search(node) is None, f'fixture leaked token pattern in value at {path}: {node!r}')
+
+
+def assert_remote_pair(record: dict, rpc_id: str, endpoint: str, ok: bool) -> None:
+    require(record.get('httpStatus') == 200, f'{endpoint} HTTP status drifted')
+    require(record.get('contentType') == 'application/json', f'{endpoint} content type drifted')
+    request = record.get('request', {})
+    response = record.get('response', {})
+    require(request.get('type') == 'client-request' and request.get('rpcId') == rpc_id and request.get('method') == endpoint, f'{endpoint} request envelope drifted')
+    require(response.get('type') == 'server-response' and response.get('rpcId') == rpc_id, f'{endpoint} response correlation drifted')
+    require(response.get('result', {}).get('ok') is ok, f'{endpoint} Remote result drifted')
+
+
+def require(condition: bool, message: str) -> None:
+    if not condition:
+        raise SystemExit('authenticated Host fixture gate: ' + message)
+
+
+if __name__ == '__main__':
+    main()

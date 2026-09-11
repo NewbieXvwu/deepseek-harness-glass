@@ -27,7 +27,6 @@ public struct GhostPlaneTapIndexReplay: Equatable, Sendable {
         case chatFlow = "ghost-chat-flow"
         case composerSeat = "ghost-composer-seat"
         case turnTail = "ghost-turn-tail"
-        case toolview = "ghost-toolview"
         case detailsTool = "ghost-details-tool"
     }
 
@@ -84,7 +83,7 @@ public struct GhostPlaneTapIndexReplay: Equatable, Sendable {
         records: [Record],
         for manifest: GhostPlaneModuleManifest
     ) -> Admission {
-        let revisions = Dictionary(uniqueKeysWithValues: manifest.entries.map { ($0.id, $0.rev) })
+        let revisions = Dictionary(manifest.entries.map { ($0.id, $0.rev) }, uniquingKeysWith: { _, latest in latest })
         var claimed = Set<Claim>()
 
         for record in records {

@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "id": "closed-increment-union",
+      "streams": [
+        [
+          {
+            "type": "baseline",
+            "value": {
+              "items": [
+                {
+                  "workspaceId": "a",
+                  "path": "<fixture-workspace-a>",
+                  "title": "A",
+                  "sessionIds": [
+                    "s-a"
+                  ],
+                  "createdAt": "2026-09-08T00:00:00Z",
+                  "updatedAt": "2026-09-08T00:00:00Z"
+                },
+                {
+                  "workspaceId": "b",
+                  "path": "<fixture-workspace-b>",
+                  "title": "B",
+                  "sessionIds": [],
+                  "createdAt": "2026-09-08T00:00:00Z",
+                  "updatedAt": "2026-09-08T00:00:00Z"
+                }
+              ],
+              "archivedSessionIds": []
+            }
+          },
+          {
+            "type": "upsert",
+            "workspace": {
+              "workspaceId": "c",
+              "path": "<fixture-workspace-c>",
+              "title": "C",
+              "sessionIds": [],
+              "createdAt": "2026-09-08T00:00:00Z",
+              "updatedAt": "2026-09-08T00:00:00Z"
+            }
+          },
+          {
+            "type": "order",
+            "workspaceIds": [
+              "c",
+              "a",
+              "b"
+            ]
+          },
+          {
+            "type": "archived",
+            "archivedSessionIds": [
+              "s-old"
+            ]
+          },
+          {
+            "type": "remove",
+            "workspaceId": "b"
+          },
+          {
+            "type": "upsert",
+            "workspace": {
+              "workspaceId": "a",
+              "path": "<fixture-workspace-a>",
+              "title": "A renamed",
+              "sessionIds": [
+                "s-a"
+              ],
+              "createdAt": "2026-09-08T00:00:00Z",
+              "updatedAt": "2026-09-08T00:00:00Z"
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "id": "reconnect-replacement-baseline",
+      "streams": [
+        [
+          {
+            "type": "baseline",
+            "value": {
+              "items": [
+                {
+                  "workspaceId": "old",
+                  "path": "<fixture-workspace-old>",
+                  "title": "Old",
+                  "sessionIds": [],
+                  "createdAt": "2026-09-08T00:00:00Z",
+                  "updatedAt": "2026-09-08T00:00:00Z"
+                }
+              ],
+              "archivedSessionIds": [
+                "s-old"
+              ]
+            }
+          }
+        ],
+        [
+          {
+            "type": "baseline",
+            "value": {
+              "items": [
+                {
+                  "workspaceId": "new",
+                  "path": "<fixture-workspace-new>",
+                  "title": "New",
+                  "sessionIds": [],
+                  "createdAt": "2026-09-08T00:00:00Z",
+                  "updatedAt": "2026-09-08T00:00:00Z"
+                }
+              ],
+              "archivedSessionIds": []
+            }
+          }
+        ]
+      ]
+    }
+  ]
+}

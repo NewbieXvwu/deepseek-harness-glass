@@ -10,14 +10,7 @@ import SwiftUI
 /// interactive only when it is an absolute HTTP(S) URL; the renderer never
 /// delegates `file:`, `data:`, `javascript:` or relative destinations to macOS.
 enum NativeMarkdownSecurityPolicy {
-    private static let executableHTMLExpression = try! NSRegularExpression(
-        pattern: #"(?is)<(script|style|iframe|object|embed)[^>]*>.*?</\1>"#
-    )
-    private static let htmlCommentExpression = try! NSRegularExpression(pattern: #"(?is)<!--.*?-->"#)
-    private static let htmlTagExpression = try! NSRegularExpression(pattern: #"(?is)<[^>]+>"#)
-    private static let markdownLinkExpression = try! NSRegularExpression(
-        pattern: #"\[([^\]]*)\]\(([^\s\)]+)(?:\s+[^\)]*)?\)"#
-    )
+    private static let executableTags = ["script", "style", "iframe", "object", "embed"]
 
     static func externalURL(from raw: String) -> URL? {
         guard let components = URLComponents(string: raw.trimmingCharacters(in: .whitespacesAndNewlines)),
@@ -33,31 +26,17 @@ enum NativeMarkdownSecurityPolicy {
     }
 
     /// Removes executable HTML elements and turns unsafe Markdown links into
-    /// inert prose before `AttributedString` receives the document. This is a
-    /// defensive parser boundary, not an HTML renderer or sanitizer bypass.
+    /// inert prose before `AttributedString` receives the document. Every pass
+    /// is a single linear scan; no backtracking regular expression is involved.
     static func sanitizedInlineMarkdown(_ source: String) -> String {
-        let stashed = stashInlineCode(in: source)
-        var result = replacingMatches(in: stashed.text, using: executableHTMLExpression, with: "")
-        result = replacingMatches(in: result, using: htmlCommentExpression, with: "")
-        result = replacingMatches(in: result, using: htmlTagExpression, with: "")
-
-        let matches = markdownLinkExpression.matches(in: result, range: NSRange(result.startIndex..., in: result)).reversed()
-        for match in matches {
-            guard let labelRange = Range(match.range(at: 1), in: result),
-                  let destinationRange = Range(match.range(at: 2), in: result),
-                  let fullRange = Range(match.range(at: 0), in: result)
-            else { continue }
-            let label = String(result[labelRange])
-            let destination = String(result[destinationRange])
-            let replacement = externalURL(from: destination) == nil ? "\(label) (\(destination))" : String(result[fullRange])
-            result.replaceSubrange(fullRange, with: replacement)
+        guard source.contains("<") || source.contains("[") || source.contains("`") else {
+            return source
         }
-        return restoreInlineCode(in: result, stashed: stashed.spans)
+        let stashed = stashInlineCode(in: source)
+        let withoutHTML = removingHTML(from: stashed.text)
+        let neutralized = neutralizingUnsafeLinks(from: withoutHTML)
+        return restoreInlineCode(in: neutralized, stashed: stashed.spans)
     }
-
-    /// Backtick spans are balanced and non-nested in Markdown, so a single
-    /// non-greedy scan is exact and free of backtracking hazards.
-    private static let inlineCodeExpression = try! NSRegularExpression(pattern: #"`([^`]+)`"#)
 
     private struct InlineCodeStash {
         let text: String
@@ -65,37 +44,177 @@ enum NativeMarkdownSecurityPolicy {
     }
 
     private static func stashInlineCode(in source: String) -> InlineCodeStash {
-        let matches = inlineCodeExpression.matches(in: source, range: NSRange(source.startIndex..., in: source))
+        let characters = Array(source)
+        var output: [Character] = []
+        output.reserveCapacity(characters.count)
         var spans: [String] = []
-        spans.reserveCapacity(matches.count)
-        for match in matches {
-            guard let spanRange = Range(match.range(at: 1), in: source) else { continue }
-            spans.append(String(source[spanRange]))
+        var index = 0
+        while index < characters.count {
+            guard characters[index] == "`" else {
+                output.append(characters[index])
+                index += 1
+                continue
+            }
+            var cursor = index + 1
+            while cursor < characters.count, characters[cursor] != "`" { cursor += 1 }
+            // An unmatched or empty backtick run is literal Markdown.
+            guard cursor > index + 1, cursor < characters.count else {
+                output.append(characters[index])
+                index += 1
+                continue
+            }
+            spans.append(String(characters[(index + 1)..<cursor]))
+            output.append(contentsOf: "\u{0}\(spans.count - 1)\u{0}")
+            index = cursor + 1
         }
-        var stashed = source
-        // Replace back-to-front so earlier ranges stay valid, but key the
-        // placeholder by the span's forward index to keep restore order exact.
-        for (index, match) in matches.enumerated().reversed() {
-            guard let spanRange = Range(match.range(at: 1), in: stashed) else { continue }
-            stashed.replaceSubrange(spanRange, with: "\u{0}\(index)\u{0}")
-        }
-        return InlineCodeStash(text: stashed, spans: spans)
+        return InlineCodeStash(text: String(output), spans: spans)
     }
 
     private static func restoreInlineCode(in text: String, stashed spans: [String]) -> String {
-        var restored = text
-        for (index, span) in spans.enumerated() {
-            restored = restored.replacingOccurrences(of: "\u{0}\(index)\u{0}", with: span)
+        guard !spans.isEmpty, text.contains("\u{0}") else { return text }
+        var output = ""
+        var index = text.startIndex
+        while index < text.endIndex {
+            guard text[index] == "\u{0}" else {
+                output.append(text[index])
+                index = text.index(after: index)
+                continue
+            }
+            let digitsStart = text.index(after: index)
+            var cursor = digitsStart
+            while cursor < text.endIndex, text[cursor].isNumber { cursor = text.index(after: cursor) }
+            if cursor < text.endIndex, text[cursor] == "\u{0}",
+               let number = Int(text[digitsStart..<cursor]), number < spans.count {
+                output += spans[number]
+                index = text.index(after: cursor)
+            } else {
+                output.append(text[index])
+                index = digitsStart
+            }
         }
-        return restored
+        return output
     }
 
-    private static func replacingMatches(in source: String, using expression: NSRegularExpression, with replacement: String) -> String {
-        expression.stringByReplacingMatches(
-            in: source,
-            range: NSRange(source.startIndex..., in: source),
-            withTemplate: replacement
-        )
+    private static func removingHTML(from source: String) -> String {
+        guard source.contains("<") else { return source }
+        let characters = Array(source)
+        var output: [Character] = []
+        output.reserveCapacity(characters.count)
+        var index = 0
+        while index < characters.count {
+            guard characters[index] == "<" else {
+                output.append(characters[index])
+                index += 1
+                continue
+            }
+            if matches(characters, at: index, literal: Array("<!--"), caseInsensitive: false) {
+                guard let end = firstIndex(of: Array("-->"), in: characters, from: index + 4, caseInsensitive: false) else { break }
+                index = end + 3
+                continue
+            }
+            if let tag = executableTag(characters, at: index) {
+                let close = Array("</\(tag)>")
+                guard let end = firstIndex(of: close, in: characters, from: index + 1, caseInsensitive: true) else { break }
+                index = end + close.count
+                continue
+            }
+            guard let close = characters[(index + 1)...].firstIndex(of: ">") else { break }
+            index = close + 1
+        }
+        return String(output)
+    }
+
+    private static func neutralizingUnsafeLinks(from source: String) -> String {
+        guard source.contains("[") else { return source }
+        let characters = Array(source)
+        var output: [Character] = []
+        output.reserveCapacity(characters.count)
+        var index = 0
+        while index < characters.count {
+            guard characters[index] == "[" else {
+                output.append(characters[index])
+                index += 1
+                continue
+            }
+            guard let closeBracket = characters[(index + 1)...].firstIndex(of: "]") else {
+                output.append(contentsOf: characters[index...])
+                break
+            }
+            guard closeBracket + 1 < characters.count, characters[closeBracket + 1] == "(" else {
+                // No later '[' before this ']' can open a link either.
+                output.append(contentsOf: characters[index...closeBracket])
+                index = closeBracket + 1
+                continue
+            }
+            var cursor = closeBracket + 2
+            let destinationStart = cursor
+            while cursor < characters.count, characters[cursor] != ")", !characters[cursor].isWhitespace {
+                cursor += 1
+            }
+            let destination = String(characters[destinationStart..<cursor])
+            var closeParen = cursor
+            while closeParen < characters.count, characters[closeParen] != ")" { closeParen += 1 }
+            guard closeParen < characters.count else {
+                output.append(contentsOf: characters[index...closeBracket])
+                index = closeBracket + 1
+                continue
+            }
+            let label = String(characters[(index + 1)..<closeBracket])
+            if externalURL(from: destination) == nil {
+                output.append(contentsOf: "\(label) (\(destination))")
+            } else {
+                output.append(contentsOf: characters[index...closeParen])
+            }
+            index = closeParen + 1
+        }
+        return String(output)
+    }
+
+    private static func executableTag(_ characters: [Character], at index: Int) -> String? {
+        for tag in executableTags where matches(characters, at: index + 1, literal: Array(tag), caseInsensitive: true) {
+            let boundary = index + 1 + tag.count
+            guard boundary >= characters.count || characters[boundary] == ">" || characters[boundary] == "/" || characters[boundary].isWhitespace else {
+                continue
+            }
+            return tag
+        }
+        return nil
+    }
+
+    private static func matches(
+        _ characters: [Character],
+        at index: Int,
+        literal: [Character],
+        caseInsensitive: Bool
+    ) -> Bool {
+        guard index >= 0, index + literal.count <= characters.count else { return false }
+        for offset in 0..<literal.count {
+            let lhs = characters[index + offset]
+            let rhs = literal[offset]
+            if caseInsensitive {
+                guard Character(lhs.lowercased()) == Character(rhs.lowercased()) else { return false }
+            } else {
+                guard lhs == rhs else { return false }
+            }
+        }
+        return true
+    }
+
+    private static func firstIndex(
+        of literal: [Character],
+        in characters: [Character],
+        from start: Int,
+        caseInsensitive: Bool
+    ) -> Int? {
+        guard !literal.isEmpty, start >= 0 else { return nil }
+        var index = start
+        while index + literal.count <= characters.count {
+            if matches(characters, at: index, literal: literal, caseInsensitive: caseInsensitive) {
+                return index
+            }
+            index += 1
+        }
+        return nil
     }
 
     @discardableResult
@@ -228,7 +347,7 @@ enum NativeMarkdownDocument {
     }
 }
 
-/// A minimal native syntax colorizer for the locked RC8 fence languages. It
+/// A minimal native syntax colorizer for the locked rc.1 fence languages. It
 /// intentionally accepts source text only: unknown grammars retain CodeBlock's
 /// plain fallback and no generated HTML or executable grammar package is loaded.
 enum NativeCodeHighlighter {
@@ -303,7 +422,8 @@ enum NativeCodeHighlighter {
     }
 
     static func text(code: String, language: String?) -> SwiftUI.Text {
-        fragments(code: code, language: language).reduce(SwiftUI.Text(String())) { result, fragment in
+        var attributed = AttributedString()
+        for fragment in fragments(code: code, language: language) {
             let color: Color
             switch fragment.kind {
             case .plain: color = OfficialUISpec.Token.primary
@@ -312,12 +432,15 @@ enum NativeCodeHighlighter {
             case .number: color = OfficialUISpec.Token.caption
             case .comment: color = OfficialUISpec.Token.secondary
             }
-            return result + SwiftUI.Text(verbatim: fragment.text).foregroundColor(color)
+            var run = AttributedString(fragment.text)
+            run.foregroundColor = color
+            attributed.append(run)
         }
+        return SwiftUI.Text(attributed)
     }
 }
 
-/// Native counterpart to RC8 MarkdownText. It accepts only the bounded
+/// Native counterpart to rc.1 MarkdownText. It accepts only the bounded
 /// document model above and gives SwiftUI a sanitized AttributedString; raw HTML
 /// is never supplied to a web or HTML rendering surface.
 struct NativeMarkdownText: View {

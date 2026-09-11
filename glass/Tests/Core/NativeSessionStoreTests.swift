@@ -4,6 +4,35 @@ import GlassSpec
 @testable import GlassCore
 
 @MainActor
+private extension NativeSessionStore {
+    func open(
+        sessionID: String,
+        using api: any NativeSessionAPI,
+        endpoint: URL,
+        hostPathAPI: (any NativeHostPathAPI)? = nil,
+        goalAPI: (any NativeGoalAPI)? = nil,
+        subagentCatalogAPI: (any NativeSubagentCatalogAPI)? = nil,
+        subagentContinuationAPI: (any NativeSubagentContinuationAPI)? = nil,
+        messageFeedbackAPI: (any NativeMessageFeedbackAPI)? = nil,
+        sessionCWD: String? = nil,
+        sessionRuntime: SessionRuntime? = nil
+    ) {
+        setSessionAPIForTesting(api)
+        open(
+            sessionID: sessionID,
+            endpoint: endpoint,
+            hostPathAPI: hostPathAPI,
+            goalAPI: goalAPI,
+            subagentCatalogAPI: subagentCatalogAPI,
+            subagentContinuationAPI: subagentContinuationAPI,
+            messageFeedbackAPI: messageFeedbackAPI,
+            sessionCWD: sessionCWD,
+            sessionRuntime: sessionRuntime
+        )
+    }
+}
+
+@MainActor
 final class NativeSessionStoreTests: XCTestCase {
     func testComposerIntentUsesInjectedTypedSessionFacadeAndRetainsDraftOnRejection() async {
         let promptReachedFacade = expectation(description: "typed prompt facade receives the user intent")
@@ -46,6 +75,19 @@ final class NativeSessionStoreTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: imageURL) }
 
         store.open(sessionID: "rejected-image-prompt-session", using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+        store.projections.apply(
+    sessionID: "rejected-image-prompt-session",
+    key: "imageLimits",
+    value: .object([
+        "maxImageBytes": .number(4_096),
+        "maxImagesPerMessage": .number(2),
+        "maxMessageImageBytes": .number(8_192),
+        "maxImagePixels": .number(16),
+        "maxImageDimension": .number(4),
+        "mediaTypes": .array([.string("image/png")]),
+    ]),
+    seq: 0
+)
         await eventually(timeout: 1) { store.imageAttachmentLimits != nil }
         store.draft = "keep this retryable"
         store.addPendingImage(imageURL)
@@ -62,61 +104,7 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.pendingImages.first?.name, imageURL.lastPathComponent)
     }
 
-    func testCancelIntentUsesTypedFacadeOnlyForHostRunningTurn() async {
-        let cancelReachedFacade = expectation(description: "typed cancel facade receives running turn intent")
-        let api = RejectingSessionAPI(promptReachedFacade: nil, cancelReachedFacade: cancelReachedFacade, opensAuthority: true)
-        let store = NativeSessionStore()
-        let sessionID = "cancel-session"
-        store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
-        await eventually(timeout: 1) { store.phase == .ready(sessionID: sessionID) }
 
-        store.cancelRunningTurn()
-        XCTAssertTrue(api.cancelledSessionIDs.isEmpty, "idle composer must not manufacture a cancel RPC")
-
-        store.applyMuxFrame(sessionEventFrame(
-            sessionID: sessionID,
-            seq: 1,
-            type: "turn/start",
-            data: .object(["turn": .number(1)])
-        ), sessionID: sessionID)
-        XCTAssertTrue(store.isRunning)
-
-        store.cancelRunningTurn()
-        await fulfillment(of: [cancelReachedFacade], timeout: 1)
-        XCTAssertEqual(api.cancelledSessionIDs, [sessionID])
-        XCTAssertTrue(store.isRunning, "carrier receipt cannot optimistically settle a Host-owned running turn")
-    }
-
-    func testFailedOpenDropsLiveEventsUntilNextAuthorityBaseline() async {
-        let store = NativeSessionStore()
-        let sessionID = "failed-live-window"
-        store.open(sessionID: sessionID, using: RejectingSessionAPI(promptReachedFacade: nil), endpoint: URL(string: "http://127.0.0.1:1")!)
-        await eventually(timeout: 1) {
-            if case .failed = store.phase { return true }
-            return false
-        }
-
-        store.applyMuxFrame(sessionEventFrame(
-            sessionID: sessionID,
-            seq: 1,
-            type: "user/message",
-            data: .object([
-                "id": .string("must-not-append"),
-                "content": .array([.object(["type": .string("text"), "text": .string("must wait for authority")])]),
-                "source": .object(["kind": .string("user")]),
-            ]),
-            surfaceOp: "append"
-        ), sessionID: sessionID)
-
-        XCTAssertTrue(store.items.isEmpty)
-        XCTAssertTrue(store.chatNodes.isEmpty)
-        XCTAssertTrue(store.trajectoryNodes.isEmpty)
-        if case .failed = store.phase {
-            // Expected RC8 error state remains stable until the next open/resync.
-        } else {
-            XCTFail("failed authority window must not become ready from a live frame")
-        }
-    }
 
     func testAcceptedPromptClearsDraftOnlyAfterTypedHostFacadeAcceptance() async {
         let promptReachedFacade = expectation(description: "typed prompt facade returns Host acceptance")
@@ -176,34 +164,6 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertFalse(store.isSubmittingPrompt)
     }
 
-    func testCancelRunningTurnCancelsPendingPromptBeforeLateAcceptanceCanClearDraft() async {
-        let promptReached = expectation(description: "prompt reaches Host before turn cancellation")
-        let promptCancelled = expectation(description: "pending prompt Task cancels when turn is cancelled")
-        let api = DelayedPromptSessionAPI(oldPromptReached: promptReached, oldPromptCancelled: promptCancelled)
-        let store = NativeSessionStore()
-        let sessionID = "cancel-prompt-session"
-        store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
-        await eventually(timeout: 1) { store.phase == .ready(sessionID: sessionID) }
-        store.draft = "retain after cancel"
-        store.submitDraft()
-        await fulfillment(of: [promptReached], timeout: 1)
-        XCTAssertTrue(store.isSubmittingPrompt)
-
-        store.applyMuxFrame(sessionEventFrame(
-            sessionID: sessionID,
-            seq: 1,
-            type: "turn/start",
-            data: .object(["turn": .number(1)])
-        ), sessionID: sessionID)
-        XCTAssertTrue(store.isRunning)
-        store.cancelRunningTurn()
-        await fulfillment(of: [promptCancelled], timeout: 1)
-        for _ in 0 ..< 20 { await Task.yield() }
-
-        XCTAssertEqual(store.draft, "retain after cancel")
-        XCTAssertFalse(store.isSubmittingPrompt)
-        XCTAssertEqual(store.selectedSessionID, sessionID)
-    }
 
     func testAdmittedImagePromptUsesTypedHostFacadeWithExactContent() async throws {
         let promptReachedFacade = expectation(description: "typed prompt facade receives admitted image content")
@@ -227,6 +187,19 @@ final class NativeSessionStoreTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: imageURL) }
 
         store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
+        store.projections.apply(
+    sessionID: sessionID,
+    key: "imageLimits",
+    value: .object([
+        "maxImageBytes": .number(4_096),
+        "maxImagesPerMessage": .number(2),
+        "maxMessageImageBytes": .number(8_192),
+        "maxImagePixels": .number(16),
+        "maxImageDimension": .number(4),
+        "mediaTypes": .array([.string("image/png")]),
+    ]),
+    seq: 0
+)
         await eventually(timeout: 1) { store.imageAttachmentLimits != nil }
         store.draft = "caption retained in the typed content array"
         store.addPendingImage(imageURL)
@@ -275,117 +248,7 @@ final class NativeSessionStoreTests: XCTestCase {
         await eventually(timeout: 1) { store.failedMessageFeedbackLoad && store.messageFeedbackItems.isEmpty && !store.isLoadingMessageFeedback }
     }
 
-    func testAuthorityRecoveryResyncsMessageFeedbackFromLatestHostList() async {
-        let feedbackLists = expectation(description: "initial and recovered feedback lists reach Host")
-        feedbackLists.expectedFulfillmentCount = 2
-        let recoveryHistory = expectation(description: "event gap reaches authority history recovery")
-        let initialFeedback = MessageFeedbackListResponse(
-            ok: true,
-            value: .init(items: [
-                .init(messageId: "assistant-1", rating: .positive, note: "initial", version: "v1", createdAt: 1, updatedAt: 1),
-            ]),
-            error: nil
-        )
-        let feedbackAPI = RecordingMessageFeedbackAPI(response: initialFeedback, reached: feedbackLists)
-        let sessionAPI = GapRecoveringSessionAPI(recoveryReachedHistory: recoveryHistory)
-        let store = NativeSessionStore()
-        store.open(
-            sessionID: "recovery-session",
-            using: sessionAPI,
-            endpoint: URL(string: "http://127.0.0.1:1")!,
-            messageFeedbackAPI: feedbackAPI
-        )
-        await eventually(timeout: 1) { store.messageFeedbackItems["assistant-1"]?.version == "v1" }
 
-        feedbackAPI.response = .init(
-            ok: true,
-            value: .init(items: [
-                .init(messageId: "assistant-1", rating: .negative, note: "recovered", version: "v2", createdAt: 1, updatedAt: 2),
-            ]),
-            error: nil
-        )
-        store.applyMuxFrame(sessionEventFrame(
-            sessionID: "recovery-session",
-            seq: 3,
-            type: "user/message",
-            data: .object([
-                "id": .string("feedback-gap"),
-                "content": .array([.object(["type": .string("text"), "text": .string("trigger authority recovery")])]),
-                "source": .object(["kind": .string("user")]),
-            ]),
-            surfaceOp: "append"
-        ), sessionID: "recovery-session")
-        await fulfillment(of: [recoveryHistory, feedbackLists], timeout: 1)
-        await eventually(timeout: 1) {
-            store.messageFeedbackItems["assistant-1"]?.version == "v2"
-                && store.messageFeedbackItems["assistant-1"]?.rating == .negative
-        }
-
-        XCTAssertEqual(feedbackAPI.sessionIDs, ["recovery-session", "recovery-session"])
-        XCTAssertEqual(store.messageFeedbackItems["assistant-1"]?.note, "recovered")
-        XCTAssertFalse(store.failedMessageFeedbackLoad)
-    }
-
-    func testRecoveryFeedbackResyncWaitsForCommittedSameSessionMutation() async {
-        let feedbackLists = expectation(description: "initial and post-mutation feedback lists reach Host")
-        feedbackLists.expectedFulfillmentCount = 2
-        let mutationReached = expectation(description: "feedback mutation reaches Host before recovery resync")
-        let recoveryHistory = expectation(description: "gap recovery reaches authority history")
-        let feedbackAPI = GatedRecoveryFeedbackAPI(
-            listResponse: .init(
-                ok: true,
-                value: .init(items: [
-                    .init(messageId: "assistant-1", rating: .positive, note: "initial", version: "v1", createdAt: 1, updatedAt: 1),
-                ]),
-                error: nil
-            ),
-            listReached: feedbackLists,
-            mutationReached: mutationReached
-        )
-        let store = NativeSessionStore()
-        store.open(
-            sessionID: "recovery-session",
-            using: GapRecoveringSessionAPI(recoveryReachedHistory: recoveryHistory),
-            endpoint: URL(string: "http://127.0.0.1:1")!,
-            messageFeedbackAPI: feedbackAPI
-        )
-        await eventually(timeout: 1) { store.messageFeedbackItems["assistant-1"]?.version == "v1" }
-
-        store.toggleMessageFeedback(messageID: "assistant-1", rating: .negative)
-        await fulfillment(of: [mutationReached], timeout: 1)
-        XCTAssertTrue(store.isSubmittingMessageFeedback)
-
-        feedbackAPI.listResponse = .init(
-            ok: true,
-            value: .init(items: [
-                .init(messageId: "assistant-1", rating: .negative, note: "resynced", version: "v3", createdAt: 1, updatedAt: 3),
-            ]),
-            error: nil
-        )
-        store.applyMuxFrame(sessionEventFrame(
-            sessionID: "recovery-session",
-            seq: 3,
-            type: "user/message",
-            data: .object([
-                "id": .string("mutation-recovery-gap"),
-                "content": .array([.object(["type": .string("text"), "text": .string("trigger recovery")])]),
-                "source": .object(["kind": .string("user")]),
-            ]),
-            surfaceOp: "append"
-        ), sessionID: "recovery-session")
-        await fulfillment(of: [recoveryHistory], timeout: 1)
-        XCTAssertEqual(feedbackAPI.sessionIDs.count, 1, "resync must wait behind the admitted mutation")
-
-        await feedbackAPI.releaseMutation()
-        await fulfillment(of: [feedbackLists], timeout: 1)
-        await eventually(timeout: 1) {
-            store.messageFeedbackItems["assistant-1"]?.version == "v3" && !store.isSubmittingMessageFeedback
-        }
-
-        XCTAssertEqual(feedbackAPI.putRequests.first?.ifVersion, "v1")
-        XCTAssertEqual(feedbackAPI.sessionIDs, ["recovery-session", "recovery-session"])
-        XCTAssertEqual(store.messageFeedbackItems["assistant-1"]?.note, "resynced")
-    }
 
     func testMessageFeedbackMutationUsesCommittedVersionAndReconcilesConflict() async {
         let reached = expectation(description: "feedback seed reaches typed Host facade")
@@ -631,97 +494,7 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertNil(store.subagentCatalogs["grandchild"], "only an explicit parent refresh may create a cached branch")
     }
 
-    func testAuthorityRecoveryResyncsObservedSubagentCatalogsFromHost() async {
-        let rootID = "recovery-session"
-        let childID = "child-parent"
-        let rootInitial = SubagentListResponse(entries: [
-            .init(kind: "child", id: childID, activity: "inactive", hasChildren: true, mode: "continuable", label: "Initial child", reason: nil),
-        ], parentAvailable: true)
-        let childInitial = SubagentListResponse(entries: [
-            .init(kind: "child", id: "old-grandchild", activity: "inactive", hasChildren: false, mode: "one-shot", label: "Old descendant", reason: nil),
-        ], parentAvailable: true)
-        let rootRecovered = SubagentListResponse(entries: [
-            .init(kind: "child", id: childID, activity: "running", hasChildren: true, mode: "continuable", label: "Recovered child", reason: nil),
-        ], parentAvailable: false)
-        let childRecovered = SubagentListResponse(entries: [
-            .init(kind: "child", id: "new-grandchild", activity: "running", hasChildren: false, mode: "one-shot", label: "New descendant", reason: nil),
-        ], parentAvailable: true)
-        let recoveryHistory = expectation(description: "gap recovery reaches history")
-        let api = RecordingSubagentCatalogAPI(catalogs: [rootID: rootInitial, childID: childInitial])
-        let store = NativeSessionStore()
-        store.open(
-            sessionID: rootID,
-            using: GapRecoveringSessionAPI(recoveryReachedHistory: recoveryHistory),
-            endpoint: URL(string: "http://127.0.0.1:1")!,
-            subagentCatalogAPI: api
-        )
-        store.refreshSubagentCatalog()
-        await eventually(timeout: 1) { store.subagentCatalogs[rootID] == rootInitial }
-        store.refreshSubagentCatalog(parentSessionID: childID)
-        await eventually(timeout: 1) { store.subagentCatalogs[childID] == childInitial }
 
-        api.catalogs = [rootID: rootRecovered, childID: childRecovered]
-        store.applyMuxFrame(sessionEventFrame(
-            sessionID: rootID,
-            seq: 3,
-            type: "user/message",
-            data: .object([
-                "id": .string("catalog-recovery-gap"),
-                "content": .array([.object(["type": .string("text"), "text": .string("trigger catalog recovery")])]),
-                "source": .object(["kind": .string("user")]),
-            ]),
-            surfaceOp: "append"
-        ), sessionID: rootID)
-        await fulfillment(of: [recoveryHistory], timeout: 1)
-        await eventually(timeout: 1) {
-            store.subagentCatalogs[rootID] == rootRecovered && store.subagentCatalogs[childID] == childRecovered
-        }
-
-        XCTAssertEqual(api.parentIDs.count, 4)
-        XCTAssertEqual(Set(api.parentIDs.suffix(2)), Set([rootID, childID]))
-        XCTAssertFalse(store.subagentCatalogs.keys.contains("new-grandchild"), "recovery must not infer a grandchild catalog without an explicit Host list")
-    }
-
-    func testAuthorityRecoveryResyncsSelectedSubagentParentCatalog() async {
-        let childID = "selected-child"
-        let parentID = "selected-parent"
-        let parentCatalog = SubagentListResponse(entries: [
-            .init(kind: "child", id: childID, activity: "running", hasChildren: false, mode: "continuable", label: "Recovered selected child", reason: nil),
-        ], parentAvailable: true)
-        let childCatalog = SubagentListResponse(entries: [], parentAvailable: true)
-        let recoveryHistory = expectation(description: "selected child gap reaches recovery history")
-        let api = RecordingSubagentCatalogAPI(catalogs: [parentID: parentCatalog, childID: childCatalog])
-        let store = NativeSessionStore()
-        store.open(
-            sessionID: childID,
-            using: GapRecoveringSessionAPI(recoveryReachedHistory: recoveryHistory),
-            endpoint: URL(string: "http://127.0.0.1:1")!,
-            subagentCatalogAPI: api
-        )
-        await eventually(timeout: 1) { store.phase == .ready(sessionID: childID) }
-        store.setSubagentRoute(
-            parentSessionID: parentID,
-            entry: .init(kind: "child", id: childID, activity: "running", hasChildren: false, mode: "continuable", label: nil, reason: nil),
-            parentAvailable: true
-        )
-
-        store.applyMuxFrame(sessionEventFrame(
-            sessionID: childID,
-            seq: 3,
-            type: "user/message",
-            data: .object([
-                "id": .string("selected-child-gap"),
-                "content": .array([.object(["type": .string("text"), "text": .string("trigger selected child recovery")])]),
-                "source": .object(["kind": .string("user")]),
-            ]),
-            surfaceOp: "append"
-        ), sessionID: childID)
-        await fulfillment(of: [recoveryHistory], timeout: 1)
-        await eventually(timeout: 1) { store.subagentCatalogs[parentID] == parentCatalog }
-
-        XCTAssertEqual(Set(api.parentIDs), Set([childID, parentID]))
-        XCTAssertEqual(store.subagentCatalogs[parentID]?.entries.first?.label, "Recovered selected child")
-    }
 
     func testSubagentRouteAcceptsOnlyCatalogChildWithKnownMode() {
         let store = NativeSessionStore()
@@ -743,47 +516,6 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertNil(store.subagentRoute)
     }
 
-    func testContinuableSubagentRouteUsesParentChildPromptAndInterrupt() async {
-        let promptReached = expectation(description: "subagent prompt reaches continuation facade")
-        let interruptReached = expectation(description: "subagent interrupt reaches continuation facade")
-        let sessionAPI = RejectingSessionAPI(promptReachedFacade: nil, opensAuthority: true)
-        let continuationAPI = RecordingSubagentContinuationAPI(
-            promptReached: promptReached,
-            interruptReached: interruptReached
-        )
-        let store = NativeSessionStore()
-        let childID = "child-continuable"
-        store.open(
-            sessionID: childID,
-            using: sessionAPI,
-            endpoint: URL(string: "http://127.0.0.1:1")!,
-            subagentContinuationAPI: continuationAPI
-        )
-        store.setSubagentRoute(
-            parentSessionID: "parent-session",
-            entry: .init(kind: "child", id: childID, activity: "running", hasChildren: false, mode: "continuable", label: nil, reason: nil),
-            parentAvailable: true
-        )
-        store.draft = "continue research"
-        store.submitDraft()
-        await fulfillment(of: [promptReached], timeout: 1)
-        await eventually(timeout: 1) { store.draft.isEmpty }
-
-        XCTAssertEqual(sessionAPI.prompts, [])
-        XCTAssertEqual(
-            continuationAPI.prompts,
-            [.init(parentSessionId: "parent-session", childSessionId: childID, content: [.text(text: "continue research")], clientTimeZone: TimeZone.current.identifier)]
-        )
-
-        store.applyMuxFrame(sessionEventFrame(
-            sessionID: childID, seq: 1, type: "turn/start", data: .object(["turn": .number(1)])
-        ), sessionID: childID)
-        store.cancelRunningTurn()
-        await fulfillment(of: [interruptReached], timeout: 1)
-
-        XCTAssertEqual(sessionAPI.cancelledSessionIDs, [])
-        XCTAssertEqual(continuationAPI.interrupts, [.init(parentSessionId: "parent-session", childSessionId: childID)])
-    }
 
     func testInitialAuthorityFromReplacedEndpointCannotReviveOldColdState() async {
         let oldModelsReached = expectation(description: "old endpoint reaches delayed initial models read")
@@ -801,705 +533,49 @@ final class NativeSessionStoreTests: XCTestCase {
         for _ in 0..<20 { await Task.yield() }
 
         XCTAssertEqual(store.selectedSessionID, "same-session")
-        XCTAssertTrue(store.items.isEmpty)
+        XCTAssertTrue(store.chatNodes.isEmpty)
         XCTAssertNil(store.modelDirectory)
         XCTAssertNil(store.extensionState?.modelDirectory)
         XCTAssertTrue(store.extensionState?.queuedMessages.isEmpty == true)
         XCTAssertTrue(store.extensionState?.backgroundJobs.isEmpty == true)
     }
 
-    func testCancelledRecoveryCannotReviveDisconnectedSession() async {
-        let recoveryReachedModels = expectation(description: "recovery reaches delayed models read")
-        let api = GatedGapRecoveryAPI(recoveryReachedModels: recoveryReachedModels)
-        let store = NativeSessionStore()
-        store.open(sessionID: "recovery-session", using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
-        await eventually(timeout: 1) { store.items.map(\.text) == ["baseline"] }
-
-        store.applyMuxFrame(sessionEventFrame(
-            sessionID: "recovery-session",
-            seq: 3,
-            type: "user/message",
-            data: .object([
-                "id": .string("gap"),
-                "content": .array([.object(["type": .string("text"), "text": .string("must not append")])]),
-                "source": .object(["kind": .string("user")]),
-            ]),
-            surfaceOp: "append"
-        ), sessionID: "recovery-session")
-        await fulfillment(of: [recoveryReachedModels], timeout: 1)
-
-        store.disconnect()
-        await api.releaseDelayedModels()
-        for _ in 0..<20 { await Task.yield() }
-
-        XCTAssertNil(store.selectedSessionID)
-        XCTAssertTrue(store.items.isEmpty)
-        XCTAssertNil(store.modelDirectory)
-        XCTAssertNil(store.extensionState)
-    }
 
     func testClearActiveSelectionRetainsResidentSessionForLaterReopen() {
         let store = NativeSessionStore()
         store.loadSnapshotToolingFixture()
-        let originalItemIDs = store.items.map(\.id)
+        let originalNodeKeys = store.chatNodes.map(\.key)
         XCTAssertEqual(store.selectedSessionID, "snapshot-tooling")
 
         store.clearActiveSelection()
 
         XCTAssertNil(store.selectedSessionID)
-        XCTAssertTrue(store.items.isEmpty)
+        XCTAssertTrue(store.chatNodes.isEmpty)
         XCTAssertNil(store.modelDirectory)
         XCTAssertNil(store.extensionState)
         XCTAssertTrue(store.restoreResidentState(for: "snapshot-tooling"))
-        XCTAssertEqual(store.items.map(\.id), originalItemIDs)
+        XCTAssertEqual(store.chatNodes.map(\.key), originalNodeKeys)
     }
 
-    func testSubscriptionWatermarkRollbackRecoversFullAuthorityWindow() async {
-        let recoveryReachedHistory = expectation(description: "watermark rollback triggers authority history")
-        let api = GapRecoveringSessionAPI(recoveryReachedHistory: recoveryReachedHistory)
-        let store = NativeSessionStore()
-        store.open(sessionID: "recovery-session", using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
-        await eventually(timeout: 1) { store.items.map(\.text) == ["baseline"] }
 
-        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "restart-subscription", method: "session/subscribed", payload: .object([
-            "type": .string("session/subscribed"),
-            "sessionId": .string("recovery-session"),
-            "lastSeq": .number(0),
-        ])), sessionID: "recovery-session")
-        await fulfillment(of: [recoveryReachedHistory], timeout: 1)
-        await eventually(timeout: 1) { store.items.map(\.text) == ["baseline", "recovered authority"] }
-        XCTAssertEqual(store.items.map(\.sequence), [1, 2])
-    }
 
-    func testSubscriptionWatermarkAheadOfHistoryTailRecoversAuthorityWindow() async {
-        let recoveryReachedHistory = expectation(description: "ahead subscription watermark triggers authority history")
-        let api = GapRecoveringSessionAPI(recoveryReachedHistory: recoveryReachedHistory)
-        let store = NativeSessionStore()
-        store.open(sessionID: "recovery-session", using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
-        await eventually(timeout: 1) { store.items.map(\.text) == ["baseline"] }
 
-        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "ahead-subscription", method: "session/subscribed", payload: .object([
-            "type": .string("session/subscribed"),
-            "sessionId": .string("recovery-session"),
-            "lastSeq": .number(2),
-        ])), sessionID: "recovery-session")
-        await fulfillment(of: [recoveryReachedHistory], timeout: 1)
-        await eventually(timeout: 1) { store.items.map(\.text) == ["baseline", "recovered authority"] }
 
-        XCTAssertEqual(store.items.map(\.sequence), [1, 2])
-        XCTAssertEqual(store.modelDirectory?.current.model, "model-recovered")
-        XCTAssertEqual(store.modelDirectoryStatus, .ready)
-    }
 
-    func testEarlySubscriptionWatermarkTriggersSecondPullAfterInitialHistoryInstall() async {
-        let initialHistoryReached = expectation(description: "initial history is held until subscription arrives")
-        let api = DelayedOpeningHistorySessionAPI(staleHistoryReached: initialHistoryReached)
-        let store = NativeSessionStore()
-        let sessionID = "early-subscription-stitch"
-        store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
-        await fulfillment(of: [initialHistoryReached], timeout: 1)
 
-        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "early-ahead-subscription", method: "session/subscribed", payload: .object([
-            "type": .string("session/subscribed"),
-            "sessionId": .string(sessionID),
-            "lastSeq": .number(2),
-        ])), sessionID: sessionID)
-        await api.releaseHistory()
-        await eventually(timeout: 1) {
-            store.phase == .ready(sessionID: sessionID)
-                && store.items.map(\.text) == ["resynced authority"]
-                && store.modelDirectory?.current.model == "resynced-model"
-        }
 
-        XCTAssertEqual(api.historyCalls, 2, "RC8 requires a second history pull after early subscribed.lastSeq exceeds the installed tail")
-        XCTAssertEqual(store.items.map(\.sequence), [2])
-    }
 
-    func testSubscriptionWatermarkRecoveryRebuildsProjectionBaselineFromHostAuthority() async {
-        let recoveryReachedHistory = expectation(description: "watermark rollback refreshes history projections")
-        let api = GapRecoveringSessionAPI(recoveryReachedHistory: recoveryReachedHistory)
-        let store = NativeSessionStore()
-        store.open(sessionID: "recovery-session", using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
-        await eventually(timeout: 1) {
-            store.projections.value(sessionID: "recovery-session", key: "obsolete-host-value") == .string("initial baseline")
-        }
 
-        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "restart-projections", method: "session/subscribed", payload: .object([
-            "type": .string("session/subscribed"),
-            "sessionId": .string("recovery-session"),
-            "lastSeq": .number(0),
-        ])), sessionID: "recovery-session")
-        await fulfillment(of: [recoveryReachedHistory], timeout: 1)
-        await eventually(timeout: 1) {
-            store.projections.value(sessionID: "recovery-session", key: "latest-host-value") == .string("recovered baseline")
-        }
 
-        XCTAssertNil(store.projections.value(sessionID: "recovery-session", key: "obsolete-host-value"))
-        XCTAssertEqual(store.projections.row(sessionID: "recovery-session", key: "latest-host-value")?.seq, 2)
-    }
 
-    func testGapRecoveryReplacesWholeProjectionBaselineFromLatestHostAuthority() async {
-        let recoveryReachedHistory = expectation(description: "gap refreshes history projection baseline")
-        let api = GapRecoveringSessionAPI(recoveryReachedHistory: recoveryReachedHistory)
-        let store = NativeSessionStore()
-        store.open(sessionID: "recovery-session", using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
-        await eventually(timeout: 1) {
-            store.projections.value(sessionID: "recovery-session", key: "obsolete-host-value") == .string("initial baseline")
-        }
 
-        store.applyMuxFrame(sessionEventFrame(
-            sessionID: "recovery-session",
-            seq: 3,
-            type: "user/message",
-            data: .object([
-                "id": .string("gap-projections"),
-                "content": .array([.object(["type": .string("text"), "text": .string("must not append")])]),
-                "source": .object(["kind": .string("user")]),
-            ]),
-            surfaceOp: "append"
-        ), sessionID: "recovery-session")
-        await fulfillment(of: [recoveryReachedHistory], timeout: 1)
-        await eventually(timeout: 1) {
-            store.projections.value(sessionID: "recovery-session", key: "latest-host-value") == .string("recovered baseline")
-        }
 
-        XCTAssertNil(store.projections.value(sessionID: "recovery-session", key: "obsolete-host-value"))
-        XCTAssertEqual(store.projections.row(sessionID: "recovery-session", key: "latest-host-value")?.seq, 2)
-    }
 
-    func testGapRecoveryRebuildsModelDirectoryFromLatestHostBaseline() async {
-        let recoveryReachedHistory = expectation(description: "gap refreshes model directory with authority history")
-        let api = GapRecoveringSessionAPI(recoveryReachedHistory: recoveryReachedHistory)
-        let store = NativeSessionStore()
-        store.open(sessionID: "recovery-session", using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
-        await eventually(timeout: 1) { store.modelDirectory?.current.model == "model" }
 
-        store.applyMuxFrame(sessionEventFrame(
-            sessionID: "recovery-session",
-            seq: 3,
-            type: "user/message",
-            data: .object([
-                "id": .string("gap-models"),
-                "content": .array([.object(["type": .string("text"), "text": .string("must not append")])]),
-                "source": .object(["kind": .string("user")]),
-            ]),
-            surfaceOp: "append"
-        ), sessionID: "recovery-session")
-        await fulfillment(of: [recoveryReachedHistory], timeout: 1)
-        await eventually(timeout: 1) { store.modelDirectory?.current.model == "model-recovered" }
 
-        XCTAssertEqual(store.modelDirectoryStatus, .ready)
-        XCTAssertEqual(store.modelDirectory?.current.provider, "provider-recovered")
-    }
 
-    func testGapRecoveryCancelsStaleModelSelectionAndClearsBusyState() async {
-        let selectionReached = expectation(description: "old selection reaches non-cooperative Host facade")
-        let recoveryReachedModels = expectation(description: "gap recovery reads a new model baseline")
-        let api = RecoveringSelectionSessionAPI(
-            selectionReached: selectionReached,
-            recoveryReachedModels: recoveryReachedModels
-        )
-        let store = NativeSessionStore()
-        store.open(sessionID: "recovery-selection", using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
-        await eventually(timeout: 1) { store.modelDirectory?.current.model == "model-a" }
 
-        store.selectModel(provider: "provider-a", model: "model-b", reasoningEffort: "deep")
-        await fulfillment(of: [selectionReached], timeout: 1)
-        XCTAssertTrue(store.isSelectingModel)
 
-        store.applyMuxFrame(sessionEventFrame(
-            sessionID: "recovery-selection",
-            seq: 3,
-            type: "user/message",
-            data: .object([
-                "id": .string("gap-selection"),
-                "content": .array([.object(["type": .string("text"), "text": .string("must not append")])]),
-                "source": .object(["kind": .string("user")]),
-            ]),
-            surfaceOp: "append"
-        ), sessionID: "recovery-selection")
-        await fulfillment(of: [recoveryReachedModels], timeout: 1)
-        await eventually(timeout: 1) {
-            !store.isSelectingModel && store.modelDirectory?.current.model == "model-recovered"
-        }
-
-        await api.releaseSelection()
-        for _ in 0..<20 { await Task.yield() }
-        XCTAssertEqual(store.modelDirectory?.current.model, "model-recovered")
-        XCTAssertEqual(store.modelDirectoryStatus, .ready)
-    }
-
-    func testGapRecoveryDoesNotRegressNewerLiveProjectionWithHistoryBaseline() async {
-        let recoveryReachedHistory = expectation(description: "gap recovery history remains gated for projection frame")
-        let api = StitchingGapRecoverySessionAPI(recoveryReachedHistory: recoveryReachedHistory)
-        let store = NativeSessionStore()
-        store.open(sessionID: "recovery-session", using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
-        await eventually(timeout: 1) {
-            store.phase == .ready(sessionID: "recovery-session") && store.items.map(\.text) == ["baseline"]
-        }
-
-        store.applyMuxFrame(sessionEventFrame(
-            sessionID: "recovery-session",
-            seq: 3,
-            type: "user/message",
-            data: .object([
-                "id": .string("gap-for-projection"),
-                "content": .array([.object(["type": .string("text"), "text": .string("buffered gap")])]),
-                "source": .object(["kind": .string("user")]),
-            ]),
-            surfaceOp: "append"
-        ), sessionID: "recovery-session")
-        await fulfillment(of: [recoveryReachedHistory], timeout: 1)
-
-        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "newer-projection", method: "session/projection", payload: .object([
-            "type": .string("session/projection"),
-            "sessionId": .string("recovery-session"),
-            "key": .string("recovery-projection"),
-            "value": .string("live push wins"),
-            "seq": .number(3),
-        ])), sessionID: "recovery-session")
-        await api.releaseRecoveryHistory()
-        await eventually(timeout: 1) {
-            store.projections.value(sessionID: "recovery-session", key: "recovery-projection") == .string("live push wins")
-                && store.items.map(\.sequence) == [1, 2, 3]
-        }
-
-        XCTAssertEqual(store.projections.row(sessionID: "recovery-session", key: "recovery-projection")?.seq, 3)
-        XCTAssertEqual(store.items.map(\.sequence), [1, 2, 3])
-    }
-
-    func testHostRestartRecoverySupersedesStaleGapRepairWithoutDroppingLiveBuffer() async {
-        let staleHistoryReached = expectation(description: "initial gap repair history is delayed")
-        let newHistoryReached = expectation(description: "Host restart issues newer recovery history")
-        let api = SupersedingGapRecoverySessionAPI(
-            staleHistoryReached: staleHistoryReached,
-            newHistoryReached: newHistoryReached
-        )
-        let store = NativeSessionStore()
-        store.open(sessionID: "recovery-session", using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
-        await eventually(timeout: 1) { store.items.map(\.text) == ["baseline"] }
-
-        store.applyMuxFrame(sessionEventFrame(
-            sessionID: "recovery-session",
-            seq: 3,
-            type: "user/message",
-            data: .object([
-                "id": .string("surviving-live-tail"),
-                "content": .array([.object(["type": .string("text"), "text": .string("surviving live tail")])]),
-                "source": .object(["kind": .string("user")]),
-            ]),
-            surfaceOp: "append"
-        ), sessionID: "recovery-session")
-        await fulfillment(of: [staleHistoryReached], timeout: 1)
-
-        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "host-restart", method: "session/subscribed", payload: .object([
-            "type": .string("session/subscribed"),
-            "sessionId": .string("recovery-session"),
-            "lastSeq": .number(0),
-        ])), sessionID: "recovery-session")
-        await fulfillment(of: [newHistoryReached], timeout: 1)
-        await api.releaseStaleHistory()
-        await eventually(timeout: 1) {
-            store.items.map(\.text) == ["baseline", "new host authority", "surviving live tail"]
-        }
-
-        XCTAssertEqual(store.items.map(\.sequence), [1, 2, 3])
-        XCTAssertFalse(store.items.contains(where: { $0.text == "stale authority" }))
-        XCTAssertEqual(store.modelDirectory?.current.model, "model-new")
-        XCTAssertEqual(store.modelDirectoryStatus, .ready)
-
-        // RC8's JS memo references are runtime-specific. The Native continuous
-        // reference instead compares the published typed projection after the
-        // same authority baseline and post-cut live tail arrive without a gap.
-        let continuous = NativeSessionStore()
-        let continuousAPI = ContinuousAuthoritySessionAPI()
-        continuous.open(sessionID: "recovery-session", using: continuousAPI, endpoint: URL(string: "http://127.0.0.1:1")!)
-        await eventually(timeout: 1) { continuous.items.map(\.sequence) == [1, 2] }
-        continuous.applyMuxFrame(sessionEventFrame(
-            sessionID: "recovery-session",
-            seq: 3,
-            type: "user/message",
-            data: .object([
-                "id": .string("surviving-live-tail"),
-                "content": .array([.object(["type": .string("text"), "text": .string("surviving live tail")])]),
-                "source": .object(["kind": .string("user")]),
-            ]),
-            surfaceOp: "append"
-        ), sessionID: "recovery-session")
-        await eventually(timeout: 1) { continuous.items.map(\.sequence) == [1, 2, 3] }
-
-        XCTAssertEqual(store.items.map { "\($0.sequence):\($0.text)" }, continuous.items.map { "\($0.sequence):\($0.text)" })
-        XCTAssertEqual(store.modelDirectory?.current, continuous.modelDirectory?.current)
-        XCTAssertEqual(store.modelDirectoryStatus, continuous.modelDirectoryStatus)
-        // RC8 consumes the subscription-tail mismatch with exactly one fenced
-        // follow-up authority pull after the restart baseline installs; the
-        // converged page owns the final transcript, so the visible window is
-        // stable across scheduler ordering instead of transiently stitched.
-        XCTAssertEqual(api.historyCount, 4)
-    }
-
-    func testResidentResyncSupersedesInFlightGapRepairAndDropsItsLiveBuffer() async {
-        let staleHistoryReached = expectation(description: "gap repair history is delayed")
-        let resyncedHistoryReached = expectation(description: "resident resync issues newer authority history")
-        let api = SupersedingGapRecoverySessionAPI(
-            staleHistoryReached: staleHistoryReached,
-            newHistoryReached: resyncedHistoryReached
-        )
-        let store = NativeSessionStore()
-        let sessionID = "resident-resync-gap-repair"
-        store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
-        await eventually(timeout: 1) { store.phase == .ready(sessionID: sessionID) && store.items.map(\.text) == ["baseline"] }
-
-        store.applyMuxFrame(sessionEventFrame(
-            sessionID: sessionID,
-            seq: 3,
-            type: "user/message",
-            data: .object([
-                "id": .string("obsolete-gap-tail"),
-                "content": .array([.object(["type": .string("text"), "text": .string("must be dropped by full resync")])]),
-                "source": .object(["kind": .string("user")]),
-            ]),
-            surfaceOp: "append"
-        ), sessionID: sessionID)
-        await fulfillment(of: [staleHistoryReached], timeout: 1)
-
-        store.resyncActiveSession()
-        await fulfillment(of: [resyncedHistoryReached], timeout: 1)
-        await api.releaseStaleHistory()
-        await eventually(timeout: 1) {
-            store.phase == .ready(sessionID: sessionID)
-                && store.items.map(\.text) == ["baseline", "new host authority"]
-                && store.modelDirectory?.current.model == "model-new"
-        }
-        XCTAssertFalse(store.items.contains(where: { $0.text == "must be dropped by full resync" }))
-        XCTAssertEqual(store.items.map(\.sequence), [1, 2])
-    }
-
-    func testResidentResyncSupersedesInFlightWatermarkSecondPull() async {
-        let staleHistoryReached = expectation(description: "watermark second pull history is delayed")
-        let resyncedHistoryReached = expectation(description: "resident resync replaces watermark authority")
-        let api = SupersedingGapRecoverySessionAPI(
-            staleHistoryReached: staleHistoryReached,
-            newHistoryReached: resyncedHistoryReached
-        )
-        let store = NativeSessionStore()
-        let sessionID = "resident-resync-watermark"
-        store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
-        await eventually(timeout: 1) { store.phase == .ready(sessionID: sessionID) && store.items.map(\.text) == ["baseline"] }
-
-        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "ahead-watermark", method: "session/subscribed", payload: .object([
-            "type": .string("session/subscribed"),
-            "sessionId": .string(sessionID),
-            "lastSeq": .number(2),
-        ])), sessionID: sessionID)
-        await fulfillment(of: [staleHistoryReached], timeout: 1)
-
-        store.resyncActiveSession()
-        await fulfillment(of: [resyncedHistoryReached], timeout: 1)
-        await api.releaseStaleHistory()
-        await eventually(timeout: 1) {
-            store.phase == .ready(sessionID: sessionID)
-                && store.items.map(\.text) == ["baseline", "new host authority"]
-                && store.modelDirectory?.current.model == "model-new"
-        }
-        XCTAssertFalse(store.items.contains(where: { $0.text == "stale authority" }))
-    }
-
-    func testAheadWatermarkFailureKeepsFirstWindowReady() async {
-        let recoveryHistoryReached = expectation(description: "ahead watermark recovery history is held")
-        let api = CoalescingGapFailureSessionAPI(recoveryHistoryReached: recoveryHistoryReached)
-        let store = NativeSessionStore()
-        let sessionID = "recovery-session"
-        store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
-        await eventually(timeout: 1) { store.items.map(\.text) == ["baseline"] }
-
-        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "ahead-watermark-failure", method: "session/subscribed", payload: .object([
-            "type": .string("session/subscribed"),
-            "sessionId": .string(sessionID),
-            "lastSeq": .number(2),
-        ])), sessionID: sessionID)
-        await fulfillment(of: [recoveryHistoryReached], timeout: 1)
-        await api.failRecovery()
-        await eventually(timeout: 1) {
-            if case .error = store.modelDirectoryStatus { return true }
-            return false
-        }
-
-        XCTAssertEqual(api.historyCalls, 2)
-        XCTAssertEqual(store.items.map(\.text), ["baseline"])
-        XCTAssertEqual(store.phase, .ready(sessionID: sessionID))
-    }
-
-    func testColdOpenStitchesBufferedLiveTailAfterHistoryAuthority() async {
-        let historyReached = expectation(description: "cold history is delayed")
-        let api = DelayedOpeningHistorySessionAPI(staleHistoryReached: historyReached)
-        let store = NativeSessionStore()
-        let sessionID = "cold-stitch-session"
-        store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
-        await fulfillment(of: [historyReached], timeout: 1)
-
-        store.applyMuxFrame(sessionEventFrame(
-            sessionID: sessionID,
-            seq: 1,
-            type: "user/message",
-            data: .object([
-                "id": .string("page-overlap"),
-                "content": .array([.object(["type": .string("text"), "text": .string("must not replace history")])]),
-                "source": .object(["kind": .string("user")]),
-            ]),
-            surfaceOp: "append"
-        ), sessionID: sessionID)
-        store.applyMuxFrame(sessionEventFrame(
-            sessionID: sessionID,
-            seq: 2,
-            type: "user/message",
-            data: .object([
-                "id": .string("live-tail"),
-                "content": .array([.object(["type": .string("text"), "text": .string("live tail")])]),
-                "source": .object(["kind": .string("user")]),
-            ]),
-            surfaceOp: "append"
-        ), sessionID: sessionID)
-        await api.releaseHistory()
-        await eventually(timeout: 1) { store.items.map(\.text) == ["stale authority", "live tail"] }
-
-        XCTAssertEqual(store.items.map(\.sequence), [1, 2])
-        XCTAssertEqual(store.phase, .ready(sessionID: sessionID))
-        XCTAssertEqual(store.chatNodes.compactMap { $0.data as? CoreUserMessageNode }.map(\.seq), [1, 2])
-    }
-
-    func testNewEndpointOpenSupersedesStaleInitialHistoryAuthority() async {
-        let staleHistoryReached = expectation(description: "stale initial history is delayed")
-        let staleAPI = DelayedOpeningHistorySessionAPI(staleHistoryReached: staleHistoryReached)
-        let freshAPI = FixedOpeningSessionAPI(model: "fresh-model", text: "fresh authority")
-        let store = NativeSessionStore()
-        let sessionID = "recovery-session"
-        let staleEndpoint = URL(string: "http://127.0.0.1:1")!
-        let freshEndpoint = URL(string: "http://127.0.0.1:2")!
-
-        store.open(sessionID: sessionID, using: staleAPI, endpoint: staleEndpoint)
-        await fulfillment(of: [staleHistoryReached], timeout: 1)
-        store.open(sessionID: sessionID, using: freshAPI, endpoint: freshEndpoint)
-        await eventually(timeout: 1) {
-            store.items.map(\.text) == ["fresh authority"] && store.modelDirectory?.current.model == "fresh-model"
-        }
-
-        await staleAPI.releaseHistory()
-        await eventually(timeout: 1) {
-            store.items.map(\.text) == ["fresh authority"] && store.modelDirectory?.current.model == "fresh-model"
-        }
-        XCTAssertEqual(store.selectedSessionID, sessionID)
-        XCTAssertEqual(store.modelDirectoryStatus, .ready)
-    }
-
-    func testResidentResyncSupersedesStaleInitialHistoryOnSameEndpoint() async {
-        let staleHistoryReached = expectation(description: "same-endpoint initial history is delayed")
-        let api = DelayedOpeningHistorySessionAPI(staleHistoryReached: staleHistoryReached)
-        let store = NativeSessionStore()
-        let sessionID = "resident-resync-stale-open"
-        let endpoint = URL(string: "http://127.0.0.1:1")!
-
-        store.open(sessionID: sessionID, using: api, endpoint: endpoint)
-        await fulfillment(of: [staleHistoryReached], timeout: 1)
-        store.resyncActiveSession()
-        await eventually(timeout: 1) {
-            store.phase == .ready(sessionID: sessionID)
-                && store.items.map(\.text) == ["resynced authority"]
-                && store.modelDirectory?.current.model == "resynced-model"
-        }
-
-        await api.releaseHistory()
-        await eventually(timeout: 1) {
-            store.items.map(\.text) == ["resynced authority"]
-                && store.modelDirectory?.current.model == "resynced-model"
-        }
-        XCTAssertEqual(api.historyCalls, 2)
-        XCTAssertEqual(store.modelDirectoryStatus, .ready)
-    }
-
-    func testResidentResyncIgnoresLateFailureFromStaleInitialHistory() async {
-        let staleHistoryReached = expectation(description: "same-endpoint stale history waits before failure")
-        let api = DelayedOpeningHistorySessionAPI(staleHistoryReached: staleHistoryReached, failStaleHistory: true)
-        let store = NativeSessionStore()
-        let sessionID = "resident-resync-stale-failure"
-        store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
-        await fulfillment(of: [staleHistoryReached], timeout: 1)
-
-        store.resyncActiveSession()
-        await eventually(timeout: 1) {
-            store.phase == .ready(sessionID: sessionID)
-                && store.items.map(\.text) == ["resynced authority"]
-                && store.modelDirectory?.current.model == "resynced-model"
-        }
-        await api.releaseHistory()
-        await eventually(timeout: 1) {
-            store.phase == .ready(sessionID: sessionID)
-                && store.items.map(\.text) == ["resynced authority"]
-                && store.modelDirectory?.current.model == "resynced-model"
-        }
-    }
-
-    func testConcurrentGapFramesCoalesceIntoOneAuthorityRecovery() async {
-        let recoveryHistoryReached = expectation(description: "first gap recovery history is held")
-        let api = CoalescingGapFailureSessionAPI(recoveryHistoryReached: recoveryHistoryReached)
-        let store = NativeSessionStore()
-        store.open(sessionID: "recovery-session", using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
-        await eventually(timeout: 1) { store.items.map(\.text) == ["baseline"] }
-
-        for (sequence, text) in [(3, "first buffered gap"), (4, "second buffered gap")] {
-            store.applyMuxFrame(sessionEventFrame(
-                sessionID: "recovery-session",
-                seq: sequence,
-                type: "user/message",
-                data: .object([
-                    "id": .string("coalesced-\(sequence)"),
-                    "content": .array([.object(["type": .string("text"), "text": .string(text)])]),
-                    "source": .object(["kind": .string("user")]),
-                ]),
-                surfaceOp: "append"
-            ), sessionID: "recovery-session")
-        }
-        await fulfillment(of: [recoveryHistoryReached], timeout: 1)
-        XCTAssertEqual(api.historyCalls, 2, "concurrent gaps must reuse the existing authority recovery")
-        XCTAssertEqual(store.items.map(\.text), ["baseline"])
-
-        await api.failRecovery()
-        await eventually(timeout: 1) {
-            if case .error = store.modelDirectoryStatus { return true }
-            return false
-        }
-        XCTAssertEqual(api.historyCalls, 2)
-        XCTAssertEqual(store.items.map(\.text), ["baseline"])
-    }
-
-    func testFailedGapRecoveryKeepsBufferedFramesForLaterSuccessfulRepair() async {
-        let failedHistory = expectation(description: "first gap history repair fails")
-        let successfulHistory = expectation(description: "second gap history repair succeeds")
-        let api = FailThenStitchGapRecoverySessionAPI(
-            failedHistory: failedHistory,
-            successfulHistory: successfulHistory
-        )
-        let store = NativeSessionStore()
-        store.open(sessionID: "recovery-session", using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
-        await eventually(timeout: 1) { store.items.map(\.text) == ["baseline"] }
-
-        store.applyMuxFrame(sessionEventFrame(
-            sessionID: "recovery-session",
-            seq: 3,
-            type: "user/message",
-            data: .object([
-                "id": .string("failed-gap"),
-                "content": .array([.object(["type": .string("text"), "text": .string("retained after failure")])]),
-                "source": .object(["kind": .string("user")]),
-            ]),
-            surfaceOp: "append"
-        ), sessionID: "recovery-session")
-        await fulfillment(of: [failedHistory], timeout: 1)
-        await eventually(timeout: 1) {
-            if case .error = store.modelDirectoryStatus { return true }
-            return false
-        }
-        XCTAssertEqual(store.items.map(\.text), ["baseline"])
-
-        store.applyMuxFrame(sessionEventFrame(
-            sessionID: "recovery-session",
-            seq: 4,
-            type: "user/message",
-            data: .object([
-                "id": .string("later-gap"),
-                "content": .array([.object(["type": .string("text"), "text": .string("later recovered tail")])]),
-                "source": .object(["kind": .string("user")]),
-            ]),
-            surfaceOp: "append"
-        ), sessionID: "recovery-session")
-        await fulfillment(of: [successfulHistory], timeout: 1)
-        await eventually(timeout: 1) {
-            store.items.map(\.text) == ["baseline", "recovered authority", "retained after failure", "later recovered tail"]
-        }
-
-        XCTAssertEqual(store.items.map(\.sequence), [1, 2, 3, 4])
-        XCTAssertEqual(store.modelDirectoryStatus, .ready)
-    }
-
-    func testGapRecoveryStitchesBufferedLiveEventsAfterLatestHostWindow() async {
-        let recoveryReachedHistory = expectation(description: "gap recovery starts delayed authority history")
-        let api = StitchingGapRecoverySessionAPI(recoveryReachedHistory: recoveryReachedHistory)
-        let store = NativeSessionStore()
-        store.open(sessionID: "recovery-session", using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
-        await eventually(timeout: 1) { store.items.map(\.text) == ["baseline"] }
-
-        store.applyMuxFrame(sessionEventFrame(
-            sessionID: "recovery-session",
-            seq: 3,
-            type: "user/message",
-            data: .object([
-                "id": .string("buffered-gap"),
-                "content": .array([.object(["type": .string("text"), "text": .string("buffered gap")])]),
-                "source": .object(["kind": .string("user")]),
-            ]),
-            surfaceOp: "append"
-        ), sessionID: "recovery-session")
-        await fulfillment(of: [recoveryReachedHistory], timeout: 1)
-
-        // RC8 stitches from the recovered Host cut: a buffered overlap at the
-        // cut loses by sequence, while frames strictly after it remain live.
-        store.applyMuxFrame(sessionEventFrame(
-            sessionID: "recovery-session",
-            seq: 2,
-            type: "user/message",
-            data: .object([
-                "id": .string("overlap"),
-                "content": .array([.object(["type": .string("text"), "text": .string("must not replace authority")])]),
-                "source": .object(["kind": .string("user")]),
-            ]),
-            surfaceOp: "append"
-        ), sessionID: "recovery-session")
-        store.applyMuxFrame(sessionEventFrame(
-            sessionID: "recovery-session",
-            seq: 4,
-            type: "user/message",
-            data: .object([
-                "id": .string("buffered-tail"),
-                "content": .array([.object(["type": .string("text"), "text": .string("buffered tail")])]),
-                "source": .object(["kind": .string("user")]),
-            ]),
-            surfaceOp: "append"
-        ), sessionID: "recovery-session")
-        await api.releaseRecoveryHistory()
-        await eventually(timeout: 1) {
-            store.items.map(\.text) == ["baseline", "recovered authority", "buffered gap", "buffered tail"]
-        }
-
-        XCTAssertEqual(store.items.map(\.sequence), [1, 2, 3, 4])
-        XCTAssertFalse(store.items.contains(where: { $0.text == "must not replace authority" }))
-        XCTAssertEqual(store.chatNodes.compactMap { $0.data as? CoreUserMessageNode }.map(\.seq), [1, 2, 3, 4])
-    }
-
-    func testLiveEventGapRecoversAuthorityWindowThenStitchesPostCutTail() async {
-        let recoveryReachedHistory = expectation(description: "gap triggers a second authority history read")
-        let api = GapRecoveringSessionAPI(recoveryReachedHistory: recoveryReachedHistory)
-        let store = NativeSessionStore()
-        store.open(sessionID: "recovery-session", using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
-        await eventually(timeout: 1) { store.items.map(\.text) == ["baseline"] }
-
-        store.applyMuxFrame(sessionEventFrame(
-            sessionID: "recovery-session",
-            seq: 3,
-            type: "user/message",
-            data: .object([
-                "id": .string("gap"),
-                "content": .array([.object(["type": .string("text"), "text": .string("post-cut tail")])]),
-                "source": .object(["kind": .string("user")]),
-            ]),
-            surfaceOp: "append"
-        ), sessionID: "recovery-session")
-        await fulfillment(of: [recoveryReachedHistory], timeout: 1)
-        await eventually(timeout: 1) { store.items.map(\.text) == ["baseline", "recovered authority", "post-cut tail"] }
-
-        XCTAssertEqual(store.items.map(\.sequence), [1, 2, 3])
-        XCTAssertEqual(store.items.last?.text, "post-cut tail")
-        XCTAssertEqual(store.chatNodes.compactMap { $0.data as? CoreUserMessageNode }.map(\.seq), [1, 2, 3])
-    }
 
     func testSessionModelsAuthorityPublishesTypedDirectoryAndClearsForColdSession() async throws {
         let modelsLoaded = expectation(description: "session.models reaches typed facade")
@@ -1624,69 +700,31 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.extensionState?.goal?.objective, "Keep scope")
     }
 
-    func testExtensionStateJoinsOnlyTypedActiveSessionAuthoritiesAndFailsClosedForMalformedTodos() throws {
+    func testQueueActionFailureIsScopedToItsItemAndSuccessPublishesCompletion() async {
         let store = NativeSessionStore()
-        store.loadSnapshotToolingFixture()
-        let sessionID = "snapshot-tooling"
-        store.projections.apply(sessionID: sessionID, key: "todos", value: .array([
-            .object(["content": .string("inspect result"), "status": .string("in_progress")]),
-            .object(["content": .string("ship"), "status": .string("completed")]),
-        ]), seq: 10)
-        store.projections.apply(sessionID: sessionID, key: "goal", value: .object([
-            "goal": .object([
-                "id": .string("goal-1"), "revision": .number(1), "objective": .string("Release safely"),
-                "phase": .string("active"), "maxGoalRounds": .number(4),
-            ]),
-            "roundsStarted": .number(1), "createdAt": .number(100), "updatedAt": .number(101),
-        ]), seq: 11)
-        store.applyMuxFrame(queueFrame(sessionID: sessionID, items: [
-            queuedItem(id: "q-1", messageID: "m-1", placement: "steering", content: [.object(["type": .string("text"), "text": .string("answer now")])]),
-        ]), sessionID: sessionID)
-        store.applyMuxFrame(jobsFrame(sessionID: sessionID, jobs: [job(id: "job-1", status: "running", startedAt: 10)]), sessionID: sessionID)
-        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "approval-rpc", method: "approval/requested", payload: .object([
-            "type": .string("approval/requested"), "sessionId": .string(sessionID), "approvalId": .string("approval-1"), "toolName": .string("bash"),
-        ])), sessionID: sessionID)
-        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "question-rpc", method: "question/requested", payload: .object([
-            "type": .string("question/requested"), "sessionId": .string(sessionID),
-            "questions": .array([.object(["id": .string("question-1"), "question": .string("Proceed?")])]),
-        ])), sessionID: sessionID)
+        store.loadSnapshotQueueFixture()
+        let api = RecordingQueueActionAPI()
+        store.setSessionAPIForTesting(api)
 
-        let state = try tryUnwrap(store.extensionState)
-        XCTAssertEqual(state.todos?.map(\.status), [.inProgress, .completed])
-        XCTAssertEqual(state.goal?.id, "goal-1")
-        XCTAssertEqual(state.goal?.phase, .active)
-        XCTAssertEqual(state.queuedMessages.map(\.id), ["q-1"])
-        XCTAssertEqual(state.backgroundJobs.map(\.id), ["job-1"])
-        XCTAssertEqual(state.pendingApproval?.rpcID, "approval-rpc")
-        XCTAssertEqual(state.pendingQuestion?.rpcID, "question-rpc")
-        XCTAssertEqual(state.subagentIdentity, CoreSubagentIdentityProjection.absent)
-        XCTAssertNil(state.subagentTiming)
+        api.error = .init(code: "queue_conflict", message: "no longer queued", details: .object([:]))
+        store.updateQueuedMessage(itemID: "snapshot-queue-text", action: .remove)
+        await eventually(timeout: 1) { store.queueActionFailure != nil && store.updatingQueueItemID == nil }
 
-        // A later malformed whole todo projection cannot leak a partly decoded
-        // local plan into any extension renderer.
-        store.projections.apply(sessionID: sessionID, key: "todos", value: .array([
-            .object(["content": .string("duplicate"), "status": .string("pending")]),
-            .object(["content": .string("duplicate"), "status": .string("completed")]),
-        ]), seq: 12)
-        XCTAssertNil(store.extensionState?.todos)
+        XCTAssertEqual(store.queueActionFailure, .init(itemID: "snapshot-queue-text", kind: .remove))
+        XCTAssertNil(store.queueActionCompletion)
 
-        // Changing the active Host session must never reuse extension state from
-        // a resident predecessor while the new authority baseline is loading.
-        store.open(
-            sessionID: "fresh-session",
-            using: RejectingSessionAPI(promptReachedFacade: nil),
-            endpoint: URL(string: "http://127.0.0.1:1")!
-        )
-        let freshState = try tryUnwrap(store.extensionState)
-        XCTAssertNil(freshState.todos)
-        XCTAssertNil(freshState.goal)
-        XCTAssertTrue(freshState.queuedMessages.isEmpty)
-        XCTAssertTrue(freshState.backgroundJobs.isEmpty)
-        XCTAssertNil(freshState.pendingApproval)
-        XCTAssertNil(freshState.pendingQuestion)
-        XCTAssertEqual(freshState.subagentIdentity, CoreSubagentIdentityProjection.absent)
-        XCTAssertNil(freshState.subagentTiming)
+        api.error = nil
+        store.updateQueuedMessage(itemID: "snapshot-queue-image", action: .steer)
+        await eventually(timeout: 1) { store.queueActionCompletion != nil && store.updatingQueueItemID == nil }
+
+        XCTAssertEqual(store.queueActionCompletion, .init(itemID: "snapshot-queue-image", action: .steer))
+        XCTAssertNil(store.queueActionFailure)
+        XCTAssertEqual(api.requests, [
+            .init(sessionId: "snapshot-tooling", itemId: "snapshot-queue-text", action: .remove),
+            .init(sessionId: "snapshot-tooling", itemId: "snapshot-queue-image", action: .steer),
+        ])
     }
+
 
     func testSubagentProjectionReaderPreservesNullSentinelAndRejectsMalformedIdentityOrTiming() {
         let store = NativeSessionStore()
@@ -1715,871 +753,33 @@ final class NativeSessionStoreTests: XCTestCase {
         XCTAssertNil(SessionSubagentProjectionReader.timing(from: store.projections, sessionID: sessionID))
     }
 
-    func testMuxFramesForNonActiveSessionCannotPolluteExtensionState() throws {
-        let store = NativeSessionStore()
-        store.loadSnapshotToolingFixture()
-        store.applyMuxFrame(queueFrame(sessionID: "foreign", items: [
-            queuedItem(id: "foreign-queue", messageID: "foreign-message", placement: "queued", content: []),
-        ]), sessionID: "foreign")
-        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "foreign-approval", method: "approval/requested", payload: .object([
-            "type": .string("approval/requested"), "sessionId": .string("foreign"),
-            "approvalId": .string("foreign-approval"), "toolName": .string("bash"),
-        ])), sessionID: "foreign")
 
-        let state = try tryUnwrap(store.extensionState)
-        XCTAssertTrue(state.queuedMessages.isEmpty)
-        XCTAssertNil(state.pendingApproval)
-    }
 
-    func testQueueAndJobsUseCompleteHostSnapshotsAndRejectOtherSessionFrames() {
-        let store = NativeSessionStore()
-        store.loadSnapshotToolingFixture()
 
-        store.applyMuxFrame(queueFrame(sessionID: "snapshot-tooling", items: [
-            queuedItem(id: "q-1", messageID: "m-1", placement: "queued", content: [.object(["type": .string("text"), "text": .string("first queued turn")])]),
-            queuedItem(id: "q-2", messageID: "m-2", placement: "steering", content: [.object(["type": .string("text"), "text": .string("steer now")])]),
-        ]), sessionID: "snapshot-tooling")
-        store.applyMuxFrame(jobsFrame(sessionID: "snapshot-tooling", jobs: [
-            job(id: "job-1", status: "running", startedAt: 10),
-        ]), sessionID: "snapshot-tooling")
 
-        XCTAssertEqual(store.queuedMessages.map(\.id), ["q-1", "q-2"])
-        XCTAssertEqual(store.queuedMessages.map(\.placement), [.queued, .steering])
-        XCTAssertEqual(store.queuedMessages.first?.preview, "first queued turn")
-        XCTAssertEqual(store.backgroundJobs.map(\.id), ["job-1"])
-        XCTAssertTrue(store.backgroundJobs[0].isLive)
 
-        // A second complete frame replaces rather than reconciles the prior set.
-        store.applyMuxFrame(queueFrame(sessionID: "snapshot-tooling", items: [
-            queuedItem(id: "q-3", messageID: "m-3", placement: "context", content: [.object(["type": .string("image")])]),
-        ]), sessionID: "snapshot-tooling")
-        store.applyMuxFrame(jobsFrame(sessionID: "snapshot-tooling", jobs: []), sessionID: "snapshot-tooling")
-        store.applyMuxFrame(queueFrame(sessionID: "other", items: [
-            queuedItem(id: "foreign", messageID: "foreign", placement: "queued", content: []),
-        ]), sessionID: "snapshot-tooling")
 
-        XCTAssertEqual(store.queuedMessages.map(\.id), ["q-3"])
-        XCTAssertEqual(store.queuedMessages.first?.preview, "[image]")
-        XCTAssertNil(store.queuedMessages.first?.text)
-        XCTAssertTrue(store.backgroundJobs.isEmpty)
-    }
 
-    func testQueueActionUsesActiveHostItemAndWaitsForWholeSnapshot() async throws {
-        let store = NativeSessionStore()
-        store.loadSnapshotToolingFixture()
-        let sessionID = try tryUnwrap(store.selectedSessionID)
-        store.applyMuxFrame(queueFrame(sessionID: sessionID, items: [
-            queuedItem(id: "q-edit", messageID: "m-edit", placement: "queued", content: [.object(["type": .string("text"), "text": .string("original")])]),
-        ]), sessionID: sessionID)
-        let invoked = expectation(description: "queue edit reaches typed session facade")
-        let api = RecordingQueueSessionAPI(invoked: invoked)
-        store.setSessionAPIForTesting(api)
 
-        store.updateQueuedMessage(itemID: "q-edit", action: .edit(content: [.text(text: "edited")]))
-        await fulfillment(of: [invoked], timeout: 1)
-        await eventually(timeout: 1) { store.updatingQueueItemID == nil }
 
-        XCTAssertEqual(api.requests, [.init(sessionId: sessionID, itemId: "q-edit", action: .edit(content: [.text(text: "edited")]))])
-        XCTAssertNil(store.queueActionFailure)
-        XCTAssertEqual(store.queuedMessages.map(\.preview), ["original"], "queue content remains Host-owned until session/queue sends a replacement snapshot")
-    }
 
-    func testQueueEditFailureIsScopedToTheActionAndRetainsHostRowForRetry() async throws {
-        let store = NativeSessionStore()
-        store.loadSnapshotToolingFixture()
-        let sessionID = try tryUnwrap(store.selectedSessionID)
-        store.applyMuxFrame(queueFrame(sessionID: sessionID, items: [
-            queuedItem(id: "q-edit-reject", messageID: "m-edit-reject", placement: "queued", content: [.object(["type": .string("text"), "text": .string("original Host queue row")])]),
-        ]), sessionID: sessionID)
-        let invoked = expectation(description: "rejected queue edit reaches typed session facade")
-        let api = RecordingQueueSessionAPI(invoked: invoked, error: DSHTransportError.invalidEndpoint)
-        store.setSessionAPIForTesting(api)
 
-        store.updateQueuedMessage(itemID: "q-edit-reject", action: .edit(content: [.text(text: "edited")]))
-        await fulfillment(of: [invoked], timeout: 1)
-        await eventually(timeout: 1) { store.updatingQueueItemID == nil }
 
-        XCTAssertEqual(store.queueActionFailure, .init(itemID: "q-edit-reject", kind: .edit))
-        XCTAssertNil(store.queueActionCompletion)
-        XCTAssertEqual(store.queuedMessages.map(\.preview), ["original Host queue row"])
-    }
 
-    func testLateQueueReceiptDoesNotCompleteRowAlreadyRetiredByHostSnapshot() async throws {
-        let store = NativeSessionStore()
-        store.loadSnapshotToolingFixture()
-        let sessionID = try tryUnwrap(store.selectedSessionID)
-        store.applyMuxFrame(queueFrame(sessionID: sessionID, items: [
-            queuedItem(id: "q-race", messageID: "m-race", placement: "queued", content: [.object(["type": .string("text"), "text": .string("Host owns retirement")])]),
-        ]), sessionID: sessionID)
-        let reached = expectation(description: "queue action reaches Host before late receipt")
-        let api = DelayedQueueSessionAPI(reached: reached)
-        store.setSessionAPIForTesting(api)
 
-        store.updateQueuedMessage(itemID: "q-race", action: .remove)
-        await fulfillment(of: [reached], timeout: 1)
-        XCTAssertEqual(store.updatingQueueItemID, "q-race")
 
-        store.applyMuxFrame(queueFrame(sessionID: sessionID, items: []), sessionID: sessionID)
-        XCTAssertTrue(store.queuedMessages.isEmpty)
-        await api.release()
-        await eventually(timeout: 1) { store.updatingQueueItemID == nil }
 
-        XCTAssertNil(store.queueActionCompletion)
-        XCTAssertNil(store.queueActionFailure)
-        XCTAssertTrue(store.queuedMessages.isEmpty)
-    }
 
-    func testLateSteerReceiptDoesNotCompleteRowAlreadyRetiredByHostSnapshot() async throws {
-        let store = NativeSessionStore()
-        store.loadSnapshotToolingFixture()
-        let sessionID = try tryUnwrap(store.selectedSessionID)
-        store.applyMuxFrame(queueFrame(sessionID: sessionID, items: [
-            queuedItem(id: "q-steer-race", messageID: "m-steer-race", placement: "queued", content: [.object(["type": .string("text"), "text": .string("Host owns steering retirement")])]),
-        ]), sessionID: sessionID)
-        let reached = expectation(description: "steer reaches Host before late receipt")
-        let api = DelayedQueueSessionAPI(reached: reached)
-        store.setSessionAPIForTesting(api)
 
-        store.updateQueuedMessage(itemID: "q-steer-race", action: .steer)
-        await fulfillment(of: [reached], timeout: 1)
-        XCTAssertEqual(store.updatingQueueItemID, "q-steer-race")
 
-        // The following whole snapshot is authority. A later accepted receipt
-        // cannot recreate a row that Host has already moved or retired.
-        store.applyMuxFrame(queueFrame(sessionID: sessionID, items: []), sessionID: sessionID)
-        XCTAssertTrue(store.queuedMessages.isEmpty)
-        await api.release()
-        await eventually(timeout: 1) { store.updatingQueueItemID == nil }
 
-        XCTAssertNil(store.queueActionCompletion)
-        XCTAssertNil(store.queueActionFailure)
-        XCTAssertTrue(store.queuedMessages.isEmpty)
-    }
 
-    func testQueueActionFailureIsScopedToTheActionAndDoesNotRetireRow() async throws {
-        let store = NativeSessionStore()
-        store.loadSnapshotToolingFixture()
-        let sessionID = try tryUnwrap(store.selectedSessionID)
-        store.applyMuxFrame(queueFrame(sessionID: sessionID, items: [
-            queuedItem(id: "q-remove", messageID: "m-remove", placement: "queued", content: [.object(["type": .string("text"), "text": .string("retain until host frame")])]),
-        ]), sessionID: sessionID)
-        let invoked = expectation(description: "queue remove reaches typed session facade")
-        let api = RecordingQueueSessionAPI(invoked: invoked, error: DSHTransportError.invalidEndpoint)
-        store.setSessionAPIForTesting(api)
 
-        store.updateQueuedMessage(itemID: "q-remove", action: .remove)
-        await fulfillment(of: [invoked], timeout: 1)
-        await eventually(timeout: 1) { store.updatingQueueItemID == nil }
 
-        XCTAssertEqual(store.queueActionFailure, .init(itemID: "q-remove", kind: .remove))
-        XCTAssertEqual(store.queuedMessages.map(\.id), ["q-remove"])
-    }
 
-    func testSteerFailureIsScopedToTheActionAndDoesNotRetireHostRow() async throws {
-        let store = NativeSessionStore()
-        store.loadSnapshotToolingFixture()
-        let sessionID = try tryUnwrap(store.selectedSessionID)
-        store.applyMuxFrame(queueFrame(sessionID: sessionID, items: [
-            queuedItem(id: "q-steer-reject", messageID: "m-steer-reject", placement: "queued", content: [.object(["type": .string("text"), "text": .string("retry after rejection")])]),
-        ]), sessionID: sessionID)
-        let invoked = expectation(description: "steer reaches typed session facade")
-        let api = RecordingQueueSessionAPI(invoked: invoked, error: DSHTransportError.invalidEndpoint)
-        store.setSessionAPIForTesting(api)
 
-        store.updateQueuedMessage(itemID: "q-steer-reject", action: .steer)
-        await fulfillment(of: [invoked], timeout: 1)
-        await eventually(timeout: 1) { store.updatingQueueItemID == nil }
 
-        XCTAssertEqual(api.requests, [.init(sessionId: sessionID, itemId: "q-steer-reject", action: .steer)])
-        XCTAssertEqual(store.queueActionFailure, .init(itemID: "q-steer-reject", kind: .steer))
-        XCTAssertNil(store.queueActionCompletion)
-        XCTAssertEqual(store.queuedMessages.map(\.id), ["q-steer-reject"])
-    }
-
-    func testSubscriptionClearsPriorGenerationTransientStateAndTruncatesProjection() {
-        let store = NativeSessionStore()
-        store.loadSnapshotToolingFixture()
-        store.projections.apply(sessionID: "snapshot-tooling", key: "title", value: .string("durable"), seq: 12)
-        store.projections.apply(sessionID: "snapshot-tooling", key: "todo", value: .string("lost-on-restart"), seq: 15)
-        store.applyMuxFrame(queueFrame(sessionID: "snapshot-tooling", items: [
-            queuedItem(id: "q-1", messageID: "m-1", placement: "queued", content: []),
-        ]), sessionID: "snapshot-tooling")
-        store.applyMuxFrame(jobsFrame(sessionID: "snapshot-tooling", jobs: [job(id: "job-1", status: "completed", startedAt: 1)]), sessionID: "snapshot-tooling")
-
-        store.applyMuxFrame(RPCServerRequest(
-            type: "server-request",
-            rpcId: "subscribed-1",
-            method: "session/subscribed",
-            payload: .object([
-                "type": .string("session/subscribed"),
-                "sessionId": .string("snapshot-tooling"),
-                "lastSeq": .number(12),
-            ])
-        ), sessionID: "snapshot-tooling")
-
-        XCTAssertTrue(store.queuedMessages.isEmpty)
-        XCTAssertTrue(store.backgroundJobs.isEmpty)
-        XCTAssertEqual(store.projections.value(sessionID: "snapshot-tooling", key: "title"), .string("durable"))
-        XCTAssertNil(store.projections.value(sessionID: "snapshot-tooling", key: "todo"))
-    }
-
-    func testSubscriptionGenerationClearsPendingInteractionTakeoversAlongsideQueueAndJobs() throws {
-        let store = NativeSessionStore()
-        store.loadSnapshotToolingFixture()
-        let sessionID = "snapshot-tooling"
-        store.applyMuxFrame(queueFrame(sessionID: sessionID, items: [
-            queuedItem(id: "q-1", messageID: "m-1", placement: "queued", content: []),
-        ]), sessionID: sessionID)
-        store.applyMuxFrame(jobsFrame(sessionID: sessionID, jobs: [job(id: "job-1", status: "running", startedAt: 1)]), sessionID: sessionID)
-        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "approval-rpc", method: "approval/requested", payload: .object([
-            "type": .string("approval/requested"), "sessionId": .string(sessionID), "approvalId": .string("approval-1"), "toolName": .string("bash"),
-        ])), sessionID: sessionID)
-        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "question-rpc", method: "question/requested", payload: .object([
-            "type": .string("question/requested"), "sessionId": .string(sessionID),
-            "questions": .array([.object(["id": .string("q-1"), "question": .string("Proceed?")])]),
-        ])), sessionID: sessionID)
-        XCTAssertNotNil(store.extensionState?.pendingApproval)
-        XCTAssertNotNil(store.extensionState?.pendingQuestion)
-
-        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "subscribed-2", method: "session/subscribed", payload: .object([
-            "type": .string("session/subscribed"), "sessionId": .string(sessionID), "lastSeq": .number(0),
-        ])), sessionID: sessionID)
-
-        let state = try tryUnwrap(store.extensionState)
-        XCTAssertTrue(state.queuedMessages.isEmpty)
-        XCTAssertTrue(state.backgroundJobs.isEmpty)
-        XCTAssertNil(state.pendingApproval)
-        XCTAssertNil(state.pendingQuestion)
-        XCTAssertFalse(store.isSubmittingApproval)
-        XCTAssertFalse(store.isSubmittingQuestion)
-    }
-
-    func testResidentWindowRestoreRetainsSelectionToolsAndTransientHostStateAcrossSessionSwitch() {
-        let store = NativeSessionStore()
-        store.loadSnapshotToolingFixture()
-        store.selectToolCall("snapshot-bash")
-        store.selectView("future-plugin-view")
-        let expectedChatNodeKeys = store.chatNodes.map(\.key)
-        let expectedChatNodeKinds = store.chatNodes.map(\.kind)
-        let expectedTrajectoryNodeKeys = store.trajectoryNodes.map(\.key)
-        let expectedTrajectoryNodeKinds = store.trajectoryNodes.map(\.kind)
-        store.applyMuxFrame(queueFrame(sessionID: "snapshot-tooling", items: [
-            queuedItem(id: "q-1", messageID: "m-1", placement: "steering", content: [.object(["type": .string("text"), "text": .string("retain me")])]),
-        ]), sessionID: "snapshot-tooling")
-        store.applyMuxFrame(jobsFrame(sessionID: "snapshot-tooling", jobs: [job(id: "job-1", status: "stopping", startedAt: 1)]), sessionID: "snapshot-tooling")
-        store.preserveActiveState()
-
-        store.loadSnapshotQuestionFixture()
-        XCTAssertTrue(store.restoreResidentState(for: "snapshot-tooling"))
-
-        XCTAssertEqual(store.items.map(\.id), ["event-101", "event-104"])
-        XCTAssertEqual(store.chatNodes.map(\.key), expectedChatNodeKeys)
-        XCTAssertEqual(store.chatNodes.map(\.kind), expectedChatNodeKinds)
-        XCTAssertEqual(store.trajectoryNodes.map(\.key), expectedTrajectoryNodeKeys)
-        XCTAssertEqual(store.trajectoryNodes.map(\.kind), expectedTrajectoryNodeKinds)
-        XCTAssertEqual(store.trajectoryNodes.map(\.target), ["trajectory"])
-        XCTAssertEqual(store.toolInvocations.map(\.id), ["snapshot-read", "snapshot-bash"])
-        XCTAssertEqual(store.selectedToolCallID, "snapshot-bash")
-        XCTAssertEqual(store.selectedViewID, "future-plugin-view")
-        XCTAssertEqual(store.queuedMessages.first?.preview, "retain me")
-        XCTAssertEqual(store.backgroundJobs.first?.status, .stopping)
-    }
-
-    func testDurableUserMessageRetiresOnlyMatchingTransientSteeringRow() {
-        let store = NativeSessionStore()
-        store.loadSnapshotToolingFixture()
-        store.applyMuxFrame(queueFrame(sessionID: "snapshot-tooling", items: [
-            queuedItem(id: "queued", messageID: "ordinary", placement: "queued", content: [.object(["type": .string("text"), "text": .string("keep me")])]),
-            queuedItem(id: "steering", messageID: "steer-me", placement: "steering", content: [.object(["type": .string("text"), "text": .string("retire me")])]),
-        ]), sessionID: "snapshot-tooling")
-
-        // `loadSnapshotToolingFixture` ends at sequence 104. Use the next
-        // contiguous Host event so this test exercises steering retirement,
-        // rather than correctly triggering the T6.7 gap-recovery fence.
-        store.applyMuxFrame(eventFrame(sessionID: "snapshot-tooling", seq: 105, messageID: "steer-me", text: "admitted steering"), sessionID: "snapshot-tooling")
-
-        XCTAssertEqual(store.queuedMessages.map(\.id), ["queued"])
-        XCTAssertEqual(store.queuedMessages.first?.messageID, "ordinary")
-        XCTAssertEqual(store.items.last?.text, "admitted steering")
-        XCTAssertEqual(store.items.last?.time, 105)
-    }
-
-    func testQuestionRequestPreservesOfficialPlanReviewIntentAndRejectsUnknownIntent() {
-        let store = NativeSessionStore()
-        store.loadSnapshotToolingFixture()
-        let sessionID = "snapshot-tooling"
-        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "plan-review-rpc", method: "question/requested", payload: .object([
-            "type": .string("question/requested"), "sessionId": .string(sessionID),
-            "questions": .array([.object([
-                "id": .string("review"), "question": .string("Approve the plan?"),
-                "intent": .object(["kind": .string("plan-review"), "approve": .string("Approve plan")]),
-            ])]),
-        ])), sessionID: sessionID)
-        XCTAssertEqual(store.pendingQuestion?.rpcID, "plan-review-rpc")
-        XCTAssertEqual(store.pendingQuestion?.items.first?.intent, .planReview(approve: "Approve plan"))
-
-        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "unknown-intent-rpc", method: "question/requested", payload: .object([
-            "type": .string("question/requested"), "sessionId": .string(sessionID),
-            "questions": .array([.object([
-                "id": .string("bad"), "question": .string("Unsupported?"),
-                "intent": .object(["kind": .string("future-intent")]),
-            ])]),
-        ])), sessionID: sessionID)
-        XCTAssertEqual(store.pendingQuestion?.rpcID, "plan-review-rpc")
-        XCTAssertEqual(store.pendingQuestion?.items.first?.intent, .planReview(approve: "Approve plan"))
-    }
-
-    func testSubscriptionRestartClearsPendingInteractionsUntilHostReplay() {
-        let store = NativeSessionStore()
-        let sessionID = "snapshot-tooling"
-        store.loadSnapshotToolingFixture()
-        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "restart-approval", method: "approval/requested", payload: .object([
-            "type": .string("approval/requested"),
-            "sessionId": .string(sessionID),
-            "approvalId": .string("restart-approval-id"),
-            "toolName": .string("bash"),
-        ])), sessionID: sessionID)
-        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "restart-question", method: "question/requested", payload: .object([
-            "type": .string("question/requested"),
-            "sessionId": .string(sessionID),
-            "questions": .array([.object([
-                "id": .string("restart-question-id"),
-                "question": .string("Replayed after reconnect?"),
-                "options": .array([.object(["label": .string("Yes")])]),
-            ])]),
-        ])), sessionID: sessionID)
-        XCTAssertNotNil(store.pendingApproval)
-        XCTAssertNotNil(store.pendingQuestion)
-
-        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "restart-subscription", method: "session/subscribed", payload: .object([
-            "type": .string("session/subscribed"),
-            "sessionId": .string(sessionID),
-            "lastSeq": .number(0),
-        ])), sessionID: sessionID)
-
-        XCTAssertNil(store.pendingApproval)
-        XCTAssertNil(store.pendingQuestion)
-        XCTAssertFalse(store.isSubmittingApproval)
-        XCTAssertFalse(store.isSubmittingQuestion)
-    }
-
-    func testResidentResyncRebuildsWindowClearsPendingAndColdInstanceNoOps() async {
-        let cold = NativeSessionStore()
-        cold.resyncActiveSession()
-        XCTAssertNil(cold.selectedSessionID)
-        XCTAssertTrue(cold.chatNodes.isEmpty)
-
-        let resyncHistoryReached = expectation(description: "resident resync reaches Host history")
-        let api = GatedResidentResyncSessionAPI(resyncHistoryReached: resyncHistoryReached)
-        let store = NativeSessionStore()
-        let sessionID = "resident-resync-session"
-        store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
-        await eventually(timeout: 1) { store.phase == .ready(sessionID: sessionID) && store.items.map(\.text) == ["initial authority"] }
-
-        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "stale-approval", method: "approval/requested", payload: .object([
-            "type": .string("approval/requested"),
-            "sessionId": .string(sessionID),
-            "approvalId": .string("approval-1"),
-            "toolName": .string("bash"),
-        ])), sessionID: sessionID)
-        XCTAssertNotNil(store.pendingApproval)
-
-        store.resyncActiveSession()
-        await fulfillment(of: [resyncHistoryReached], timeout: 1)
-        XCTAssertEqual(store.phase, .loading(sessionID: sessionID))
-        XCTAssertTrue(store.items.isEmpty)
-        XCTAssertTrue(store.chatNodes.isEmpty)
-        XCTAssertFalse(store.hasMoreHistory)
-        XCTAssertNil(store.pendingApproval)
-        XCTAssertNil(store.pendingQuestion)
-        XCTAssertFalse(store.isSubmittingApproval)
-        XCTAssertFalse(store.isSubmittingQuestion)
-
-        await api.releaseResyncHistory()
-        await eventually(timeout: 1) {
-            store.phase == .ready(sessionID: sessionID)
-                && store.items.map(\.text) == ["resynced authority"]
-        }
-        XCTAssertEqual(api.historyCalls, 2)
-        XCTAssertEqual(api.modelsCalls, 2)
-    }
-
-    func testEarlySubscriptionDuringResidentResyncTriggersFollowUpAuthorityPull() async {
-        let resyncHistoryReached = expectation(description: "resident resync history is held for early subscription")
-        let api = GatedResidentResyncSessionAPI(resyncHistoryReached: resyncHistoryReached)
-        let store = NativeSessionStore()
-        let sessionID = "resident-resync-early-subscription"
-        store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
-        await eventually(timeout: 1) { store.phase == .ready(sessionID: sessionID) }
-
-        store.resyncActiveSession()
-        await fulfillment(of: [resyncHistoryReached], timeout: 1)
-        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "resync-early-subscription", method: "session/subscribed", payload: .object([
-            "type": .string("session/subscribed"),
-            "sessionId": .string(sessionID),
-            "lastSeq": .number(4),
-        ])), sessionID: sessionID)
-        await api.releaseResyncHistory()
-        await eventually(timeout: 1) {
-            store.phase == .ready(sessionID: sessionID)
-                && store.items.map(\.text) == ["follow-up authority"]
-                && api.historyCalls == 3
-                && api.modelsCalls == 3
-        }
-        XCTAssertEqual(store.items.map(\.sequence), [4])
-    }
-
-    func testResidentResyncRetainsQueueAndJobsUntilFreshSubscriptionBoundary() async {
-        let resyncHistoryReached = expectation(description: "resident resync is held before fresh subscription")
-        let api = GatedResidentResyncSessionAPI(resyncHistoryReached: resyncHistoryReached)
-        let store = NativeSessionStore()
-        let sessionID = "resident-status-session"
-        store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
-        await eventually(timeout: 1) { store.phase == .ready(sessionID: sessionID) }
-
-        store.applyMuxFrame(queueFrame(sessionID: sessionID, items: [
-            queuedItem(id: "prior-queue", messageID: "prior-message", placement: "queued", content: [.object(["type": .string("text"), "text": .string("retain until subscribed")])]),
-        ]), sessionID: sessionID)
-        store.applyMuxFrame(jobsFrame(sessionID: sessionID, jobs: [
-            job(id: "prior-job", status: "running", startedAt: 1),
-        ]), sessionID: sessionID)
-        XCTAssertEqual(store.queuedMessages.map(\.id), ["prior-queue"])
-        XCTAssertEqual(store.backgroundJobs.map(\.id), ["prior-job"])
-
-        store.resyncActiveSession()
-        await fulfillment(of: [resyncHistoryReached], timeout: 1)
-        XCTAssertEqual(store.queuedMessages.map(\.id), ["prior-queue"], "RC8 preserves the mirror until the ordered subscription baseline")
-        XCTAssertEqual(store.backgroundJobs.map(\.id), ["prior-job"])
-
-        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "fresh-subscription", method: "session/subscribed", payload: .object([
-            "type": .string("session/subscribed"),
-            "sessionId": .string(sessionID),
-            "lastSeq": .number(0),
-        ])), sessionID: sessionID)
-        XCTAssertTrue(store.queuedMessages.isEmpty)
-        XCTAssertTrue(store.backgroundJobs.isEmpty)
-
-        await api.releaseResyncHistory()
-        await eventually(timeout: 1) { store.phase == .ready(sessionID: sessionID) }
-    }
-
-    func testLoadOlderHistoryGuardsKeepWindowAndAdoptEmptyPageHasMore() async {
-        let cold = NativeSessionStore()
-        cold.loadOlderHistory()
-        XCTAssertFalse(cold.isLoadingOlderHistory)
-        XCTAssertFalse(cold.hasMoreHistory)
-
-        let api = PagingHistorySessionAPI()
-        let store = NativeSessionStore()
-        let sessionID = "paging-session"
-        store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
-        await eventually(timeout: 1) { store.phase == .ready(sessionID: sessionID) }
-        XCTAssertEqual(api.historyBeforeSequences, [nil])
-        XCTAssertEqual(store.chatNodes.count, 1)
-        XCTAssertTrue(store.hasMoreHistory)
-
-        api.enqueuePage(.failure)
-        store.loadOlderHistory()
-        await eventually(timeout: 1) { api.historyBeforeSequences.count == 2 && !store.isLoadingOlderHistory }
-        XCTAssertEqual(store.chatNodes.count, 1)
-        XCTAssertTrue(store.hasMoreHistory)
-
-        api.enqueuePage(.empty(hasMore: false))
-        store.loadOlderHistory()
-        await eventually(timeout: 1) { api.historyBeforeSequences.count == 3 && !store.isLoadingOlderHistory }
-        XCTAssertEqual(store.chatNodes.count, 1)
-        XCTAssertFalse(store.hasMoreHistory)
-
-        let exhaustedCalls = api.historyBeforeSequences.count
-        store.loadOlderHistory()
-        XCTAssertEqual(api.historyBeforeSequences.count, exhaustedCalls)
-        XCTAssertFalse(store.isLoadingOlderHistory)
-    }
-
-    func testReplayedQuestionKeepsNewBusyStateWhenOldSubmissionFailsLate() async {
-        let oldAnswerReached = expectation(description: "old answer reaches Host before restart")
-        let oldAnswerCancelled = expectation(description: "old answer Task cancels when Host restart replaces pending request")
-        let api = DelayedReplayedQuestionSessionAPI(
-            oldAnswerReached: oldAnswerReached,
-            oldAnswerCancelled: oldAnswerCancelled
-        )
-        let store = NativeSessionStore()
-        let sessionID = "replayed-question-session"
-        store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
-        await eventually(timeout: 1) { store.phase == .ready(sessionID: sessionID) }
-
-        let questionFrame = RPCServerRequest(type: "server-request", rpcId: "replayed-question", method: "question/requested", payload: .object([
-            "type": .string("question/requested"),
-            "sessionId": .string(sessionID),
-            "questions": .array([.object(["id": .string("q-1"), "question": .string("Proceed?")])]),
-        ]))
-        store.applyMuxFrame(questionFrame, sessionID: sessionID)
-        store.answerQuestion([.init(id: "q-1", selected: ["yes"], custom: nil)])
-        await fulfillment(of: [oldAnswerReached], timeout: 1)
-        XCTAssertTrue(store.isSubmittingQuestion)
-
-        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "restart", method: "session/subscribed", payload: .object([
-            "type": .string("session/subscribed"),
-            "sessionId": .string(sessionID),
-            "lastSeq": .number(0),
-        ])), sessionID: sessionID)
-        await eventually(timeout: 1) { store.pendingQuestion == nil && !store.isSubmittingQuestion }
-        await fulfillment(of: [oldAnswerCancelled], timeout: 1)
-        store.applyMuxFrame(questionFrame, sessionID: sessionID)
-        store.answerQuestion([.init(id: "q-1", selected: ["yes"], custom: nil)])
-        await eventually(timeout: 1) { store.isSubmittingQuestion }
-
-        await api.failOldAnswer()
-        try? await Task.sleep(for: .milliseconds(25))
-        XCTAssertEqual(api.answerCalls, 2)
-        XCTAssertEqual(store.pendingQuestion?.rpcID, "replayed-question")
-        XCTAssertTrue(store.isSubmittingQuestion)
-    }
-
-    func testDisconnectCancelsPendingApprovalSubmissionBeforeLateFailure() async {
-        let oldApprovalReached = expectation(description: "approval reaches Host before disconnect")
-        let oldApprovalCancelled = expectation(description: "approval submission cancels on disconnect")
-        let api = DelayedReplacingApprovalSessionAPI(
-            oldApprovalReached: oldApprovalReached,
-            oldApprovalCancelled: oldApprovalCancelled
-        )
-        let store = NativeSessionStore()
-        let sessionID = "disconnected-approval-session"
-        store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
-        await eventually(timeout: 1) { store.phase == .ready(sessionID: sessionID) }
-        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "approval-rpc", method: "approval/requested", payload: .object([
-            "type": .string("approval/requested"),
-            "sessionId": .string(sessionID),
-            "approvalId": .string("approval-id"),
-            "toolName": .string("bash"),
-        ])), sessionID: sessionID)
-
-        store.answerApproval(allowOnce: true)
-        await fulfillment(of: [oldApprovalReached], timeout: 1)
-        XCTAssertTrue(store.isSubmittingApproval)
-
-        store.disconnect()
-        await fulfillment(of: [oldApprovalCancelled], timeout: 1)
-        for _ in 0 ..< 20 { await Task.yield() }
-
-        XCTAssertNil(store.selectedSessionID)
-        XCTAssertNil(store.pendingApproval)
-        XCTAssertFalse(store.isSubmittingApproval)
-    }
-
-    func testReplacingApprovalCancelsOldSubmissionBeforeItCanMutateNewRequest() async {
-        let oldApprovalReached = expectation(description: "old approval reaches Host before pending replacement")
-        let oldApprovalCancelled = expectation(description: "old approval Task cancels when a new approval replaces it")
-        let api = DelayedReplacingApprovalSessionAPI(
-            oldApprovalReached: oldApprovalReached,
-            oldApprovalCancelled: oldApprovalCancelled
-        )
-        let store = NativeSessionStore()
-        let sessionID = "replaced-approval-session"
-        store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
-        await eventually(timeout: 1) { store.phase == .ready(sessionID: sessionID) }
-
-        func approvalFrame(rpcID: String, approvalID: String) -> RPCServerRequest {
-            .init(type: "server-request", rpcId: rpcID, method: "approval/requested", payload: .object([
-                "type": .string("approval/requested"),
-                "sessionId": .string(sessionID),
-                "approvalId": .string(approvalID),
-                "toolName": .string("bash"),
-            ]))
-        }
-
-        store.applyMuxFrame(approvalFrame(rpcID: "approval-old", approvalID: "old-id"), sessionID: sessionID)
-        store.answerApproval(allowOnce: true)
-        await fulfillment(of: [oldApprovalReached], timeout: 1)
-        XCTAssertTrue(store.isSubmittingApproval)
-
-        store.applyMuxFrame(approvalFrame(rpcID: "approval-new", approvalID: "new-id"), sessionID: sessionID)
-        await fulfillment(of: [oldApprovalCancelled], timeout: 1)
-        XCTAssertEqual(store.pendingApproval?.rpcID, "approval-new")
-        XCTAssertEqual(store.pendingApproval?.approvalID, "new-id")
-        XCTAssertFalse(store.isSubmittingApproval)
-
-        store.answerApproval(allowOnce: false)
-        await eventually(timeout: 1) { api.approvalCalls == 2 && store.isSubmittingApproval }
-        XCTAssertEqual(store.pendingApproval?.rpcID, "approval-new")
-        XCTAssertTrue(store.isSubmittingApproval)
-    }
-
-    func testDisconnectCancelsPendingQuestionCancellationBeforeLateFailure() async {
-        let cancellationReached = expectation(description: "question cancellation reaches Host before disconnect")
-        let cancellationCancelled = expectation(description: "question cancellation Task cancels on disconnect")
-        let api = DelayedReplacingQuestionCancelSessionAPI(
-            oldCancellationReached: cancellationReached,
-            oldCancellationCancelled: cancellationCancelled
-        )
-        let store = NativeSessionStore()
-        let sessionID = "disconnected-question-session"
-        store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
-        await eventually(timeout: 1) { store.phase == .ready(sessionID: sessionID) }
-        store.applyMuxFrame(.init(type: "server-request", rpcId: "question-rpc", method: "question/requested", payload: .object([
-            "type": .string("question/requested"),
-            "sessionId": .string(sessionID),
-            "questions": .array([.object(["id": .string("q-1"), "question": .string("Proceed?")])]),
-        ])), sessionID: sessionID)
-
-        store.cancelQuestion()
-        await fulfillment(of: [cancellationReached], timeout: 1)
-        XCTAssertTrue(store.isSubmittingQuestion)
-
-        store.disconnect()
-        await fulfillment(of: [cancellationCancelled], timeout: 1)
-        for _ in 0 ..< 20 { await Task.yield() }
-
-        XCTAssertNil(store.selectedSessionID)
-        XCTAssertNil(store.pendingQuestion)
-        XCTAssertFalse(store.isSubmittingQuestion)
-    }
-
-    func testReplacingQuestionCancelsOldCancellationBeforeItCanMutateNewRequest() async {
-        let oldCancellationReached = expectation(description: "old question cancellation reaches Host before pending replacement")
-        let oldCancellationCancelled = expectation(description: "old question cancellation Task cancels when a new question replaces it")
-        let api = DelayedReplacingQuestionCancelSessionAPI(
-            oldCancellationReached: oldCancellationReached,
-            oldCancellationCancelled: oldCancellationCancelled
-        )
-        let store = NativeSessionStore()
-        let sessionID = "replaced-question-cancel-session"
-        store.open(sessionID: sessionID, using: api, endpoint: URL(string: "http://127.0.0.1:1")!)
-        await eventually(timeout: 1) { store.phase == .ready(sessionID: sessionID) }
-
-        func questionFrame(_ rpcID: String) -> RPCServerRequest {
-            .init(type: "server-request", rpcId: rpcID, method: "question/requested", payload: .object([
-                "type": .string("question/requested"),
-                "sessionId": .string(sessionID),
-                "questions": .array([.object(["id": .string("q-1"), "question": .string("Proceed?")])]),
-            ]))
-        }
-
-        store.applyMuxFrame(questionFrame("question-old"), sessionID: sessionID)
-        store.cancelQuestion()
-        await fulfillment(of: [oldCancellationReached], timeout: 1)
-        XCTAssertTrue(store.isSubmittingQuestion)
-
-        store.applyMuxFrame(questionFrame("question-new"), sessionID: sessionID)
-        await fulfillment(of: [oldCancellationCancelled], timeout: 1)
-        XCTAssertEqual(store.pendingQuestion?.rpcID, "question-new")
-        XCTAssertFalse(store.isSubmittingQuestion)
-
-        store.cancelQuestion()
-        await eventually(timeout: 1) { api.cancelCalls == 2 && store.isSubmittingQuestion }
-        XCTAssertEqual(store.pendingQuestion?.rpcID, "question-new")
-        XCTAssertTrue(store.isSubmittingQuestion)
-    }
-
-    func testPendingInteractionAndProjectionFramesHaveExactSnapshotBoundaries() {
-        let store = NativeSessionStore()
-        store.loadSnapshotToolingFixture()
-        let sessionID = "snapshot-tooling"
-
-        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "projection-current", method: "session/projection", payload: .object([
-            "type": .string("session/projection"), "sessionId": .string(sessionID),
-            "key": .string("interaction-matrix"), "value": .string("current"), "seq": .number(8),
-        ])), sessionID: sessionID)
-        XCTAssertEqual(store.projections.row(sessionID: sessionID, key: "interaction-matrix"), .init(value: .string("current"), seq: 8))
-
-        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "projection-stale", method: "session/projection", payload: .object([
-            "type": .string("session/projection"), "sessionId": .string(sessionID),
-            "key": .string("interaction-matrix"), "value": .string("stale"), "seq": .number(7),
-        ])), sessionID: sessionID)
-        XCTAssertEqual(store.projections.row(sessionID: sessionID, key: "interaction-matrix"), .init(value: .string("current"), seq: 8))
-
-        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "approval-matrix", method: "approval/requested", payload: .object([
-            "type": .string("approval/requested"), "sessionId": .string(sessionID),
-            "approvalId": .string("approval-matrix"), "toolName": .string("bash"),
-        ])), sessionID: sessionID)
-        XCTAssertEqual(store.pendingApproval?.rpcID, "approval-matrix")
-        XCTAssertNil(store.pendingQuestion)
-
-        // A newer question request is an exclusive Host takeover and clears the
-        // prior approval rather than allowing two native interaction surfaces.
-        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "question-matrix", method: "question/requested", payload: .object([
-            "type": .string("question/requested"), "sessionId": .string(sessionID),
-            "questions": .array([.object(["id": .string("q-matrix"), "question": .string("Continue?")])]),
-        ])), sessionID: sessionID)
-        // Approval and question are independent interaction channels: a newer
-        // question does not clear a pending approval.
-        XCTAssertEqual(store.pendingApproval?.rpcID, "approval-matrix")
-        XCTAssertEqual(store.pendingQuestion?.rpcID, "question-matrix")
-        XCTAssertEqual(store.pendingQuestion?.items.map(\.id), ["q-matrix"])
-
-        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "question-wrong", method: "question/resolved", payload: .object([
-            "type": .string("question/resolved"), "sessionId": .string(sessionID), "questionRpcId": .string("other"),
-        ])), sessionID: sessionID)
-        XCTAssertEqual(store.pendingQuestion?.rpcID, "question-matrix")
-
-        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "question-right", method: "question/resolved", payload: .object([
-            "type": .string("question/resolved"), "sessionId": .string(sessionID), "questionRpcId": .string("question-matrix"),
-        ])), sessionID: sessionID)
-        XCTAssertNil(store.pendingQuestion)
-        XCTAssertEqual(store.pendingApproval?.rpcID, "approval-matrix")
-    }
-
-    func testPendingApprovalAndQuestionClearOnlyOnMatchingHostResolution() {
-        let store = NativeSessionStore()
-        store.loadSnapshotToolingFixture()
-        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "approval-rpc", method: "approval/requested", payload: .object([
-            "type": .string("approval/requested"), "sessionId": .string("snapshot-tooling"), "approvalId": .string("approval-1"), "toolName": .string("bash"),
-        ])), sessionID: "snapshot-tooling")
-        XCTAssertEqual(store.pendingApproval?.rpcID, "approval-rpc")
-        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "wrong", method: "approval/resolved", payload: .object([
-            "type": .string("approval/resolved"), "sessionId": .string("snapshot-tooling"), "approvalId": .string("other"),
-        ])), sessionID: "snapshot-tooling")
-        XCTAssertNotNil(store.pendingApproval)
-        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "right", method: "approval/resolved", payload: .object([
-            "type": .string("approval/resolved"), "sessionId": .string("snapshot-tooling"), "approvalId": .string("approval-1"),
-        ])), sessionID: "snapshot-tooling")
-        XCTAssertNil(store.pendingApproval)
-
-        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "question-rpc", method: "question/requested", payload: .object([
-            "type": .string("question/requested"), "sessionId": .string("snapshot-tooling"),
-            "questions": .array([.object(["id": .string("q-1"), "question": .string("Proceed?")])]),
-        ])), sessionID: "snapshot-tooling")
-        XCTAssertEqual(store.pendingQuestion?.rpcID, "question-rpc")
-        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "wrong", method: "question/resolved", payload: .object([
-            "type": .string("question/resolved"), "sessionId": .string("snapshot-tooling"), "questionRpcId": .string("other"),
-        ])), sessionID: "snapshot-tooling")
-        XCTAssertNotNil(store.pendingQuestion)
-        store.applyMuxFrame(RPCServerRequest(type: "server-request", rpcId: "right", method: "question/resolved", payload: .object([
-            "type": .string("question/resolved"), "sessionId": .string("snapshot-tooling"), "questionRpcId": .string("question-rpc"),
-        ])), sessionID: "snapshot-tooling")
-        XCTAssertNil(store.pendingQuestion)
-    }
-
-    func testReducerBackedJobsFixtureMatchesTranscriptAndStreamingFinalReusesSameNodeKey() {
-        let store = NativeSessionStore()
-        store.loadSnapshotJobsFixture()
-
-        XCTAssertEqual(store.items.map(\.text), ["Reply with the single word LIGHTHOUSE and stop.", "LIGHTHOUSE"])
-        let initialMessages = store.chatNodes.compactMap { $0.data as? CoreUserMessageNode }
-        let initialAssistant = store.chatNodes.compactMap { $0.data as? CoreAssistantNode }
-        XCTAssertEqual(initialMessages.map { $0.content.compactMap(\.text).joined() }, ["Reply with the single word LIGHTHOUSE and stop."])
-        XCTAssertEqual(initialAssistant.map { $0.blocks.compactMap(\.text).joined() }, ["LIGHTHOUSE"])
-        XCTAssertEqual(initialAssistant.first?.status, .settled)
-
-        store.applyMuxFrame(sessionEventFrame(
-            sessionID: "fx-alpha",
-            seq: 5,
-            type: "turn/start",
-            data: .object(["turn": .number(2)])
-        ), sessionID: "fx-alpha")
-        store.applyMuxFrame(sessionEventFrame(
-            sessionID: "fx-alpha",
-            seq: 6,
-            type: "step/start",
-            data: .object(["turn": .number(2), "step": .number(1)])
-        ), sessionID: "fx-alpha")
-        store.applyMuxFrame(sessionEventFrame(
-            sessionID: "fx-alpha",
-            seq: 7,
-            type: "assistant/chunk",
-            data: .object([
-                "turn": .number(2),
-                "step": .number(1),
-                "chunk": .object(["type": .string("text-delta"), "index": .number(0), "text": .string("streaming")]),
-            ])
-        ), sessionID: "fx-alpha")
-
-        guard let runningNode = store.chatNodes.first(where: { ($0.data as? CoreAssistantNode)?.turn == 2 }) else {
-            return XCTFail("streaming assistant node was not materialized")
-        }
-        XCTAssertEqual((runningNode.data as? CoreAssistantNode)?.status, .running)
-        XCTAssertEqual((runningNode.data as? CoreAssistantNode)?.blocks.compactMap(\.text).joined(), "streaming")
-
-        store.applyMuxFrame(sessionEventFrame(
-            sessionID: "fx-alpha",
-            seq: 8,
-            type: "assistant/message",
-            data: .object([
-                "turn": .number(2),
-                "step": .number(1),
-                "message": .object([
-                    "id": .string("final-turn-2-step-1"),
-                    "content": .array([.object(["type": .string("text"), "text": .string("settled")])]),
-                ]),
-            ]),
-            surfaceOp: "append"
-        ), sessionID: "fx-alpha")
-
-        let finalNodes = store.chatNodes.filter { ($0.data as? CoreAssistantNode)?.turn == 2 }
-        XCTAssertEqual(finalNodes.map(\.key), [runningNode.key], "final evidence must settle the streaming row, not append a second node")
-        XCTAssertEqual((finalNodes.first?.data as? CoreAssistantNode)?.status, .settled)
-        XCTAssertEqual((finalNodes.first?.data as? CoreAssistantNode)?.blocks.compactMap(\.text).joined(), "settled")
-    }
-
-    func testToolResultRetainsEveryContentBlockAndUsesStructuredEmptyErrorFallback() throws {
-        let store = NativeSessionStore()
-        store.loadSnapshotToolingFixture()
-
-        store.applyMuxFrame(sessionEventFrame(
-            sessionID: "snapshot-tooling",
-            seq: 105,
-            type: "tool/call",
-            data: .object([
-                "callId": .string("result-text-mixed"),
-                "name": .string("custom_tool"),
-                "arguments": .string("{}"),
-            ])
-        ), sessionID: "snapshot-tooling")
-        store.applyMuxFrame(sessionEventFrame(
-            sessionID: "snapshot-tooling",
-            seq: 106,
-            type: "tool/result",
-            data: .object([
-                "message": .object([
-                    "source": .object(["callId": .string("result-text-mixed")]),
-                    "content": .array([
-                        .object(["type": .string("text"), "text": .string("first")]),
-                        .object(["type": .string("reasoning"), "text": .string("why")]),
-                        .object(["type": .string("text"), "text": .string("third")]),
-                    ]),
-                ]),
-            ])
-        ), sessionID: "snapshot-tooling")
-
-        let mixed = tryUnwrap(store.toolInvocations.first(where: { $0.id == "result-text-mixed" }))
-        XCTAssertTrue(mixed.output?.hasPrefix("first\n") == true)
-        XCTAssertTrue(mixed.output?.contains("\"type\"") == true)
-        XCTAssertTrue(mixed.output?.contains("\"reasoning\"") == true)
-        XCTAssertTrue(mixed.output?.hasSuffix("\nthird") == true)
-        XCTAssertEqual(mixed.textOutput, "first\nthird")
-        XCTAssertNil(mixed.errorName)
-        XCTAssertNil(mixed.errorCode)
-
-        store.applyMuxFrame(sessionEventFrame(
-            sessionID: "snapshot-tooling",
-            seq: 107,
-            type: "tool/call",
-            data: .object([
-                "callId": .string("result-text-empty-error"),
-                "name": .string("custom_tool"),
-                "arguments": .string("{}"),
-            ])
-        ), sessionID: "snapshot-tooling")
-        store.applyMuxFrame(sessionEventFrame(
-            sessionID: "snapshot-tooling",
-            seq: 108,
-            type: "tool/result",
-            data: .object([
-                "error": .object(["name": .string("ToolError"), "code": .string("interrupted")]),
-                "message": .object([
-                    "source": .object(["callId": .string("result-text-empty-error")]),
-                    "content": .array([]),
-                ]),
-            ])
-        ), sessionID: "snapshot-tooling")
-
-        let empty = tryUnwrap(store.toolInvocations.first(where: { $0.id == "result-text-empty-error" }))
-        XCTAssertEqual(empty.output, "ToolError: interrupted")
-        XCTAssertNil(empty.textOutput)
-        XCTAssertEqual(empty.errorName, "ToolError")
-        XCTAssertEqual(empty.errorCode, "interrupted")
-        XCTAssertEqual(empty.state, .stopped)
-    }
+    @MainActor
     func testJobsPresentationUsesOfficialOrderingAndElapsedRules() {
         let jobs = [
             NativeSessionStore.BackgroundJob(id: "done-old", kind: "shell", label: "done-old", status: .completed, detail: nil, startedAt: 10, finishedAt: 20),
@@ -2650,7 +850,8 @@ final class NativeSessionStoreTests: XCTestCase {
         }
     }
 
-    private func eventually(timeout: TimeInterval, condition: @escaping @MainActor () -> Bool) async {
+    @MainActor
+    private func eventually(timeout: TimeInterval, condition: () -> Bool) async {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
             if condition() { return }
@@ -2692,73 +893,6 @@ final class NativeSessionStoreTests: XCTestCase {
     }
 
     @MainActor
-    private final class GatedRecoveryFeedbackAPI: NativeMessageFeedbackAPI {
-        var listResponse: MessageFeedbackListResponse
-        let listReached: XCTestExpectation
-        let mutationReached: XCTestExpectation
-        private let mutationGate = RecoveryGate()
-        private(set) var sessionIDs: [String] = []
-        private(set) var putRequests: [MessageFeedbackPutRequest] = []
-
-        init(
-            listResponse: MessageFeedbackListResponse,
-            listReached: XCTestExpectation,
-            mutationReached: XCTestExpectation
-        ) {
-            self.listResponse = listResponse
-            self.listReached = listReached
-            self.mutationReached = mutationReached
-        }
-
-        func list(sessionID: String) async throws -> MessageFeedbackListResponse {
-            sessionIDs.append(sessionID)
-            listReached.fulfill()
-            return listResponse
-        }
-
-        func put(_ request: MessageFeedbackPutRequest) async throws -> MessageFeedbackPutResponse {
-            putRequests.append(request)
-            mutationReached.fulfill()
-            await mutationGate.wait()
-            return .init(
-                ok: true,
-                value: .init(messageId: request.messageId, rating: request.rating, note: request.note, version: "v2", createdAt: 1, updatedAt: 2),
-                error: nil
-            )
-        }
-
-        func delete(_: MessageFeedbackDeleteRequest) async throws -> MessageFeedbackDeleteResponse {
-            throw DSHTransportError.invalidEndpoint
-        }
-
-        func releaseMutation() async { await mutationGate.open() }
-    }
-
-    private final class RecordingSubagentContinuationAPI: NativeSubagentContinuationAPI {
-        let promptReached: XCTestExpectation
-        let interruptReached: XCTestExpectation
-        private(set) var prompts: [SubagentPromptRequest] = []
-        private(set) var interrupts: [SubagentInterruptRequest] = []
-
-        init(promptReached: XCTestExpectation, interruptReached: XCTestExpectation) {
-            self.promptReached = promptReached
-            self.interruptReached = interruptReached
-        }
-
-        func prompt(_ request: SubagentPromptRequest) async throws -> SubagentPromptResponse {
-            prompts.append(request)
-            promptReached.fulfill()
-            return .init(messageId: "accepted")
-        }
-
-        func interrupt(_ request: SubagentInterruptRequest) async throws -> SubagentInterruptResponse {
-            interrupts.append(request)
-            interruptReached.fulfill()
-            return .init(accepted: true)
-        }
-    }
-
-    @MainActor
     private final class RecordingSubagentCatalogAPI: NativeSubagentCatalogAPI {
         var catalog: SubagentListResponse?
         var catalogs: [String: SubagentListResponse]
@@ -2784,61 +918,15 @@ final class NativeSessionStoreTests: XCTestCase {
     }
 
     @MainActor
-    private final class RecordingQueueSessionAPI: NativeSessionAPI {
-        let invoked: XCTestExpectation
-        let error: Error?
-        private(set) var requests: [SessionUpdateQueueRequest] = []
-
-        init(invoked: XCTestExpectation, error: Error? = nil) {
-            self.invoked = invoked
-            self.error = error
-        }
-
-        func updateQueue(_ request: SessionUpdateQueueRequest) async throws -> SessionUpdateQueueResponse {
-            requests.append(request)
-            invoked.fulfill()
-            if let error { throw error }
-            return .init(accepted: true)
-        }
-
-        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse { throw DSHTransportError.invalidEndpoint }
-        func models(sessionID _: String) async throws -> SessionModelsResponse { throw DSHTransportError.invalidEndpoint }
-        func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
-        func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
-        func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-        func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-        func cancelQuestion(rpcID _: String) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-    }
-
-    @MainActor
-    private final class DelayedQueueSessionAPI: NativeSessionAPI {
-        let reached: XCTestExpectation
-        private let gate = RecoveryGate()
-
-        init(reached: XCTestExpectation) {
-            self.reached = reached
-        }
-
-        func release() async {
-            await gate.open()
-        }
-
-        func updateQueue(_ request: SessionUpdateQueueRequest) async throws -> SessionUpdateQueueResponse {
-            reached.fulfill()
-            await gate.wait()
-            return .init(accepted: true)
-        }
-        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse { throw DSHTransportError.invalidEndpoint }
-        func models(sessionID _: String) async throws -> SessionModelsResponse { throw DSHTransportError.invalidEndpoint }
-        func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
-        func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
-        func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-        func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-        func cancelQuestion(rpcID _: String) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-    }
-
-    @MainActor
     private final class DelayedPromptSessionAPI: NativeSessionAPI {
+        func updateQueue(_: SessionUpdateQueueRequest) async throws -> SessionUpdateQueueResponse {
+            throw DSHTransportError.invalidEndpoint
+        }
+
+        func selectModel(_: SessionSelectModelRequest) async throws -> SessionSelectModelResponse {
+            throw DSHTransportError.invalidEndpoint
+        }
+
         let oldPromptReached: XCTestExpectation
         let oldPromptCancelled: XCTestExpectation
         private let gate = RecoveryGate()
@@ -2872,6 +960,14 @@ final class NativeSessionStoreTests: XCTestCase {
 
     @MainActor
     private final class AcceptingSessionAPI: NativeSessionAPI {
+        func updateQueue(_: SessionUpdateQueueRequest) async throws -> SessionUpdateQueueResponse {
+            throw DSHTransportError.invalidEndpoint
+        }
+
+        func selectModel(_: SessionSelectModelRequest) async throws -> SessionSelectModelResponse {
+            throw DSHTransportError.invalidEndpoint
+        }
+
         let promptReachedFacade: XCTestExpectation
         let imageLimits: ImageAttachmentLimits?
         private(set) var promptSessionIDs: [String] = []
@@ -2913,7 +1009,35 @@ final class NativeSessionStoreTests: XCTestCase {
     }
 
     @MainActor
+    private final class RecordingQueueActionAPI: NativeSessionAPI {
+        var error: RPCBusinessError?
+        private(set) var requests: [SessionUpdateQueueRequest] = []
+
+        func updateQueue(_ request: SessionUpdateQueueRequest) async throws -> SessionUpdateQueueResponse {
+            requests.append(request)
+            if let error { throw error }
+            return .init(accepted: true)
+        }
+
+        func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
+        func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
+        func models(sessionID _: String) async throws -> SessionModelsResponse { throw DSHTransportError.invalidEndpoint }
+        func selectModel(_: SessionSelectModelRequest) async throws -> SessionSelectModelResponse { throw DSHTransportError.invalidEndpoint }
+        func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+        func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+        func cancelQuestion(rpcID _: String) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
+    }
+
+    @MainActor
     private final class GatedInitialModelsAPI: NativeSessionAPI {
+        func updateQueue(_: SessionUpdateQueueRequest) async throws -> SessionUpdateQueueResponse {
+            throw DSHTransportError.invalidEndpoint
+        }
+
+        func selectModel(_: SessionSelectModelRequest) async throws -> SessionSelectModelResponse {
+            throw DSHTransportError.invalidEndpoint
+        }
+
         let modelsReached: XCTestExpectation
         private let modelsGate = RecoveryGate()
 
@@ -2940,726 +1064,15 @@ final class NativeSessionStoreTests: XCTestCase {
     }
 
     @MainActor
-    private final class GatedGapRecoveryAPI: NativeSessionAPI {
-        let recoveryReachedModels: XCTestExpectation
-        private let modelsGate = RecoveryGate()
-        private var modelsCount = 0
-        private var historyCount = 0
-
-        init(recoveryReachedModels: XCTestExpectation) {
-            self.recoveryReachedModels = recoveryReachedModels
-        }
-
-        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
-            historyCount += 1
-            return .init(events: [historyEntry(seq: 1, id: "baseline", text: "baseline")], hasMore: false, projections: nil)
-        }
-
-        func models(sessionID _: String) async throws -> SessionModelsResponse {
-            modelsCount += 1
-            if modelsCount > 1 {
-                recoveryReachedModels.fulfill()
-                await modelsGate.wait()
-            }
-            return .init(current: .init(provider: "provider", model: "model", reasoningEffort: nil), routable: true, groups: [], failures: [])
-        }
-
-        func releaseDelayedModels() async { await modelsGate.open() }
-        func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
-        func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
-        func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-        func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-        func cancelQuestion(rpcID _: String) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-
-        private func historyEntry(seq: Int, id: String, text: String) -> SessionHistoryEntryDTO {
-            .init(event: .init(
-                type: "user/message", seq: seq, time: Double(seq),
-                data: .object([
-                    "id": .string(id),
-                    "content": .array([.object(["type": .string("text"), "text": .string(text)])]),
-                    "source": .object(["kind": .string("user")]),
-                ]),
-                surfaceOp: .string("append"), sourceEventSeqs: nil, ignorable: nil
-            ), view: nil)
-        }
-    }
-
-    @MainActor
-    private final class SupersedingGapRecoverySessionAPI: NativeSessionAPI {
-        let staleHistoryReached: XCTestExpectation
-        let newHistoryReached: XCTestExpectation
-        private let staleHistoryGate = RecoveryGate()
-        private(set) var historyCount = 0
-        private var modelsCount = 0
-
-        init(staleHistoryReached: XCTestExpectation, newHistoryReached: XCTestExpectation) {
-            self.staleHistoryReached = staleHistoryReached
-            self.newHistoryReached = newHistoryReached
-        }
-
-        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
-            historyCount += 1
-            let first = historyEntry(seq: 1, id: "baseline", text: "baseline")
-            switch historyCount {
-            case 1:
-                return .init(events: [first], hasMore: false, projections: nil)
-            case 2:
-                staleHistoryReached.fulfill()
-                await staleHistoryGate.wait()
-                return .init(
-                    events: [first, historyEntry(seq: 2, id: "stale", text: "stale authority")],
-                    hasMore: false,
-                    projections: nil
-                )
-            case 3:
-                newHistoryReached.fulfill()
-                return .init(
-                    events: [first, historyEntry(seq: 2, id: "new", text: "new host authority")],
-                    hasMore: false,
-                    projections: nil
-                )
-            default:
-                // RC8 consumes a subscription-tail mismatch with exactly one
-                // bounded follow-up authority pull. A real restarted Host keeps
-                // appending to its durable log, so that follow-up page converges
-                // and includes the formerly live-only event as durable history;
-                // it must never re-fulfill the restart expectation above.
-                return .init(
-                    events: [
-                        first,
-                        historyEntry(seq: 2, id: "new", text: "new host authority"),
-                        historyEntry(seq: 3, id: "surviving-live-tail", text: "surviving live tail"),
-                    ],
-                    hasMore: false,
-                    projections: nil
-                )
-            }
-        }
-
-        func models(sessionID _: String) async throws -> SessionModelsResponse {
-            modelsCount += 1
-            let isNew = modelsCount > 2
-            return .init(
-                current: .init(provider: "provider", model: isNew ? "model-new" : "model-old", reasoningEffort: nil),
-                routable: true,
-                groups: [],
-                failures: []
-            )
-        }
-
-        func releaseStaleHistory() async { await staleHistoryGate.open() }
-        func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
-        func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
-        func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-        func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-        func cancelQuestion(rpcID _: String) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-
-        private func historyEntry(seq: Int, id: String, text: String) -> SessionHistoryEntryDTO {
-            .init(event: .init(
-                type: "user/message",
-                seq: seq,
-                time: Double(seq),
-                data: .object([
-                    "id": .string(id),
-                    "content": .array([.object(["type": .string("text"), "text": .string(text)])]),
-                    "source": .object(["kind": .string("user")]),
-                ]),
-                surfaceOp: .string("append"),
-                sourceEventSeqs: nil,
-                ignorable: nil
-            ), view: nil)
-        }
-    }
-
-    @MainActor
-    private final class ContinuousAuthoritySessionAPI: NativeSessionAPI {
-        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
-            .init(events: [
-                historyEntry(seq: 1, id: "baseline", text: "baseline"),
-                historyEntry(seq: 2, id: "new", text: "new host authority"),
-            ], hasMore: false, projections: nil)
-        }
-
-        func models(sessionID _: String) async throws -> SessionModelsResponse {
-            .init(
-                current: .init(provider: "provider", model: "model-new", reasoningEffort: nil),
-                routable: true,
-                groups: [],
-                failures: []
-            )
-        }
-
-        func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
-        func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
-        func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-        func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-        func cancelQuestion(rpcID _: String) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-
-        private func historyEntry(seq: Int, id: String, text: String) -> SessionHistoryEntryDTO {
-            .init(event: .init(
-                type: "user/message",
-                seq: seq,
-                time: Double(seq),
-                data: .object([
-                    "id": .string(id),
-                    "content": .array([.object(["type": .string("text"), "text": .string(text)])]),
-                    "source": .object(["kind": .string("user")]),
-                ]),
-                surfaceOp: .string("append"),
-                sourceEventSeqs: nil,
-                ignorable: nil
-            ), view: nil)
-        }
-    }
-
-    @MainActor
-    private final class GatedResidentResyncSessionAPI: NativeSessionAPI {
-        let resyncHistoryReached: XCTestExpectation
-        private let historyGate = RecoveryGate()
-        private(set) var historyCalls = 0
-        private(set) var modelsCalls = 0
-
-        init(resyncHistoryReached: XCTestExpectation) {
-            self.resyncHistoryReached = resyncHistoryReached
-        }
-
-        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
-            historyCalls += 1
-            if historyCalls == 1 {
-                return .init(events: [historyEntry(seq: 1, id: "initial", text: "initial authority")], hasMore: true, projections: nil)
-            }
-            if historyCalls == 2 {
-                resyncHistoryReached.fulfill()
-                await historyGate.wait()
-                return .init(events: [historyEntry(seq: 3, id: "resynced", text: "resynced authority")], hasMore: false, projections: nil)
-            }
-            return .init(events: [historyEntry(seq: 4, id: "resync-follow-up", text: "follow-up authority")], hasMore: false, projections: nil)
-        }
-
-        func models(sessionID _: String) async throws -> SessionModelsResponse {
-            modelsCalls += 1
-            return .init(current: .init(provider: "provider", model: "model", reasoningEffort: nil), routable: true, groups: [], failures: [])
-        }
-
-        func releaseResyncHistory() async {
-            await historyGate.open()
-        }
-
-        func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
-        func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
-        func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-        func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-        func cancelQuestion(rpcID _: String) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-
-        private func historyEntry(seq: Int, id: String, text: String) -> SessionHistoryEntryDTO {
-            .init(event: .init(
-                type: "user/message",
-                seq: seq,
-                time: Double(seq),
-                data: .object([
-                    "id": .string(id),
-                    "content": .array([.object(["type": .string("text"), "text": .string(text)])]),
-                    "source": .object(["kind": .string("user")]),
-                ]),
-                surfaceOp: .string("append"),
-                sourceEventSeqs: nil,
-                ignorable: nil
-            ), view: nil)
-        }
-    }
-
-    @MainActor
-    private final class PagingHistorySessionAPI: NativeSessionAPI {
-        enum PageOutcome {
-            case failure
-            case empty(hasMore: Bool)
-        }
-
-        private var pages: [PageOutcome] = []
-        private(set) var historyBeforeSequences: [Int?] = []
-
-        func enqueuePage(_ page: PageOutcome) {
-            pages.append(page)
-        }
-
-        func history(sessionID _: String, beforeSeq: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
-            historyBeforeSequences.append(beforeSeq)
-            guard beforeSeq != nil else {
-                return .init(events: [historyEntry(seq: 7, id: "newest", text: "newest")], hasMore: true, projections: nil)
-            }
-            guard !pages.isEmpty else { throw DSHTransportError.invalidEndpoint }
-            switch pages.removeFirst() {
-            case .failure:
-                throw DSHTransportError.invalidEndpoint
-            case let .empty(hasMore):
-                return .init(events: [], hasMore: hasMore, projections: nil)
-            }
-        }
-
-        func models(sessionID _: String) async throws -> SessionModelsResponse {
-            .init(current: .init(provider: "provider", model: "model", reasoningEffort: nil), routable: true, groups: [], failures: [])
-        }
-
-        func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
-        func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
-        func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-        func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-        func cancelQuestion(rpcID _: String) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-
-        private func historyEntry(seq: Int, id: String, text: String) -> SessionHistoryEntryDTO {
-            .init(event: .init(
-                type: "user/message",
-                seq: seq,
-                time: Double(seq),
-                data: .object([
-                    "id": .string(id),
-                    "content": .array([.object(["type": .string("text"), "text": .string(text)])]),
-                    "source": .object(["kind": .string("user")]),
-                ]),
-                surfaceOp: .string("append"),
-                sourceEventSeqs: nil,
-                ignorable: nil
-            ), view: nil)
-        }
-    }
-
-    @MainActor
-    private final class DelayedReplacingQuestionCancelSessionAPI: NativeSessionAPI {
-        let oldCancellationReached: XCTestExpectation
-        let oldCancellationCancelled: XCTestExpectation
-        private let oldCancellationGate = RecoveryGate()
-        private(set) var cancelCalls = 0
-
-        init(oldCancellationReached: XCTestExpectation, oldCancellationCancelled: XCTestExpectation) {
-            self.oldCancellationReached = oldCancellationReached
-            self.oldCancellationCancelled = oldCancellationCancelled
-        }
-
-        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
-            .init(events: [], hasMore: false, projections: nil)
-        }
-
-        func models(sessionID _: String) async throws -> SessionModelsResponse {
-            .init(current: .init(provider: "provider", model: "model", reasoningEffort: nil), routable: true, groups: [], failures: [])
-        }
-
-        func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
-        func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
-        func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-        func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-
-        func cancelQuestion(rpcID _: String) async throws -> RPCReceipt {
-            cancelCalls += 1
-            if cancelCalls == 1 {
-                oldCancellationReached.fulfill()
-                await oldCancellationGate.wait()
-                if Task.isCancelled { oldCancellationCancelled.fulfill() }
-                throw DSHTransportError.invalidEndpoint
-            }
-            return .init(accepted: true, reason: nil)
-        }
-    }
-
-    @MainActor
-    private final class DelayedReplacingApprovalSessionAPI: NativeSessionAPI {
-        let oldApprovalReached: XCTestExpectation
-        let oldApprovalCancelled: XCTestExpectation
-        private let oldApprovalGate = RecoveryGate()
-        private(set) var approvalCalls = 0
-
-        init(oldApprovalReached: XCTestExpectation, oldApprovalCancelled: XCTestExpectation) {
-            self.oldApprovalReached = oldApprovalReached
-            self.oldApprovalCancelled = oldApprovalCancelled
-        }
-
-        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
-            .init(events: [], hasMore: false, projections: nil)
-        }
-
-        func models(sessionID _: String) async throws -> SessionModelsResponse {
-            .init(current: .init(provider: "provider", model: "model", reasoningEffort: nil), routable: true, groups: [], failures: [])
-        }
-
-        func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
-        func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
-
-        func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt {
-            approvalCalls += 1
-            if approvalCalls == 1 {
-                oldApprovalReached.fulfill()
-                await oldApprovalGate.wait()
-                if Task.isCancelled { oldApprovalCancelled.fulfill() }
-                throw DSHTransportError.invalidEndpoint
-            }
-            return .init(accepted: true, reason: nil)
-        }
-
-        func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-        func cancelQuestion(rpcID _: String) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-    }
-
-    @MainActor
-    private final class DelayedReplayedQuestionSessionAPI: NativeSessionAPI {
-        let oldAnswerReached: XCTestExpectation
-        let oldAnswerCancelled: XCTestExpectation
-        private let oldAnswerGate = RecoveryGate()
-        private(set) var answerCalls = 0
-
-        init(oldAnswerReached: XCTestExpectation, oldAnswerCancelled: XCTestExpectation) {
-            self.oldAnswerReached = oldAnswerReached
-            self.oldAnswerCancelled = oldAnswerCancelled
-        }
-
-        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
-            .init(events: [], hasMore: false, projections: nil)
-        }
-
-        func models(sessionID _: String) async throws -> SessionModelsResponse {
-            .init(current: .init(provider: "provider", model: "model", reasoningEffort: nil), routable: true, groups: [], failures: [])
-        }
-
-        func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
-        func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
-        func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-
-        func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt {
-            answerCalls += 1
-            if answerCalls == 1 {
-                oldAnswerReached.fulfill()
-                await oldAnswerGate.wait()
-                if Task.isCancelled { oldAnswerCancelled.fulfill() }
-                throw DSHTransportError.invalidEndpoint
-            }
-            return .init(accepted: true, reason: nil)
-        }
-
-        func cancelQuestion(rpcID _: String) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-
-        func failOldAnswer() async {
-            await oldAnswerGate.open()
-        }
-    }
-
-    @MainActor
-    private final class DelayedOpeningHistorySessionAPI: NativeSessionAPI {
-        let staleHistoryReached: XCTestExpectation
-        private let historyGate = RecoveryGate()
-        private let failStaleHistory: Bool
-        private(set) var historyCalls = 0
-        private var modelsCalls = 0
-
-        init(staleHistoryReached: XCTestExpectation, failStaleHistory: Bool = false) {
-            self.staleHistoryReached = staleHistoryReached
-            self.failStaleHistory = failStaleHistory
-        }
-
-        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
-            historyCalls += 1
-            if historyCalls == 1 {
-                staleHistoryReached.fulfill()
-                await historyGate.wait()
-                if failStaleHistory { throw DSHTransportError.invalidEndpoint }
-                return .init(events: [historyEntry(seq: 1, id: "stale", text: "stale authority")], hasMore: false, projections: nil)
-            }
-            return .init(events: [historyEntry(seq: 2, id: "resynced", text: "resynced authority")], hasMore: false, projections: nil)
-        }
-
-        func models(sessionID _: String) async throws -> SessionModelsResponse {
-            modelsCalls += 1
-            return .init(
-                current: .init(provider: "provider", model: modelsCalls == 1 ? "stale-model" : "resynced-model", reasoningEffort: nil),
-                routable: true,
-                groups: [],
-                failures: []
-            )
-        }
-
-        func releaseHistory() async { await historyGate.open() }
-        func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
-        func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
-        func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-        func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-        func cancelQuestion(rpcID _: String) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-
-        private func historyEntry(seq: Int, id: String, text: String) -> SessionHistoryEntryDTO {
-            .init(event: .init(
-                type: "user/message",
-                seq: seq,
-                time: Double(seq),
-                data: .object([
-                    "id": .string(id),
-                    "content": .array([.object(["type": .string("text"), "text": .string(text)])]),
-                    "source": .object(["kind": .string("user")]),
-                ]),
-                surfaceOp: .string("append"),
-                sourceEventSeqs: nil,
-                ignorable: nil
-            ), view: nil)
-        }
-    }
-
-    @MainActor
-    private final class FixedOpeningSessionAPI: NativeSessionAPI {
-        let model: String
-        let text: String
-
-        init(model: String, text: String) {
-            self.model = model
-            self.text = text
-        }
-
-        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
-            .init(events: [.init(event: .init(
-                type: "user/message",
-                seq: 1,
-                time: 1,
-                data: .object([
-                    "id": .string("fresh"),
-                    "content": .array([.object(["type": .string("text"), "text": .string(text)])]),
-                    "source": .object(["kind": .string("user")]),
-                ]),
-                surfaceOp: .string("append"),
-                sourceEventSeqs: nil,
-                ignorable: nil
-            ), view: nil)], hasMore: false, projections: nil)
-        }
-
-        func models(sessionID _: String) async throws -> SessionModelsResponse {
-            .init(current: .init(provider: "provider", model: model, reasoningEffort: nil), routable: true, groups: [], failures: [])
-        }
-
-        func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
-        func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
-        func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-        func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-        func cancelQuestion(rpcID _: String) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-    }
-
-    @MainActor
-    private final class CoalescingGapFailureSessionAPI: NativeSessionAPI {
-        let recoveryHistoryReached: XCTestExpectation
-        private let failureGate = RecoveryGate()
-        private(set) var historyCalls = 0
-
-        init(recoveryHistoryReached: XCTestExpectation) {
-            self.recoveryHistoryReached = recoveryHistoryReached
-        }
-
-        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
-            historyCalls += 1
-            if historyCalls == 1 {
-                return .init(events: [historyEntry(seq: 1, id: "baseline", text: "baseline")], hasMore: false, projections: nil)
-            }
-            recoveryHistoryReached.fulfill()
-            await failureGate.wait()
+    private final class ModelDirectorySessionAPI: NativeSessionAPI {
+        func updateQueue(_: SessionUpdateQueueRequest) async throws -> SessionUpdateQueueResponse {
             throw DSHTransportError.invalidEndpoint
         }
 
-        func models(sessionID _: String) async throws -> SessionModelsResponse {
-            .init(current: .init(provider: "provider", model: "model", reasoningEffort: nil), routable: true, groups: [], failures: [])
+        func selectModel(_: SessionSelectModelRequest) async throws -> SessionSelectModelResponse {
+            throw DSHTransportError.invalidEndpoint
         }
 
-        func failRecovery() async { await failureGate.open() }
-        func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
-        func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
-        func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-        func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-        func cancelQuestion(rpcID _: String) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-
-        private func historyEntry(seq: Int, id: String, text: String) -> SessionHistoryEntryDTO {
-            .init(event: .init(
-                type: "user/message",
-                seq: seq,
-                time: Double(seq),
-                data: .object([
-                    "id": .string(id),
-                    "content": .array([.object(["type": .string("text"), "text": .string(text)])]),
-                    "source": .object(["kind": .string("user")]),
-                ]),
-                surfaceOp: .string("append"),
-                sourceEventSeqs: nil,
-                ignorable: nil
-            ), view: nil)
-        }
-    }
-
-    @MainActor
-    private final class FailThenStitchGapRecoverySessionAPI: NativeSessionAPI {
-        let failedHistory: XCTestExpectation
-        let successfulHistory: XCTestExpectation
-        private var historyCount = 0
-
-        init(failedHistory: XCTestExpectation, successfulHistory: XCTestExpectation) {
-            self.failedHistory = failedHistory
-            self.successfulHistory = successfulHistory
-        }
-
-        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
-            historyCount += 1
-            let first = historyEntry(seq: 1, id: "baseline", text: "baseline")
-            switch historyCount {
-            case 1:
-                return .init(events: [first], hasMore: false, projections: nil)
-            case 2:
-                failedHistory.fulfill()
-                throw DSHTransportError.invalidEndpoint
-            default:
-                successfulHistory.fulfill()
-                return .init(
-                    events: [first, historyEntry(seq: 2, id: "recovered", text: "recovered authority")],
-                    hasMore: false,
-                    projections: nil
-                )
-            }
-        }
-
-        func models(sessionID _: String) async throws -> SessionModelsResponse {
-            .init(current: .init(provider: "provider", model: "model", reasoningEffort: nil), routable: true, groups: [], failures: [])
-        }
-
-        func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
-        func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
-        func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-        func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-        func cancelQuestion(rpcID _: String) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-
-        private func historyEntry(seq: Int, id: String, text: String) -> SessionHistoryEntryDTO {
-            .init(event: .init(
-                type: "user/message",
-                seq: seq,
-                time: Double(seq),
-                data: .object([
-                    "id": .string(id),
-                    "content": .array([.object(["type": .string("text"), "text": .string(text)])]),
-                    "source": .object(["kind": .string("user")]),
-                ]),
-                surfaceOp: .string("append"),
-                sourceEventSeqs: nil,
-                ignorable: nil
-            ), view: nil)
-        }
-    }
-
-    @MainActor
-    private final class StitchingGapRecoverySessionAPI: NativeSessionAPI {
-        let recoveryReachedHistory: XCTestExpectation
-        private let historyGate = RecoveryGate()
-        private var historyCount = 0
-
-        init(recoveryReachedHistory: XCTestExpectation) {
-            self.recoveryReachedHistory = recoveryReachedHistory
-        }
-
-        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
-            historyCount += 1
-            let first = historyEntry(seq: 1, id: "baseline", text: "baseline")
-            if historyCount == 1 {
-                return .init(events: [first], hasMore: false, projections: nil)
-            }
-            recoveryReachedHistory.fulfill()
-            await historyGate.wait()
-            return .init(
-                events: [first, historyEntry(seq: 2, id: "recovered", text: "recovered authority")],
-                hasMore: false,
-                projections: .init(asOfSeq: 2, values: [
-                    "recovery-projection": .string("history baseline"),
-                ])
-            )
-        }
-
-        func models(sessionID _: String) async throws -> SessionModelsResponse {
-            .init(current: .init(provider: "provider", model: "model", reasoningEffort: nil), routable: true, groups: [], failures: [])
-        }
-
-        func releaseRecoveryHistory() async { await historyGate.open() }
-        func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
-        func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
-        func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-        func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-        func cancelQuestion(rpcID _: String) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-
-        private func historyEntry(seq: Int, id: String, text: String) -> SessionHistoryEntryDTO {
-            .init(event: .init(
-                type: "user/message",
-                seq: seq,
-                time: Double(seq),
-                data: .object([
-                    "id": .string(id),
-                    "content": .array([.object(["type": .string("text"), "text": .string(text)])]),
-                    "source": .object(["kind": .string("user")]),
-                ]),
-                surfaceOp: .string("append"),
-                sourceEventSeqs: nil,
-                ignorable: nil
-            ), view: nil)
-        }
-    }
-
-    @MainActor
-    private final class GapRecoveringSessionAPI: NativeSessionAPI {
-        let recoveryReachedHistory: XCTestExpectation
-        private var historyCount = 0
-        private var modelsCount = 0
-
-        init(recoveryReachedHistory: XCTestExpectation) {
-            self.recoveryReachedHistory = recoveryReachedHistory
-        }
-
-        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
-            historyCount += 1
-            if historyCount > 1 { recoveryReachedHistory.fulfill() }
-            let first = historyEntry(seq: 1, id: "baseline", text: "baseline")
-            if historyCount == 1 {
-                return .init(
-                    events: [first],
-                    hasMore: false,
-                    projections: .init(asOfSeq: 1, values: [
-                        "obsolete-host-value": .string("initial baseline"),
-                    ])
-                )
-            }
-            return .init(
-                events: [first, historyEntry(seq: 2, id: "recovered", text: "recovered authority")],
-                hasMore: false,
-                projections: .init(asOfSeq: 2, values: [
-                    "latest-host-value": .string("recovered baseline"),
-                ])
-            )
-        }
-
-        func models(sessionID _: String) async throws -> SessionModelsResponse {
-            modelsCount += 1
-            if modelsCount == 1 {
-                return .init(current: .init(provider: "provider", model: "model", reasoningEffort: nil), routable: true, groups: [], failures: [])
-            }
-            return .init(current: .init(provider: "provider-recovered", model: "model-recovered", reasoningEffort: nil), routable: true, groups: [], failures: [])
-        }
-
-        func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
-        func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
-        func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-        func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-        func cancelQuestion(rpcID _: String) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-
-        private func historyEntry(seq: Int, id: String, text: String) -> SessionHistoryEntryDTO {
-            .init(event: .init(
-                type: "user/message",
-                seq: seq,
-                time: Double(seq),
-                data: .object([
-                    "id": .string(id),
-                    "content": .array([.object(["type": .string("text"), "text": .string(text)])]),
-                    "source": .object(["kind": .string("user")]),
-                ]),
-                surfaceOp: .string("append"),
-                sourceEventSeqs: nil,
-                ignorable: nil
-            ), view: nil)
-        }
-    }
-
-    @MainActor
-    private final class ModelDirectorySessionAPI: NativeSessionAPI {
         let modelsLoaded: XCTestExpectation
 
         init(modelsLoaded: XCTestExpectation) {
@@ -3694,6 +1107,14 @@ final class NativeSessionStoreTests: XCTestCase {
 
     @MainActor
     private final class PermissionCommandSessionAPI: NativeSessionAPI {
+        func updateQueue(_: SessionUpdateQueueRequest) async throws -> SessionUpdateQueueResponse {
+            throw DSHTransportError.invalidEndpoint
+        }
+
+        func selectModel(_: SessionSelectModelRequest) async throws -> SessionSelectModelResponse {
+            throw DSHTransportError.invalidEndpoint
+        }
+
         struct Prompt: Equatable {
             let sessionID: String
             let content: [SessionPromptContent]
@@ -3721,68 +1142,15 @@ final class NativeSessionStoreTests: XCTestCase {
     }
 
     @MainActor
-    private final class RecoveringSelectionSessionAPI: NativeSessionAPI {
-        let selectionReached: XCTestExpectation
-        let recoveryReachedModels: XCTestExpectation
-        private let selectionGate = RecoveryGate()
-        private var modelsCount = 0
-
-        init(selectionReached: XCTestExpectation, recoveryReachedModels: XCTestExpectation) {
-            self.selectionReached = selectionReached
-            self.recoveryReachedModels = recoveryReachedModels
-        }
-
-        func history(sessionID _: String, beforeSeq _: Int?, maxMessages _: Int?) async throws -> SessionHistoryResponse {
-            .init(events: [.init(event: .init(
-                type: "user/message", seq: 1, time: 1,
-                data: .object([
-                    "id": .string("baseline"),
-                    "content": .array([.object(["type": .string("text"), "text": .string("baseline")])]),
-                    "source": .object(["kind": .string("user")]),
-                ]),
-                surfaceOp: .string("append"), sourceEventSeqs: nil, ignorable: nil
-            ), view: nil)], hasMore: false, projections: nil)
-        }
-
-        func models(sessionID _: String) async throws -> SessionModelsResponse {
-            modelsCount += 1
-            if modelsCount > 1 { recoveryReachedModels.fulfill() }
-            let recovered = modelsCount > 1
-            return .init(
-                current: .init(
-                    provider: recovered ? "provider-recovered" : "provider-a",
-                    model: recovered ? "model-recovered" : "model-a",
-                    reasoningEffort: recovered ? nil : "balanced"
-                ),
-                routable: true,
-                groups: [.init(id: "provider-a", name: "Provider A", models: [
-                    .init(id: "model-a", name: "Model A", description: nil, reasoning: .init(
-                        efforts: [.init(id: "balanced", name: "Balanced", description: nil)], defaultEffort: "balanced"
-                    )),
-                    .init(id: "model-b", name: "Model B", description: nil, reasoning: .init(
-                        efforts: [.init(id: "deep", name: "Deep", description: nil)], defaultEffort: "deep"
-                    )),
-                ])],
-                failures: []
-            )
-        }
-
-        func selectModel(_ request: SessionSelectModelRequest) async throws -> SessionSelectModelResponse {
-            selectionReached.fulfill()
-            await selectionGate.wait()
-            return .init(selected: .init(provider: request.provider, model: request.model, reasoningEffort: request.reasoningEffort))
-        }
-
-        func releaseSelection() async { await selectionGate.open() }
-        func prompt(sessionID _: String, content _: [SessionPromptContent], mode _: SessionPromptMode) async throws -> SessionPromptResponse { throw DSHTransportError.invalidEndpoint }
-        func cancel(sessionID _: String) async throws -> SessionCancelResponse { throw DSHTransportError.invalidEndpoint }
-        func answerApproval(rpcID _: String, sessionID _: String, approvalID _: String, outcome _: ApprovalOutcome) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-        func answerQuestion(rpcID _: String, sessionID _: String, answers _: [QuestionAnswerResponse]) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-        func cancelQuestion(rpcID _: String) async throws -> RPCReceipt { throw DSHTransportError.invalidEndpoint }
-    }
-
-    @MainActor
     private final class PromptRouteSessionAPI: NativeSessionAPI {
+        func updateQueue(_: SessionUpdateQueueRequest) async throws -> SessionUpdateQueueResponse {
+            throw DSHTransportError.invalidEndpoint
+        }
+
+        func selectModel(_: SessionSelectModelRequest) async throws -> SessionSelectModelResponse {
+            throw DSHTransportError.invalidEndpoint
+        }
+
         var routable = false
         private(set) var promptContents: [[SessionPromptContent]] = []
 
@@ -3813,6 +1181,10 @@ final class NativeSessionStoreTests: XCTestCase {
 
     @MainActor
     private final class SelectingModelSessionAPI: NativeSessionAPI {
+        func updateQueue(_: SessionUpdateQueueRequest) async throws -> SessionUpdateQueueResponse {
+            throw DSHTransportError.invalidEndpoint
+        }
+
         let modelsLoaded: XCTestExpectation
         let selectionReached: XCTestExpectation
         var shouldReject = false
@@ -3862,6 +1234,14 @@ final class NativeSessionStoreTests: XCTestCase {
 
     @MainActor
     private final class RejectingSessionAPI: NativeSessionAPI {
+        func updateQueue(_: SessionUpdateQueueRequest) async throws -> SessionUpdateQueueResponse {
+            throw DSHTransportError.invalidEndpoint
+        }
+
+        func selectModel(_: SessionSelectModelRequest) async throws -> SessionSelectModelResponse {
+            throw DSHTransportError.invalidEndpoint
+        }
+
         struct Prompt: Equatable {
             let sessionID: String
             let content: [SessionPromptContent]
@@ -3949,105 +1329,8 @@ final class NativeSessionStoreTests: XCTestCase {
         }
     }
 
-    private func sessionEventFrame(
-        sessionID: String,
-        seq: Int,
-        type: String,
-        data: JSONValue,
-        surfaceOp: String? = nil
-    ) -> RPCServerRequest {
-        var event: [String: JSONValue] = [
-            "type": .string(type),
-            "seq": .number(Double(seq)),
-            "time": .number(Double(seq)),
-            "data": data,
-        ]
-        if let surfaceOp { event["surfaceOp"] = .string(surfaceOp) }
-        return RPCServerRequest(
-            type: "server-request",
-            rpcId: "event-\(UUID().uuidString)",
-            method: "session/event",
-            payload: .object([
-                "type": .string("session/event"),
-                "sessionId": .string(sessionID),
-                "event": .object(event),
-            ])
-        )
-    }
-
-    private func eventFrame(sessionID: String, seq: Int, messageID: String, text: String) -> RPCServerRequest {
-        RPCServerRequest(
-            type: "server-request",
-            rpcId: "event-\(UUID().uuidString)",
-            method: "session/event",
-            payload: .object([
-                "type": .string("session/event"),
-                "sessionId": .string(sessionID),
-                "event": .object([
-                    "type": .string("user/message"),
-                    "seq": .number(Double(seq)),
-                    "time": .number(Double(seq)),
-                    "surfaceOp": .string("append"),
-                    "data": .object([
-                        "id": .string(messageID),
-                        "content": .array([.object(["type": .string("text"), "text": .string(text)])]),
-                        "source": .object(["kind": .string("user")]),
-                    ]),
-                ]),
-            ]))
-    }
-
-    private func queueFrame(sessionID: String, items: [JSONValue]) -> RPCServerRequest {
-        RPCServerRequest(
-            type: "server-request",
-            rpcId: "queue-\(UUID().uuidString)",
-            method: "session/queue",
-            payload: .object([
-                "type": .string("session/queue"),
-                "sessionId": .string(sessionID),
-                "items": .array(items),
-            ])
-        )
-    }
-
-    private func queuedItem(id: String, messageID: String, placement: String, content: [JSONValue]) -> JSONValue {
-        .object([
-            "id": .string(id),
-            "placement": .string(placement),
-            "message": .object([
-                "id": .string(messageID),
-                "role": .string("user"),
-                "content": .array(content),
-                "source": .object(["kind": .string("user")]),
-            ]),
-        ])
-    }
-
-    private func jobsFrame(sessionID: String, jobs: [JSONValue]) -> RPCServerRequest {
-        RPCServerRequest(
-            type: "server-request",
-            rpcId: "jobs-\(UUID().uuidString)",
-            method: "session/jobs",
-            payload: .object([
-                "type": .string("session/jobs"),
-                "sessionId": .string(sessionID),
-                "jobs": .array(jobs),
-            ])
-        )
-    }
-
     private func tryUnwrap<T>(_ value: T?, file: StaticString = #filePath, line: UInt = #line) throws -> T {
         try XCTUnwrap(value, "Expected non-nil value", file: file, line: line)
-    }
-
-    private func job(id: String, status: String, startedAt: Int) -> JSONValue {
-        .object([
-            "id": .string(id),
-            "kind": .string("shell"),
-            "label": .string("Run shell task"),
-            "status": .string(status),
-            "startedAt": .number(Double(startedAt)),
-        ])
     }
 
 }

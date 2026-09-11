@@ -36,8 +36,8 @@ final class RawEventReplayReducerTests: XCTestCase {
         let chat = reducer.snapshot(target: "chat")
         let retryNode = try tryUnwrap(chat.first(where: { $0.kind == "model-retry" }))
         let retry = try tryUnwrap(retryNode.data as? CoreRetryNode)
-        XCTAssertEqual(chat.map(\.kind), ["model-retry"])
-        XCTAssertEqual(retryNode.key, "model-retry:fixture-retry-1")
+        XCTAssertEqual(chat.filter { $0.kind == "model-retry" }.count, 1)
+        XCTAssertEqual(retryNode.key, conversationContextKey(kind: "model-retry", id: "fixture-retry-1"))
         XCTAssertEqual(retry.attempts.map(\.state), [.cancelled])
         XCTAssertEqual(retry.attempts.first?.failureMessage, "fixture transport failure")
         XCTAssertTrue(reducer.snapshot(target: "inspector").isEmpty)
@@ -54,11 +54,12 @@ final class RawEventReplayReducerTests: XCTestCase {
         }
 
         XCTAssertTrue(snapshots[0].isEmpty)
-        let scheduled = try tryUnwrap(snapshots[1].first?.data as? CoreRetryNode)
+        XCTAssertTrue(snapshots[1].isEmpty)
+        let scheduled = try tryUnwrap(snapshots[2].first(where: { $0.kind == "model-retry" })?.data as? CoreRetryNode)
         XCTAssertEqual(scheduled.attempts.map(\.state), [.scheduled])
-        let cancelled = try tryUnwrap(snapshots[2].first?.data as? CoreRetryNode)
+        let cancelled = try tryUnwrap(snapshots[3].first(where: { $0.kind == "model-retry" })?.data as? CoreRetryNode)
         XCTAssertEqual(cancelled.attempts.map(\.state), [.cancelled])
-        XCTAssertEqual(snapshots[2].map(\.key), ["model-retry:fixture-retry-1"])
+        XCTAssertEqual(snapshots[2].first(where: { $0.kind == "model-retry" })?.key, conversationContextKey(kind: "model-retry", id: "fixture-retry-1"))
         XCTAssertTrue(reducer.snapshot(target: "inspector").isEmpty)
     }
 
@@ -150,8 +151,19 @@ final class RawEventReplayReducerTests: XCTestCase {
 
 
 
-    func testTenThousandStreamingChunksPerformanceBaselineKeepsOneAssistantRow() {
-        let events = (0 ..< 10_000).map { index in
+    func testTenThousandStreamingChunksRebuildKeepsOneAssistantRowUnderBudget() {
+        var events = [
+            SessionEventDTO(
+                type: "step/start",
+                seq: 1,
+                time: 1,
+                data: .object([
+                    "turn": .number(1),
+                    "step": .number(1),
+                ])
+            )
+        ]
+        events += (1 ... 10_000).map { index in
             SessionEventDTO(
                 type: "assistant/chunk",
                 seq: index + 1,
@@ -167,11 +179,16 @@ final class RawEventReplayReducerTests: XCTestCase {
                 ])
             )
         }
-        measure(metrics: [XCTClockMetric()]) {
-            let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
-            _ = reducer.replaceWindow(events.map { .init(event: $0) }, hasMore: false)
-            XCTAssertEqual(reducer.snapshot(target: "chat").filter { $0.kind == "assistant-step" }.count, 1)
-        }
+        let clock = ContinuousClock()
+        let started = clock.now
+        let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
+        _ = reducer.replaceWindow(events.map { .init(event: $0) }, hasMore: false)
+        XCTAssertEqual(reducer.snapshot(target: "chat").filter { $0.kind == "assistant-step" }.count, 1)
+        XCTAssertLessThan(
+            started.duration(to: clock.now),
+            .seconds(2),
+            "a 10k-chunk full rebuild must stay linear; a quadratic regression would blow this budget"
+        )
     }
 
     func testUnknownReplayEventIsSafelyIgnoredWithoutManufacturingANode() throws {
@@ -179,7 +196,7 @@ final class RawEventReplayReducerTests: XCTestCase {
         let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
 
         for event in events {
-            XCTAssertEqual(reducer.append(.init(event: event)), .immediate)
+            XCTAssertEqual(reducer.append(.init(event: event)), .none, "an unknown plugin event must not request a re-render")
         }
 
         XCTAssertTrue(reducer.snapshot(target: "chat").isEmpty)

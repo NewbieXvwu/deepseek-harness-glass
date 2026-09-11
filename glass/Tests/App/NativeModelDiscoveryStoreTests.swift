@@ -83,7 +83,6 @@ final class NativeModelDiscoveryStoreTests: XCTestCase {
         }
 
         func providers() async throws -> LLMProvidersResponse { .init(providers: []) }
-        func models() async throws -> LLMModelsResponse { .init(groups: [], failures: []) }
         func discoverModels(_ request: LLMDiscoverModelsRequest) async throws -> LLMDiscoverModelsResponse {
             if request.provider == "slow" {
                 oldReached.fulfill()
@@ -105,7 +104,6 @@ final class NativeModelDiscoveryStoreTests: XCTestCase {
         }
 
         func providers() async throws -> LLMProvidersResponse { .init(providers: []) }
-        func models() async throws -> LLMModelsResponse { .init(groups: [], failures: []) }
         func discoverModels(_ request: LLMDiscoverModelsRequest) async throws -> LLMDiscoverModelsResponse {
             if shouldFail { throw DSHTransportError.network("offline") }
             requests.append(request)

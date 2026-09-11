@@ -34,6 +34,11 @@ enum NativeWindowPolicy {
         window.minSize = minimumContentSize
         window.isRestorable = true
         window.identifier = restorationIdentifier
+        // The shell window is resident for the process lifetime: never let AppKit
+        // auto-release it on close, and skip the async transform animation that
+        // can outlive a test-hosted window and dereference freed memory.
+        window.isReleasedWhenClosed = false
+        window.animationBehavior = .none
         return window
     }
 

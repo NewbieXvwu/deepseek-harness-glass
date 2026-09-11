@@ -348,52 +348,32 @@ final class ConversationCoreNodesTests: XCTestCase {
         let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
         let entries: [ConversationEventInput] = [
             .init(event: event(seq: 300, type: "turn/start", data: ["turn": .number(4)])),
-            .init(event: event(seq: 301, type: "tool/call", data: ["turn": .number(4), "callId": .string("write"), "name": .string("write")]), view: toolView("call", [
-                "card": .string("diff"),
-                "locations": .array([.object(["path": .string("out/index.html")]), .object(["path": .string("notes.md")])]),
-            ])),
+            .init(event: mutationCall(seq: 301, turn: 4, callID: "write", name: "write", arguments: #"{"file_path":"out/index.html","content":"html"}"#)),
             .init(event: toolResult(seq: 302, turn: 4, callID: "write")),
-            .init(event: event(seq: 303, type: "tool/call", data: ["turn": .number(4), "callId": .string("edit"), "name": .string("edit")]), view: toolView("call", [
-                "card": .string("generic"), "kind": .string("edit"),
-                "locations": .array([.object(["path": .string("out/index.html")]), .object(["path": .string("out/app.css")])]),
-            ])),
+            .init(event: mutationCall(seq: 303, turn: 4, callID: "edit", name: "edit", arguments: #"{"file_path":"out/app.css","old_string":"red","new_string":"blue","replace_all":false}"#)),
             .init(event: toolResult(seq: 304, turn: 4, callID: "edit")),
-            .init(event: event(seq: 305, type: "tool/call", data: ["turn": .number(4), "callId": .string("read"), "name": .string("read")]), view: toolView("call", [
-                "card": .string("generic"), "kind": .string("read"),
-                "locations": .array([.object(["path": .string("ignored.md")])]),
-            ])),
+            .init(event: mutationCall(seq: 305, turn: 4, callID: "read", name: "read", arguments: #"{"file_path":"ignored.md"}"#)),
             .init(event: toolResult(seq: 306, turn: 4, callID: "read")),
-            .init(event: event(seq: 307, type: "tool/call", data: ["turn": .number(4), "callId": .string("failed"), "name": .string("write")]), view: toolView("call", [
-                "card": .string("diff"), "locations": .array([.object(["path": .string("failed.md")])]),
-            ])),
+            .init(event: mutationCall(seq: 307, turn: 4, callID: "failed", name: "write", arguments: #"{"file_path":"failed.md","content":"x"}"#)),
             .init(event: toolResult(seq: 308, turn: 4, callID: "failed", isError: true)),
-            // A mutation request which never receives a successful result before
-            // the turn closes is cancelled/interrupted, not a produced file.
-            .init(event: event(seq: 309, type: "tool/call", data: ["turn": .number(4), "callId": .string("cancelled"), "name": .string("write")]), view: toolView("call", [
-                "card": .string("diff"), "locations": .array([.object(["path": .string("cancelled.md")])]),
-            ])),
+            .init(event: mutationCall(seq: 309, turn: 4, callID: "cancelled", name: "write", arguments: #"{"file_path":"cancelled.md","content":"x"}"#)),
             .init(event: event(seq: 310, type: "turn/end", data: ["turn": .number(4)])),
         ]
 
         reducer.replaceWindow(entries, hasMore: false)
         let data = try tryUnwrap(reducer.locationData(scope: .turn, turn: 4).value(for: "deliverables", as: CoreDeliverablesTurnData.self))
-        XCTAssertEqual(data.paths(forClosingSequence: 303), ["out/index.html", "notes.md"])
-        XCTAssertEqual(data.paths(), ["out/index.html", "notes.md", "out/app.css"])
+        XCTAssertEqual(data.paths(forClosingSequence: 303), ["out/index.html"])
+        XCTAssertEqual(data.paths(), ["out/index.html", "out/app.css"])
         XCTAssertFalse(data.paths().contains("cancelled.md"))
         XCTAssertTrue(reducer.snapshot(target: "chat").allSatisfy { $0.kind != "deliverables" })
         XCTAssertNil(reducer.locationData(scope: .turn, turn: 99).value(for: "deliverables", as: CoreDeliverablesTurnData.self))
     }
 
-    func testUnknownPluginToolCardDoesNotFabricateDeliverables() throws {
+    func testUnknownPluginToolDoesNotFabricateDeliverables() throws {
         let reducer = ConversationNodeReducer(definitions: ConversationCoreNodeRegistry.initialDefinitions())
         let entries: [ConversationEventInput] = [
             .init(event: event(seq: 400, type: "turn/start", data: ["turn": .number(8)])),
-            .init(event: event(seq: 401, type: "tool/call", data: [
-                "turn": .number(8), "callId": .string("future-card"), "name": .string("plugin_tool"), "arguments": .string("{\"fixture\":true}"),
-            ]), view: toolView("call", [
-                "card": .string("future-plugin-card"),
-                "locations": .array([.object(["path": .string("must-not-be-produced.md")])]),
-            ])),
+            .init(event: mutationCall(seq: 401, turn: 8, callID: "future-card", name: "plugin_tool", arguments: #"{"file_path":"must-not-be-produced.md"}"#)),
             .init(event: toolResult(seq: 402, turn: 8, callID: "future-card")),
         ]
 
@@ -401,14 +381,20 @@ final class ConversationCoreNodesTests: XCTestCase {
         let tool = try tryUnwrap(reducer.snapshot(target: "chat").first(where: { $0.kind == "tool-call" })?.data as? CoreToolCallNode)
         XCTAssertEqual(tool.callID, "future-card")
         XCTAssertEqual(tool.name, "plugin_tool")
-        XCTAssertEqual(tool.argumentsRaw, "{\"fixture\":true}")
-        // The official deliverables definition publishes an empty produced set for
-        // a turn whose tools are unknown; it must not fabricate paths, and an
-        // empty table is the state-only representation of "nothing produced".
+        XCTAssertEqual(tool.argumentsRaw, #"{"file_path":"must-not-be-produced.md"}"#)
         XCTAssertEqual(
             reducer.locationData(scope: .turn, turn: 8).value(for: "deliverables", as: CoreDeliverablesTurnData.self),
             CoreDeliverablesTurnData(produced: [])
         )
+    }
+
+    private func mutationCall(seq: Int, turn: Int, callID: String, name: String, arguments: String) -> SessionEventDTO {
+        event(seq: seq, type: "tool/call", data: [
+            "turn": .number(Double(turn)),
+            "callId": .string(callID),
+            "name": .string(name),
+            "arguments": .string(arguments),
+        ])
     }
 
     private func toolResult(seq: Int, turn: Int, callID: String, isError: Bool = false) -> SessionEventDTO {
@@ -419,10 +405,6 @@ final class ConversationCoreNodesTests: XCTestCase {
                 "content": .array([.object(isError ? ["isError": .bool(true)] : [:])]),
             ]),
         ])
-    }
-
-    private func toolView(_ target: String, _ view: [String: JSONValue]) -> ToolEventViewDTO {
-        .init(for: target, view: .object(view))
     }
 
     private func text(_ value: String) -> JSONValue {

@@ -15,86 +15,55 @@ on:
 permissions:
   contents: write
 
+env:
+  DSH_NODE_VERSION: 24.19.0
+
 jobs:
   build-macos:
-    runs-on: macos-latest
+    runs-on: macos-26
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - name: Read pinned Host payload metadata
+      - name: Download bundled Node
         run: |
-          python3 tools/check-host-upgrade-report.py --self-test
-          IFS=$'\t' read -r NODE_RUNTIME_VERSION DSH_VERSION WEB_FRONTEND_VERSION < <(python3 tools/emit-build-manifest.py --release-inputs)
-          {
-            echo "NODE_RUNTIME_VERSION=$NODE_RUNTIME_VERSION"
-            echo "DSH_VERSION=$DSH_VERSION"
-            echo "WEB_FRONTEND_VERSION=$WEB_FRONTEND_VERSION"
-          } >> "$GITHUB_ENV"
-
-      - name: Download bundled Node (pinned)
-        run: |
-          curl -fsSL "https://nodejs.org/dist/v${NODE_RUNTIME_VERSION}/node-v${NODE_RUNTIME_VERSION}-darwin-arm64.tar.gz" -o /tmp/node.tgz
+          curl -fsSL "https://nodejs.org/dist/v${DSH_NODE_VERSION}/node-v${DSH_NODE_VERSION}-darwin-arm64.tar.gz" -o /tmp/node.tgz
           tar -xzf /tmp/node.tgz -C /tmp
           mkdir -p glass/build/node
-          cp "/tmp/node-v${NODE_RUNTIME_VERSION}-darwin-arm64/bin/node" glass/build/node/node
+          cp "/tmp/node-v${DSH_NODE_VERSION}-darwin-arm64/bin/node" glass/build/node/node
           chmod +x glass/build/node/node
+          test "$(glass/build/node/node --version)" = "v${DSH_NODE_VERSION}"
 
-      - name: Install backend payload (pinned)
+      - name: Install pinned backend payload
         run: |
+          rm -rf glass/build/backend
           mkdir -p glass/build/backend
-          cd glass/build/backend
-          cat > package.json <<EOF
-          {
-            "name": "dsh-backend-payload",
-            "private": true,
-            "description": "Pinned dsh backend payload for DeepSeek Harness Glass",
-            "dependencies": {
-              "@deepseek-ai/dsh": "${DSH_VERSION}",
-              "@deepseek-ai/dsh-web-frontend": "${WEB_FRONTEND_VERSION}"
-            }
-          }
-          EOF
-          npm install --no-audit --no-fund
+          cp glass/ci/dsh-backend-payload/package.json glass/build/backend/package.json
+          cp glass/ci/dsh-backend-payload/package-lock.json glass/build/backend/package-lock.json
+          npm ci --no-audit --no-fund --prefix glass/build/backend
 
-      - name: Smoke-test backend
+      - name: Smoke-test authenticated backend
         run: |
+          set -euo pipefail
           TMP_HOME=$(mktemp -d)
+          COOKIE_JAR=$(mktemp)
+          trap 'kill "${BACKEND_PID:-}" 2>/dev/null || true; rm -rf "$TMP_HOME" "$COOKIE_JAR"' EXIT
           DSH_HOME="$TMP_HOME" glass/build/node/node --expose-internals \
             glass/build/backend/node_modules/@deepseek-ai/dsh/lib/bin.js web --port 0 \
             > /tmp/dsh-smoke.log 2>&1 &
           BACKEND_PID=$!
 
           URL=""
-          for i in {1..15}; do
+          for _ in {1..15}; do
             if ! kill -0 "$BACKEND_PID" 2>/dev/null; then
-              echo "::error::Backend process died unexpectedly"
               tail -20 /tmp/dsh-smoke.log
               exit 1
             fi
-            URL=$(grep -o 'http://127\.0\.0\.1:[0-9]*' /tmp/dsh-smoke.log | head -1 || true)
-            if [[ -n "$URL" ]]; then
-              break
-            fi
+            URL=$(sed -n 's/.*dsh web: \(http:\/\/127\.0\.0\.1:[^[:space:]]*\).*/\1/p' /tmp/dsh-smoke.log | head -1)
+            [ -n "$URL" ] && break
             sleep 1
           done
-
-          if [[ -z "$URL" ]]; then
-            echo "::error::Backend failed to output valid loopback URL within timeout:"
-            tail -20 /tmp/dsh-smoke.log
-            kill "$BACKEND_PID" 2>/dev/null || true
-            exit 1
-          fi
-
-          echo "Backend announced at $URL, probing health endpoint..."
-          if ! curl -fsS -m 5 "$URL" > /dev/null 2>&1; then
-            echo "::error::Health check probe to $URL failed:"
-            tail -20 /tmp/dsh-smoke.log
-            kill "$BACKEND_PID" 2>/dev/null || true
-            exit 1
-          fi
-
-          echo "backend OK: $URL"
-          kill "$BACKEND_PID" 2>/dev/null || true
+          [ -n "$URL" ] || { tail -20 /tmp/dsh-smoke.log; exit 1; }
+          curl -fsS -L -c "$COOKIE_JAR" -b "$COOKIE_JAR" "$URL" > /dev/null
 
       - name: Assemble app
         run: |

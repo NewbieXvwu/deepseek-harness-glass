@@ -1,9 +1,5 @@
 import Foundation
 
-#if DEEPSEEK_HARNESS_PACKAGE
-@testable import GlassSpec
-#endif
-
 /// Auditable lifecycle edge emitted whenever the owned Host controller changes
 /// explicit state. The endpoint, when present, remains payload of the state;
 /// transition identity is always the declared case rather than URL nil-ness.
@@ -19,10 +15,9 @@ struct HostLifecycleTransition: Equatable, Sendable {
     private static func name(_ state: HostLifecycleState) -> String {
         switch state {
         case .idle: return "idle"
-        case .probingExternal: return "probingExternal"
-        case .unverified: return "unverified"
-        case .startingOwned: return "startingOwned"
-        case .verifying: return "verifying"
+        case .starting: return "starting"
+        case .authenticating: return "authenticating"
+        case .connecting: return "connecting"
         case .ready: return "ready"
         case .recovering: return "recovering"
         case .failed: return "failed"

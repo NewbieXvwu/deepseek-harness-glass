@@ -5,7 +5,7 @@ import SwiftUI
 @testable import GlassSpec
 #endif
 
-/// Native RC8 `conversation.input.model` seat. The complete model directory and
+/// Native rc.1 `conversation.input.model` seat. The complete model directory and
 /// the selected route remain Host authority; this view only renders advertised
 /// choices and delegates mutations to `NativeSessionStore.selectModel`.
 @MainActor
@@ -250,7 +250,7 @@ struct NativeComposerModelSelector: View {
         return result
     }
 
-    /// Every product-facing string is resolved from the locked RC8
+    /// Every product-facing string is resolved from the locked rc.1
     /// `ui-model-selection` catalog. A missing entry fails closed to its key.
     private func t(_ key: String, replacements: [String: String] = [:]) -> String {
         Self.localizedValue(key: key, language: language, replacements: replacements)
@@ -261,14 +261,12 @@ struct NativeComposerModelSelector: View {
         language: String,
         replacements: [String: String] = [:]
     ) -> String {
-        var value = OfficialUISpec.LocaleCatalog.value(
+        OfficialUISpec.LocaleCatalog.string(
             namespace: "ui-model-selection",
             key: key,
-            language: language
-        ) ?? key
-        for (token, replacement) in replacements {
-            value = value.replacingOccurrences(of: "{\(token)}", with: replacement)
-        }
-        return value
+            language: language,
+            fallback: key,
+            replacing: replacements
+        )
     }
 }

@@ -5,7 +5,7 @@ import SwiftUI
 @testable import GlassSpec
 #endif
 
-/// Typed RC8 retry presentation. It consumes only reducer attempts and official
+/// Typed rc.1 retry presentation. It consumes only reducer attempts and official
 /// locale formatting; raw `llm/retry` payloads never reach the renderer.
 enum NativeModelRetryPresentation {
     static func scheduledSeconds(for attempt: CoreRetryAttempt) -> Int {
@@ -30,9 +30,9 @@ enum NativeModelRetryPresentation {
     }
 }
 
-/// Native RC8 `ModelRetryItem` counterpart. It reads the reducer's current
+/// Native rc.1 `ModelRetryItem` counterpart. It reads the reducer's current
 /// typed retry attempt, never raw `llm/retry` JSON. Scheduled attempts refresh
-/// their official remaining-seconds label at the same 250ms cadence as RC8.
+/// their official remaining-seconds label at the same 250ms cadence as rc.1.
 struct NativeModelRetryRow: View {
     let retry: CoreRetryNode
     @State private var expanded = false
@@ -84,7 +84,7 @@ struct NativeModelRetryRow: View {
         NativeModelRetryPresentation.scheduledSeconds(for: attempt)
     }
 
-    /// Source: RC8 ModelRetryItem schedules 250ms refreshes only for a typed
+    /// Source: rc.1 ModelRetryItem schedules 250ms refreshes only for a typed
     /// scheduled attempt and stops at the stable final one-second display.
     private func resetCountdown() {
         guard let current, current.state == .scheduled else {

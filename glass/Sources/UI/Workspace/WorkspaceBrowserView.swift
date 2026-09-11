@@ -7,7 +7,7 @@ import GlassPortableCore
 @testable import GlassSpec
 #endif
 /// Pure local-state contract for the rail's search gesture. The Host owns the
-/// query results; this only preserves RC8's UI transition across the sidebar
+/// query results; this only preserves rc.1's UI transition across the sidebar
 /// width change.
 enum NativeWorkspaceBrowserSearchOnExpand {
     struct State: Equatable {
@@ -37,7 +37,7 @@ enum NativeWorkspaceBrowserSearchOnExpand {
 /// expansion and search-input animation state.
 struct WorkspaceBrowserView: View {
     @ObservedObject var store: NativeWorkspaceStore
-    /// Source: RC8 `host.describe.home`; used only for official display-path abbreviation.
+    /// Source: authenticated rc.1 `$events.ready.host.home`; display-path abbreviation only.
     let hostHome: String?
     let collapsed: Bool
     let requestSidebarExpansion: () -> Void
@@ -85,13 +85,13 @@ struct WorkspaceBrowserView: View {
         let title: String
     }
 
-    /// In-flight RC8 workspace drag state. It is never persisted.
+    /// In-flight rc.1 workspace drag state. It is never persisted.
     private struct WorkspaceDrag: Equatable {
         let workspaceID: String
         var over: DropTarget?
     }
 
-    /// In-flight RC8 session drag state. The account key prevents a session
+    /// In-flight rc.1 session drag state. The account key prevents a session
     /// drag from crossing workspace/ungrouped account boundaries.
     private struct SessionDrag: Equatable {
         let accountKey: String
@@ -112,7 +112,7 @@ struct WorkspaceBrowserView: View {
     }
 
     @State private var searchExpanded = false
-    /// Source: RC8 `WorkspaceBrowser.searchOnExpand`. A rail search arms the
+    /// Source: rc.1 `WorkspaceBrowser.searchOnExpand`. A rail search arms the
     /// wide input before the shell flips, then focuses only after the 300ms
     /// column slide so focus-induced layout does not interrupt the transition.
     @State private var searchOnExpand = false
@@ -128,14 +128,14 @@ struct WorkspaceBrowserView: View {
     @State private var deleteCommittedID: String?
     @State private var deleteError: String?
     @State private var reorderError: String?
-    /// Source: RC8 `createWorkspaceViewStore`: new browsers group by workspace
+    /// Source: rc.1 `createWorkspaceViewStore`: new browsers group by workspace
     /// and promote activity in the `updated` ordering mode.
     @State private var sessionGroupMode: NativeWorkspaceBrowserOrdering.SessionGroupMode = .workspace
     @State private var sessionOrderMode: NativeWorkspaceBrowserOrdering.SessionOrderMode = .updated
     /// Browser-local account order is deliberately separate from Host workspace
     /// membership/order. Ungrouped and `updated` reorders never write Host RPCs.
     @State private var sessionOrderByAccount: [String: [String]] = [:]
-    /// RC8 compares this account-local timestamp baseline to promote only new
+    /// rc.1 compares this account-local timestamp baseline to promote only new
     /// activity while retaining the user-edited order of unaffected sessions.
     @State private var sessionUpdatedAtByAccount: [String: [String: Double]] = [:]
     /// Tracks the exact RC1 blank-session/account pair already promoted so
@@ -274,7 +274,7 @@ struct WorkspaceBrowserView: View {
                 collapsed: collapsed,
                 awaitsWideFocus: searchOnExpand
             ) else { return }
-            // Source: RC8 `WorkspaceBrowser.EXPAND_SLIDE_MS`. SwiftUI cancels
+            // Source: rc.1 `WorkspaceBrowser.EXPAND_SLIDE_MS`. SwiftUI cancels
             // this task if the user recollapses before the slide settles.
             try? await Task.sleep(for: .milliseconds(300))
             guard !Task.isCancelled else { return }
@@ -807,12 +807,12 @@ struct WorkspaceBrowserView: View {
         }
     }
 
-    /// Source: RC8 `nextSessionOrderAccount`. Every browser-local account is
+    /// Source: rc.1 `nextSessionOrderAccount`. Every browser-local account is
     /// reconciled against current Host membership; `updated` then promotes only
     /// newly active sessions while keeping manually edited unaffected order.
     private func reconcileBrowserLocalOrders(sortUpdatedAccounts: Bool = false) {
         let snapshot = store.snapshot
-        let sessionByID = Dictionary(uniqueKeysWithValues: snapshot.sessions.map { ($0.sessionId, $0) })
+        let sessionByID = Dictionary(snapshot.sessions.map { ($0.sessionId, $0) }, uniquingKeysWith: { _, latest in latest })
         let accountedIDs = Set(snapshot.workspaces.flatMap(\.sessionIds))
         var accounts: [(key: String, sessionIDs: [String])] = snapshot.workspaces.map {
             ($0.workspaceId, $0.sessionIds.filter { sessionByID[$0] != nil })
@@ -852,14 +852,15 @@ struct WorkspaceBrowserView: View {
             }
             nextOrderByAccount[account.key] = order
             nextUpdatedAtByAccount[account.key] = Dictionary(
-                uniqueKeysWithValues: sessions.map { ($0.sessionId, $0.updatedAt) }
+                sessions.map { ($0.sessionId, $0.updatedAt) },
+                uniquingKeysWith: { _, latest in latest }
             )
         }
         sessionOrderByAccount = nextOrderByAccount
         sessionUpdatedAtByAccount = nextUpdatedAtByAccount
     }
 
-    /// Source: RC8 `deriveFlat`: every browser-visible session is a top-level
+    /// Source: rc.1 `deriveFlat`: every browser-visible session is a top-level
     /// row, newest first with stable session identity tie-break before local
     /// flat-account reconciliation is applied.
     private func flatSessions(in snapshot: NativeWorkspaceStore.Snapshot) -> [SessionSummaryDTO] {
@@ -871,7 +872,7 @@ struct WorkspaceBrowserView: View {
     }
 
     private func orderedSessions(_ sessions: [SessionSummaryDTO], accountKey: String) -> [SessionSummaryDTO] {
-        let sessionByID = Dictionary(uniqueKeysWithValues: sessions.map { ($0.sessionId, $0) })
+        let sessionByID = Dictionary(sessions.map { ($0.sessionId, $0) }, uniquingKeysWith: { _, latest in latest })
         let order = NativeWorkspaceBrowserOrdering.reconciledOrder(
             hostIDs: sessions.map(\.sessionId),
             storedOrder: sessionOrderByAccount[accountKey]
@@ -968,7 +969,7 @@ struct WorkspaceBrowserView: View {
     }
 
     private func openSearchFromRail() {
-        // Source: RC8 `WorkspaceBrowser`: set both local flags before the
+        // Source: rc.1 `WorkspaceBrowser`: set both local flags before the
         // owner transition. The mounted wide browser therefore inherits an
         // expanded search instead of presenting a transient rail-only action.
         let state = NativeWorkspaceBrowserSearchOnExpand.armedState()
@@ -1208,7 +1209,7 @@ private struct NativeWorkspaceGroupView: View {
     }
 }
 
-/// Source: RC8 `FlatList`: every visible session is a top-level browser row.
+/// Source: rc.1 `FlatList`: every visible session is a top-level browser row.
 /// Its `__flat_session_order__` account is always local, including manual mode.
 private struct NativeFlatSessionListView: View {
     let sessions: [SessionSummaryDTO]
@@ -1300,7 +1301,7 @@ private struct NativeWorkspaceRow: View {
     let expanded: Bool
     let onToggle: () -> Void
     let onCreateSession: () -> Void
-    /// Nil for the synthetic ungrouped group, which RC8 never permits as a
+    /// Nil for the synthetic ungrouped group, which rc.1 never permits as a
     /// workspace drag source.
     let onStartDrag: (() -> Void)?
     let actions: WorkspaceBrowserView.Actions
@@ -1442,7 +1443,7 @@ private struct NativeSessionRow: View {
     }
 }
 
-/// Source: RC8 `WorkspaceBrowser.module.css:381-427`. The official marker
+/// Source: rc.1 `WorkspaceBrowser.module.css:381-427`. The official marker
 /// combines a 2px business-primary insertion line with two 5×7 chevrons.
 private struct NativeWorkspaceDropMarker: View {
     let half: NativeWorkspaceBrowserOrdering.DropHalf

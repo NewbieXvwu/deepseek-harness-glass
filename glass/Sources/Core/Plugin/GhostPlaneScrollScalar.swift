@@ -30,8 +30,12 @@ public struct GhostPlaneScrollScalar: Equatable, Sendable {
     /// JSON-compatible primitive arguments for a parameterized WebKit call.
     /// The target document creates the CSS transform itself; no caller-supplied
     /// JavaScript source or CSS expression crosses this boundary.
-    public var rendererArguments: [String: Double] {
-        ["scrollOffset": scrollOffset]
+    public var rendererArguments: [String: Any] {
+        [
+            "documentEpoch": NSNumber(value: documentEpoch),
+            "sequence": NSNumber(value: sequence),
+            "scrollOffset": scrollOffset,
+        ]
     }
 }
 

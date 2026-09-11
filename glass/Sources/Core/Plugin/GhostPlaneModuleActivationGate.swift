@@ -63,6 +63,9 @@ public struct GhostPlaneModuleActivationGate: Equatable, Sendable {
         guard arrived.contains(pluginID) else { return .rejected(.bundleNotArrived) }
         guard !activated.contains(pluginID) else { return .rejected(.alreadyActivated) }
         let entry = manifest.entries[index]
+        for dependencyID in entry.inject {
+            guard arrived.contains(dependencyID) else { return .rejected(.dependencyNotArrived(dependencyID)) }
+        }
         for specifier in entry.external {
             let dependencyID = Self.stripClientSuffix(specifier)
             if staticModuleSpecifiers.contains(specifier) || staticModuleSpecifiers.contains(dependencyID) { continue }

@@ -5,7 +5,7 @@ import SwiftUI
 @testable import GlassSpec
 #endif
 
-/// Typed presentation contract for a landed RC8 compaction checkpoint. It
+/// Typed presentation contract for a landed rc.1 compaction checkpoint. It
 /// never reads checkpoint payloads or raw events beyond the Core node fields.
 enum NativeCompactionPresentation {
     static func isExpandable(_ compaction: CoreCompactionNode) -> Bool {
@@ -21,7 +21,7 @@ enum NativeCompactionPresentation {
     }
 }
 
-/// Native RC8 `CompactionItem`: a landed checkpoint marker, not a replacement
+/// Native rc.1 `CompactionItem`: a landed checkpoint marker, not a replacement
 /// for the history it shadows.
 struct NativeCompactionRow: View {
     let compaction: CoreCompactionNode

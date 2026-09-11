@@ -6,7 +6,7 @@ import SwiftUI
 @testable import GlassSpec
 #endif
 
-/// Pure native counterpart of RC8 `formatMessageClock`. Host session event
+/// Pure native counterpart of rc.1 `formatMessageClock`. Host session event
 /// times are Unix epoch milliseconds; the formatter has no transcript state and
 /// can therefore be used by durable history and live-tail rows identically.
 enum NativeMessageClockFormatter {
@@ -35,7 +35,7 @@ enum NativeMessageClockFormatter {
     }
 }
 
-/// Native message chrome matching the RC8 copy/check lifecycle. A row owns
+/// Native message chrome matching the rc.1 copy/check lifecycle. A row owns
 /// only presentation-local feedback; it writes the durable plain text provided
 /// by Core and never mutates transcript state.
 struct NativeMessageActionRow: View {

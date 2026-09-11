@@ -5,7 +5,7 @@ import SwiftUI
 @testable import GlassSpec
 #endif
 
-/// Pure RC8 GoalBar visibility and copy decisions shared by the native dock and
+/// Pure rc.1 GoalBar visibility and copy decisions shared by the native dock and
 /// its regression tests. Goal values remain whole Host projections; the clear
 /// marker is presentation-only and never replaces that value.
 enum NativeGoalDockPresentation {
@@ -29,7 +29,7 @@ enum NativeGoalDockPresentation {
     }
 }
 
-/// Native equivalent of the RC8 `conversation.input.dock` GoalBar. It owns only
+/// Native equivalent of the rc.1 `conversation.input.dock` GoalBar. It owns only
 /// local edit draft/focus state. The current goal, all mutations and their
 /// eventual replacement/tombstone projection remain Host-owned.
 struct NativeGoalDock: View {
@@ -56,7 +56,7 @@ struct NativeGoalDock: View {
         .frame(maxWidth: OfficialUISpec.Layout.composerMaximum - (OfficialUISpec.Layout.todoDockInset * 4))
         .id(goal.id)
         .onChange(of: goal.id) { _, _ in
-            // RC8 clears a surviving edit draft when a new projection identity
+            // rc.1 clears a surviving edit draft when a new projection identity
             // arrives so Enter cannot overwrite a replacement goal.
             editing = false
             draft = ""

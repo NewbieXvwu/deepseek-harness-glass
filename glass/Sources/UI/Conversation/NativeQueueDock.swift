@@ -11,7 +11,7 @@ enum NativeQueueDockPresentation {
     }
 
     static func isMutable(_ subagent: CoreSubagentIdentityProjection) -> Bool {
-        // RC8 grants queue verbs only when the session snapshot explicitly says
+        // rc.1 grants queue verbs only when the session snapshot explicitly says
         // `subagent === null`; missing/malformed descriptors fail closed.
         subagent == .noValidDescriptor
     }
@@ -26,7 +26,7 @@ enum NativeQueueDockPresentation {
     }
 }
 
-/// Native RC8 `conversation.input.dock` QueueDock. Rows are complete Host
+/// Native rc.1 `conversation.input.dock` QueueDock. Rows are complete Host
 /// `session/queue` snapshots. This view owns only collapse/edit draft state.
 struct NativeQueueDock: View {
     let rows: [NativeSessionStore.QueuedMessage]

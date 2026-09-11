@@ -25,8 +25,29 @@ final class SessionLogExporterTests: XCTestCase {
         XCTAssertEqual(second.suggestedFilename, "session log (2).zip")
         XCTAssertEqual(try Data(contentsOf: first.fileURL), Data("zip-contract".utf8))
         XCTAssertEqual(try Data(contentsOf: second.fileURL), Data("zip-contract".utf8))
-        XCTAssertEqual(ExportURLProtocol.state.observedRequests().count, 2)
-        XCTAssertEqual(ExportURLProtocol.state.observedRequests().first?.httpMethod, "GET")
+        let requests = ExportURLProtocol.state.observedRequests()
+        XCTAssertEqual(requests.count, 4)
+        XCTAssertEqual(requests.map(\.httpMethod), ["HEAD", "GET", "HEAD", "GET"])
+    }
+
+    func testAttachmentFilenameCannotEscapeDestinationDirectory() async throws {
+        ExportURLProtocol.state.configure(status: 200, headers: [
+            "Content-Type": "application/zip",
+            "Content-Disposition": "attachment; filename=../../outside.zip",
+        ], body: Data("zip-contract".utf8))
+        let destination = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: destination) }
+        let outside = destination.deletingLastPathComponent().appendingPathComponent("outside.zip")
+        try? FileManager.default.removeItem(at: outside)
+        let exporter = SessionLogExporter(session: makeSession(), destinationDirectory: destination)
+        let url = URL(string: "http://127.0.0.1:9281/api/session.export?sessionId=contract-session&includeDescendants=true")!
+
+        let result = try await exporter.export(url: url, fallbackFilename: "fallback.zip")
+
+        XCTAssertEqual(result.suggestedFilename, "outside.zip")
+        XCTAssertEqual(result.fileURL.deletingLastPathComponent(), destination)
+        XCTAssertEqual(try Data(contentsOf: result.fileURL), Data("zip-contract".utf8))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: outside.path))
     }
 
     func testTaskCancellationMapsToCancelledTransportError() async throws {
@@ -66,22 +87,6 @@ final class SessionLogExporterTests: XCTestCase {
             }
         }
         XCTAssertTrue(ExportURLProtocol.state.observedRequests().isEmpty)
-    }
-
-    func testUnverifiedHostCannotCreateNativeDownloadURL() async throws {
-        let transport = DSHClientTransport(
-            baseURL: URL(string: "http://127.0.0.1:9281/")!,
-            accessPolicy: .diagnosticsOnly,
-            session: makeSession()
-        )
-        do {
-            _ = try await transport.downloadURL(sessionID: "contract-session")
-            XCTFail("unverified Host must not expose a file-materializing download URL")
-        } catch let error as DSHTransportError {
-            guard case .unverifiedHostBuild = error else {
-                return XCTFail("Expected unverifiedHostBuild, got \(error)")
-            }
-        }
     }
 
     func testDownloadMapsHostMissingSessionToHTTPTransportError() async throws {
