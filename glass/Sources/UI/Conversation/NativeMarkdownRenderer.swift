@@ -270,14 +270,14 @@ enum NativeMarkdownDocument {
         // until its terminator arrives instead of momentarily becoming an
         // actionable/copyable code card.
         let partition = partitionUnclosedFence(in: source)
-        var blocks = blocks(from: Document(parsing: partition.complete))
+        var blocks = blocks(from: Markdown.Document(parsing: partition.complete))
         if let literalTail = partition.literalTail, !literalTail.isEmpty {
             blocks.append(.prose(id: blocks.count, text: literalTail))
         }
         return blocks
     }
 
-    private static func blocks(from document: Document) -> [Block] {
+    private static func blocks(from document: Markdown.Document) -> [Block] {
         var blocks: [Block] = []
         for markup in document.children {
             let id = blocks.count

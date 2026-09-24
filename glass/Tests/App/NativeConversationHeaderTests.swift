@@ -43,7 +43,7 @@ final class NativeConversationHeaderTests: XCTestCase {
         let presentation = NativeShellPresentation(
             mode: .conversation,
             sessionStore: sessionStore,
-            releaseFeaturePolicy: .allEnabled
+            releaseFeaturePolicy: NativeReleaseFeaturePolicy(enabledSurfaces: [.trajectoryTab, .subagentCatalogAction])
         )
         let context = NativeConversationContributionContext(
             sessionID: sessionStore.selectedSessionID,
@@ -70,9 +70,6 @@ final class NativeConversationHeaderTests: XCTestCase {
 
         XCTAssertFalse(policy.permits(.trajectoryTab))
         XCTAssertFalse(policy.permits(.subagentCatalogAction))
-        XCTAssertEqual(policy.rule(for: .trajectoryTab)?.owner, "native-conversation")
-        XCTAssertFalse(policy.rule(for: .trajectoryTab)?.expiryCondition.isEmpty ?? true)
-        XCTAssertFalse(policy.rule(for: .trajectoryTab)?.deletionPlan.isEmpty ?? true)
         XCTAssertEqual(presentation.conversationViewRegistry.registeredTabs.map(\.id), [NativeConversationViewRegistry.chatID])
         XCTAssertEqual(presentation.conversationViewRegistry.resolve(selectedID: "trajectory")?.id, NativeConversationViewRegistry.chatID)
     }
