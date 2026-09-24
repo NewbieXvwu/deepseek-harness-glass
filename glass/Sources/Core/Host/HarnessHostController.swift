@@ -1,12 +1,9 @@
 import Combine
 import Foundation
 
-#if DEEPSEEK_HARNESS_PACKAGE
-@testable import GlassSpec
-#endif
 /// Main-actor owner for the bundled local DeepSeek Harness Host. It deliberately
 /// exposes a lifecycle state rather than a Web URL because the native app uses
-/// RPC/SSE, not an embedded browser surface.
+/// authenticated Remote transport, not an embedded browser surface.
 @MainActor
 final class HarnessHostController: ObservableObject {
     @Published private(set) var state: HostLifecycleState = .idle {
@@ -16,6 +13,9 @@ final class HarnessHostController: ObservableObject {
             stateTransitions.append(transition)
             if stateTransitions.count > 200 { stateTransitions.removeFirst(stateTransitions.count - 200) }
             appendLog("[host] transition \(transition.summary)")
+            if case let .ready(connection) = oldValue {
+                Task { await connection.context.remote.closeStreams() }
+            }
             Task { [diagnostics] in await diagnostics.recordLifecycle(state, ownedPID: process?.processIdentifier) }
         }
     }
@@ -23,20 +23,21 @@ final class HarnessHostController: ObservableObject {
     @Published private(set) var stateTransitions: [HostLifecycleTransition] = []
 
     private let runtime: HostRuntimeConfiguration
-    private let verifier: HostBuildVerifier
     private let fileManager: FileManager
     private let diagnostics: HostDiagnosticRecorder
+    private var authenticatedHost: AuthenticatedHostSession?
+    private var eventTerminationTask: Task<Void, Never>?
     private var process: Process?
     private var outputPipe: Pipe?
     private var announcedOutput = ""
     private var recoveryAttempts = 0
     private static let announcementRescanLookbackUTF16 = 1_024
-    private static let announcementRegularExpression: NSRegularExpression = {
-        // This is compile-once state: Host stderr can arrive in many short
-        // chunks during startup, so compiling this expression per chunk causes
-        // avoidable work precisely on the readiness critical path.
-        try! NSRegularExpression(pattern: #"dsh web:\s+(https?://127\.0\.0\.1(?::\d+)?/?\S*)"#)
-    }()
+    // This is compile-once state: Host stderr can arrive in many short
+    // chunks during startup, so compiling this expression per chunk causes
+    // avoidable work precisely on the readiness critical path.
+    private static let announcementRegularExpression = try? NSRegularExpression(
+        pattern: #"dsh web:\s+(https?://127\.0\.0\.1(?::\d+)?/?\S*)"#
+    )
     private var verificationTask: Task<Void, Never>?
     private var startupTimeoutTask: Task<Void, Never>?
     private var suppressRecoveryForTermination = false
@@ -45,24 +46,24 @@ final class HarnessHostController: ObservableObject {
 
     init(
         runtime: HostRuntimeConfiguration,
-        verifier: HostBuildVerifier,
         fileManager: FileManager = .default,
         startupTimeoutNanoseconds: UInt64 = 20_000_000_000
     ) {
         self.runtime = runtime
-        self.verifier = verifier
         self.fileManager = fileManager
         self.diagnostics = HostDiagnosticRecorder(dshHome: runtime.homeDirectory.path)
         self.startupTimeoutNanoseconds = startupTimeoutNanoseconds
     }
 
     convenience init() throws {
-        try self.init(runtime: .bundled(), verifier: .bundled())
+        try self.init(runtime: .bundled())
     }
 
     deinit {
         verificationTask?.cancel()
         startupTimeoutTask?.cancel()
+        eventTerminationTask?.cancel()
+        authenticatedHost?.invalidate()
         outputPipe?.fileHandleForReading.readabilityHandler = nil
         try? activeLogHandle?.close()
         if process?.isRunning == true { process?.terminate() }
@@ -82,109 +83,13 @@ final class HarnessHostController: ObservableObject {
             appendLog("[host] start reused existing owned process pid=\(process?.processIdentifier ?? 0)")
             return
         }
-        switch verifier.verify(runtime: runtime, fileManager: fileManager) {
-        case let .unverified(reason):
-            state = .unverified(HostUnverified(
-                reason: reason,
-                developerWriteOverrideEnabled: false,
-                logPath: runtime.logFile.path
-            ))
-            appendLog("[host] unverified write-protected: \(reason)")
-            Task { [diagnostics] in await diagnostics.recordUnverified(reason: reason) }
-            return
-        case let .unsupported(reason):
-            state = .failed(HostFailure(
-                kind: .invalidBundledBaseline,
-                message: reason,
-                exitStatus: nil,
-                logPath: runtime.logFile.path
-            ))
-            return
-        case let .verified(build):
-            guard OfficialUISpec.Build.isCompatible(with: build.id),
-                  build.officialSourceCommit == OfficialUISpec.Build.sourceCommit,
-                  build.uiSpecRevision == OfficialUISpec.Build.uiSpecRevision
-            else {
-                state = .failed(HostFailure(
-                    kind: .invalidBundledBaseline,
-                    message: "Bundled Host build does not match the generated Official UI specification.",
-                    exitStatus: nil,
-                    logPath: runtime.logFile.path
-                ))
-                return
-            }
-            launch(build: build)
-        }
-    }
-
-    /// Probe an externally supplied loopback endpoint without assigning it the
-    /// bundled build's authority. A successful diagnostic probe remains
-    /// unverified until a future developer-controlled compatibility policy is
-    /// explicitly supplied, so writes cannot cross this boundary accidentally.
-    func probeExternal(endpoint: URL) {
-        guard process == nil else { return }
-        guard endpoint.scheme == "http", endpoint.host == "127.0.0.1", endpoint.port != nil else {
-            state = .failed(HostFailure(
-                kind: .verificationFailed,
-                message: "External DeepSeek Harness endpoint must be an explicit loopback HTTP URL with a port.",
-                exitStatus: nil,
-                logPath: runtime.logFile.path
-            ))
-            return
-        }
-        state = .probingExternal(endpoint)
-        verificationTask?.cancel()
-        verificationTask = Task { [weak self] in
-            do {
-                let transport = DSHClientTransport(baseURL: endpoint, accessPolicy: .diagnosticsOnly)
-                let response = try await transport.call(method: "host.describe", payload: .object([:]))
-                guard case .success = response.result, !Task.isCancelled else { return }
-                self?.state = .unverified(HostUnverified(
-                    reason: "External Host responded to host.describe but is not in SupportedHostBuilds.json.",
-                    developerWriteOverrideEnabled: false,
-                    logPath: self?.runtime.logFile.path ?? ""
-                ))
-            } catch {
-                guard !Task.isCancelled else { return }
-                if let self { await self.diagnostics.recordRPCError(error) }
-                self?.state = .failed(HostFailure(
-                    kind: .verificationFailed,
-                    message: "Could not probe external DeepSeek Harness Host: \(error.localizedDescription)",
-                    exitStatus: nil,
-                    logPath: self?.runtime.logFile.path ?? ""
-                ))
-            }
-        }
-    }
-
-    /// Discovers an already-running exact-loopback Host through diagnostics-only
-    /// `host.describe`, then delegates to the existing unverified external probe.
-    /// Discovery never starts a process or changes the external Host's trust.
-    func discoverExternal(candidates: [URL]) {
-        guard process == nil else { return }
-        verificationTask?.cancel()
-        verificationTask = Task { [weak self] in
-            let endpoint = await HostLoopbackEndpointDiscovery().discover(
-                candidates: candidates,
-                using: DiagnosticsOnlyLoopbackProbe()
-            )
-            guard !Task.isCancelled else { return }
-            guard let endpoint else {
-                self?.state = .failed(HostFailure(
-                    kind: .verificationFailed,
-                    message: "Could not discover an active loopback DeepSeek Harness Host.",
-                    exitStatus: nil,
-                    logPath: self?.runtime.logFile.path ?? ""
-                ))
-                return
-            }
-            self?.probeExternal(endpoint: endpoint)
-        }
+        launch()
     }
 
     func retryOnce() {
         guard recoveryAttempts == 0 else { return }
         recoveryAttempts = 1
+        discardAuthentication()
         state = .recovering(attempt: recoveryAttempts)
         if let process, process.isRunning {
             suppressRecoveryForTermination = false
@@ -201,6 +106,7 @@ final class HarnessHostController: ObservableObject {
         verificationTask = nil
         startupTimeoutTask?.cancel()
         startupTimeoutTask = nil
+        discardAuthentication()
         suppressRecoveryForTermination = true
         restartAfterTermination = false
         state = .stopping
@@ -215,7 +121,7 @@ final class HarnessHostController: ObservableObject {
         }
     }
 
-    private func launch(build: SupportedHostBuildCatalog.Build) {
+    private func launch() {
         guard fileManager.isExecutableFile(atPath: runtime.nodeExecutable.path) else {
             state = .failed(HostFailure(
                 kind: .missingNodeRuntime,
@@ -250,13 +156,9 @@ final class HarnessHostController: ObservableObject {
 
         announcedOutput = ""
         suppressRecoveryForTermination = false
-        state = .startingOwned
+        state = .starting
         let process = Process()
-        process.executableURL = runtime.nodeExecutable
-        process.arguments = ["--expose-internals", runtime.dshEntrypoint.path, "web", "--port", "0"]
-        var environment = ProcessInfo.processInfo.environment
-        environment["DSH_HOME"] = runtime.homeDirectory.path
-        process.environment = environment
+        HarnessHostProcess.owned(runtime: runtime).apply(to: process)
 
         let pipe = Pipe()
         process.standardOutput = pipe
@@ -265,7 +167,7 @@ final class HarnessHostController: ObservableObject {
             let data = handle.availableData
             guard !data.isEmpty else { return }
             let text = String(decoding: data, as: UTF8.self)
-            Task { @MainActor [weak self] in self?.consumeHostOutput(text, build: build) }
+            Task { @MainActor [weak self] in self?.consumeHostOutput(text) }
         }
         process.terminationHandler = { [weak self] terminated in
             Task { @MainActor [weak self] in self?.handleTermination(terminated) }
@@ -275,7 +177,7 @@ final class HarnessHostController: ObservableObject {
             try process.run()
             self.process = process
             self.outputPipe = pipe
-            appendLog("[host] started build=\(build.id) pid=\(process.processIdentifier)")
+            appendLog("[host] started pid=\(process.processIdentifier)")
             armStartupTimeout(for: process)
         } catch {
             pipe.fileHandleForReading.readabilityHandler = nil
@@ -288,13 +190,13 @@ final class HarnessHostController: ObservableObject {
         }
     }
 
-    private func consumeHostOutput(_ text: String, build: SupportedHostBuildCatalog.Build) {
+    private func consumeHostOutput(_ text: String) {
         appendLog(text)
         let previousUTF16Length = (announcedOutput as NSString).length
         announcedOutput += text
         // Limit retained parsing data while preserving a complete startup line.
         let wasTrimmed: Bool
-if announcedOutput.count > 32_768 {
+        if announcedOutput.count > 32_768 {
             announcedOutput.removeFirst(announcedOutput.count - 16_384)
             wasTrimmed = true
         } else {
@@ -306,12 +208,26 @@ if announcedOutput.count > 32_768 {
         let searchStart = wasTrimmed
             ? 0
             : max(0, previousUTF16Length - Self.announcementRescanLookbackUTF16)
-        guard case .startingOwned = state,
-              let endpoint = Self.announcedEndpoint(in: announcedOutput, fromUTF16Offset: searchStart) else { return }
+        guard case .starting = state,
+              let launchURL = Self.announcedEndpoint(in: announcedOutput, fromUTF16Offset: searchStart) else { return }
+        let descriptor: HostLaunchDescriptor
+        do {
+            descriptor = try HostLaunchDescriptor(url: launchURL)
+        } catch {
+            state = .failed(HostFailure(
+                kind: .verificationFailed,
+                message: "DeepSeek Harness Host announced an invalid launch URL.",
+                exitStatus: nil,
+                logPath: runtime.logFile.path
+            ))
+            terminateAfterVerificationFailure()
+            return
+        }
+        announcedOutput = ""
         startupTimeoutTask?.cancel()
         startupTimeoutTask = nil
-        state = .verifying(endpoint)
-        verify(endpoint: endpoint, build: build)
+        state = .authenticating(descriptor.cleanBaseURL)
+        verify(descriptor: descriptor)
     }
 
     /// Parses only the bounded append window selected by `consumeHostOutput`.
@@ -321,50 +237,198 @@ if announcedOutput.count > 32_768 {
         let nsOutput = output as NSString
         guard offset >= 0, offset <= nsOutput.length else { return nil }
         let range = NSRange(location: offset, length: nsOutput.length - offset)
-        guard let match = announcementRegularExpression.firstMatch(in: output, range: range),
+        guard let announcementRegularExpression,
+              let match = announcementRegularExpression.firstMatch(in: output, range: range),
               match.numberOfRanges >= 2,
               match.range(at: 1).location != NSNotFound
         else { return nil }
         let rawURL = nsOutput.substring(with: match.range(at: 1))
         guard let endpoint = URL(string: rawURL),
-              endpoint.scheme == "http",
-              endpoint.host == "127.0.0.1",
-              endpoint.user == nil,
-              endpoint.password == nil,
-              let port = endpoint.port,
-              port > 0 else { return nil }
+              endpoint.isCanonicalLoopbackHTTP else { return nil }
         return endpoint
     }
 
-    private func verify(endpoint: URL, build: SupportedHostBuildCatalog.Build) {
+    private func verify(descriptor: HostLaunchDescriptor) {
         verificationTask?.cancel()
         verificationTask = Task { [weak self] in
             do {
-                let transport = DSHClientTransport(
-                    baseURL: endpoint,
-                    accessPolicy: HostRPCAccessPolicy(trust: .verified(build))
-                )
-                let response = try await transport.call(method: "host.describe", payload: .object([:]))
-                guard case .success = response.result else {
-                    throw DSHTransportError.decoding("host.describe returned a business error")
+                let authenticatedHost = try await HostAuthBootstrap.authenticate(descriptor)
+                guard !Task.isCancelled else {
+                    authenticatedHost.invalidate()
+                    return
                 }
-                guard !Task.isCancelled else { return }
-                guard let self else { return }
-                await self.diagnostics.recordVerified(build: build, endpoint: endpoint, pid: self.process?.processIdentifier)
-                self.state = .ready(HostConnection(endpoint: endpoint, build: build, startedAt: Date(), diagnostics: self.diagnostics))
-                self.appendLog("[host] verified endpoint=\(endpoint.absoluteString) build=\(build.id)")
+                guard let self else {
+                    authenticatedHost.invalidate()
+                    return
+                }
+                self.authenticatedHost = authenticatedHost
+                self.state = .connecting(authenticatedHost.baseURL)
+                let remote = RemoteConnection(authenticatedHost: authenticatedHost)
+                let events = try await remote.connectEvents()
+                guard !Task.isCancelled else {
+                    await remote.closeStreams()
+                    return
+                }
+                await self.publishReady(
+                    authenticatedHost: authenticatedHost,
+                    remote: remote,
+                    events: events
+                )
             } catch {
                 guard !Task.isCancelled else { return }
                 if let self { await self.diagnostics.recordRPCError(error) }
                 self?.state = .failed(HostFailure(
                     kind: .verificationFailed,
-                    message: "DeepSeek Harness Host started but could not complete host.describe verification: \(error.localizedDescription)",
+                    message: "DeepSeek Harness Host started but could not authenticate or establish Remote readiness: \(error.localizedDescription)",
                     exitStatus: nil,
                     logPath: self?.runtime.logFile.path ?? ""
                 ))
                 self?.terminateAfterVerificationFailure()
             }
         }
+    }
+
+    private func publishReady(
+        authenticatedHost: AuthenticatedHostSession,
+        remote: RemoteConnection,
+        events: RemoteEventChannel
+    ) async {
+        guard let activeHost = self.authenticatedHost,
+              activeHost.urlSession === authenticatedHost.urlSession,
+              process?.isRunning == true
+        else {
+            await remote.closeStreams()
+            return
+        }
+        // A generation that reached readiness restores the recovery budget for a
+        // later, independent failure.
+        recoveryAttempts = 0
+        restartAfterTermination = false
+        let endpoint = authenticatedHost.baseURL
+        await diagnostics.recordConnected(
+            endpoint: endpoint,
+            pid: process?.processIdentifier,
+            generation: events.generation
+        )
+        let context = HostConnectionContext(
+            authenticatedHost: authenticatedHost,
+            remote: remote,
+            events: events,
+            diagnostics: diagnostics
+        )
+        let connection = HostConnection(
+            endpoint: endpoint,
+            context: context,
+            startedAt: Date(),
+            diagnostics: diagnostics
+        )
+        state = .ready(connection)
+        appendLog("[host] remote ready endpoint=\(endpoint.absoluteString) generation=\(events.generation.rawValue)")
+        monitorEventTermination(for: connection)
+    }
+
+    private func monitorEventTermination(for connection: HostConnection) {
+        eventTerminationTask?.cancel()
+        let generation = connection.context.generation
+        eventTerminationTask = Task { [weak self] in
+            let termination = await connection.context.events.termination.value
+            guard !Task.isCancelled else { return }
+            self?.handleEventTermination(termination, generation: generation)
+        }
+    }
+
+    private func handleEventTermination(
+        _ termination: RemoteEventTermination,
+        generation: RemoteConnectionGeneration
+    ) {
+        guard case let .ready(connection) = state,
+              connection.context.generation == generation,
+              process?.isRunning == true
+        else { return }
+        switch termination {
+        case .cancelled:
+            return
+        case .ended:
+            state = .recovering(attempt: 1)
+            appendLog("[host] $events ended generation=\(generation.rawValue); reopening")
+            reconnectRemote(from: connection)
+        case let .failed(error):
+            state = .recovering(attempt: 1)
+            appendLog("[host] Remote stream failed generation=\(generation.rawValue) (\(error.category.rawValue)); reopening $events")
+            reconnectRemote(from: connection)
+        }
+    }
+
+    private func reconnectRemote(from connection: HostConnection) {
+        verificationTask?.cancel()
+        guard let ownedProcess = process else { return }
+        verificationTask = Task { [weak self, weak ownedProcess] in
+            guard let self,
+                  let ownedProcess,
+                  self.process === ownedProcess,
+                  let authenticatedHost = self.authenticatedHost,
+                  authenticatedHost.urlSession === connection.context.authenticatedHost.urlSession,
+                  ownedProcess.isRunning
+            else { return }
+            var retryDelayNanos: UInt64 = 200_000_000
+            let maxDelayNanos: UInt64 = 3_000_000_000
+            let maxAttempts = 6
+            for attempt in 1...maxAttempts {
+                guard !Task.isCancelled, self.process === ownedProcess, ownedProcess.isRunning else { return }
+                self.state = attempt == 1 ? .connecting(authenticatedHost.baseURL) : .recovering(attempt: attempt)
+                do {
+                    let remote = RemoteConnection(authenticatedHost: authenticatedHost)
+                    let events = try await remote.connectEvents()
+                    guard !Task.isCancelled else {
+                        await remote.closeStreams()
+                        return
+                    }
+                    await self.publishReady(
+                        authenticatedHost: authenticatedHost,
+                        remote: remote,
+                        events: events
+                    )
+                    return
+                } catch {
+                    guard !Task.isCancelled, self.process === ownedProcess else { return }
+                    await self.diagnostics.recordRPCError(error)
+                    guard ownedProcess.isRunning else {
+                        // The process termination handler owns restart once the
+                        // local Host has exited; do not publish a competing failure.
+                        return
+                    }
+                    guard attempt < maxAttempts else { break }
+                    try? await Task.sleep(nanoseconds: retryDelayNanos)
+                    retryDelayNanos = min(retryDelayNanos * 2, maxDelayNanos)
+                }
+            }
+            guard !Task.isCancelled, self.process === ownedProcess else { return }
+            guard self.recoveryAttempts == 0 else {
+                self.failRemoteGeneration("Remote carrier recovery failed after repeated backoff.")
+                return
+            }
+            self.recoveryAttempts = 1
+            self.restartAfterTermination = true
+            self.state = .recovering(attempt: self.recoveryAttempts)
+            self.appendLog("[host] Remote reopen failed; restarting owned pid=\(ownedProcess.processIdentifier)")
+            ownedProcess.terminate()
+        }
+    }
+
+    private func failRemoteGeneration(_ message: String) {
+        state = .failed(HostFailure(
+            kind: .verificationFailed,
+            message: message,
+            exitStatus: nil,
+            logPath: runtime.logFile.path
+        ))
+    }
+
+    private func discardAuthentication() {
+        eventTerminationTask?.cancel()
+        eventTerminationTask = nil
+        authenticatedHost?.invalidate()
+        authenticatedHost = nil
     }
 
     private func handleTermination(_ process: Process) {
@@ -375,6 +439,7 @@ if announcedOutput.count > 32_768 {
         self.process = nil
         verificationTask?.cancel()
         verificationTask = nil
+        discardAuthentication()
         let terminationStatus = process.terminationStatus
         appendLog("[host] terminated pid=\(process.processIdentifier) code=\(terminationStatus)")
         if suppressRecoveryForTermination {
@@ -416,7 +481,7 @@ if announcedOutput.count > 32_768 {
         startupTimeoutTask = Task { [weak self, weak process] in
             try? await Task.sleep(nanoseconds: self?.startupTimeoutNanoseconds ?? 0)
             guard !Task.isCancelled, let self, let process, self.process === process,
-                  case .startingOwned = self.state else { return }
+                  case .starting = self.state else { return }
             self.state = .failed(HostFailure(
                 kind: .endpointNotAnnounced,
                 message: "DeepSeek Harness Host did not announce a loopback endpoint before startup timeout.",
@@ -434,7 +499,7 @@ if announcedOutput.count > 32_768 {
     }
 
     private func appendLog(_ text: String) {
-        let normalized = text.trimmingCharacters(in: .newlines)
+        let normalized = HostLogRedactor.redact(text.trimmingCharacters(in: .newlines))
         guard !normalized.isEmpty else { return }
         recentLogLines.append(contentsOf: normalized.split(separator: "\n").map(String.init))
         if recentLogLines.count > 200 { recentLogLines.removeFirst(recentLogLines.count - 200) }
@@ -468,20 +533,6 @@ if announcedOutput.count > 32_768 {
         } catch {
             Task { [diagnostics] in await diagnostics.recordRPCError(error) }
             fputs("[HostLog] writeLog failed: \(error.localizedDescription)\n", stderr)
-        }
-    }
-}
-
-
-private struct DiagnosticsOnlyLoopbackProbe: HostLoopbackEndpointDiscovery.Probe {
-    func respondsToDescribe(at endpoint: URL) async -> Bool {
-        do {
-            let transport = DSHClientTransport(baseURL: endpoint, accessPolicy: .diagnosticsOnly)
-            let response = try await transport.call(method: "host.describe", payload: .object([:]))
-            if case .success = response.result { return true }
-            return false
-        } catch {
-            return false
         }
     }
 }

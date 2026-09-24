@@ -33,10 +33,6 @@ if [[ "$swiftpm_resource_bundle_count" -eq 0 ]]; then
   echo "error: SwiftPM produced no resource bundles for the native app" >&2
   exit 1
 fi
-if ! find "$STAGE/Contents/Resources" -type f -name 'official-accessibility-baseline.json' -print -quit | grep -q .; then
-  echo "error: packaged app is missing official-accessibility-baseline.json" >&2
-  exit 1
-fi
 
 echo "== 2/4 内置 Node 运行时 =="
 mkdir -p "$STAGE/Contents/Resources/node"
@@ -48,17 +44,8 @@ mkdir -p "$STAGE/Contents/Resources/backend"
 cp -RL "build/backend/node_modules" \
   "$STAGE/Contents/Resources/backend/node_modules"
 
-echo "== 4/4 Info.plist / 官方基线 / 图标 / 签名 / 原子替换 =="
+echo "== 4/4 Info.plist / 图标 / 签名 / 原子替换 =="
 cp Info.plist "$STAGE/Contents/Info.plist"
-cp Sources/Spec/SupportedHostBuilds.json "$STAGE/Contents/Resources/SupportedHostBuilds.json"
-cp Sources/Spec/HostUpgradeReport.json "$STAGE/Contents/Resources/HostUpgradeReport.json"
-cp Sources/Spec/Fixtures/official-column-layout-fixtures.json "$STAGE/Contents/Resources/official-column-layout-fixtures.json"
-cp Sources/Core/Resources/official-host-rpc-fixtures.json "$STAGE/Contents/Resources/official-host-rpc-fixtures.json"
-APP_SOURCE_REVISION="$(git -C .. rev-parse HEAD 2>/dev/null || echo unknown)"
-python3 ../tools/emit-build-manifest.py \
-  --repo .. \
-  --app-source-revision "$APP_SOURCE_REVISION" \
-  --output "$STAGE/Contents/Resources/BuildManifest.json"
 cp ../build/icon.icns "$STAGE/Contents/Resources/icon.icns"
 cp assets/*.svg "$STAGE/Contents/Resources/"
 

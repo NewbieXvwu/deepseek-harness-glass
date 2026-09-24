@@ -2,7 +2,7 @@
 @testable import GlassCore
 #endif
 
-/// Pure RC8 model-picker projection. The candidate list is Host-discovered
+/// Pure rc.1 model-picker projection. The candidate list is Host-discovered
 /// metadata; selected IDs outside that list cannot enter a settings mutation.
 enum NativeDiscoveredModelSelection {
     static func initiallySelectedIDs(

@@ -5,7 +5,7 @@ import SwiftUI
 @testable import GlassSpec
 #endif
 
-/// Native counterpart of RC8 `TurnErrorItem`. Visibility/terminality are owned
+/// Native counterpart of rc.1 `TurnErrorItem`. Visibility/terminality are owned
 /// by `CoreTurnErrorNode`; this renderer merely presents its typed failure.
 struct NativeTurnErrorNotice: View {
     let error: CoreTurnErrorNode

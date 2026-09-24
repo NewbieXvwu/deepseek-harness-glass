@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate and enforce an auditable official/native visual comparison policy."""
+"""Generate and enforce official/native visual comparison reports."""
 
 from __future__ import annotations
 
@@ -28,14 +28,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def material_regions(fixtures_path: Path | None, width: int, height: int) -> list[dict[str, Any]]:
-    """Derive the sidebar and inspector bands from the official layout fixtures.
-
-    AppKit draws those two columns with WindowServer-owned system materials
-    whose exact pixels the WebUI cannot reproduce, so they are excluded from
-    the content-layer comparison instead of being hardcoded here. The bands
-    are taken from the fixture whose viewport matches the captured width, so
-    the exclusion always tracks the spec rather than drifting from it.
-    """
+    """Derive sidebar and inspector bands from the official layout fixture."""
     if fixtures_path is None:
         return []
     with fixtures_path.open(encoding="utf-8") as handle:
@@ -59,9 +52,9 @@ def material_regions(fixtures_path: Path | None, width: int, height: int) -> lis
     return regions
 
 
-def load_policy(path: Path | None, scene: str) -> tuple[dict[str, Any], dict[str, Any]]:
+def load_policy(path: Path | None, scene: str) -> tuple[dict[str, Any], int]:
     if path is None:
-        return {"mode": "report-only"}, {"source": None, "materialDifferenceChannelThreshold": 12}
+        return {"mode": "report-only"}, 12
     with path.open(encoding="utf-8") as handle:
         document = json.load(handle)
     scene_policy = document.get("scenes", {}).get(scene, document.get("defaultPolicy", {}))
@@ -69,12 +62,7 @@ def load_policy(path: Path | None, scene: str) -> tuple[dict[str, Any], dict[str
         raise SystemExit(f"visual policy for scene {scene!r} must be an object")
     if scene_policy.get("mode") not in {"report-only", "enforce"}:
         raise SystemExit("visual policy mode must be report-only or enforce")
-    return scene_policy, {
-        "source": str(path),
-        "schemaVersion": document.get("schemaVersion"),
-        "officialSourceCommit": document.get("officialSourceCommit"),
-        "materialDifferenceChannelThreshold": document.get("materialDifferenceChannelThreshold", 12),
-    }
+    return scene_policy, int(document.get("materialDifferenceChannelThreshold", 12))
 
 
 def threshold_results(metrics: dict[str, float], policy: dict[str, Any]) -> list[dict[str, Any]]:
@@ -112,7 +100,7 @@ def threshold_results(metrics: dict[str, float], policy: dict[str, Any]) -> list
 def main() -> None:
     args = parse_args()
     args.out_dir.mkdir(parents=True, exist_ok=True)
-    policy, policy_metadata = load_policy(args.policy, args.scene)
+    policy, material_channel_threshold = load_policy(args.policy, args.scene)
 
     official = Image.open(args.official).convert("RGBA")
     native = Image.open(args.native).convert("RGBA")
@@ -125,11 +113,9 @@ def main() -> None:
     native_rgb = np.asarray(native.convert("RGB"), dtype=np.int16)
     absolute = np.abs(official_rgb - native_rgb)
     per_pixel = absolute.max(axis=2)
-    material_channel_threshold = int(policy_metadata["materialDifferenceChannelThreshold"])
     changed = per_pixel > 0
     materially_changed = per_pixel > material_channel_threshold
 
-    # Content-layer mask: everything except the system-material columns.
     regions = material_regions(args.column_fixtures, official.width, official.height)
     content_mask = np.ones(per_pixel.shape, dtype=bool)
     for region in regions:
@@ -181,7 +167,6 @@ def main() -> None:
         "materialRegionsExcluded": regions,
         **metrics,
         "policy": {
-            **policy_metadata,
             "mode": policy.get("mode"),
             "thresholds": thresholds,
             "passed": passed if thresholds else None,

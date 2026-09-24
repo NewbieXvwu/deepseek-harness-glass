@@ -18,7 +18,7 @@ struct NativeConversationColumn: View {
     let jobsPopoverInitiallyOpen: Bool
     let jobsLanguageCode: String?
     let openSession: (String) -> Void
-    /// Comes only from a verified loopback Host `host.describe` response.
+    /// Comes only from the authenticated Host `session/canOpenWorkspacePath` capability.
     let canOpenProjectPath: Bool
     /// Held by the resident shell in production; default construction keeps
     /// isolated preview/snapshot call sites deterministic.
@@ -63,7 +63,7 @@ struct NativeConversationColumn: View {
     }
 
     var body: some View {
-        // Source: RC8 ConversationRoot. A nonblank session whose authority
+        // Source: rc.1 ConversationRoot. A nonblank session whose authority
         // baseline is still landing must not briefly render the active composer
         // before the Host establishes whether the session is hero or docked.
         if rootPhase == .settling {
@@ -95,7 +95,7 @@ struct NativeConversationColumn: View {
     }
 }
 
-/// Source: RC8 `ConversationRoot` phase selection. This pure mapping keeps the
+/// Source: rc.1 `ConversationRoot` phase selection. This pure mapping keeps the
 /// no-session/summary-blank/loading distinction explicit before the resident
 /// composer tree is consolidated: a session summary is the only native fact
 /// allowed to prove that a loading session belongs on the hero.
@@ -125,7 +125,7 @@ enum NativeConversationRootPhase: Equatable {
     }
 }
 
-/// Source: RC8 `ConversationRoot`: one root-owned input bar receives either a
+/// Source: rc.1 `ConversationRoot`: one root-owned input bar receives either a
 /// hero or docked layout posture. `hero` keeps no-workspace as an inert property
 /// rather than constructing a second static composer tree, so the bound draft
 /// and AppKit focus identity remain owned by the same native control.
@@ -155,9 +155,9 @@ enum NativeComposerPresentation: Equatable {
     }
 }
 
-/// First native transcript surface. The Store provides a session.history
-/// baseline plus official mux event deltas; the root remains visually stable
-/// for snapshot fixtures whose deterministic conversation mode has no Host.
+/// First native transcript surface. The Store presents addressed SessionRuntime
+/// journal/control snapshots; the root remains visually stable for snapshot
+/// fixtures whose deterministic conversation mode has no Host.
 private struct NativeActiveConversationSurface: View {
     let sessionSnapshot: NativeWorkspaceStore.Snapshot
     @ObservedObject var sessionStore: NativeSessionStore
@@ -472,7 +472,7 @@ private struct NativeTranscriptScrollView: View {
         return merged
     }
 
-    /// Mirrors RC8's follow signature: a streaming delta changes only the tail
+    /// Mirrors rc.1's follow signature: a streaming delta changes only the tail
     /// signature, leaving all preceding LazyVStack identities untouched.
     private var tailSignature: String {
         let tail = timeline.last
@@ -689,8 +689,12 @@ struct NativeWelcomeSurface: View {
 
     var body: some View {
         GeometryReader { geometry in
+            // Source: rc.1 ConversationRoot.module.css: the shared chat width is
+            // clamp(680px, 64% of the live conversation column, 920px), while
+            // InputBar is exactly 32px wider than that content axis.
+            let adaptiveContentWidth = min(max(geometry.size.width * 0.64, 680), 920)
             let cardWidth = min(
-                OfficialUISpec.Layout.composerMaximum,
+                adaptiveContentWidth + 32,
                 max(0, geometry.size.width - 2 * OfficialUISpec.Layout.composerClearance)
             )
 
@@ -859,20 +863,29 @@ private struct NativeInteractiveComposerCard: View {
             ZStack(alignment: .topLeading) {
                 if sessionStore.draft.isEmpty {
                     Text(presentation.placeholder)
-                        .font(OfficialUISpec.Typography.base16)
+                        .font(OfficialUISpec.Typography.s14)
                         .foregroundStyle(OfficialUISpec.Token.caption)
-                        .padding(.horizontal, OfficialUISpec.Spacing.p16)
-                        .padding(.top, OfficialUISpec.Spacing.p8)
+                        .padding(.leading, OfficialUISpec.Spacing.p16)
+                        .padding(.top, OfficialUISpec.Spacing.p4)
                         .allowsHitTesting(false)
                 }
-                TextEditor(text: $sessionStore.draft)
-                    .font(OfficialUISpec.Typography.base16)
+                // rc.1 InputBar lets the draft grow in normal flow and caps its
+                // scrollport at 14 × 24px. SwiftUI's vertical TextField supplies
+                // that native grow-then-scroll behavior without a competing
+                // always-flexible TextEditor scroll view.
+                TextField("", text: $sessionStore.draft, axis: .vertical)
+                    .textFieldStyle(.plain)
+                    .font(OfficialUISpec.Typography.s14)
                     .foregroundStyle(OfficialUISpec.Token.primary)
-                    .scrollContentBackground(.hidden)
+                    .lineLimit((presentation.isHero ? 2 : 1)...14)
                     .focused($draftFocused)
-                    .frame(minHeight: OfficialUISpec.Geometry.px48, maxHeight: OfficialUISpec.Geometry.px336)
-                    .padding(.horizontal, OfficialUISpec.Spacing.p10)
-                    .padding(.top, OfficialUISpec.Spacing.p2)
+                    .padding(.leading, OfficialUISpec.Spacing.p16)
+                    .padding(.trailing, OfficialUISpec.Spacing.p12)
+                    .padding(.top, OfficialUISpec.Spacing.p4)
+                    .frame(
+                        minHeight: presentation.isHero ? OfficialUISpec.Geometry.px52 : OfficialUISpec.Geometry.px28,
+                        alignment: .topLeading
+                    )
                     .disabled(isWorkspaceTrigger)
                     .onKeyPress { press in
                         guard !isWorkspaceTrigger, press.key == .return else { return .ignored }
@@ -963,10 +976,11 @@ private struct NativeInteractiveComposerCard: View {
                 }
             }
             .padding(.horizontal, OfficialUISpec.Spacing.p8)
+            .padding(.top, OfficialUISpec.Spacing.p2)
             .padding(.bottom, OfficialUISpec.Spacing.p6)
         }
         .padding(.top, OfficialUISpec.Spacing.p10)
-        .frame(maxWidth: .infinity, minHeight: OfficialUISpec.Geometry.px112)
+        .frame(maxWidth: .infinity)
         .background(OfficialUISpec.Token.elevated, in: RoundedRectangle(cornerRadius: OfficialUISpec.Layout.composerCornerRadius, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: OfficialUISpec.Layout.composerCornerRadius, style: .continuous)

@@ -29,7 +29,7 @@ private struct NativeProducedFilesMoreWidthsKey: PreferenceKey {
     }
 }
 
-/// Pure RC8 `fitProducedFiles` equivalent. `moreWidthsByHidden` uses the
+/// Pure rc.1 `fitProducedFiles` equivalent. `moreWidthsByHidden` uses the
 /// remaining-file count as its key so native measurement retains the exact
 /// singular/plural localized width that the official browser tests.
 enum NativeProducedFilesLayout {
@@ -62,15 +62,15 @@ enum NativeProducedFilesLayout {
     }
 }
 
-/// Native RC8 `ProducedFiles` turn tail. Paths originate solely from the
+/// Native rc.1 `ProducedFiles` turn tail. Paths originate solely from the
 /// reducer-owned `deliverables` turn location rather than closing assistant
 /// prose. The measured lane mirrors the official 0–6 visible-chip fit.
 struct NativeProducedFiles: View {
     let paths: [String]
     let open: (String) -> Void
-    /// RC8 gates directory disclosure on `isLoopback && host.describe.canOpenPath`.
-    /// This native surface receives that already-verified conjunction from the
-    /// Shell; snapshot and disconnected callers remain fail-closed.
+    /// rc.1 directory disclosure is gated by the authenticated
+    /// `session/canOpenWorkspacePath` capability. Snapshot and disconnected
+    /// callers remain fail-closed.
     let canShowInFolder: Bool
 
     private let shownLimit = 6
@@ -143,7 +143,7 @@ struct NativeProducedFiles: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(OfficialUISpec.Text.producedFilesOpen(name: path))
-                // RC8 keeps the full path as the duplicate-basename
+                // rc.1 keeps the full path as the duplicate-basename
                 // disambiguator while rendering only the short basename.
                 .help(path)
             }
@@ -193,7 +193,7 @@ struct NativeProducedFiles: View {
         }
         // A background does not participate in the lane's layout. Keep these
         // probes intrinsically sized so their GeometryReader values equal the
-        // visible controls, just as RC8's absolute hidden probe lane does.
+        // visible controls, just as rc.1's absolute hidden probe lane does.
         .fixedSize()
         .hidden()
         .accessibilityHidden(true)

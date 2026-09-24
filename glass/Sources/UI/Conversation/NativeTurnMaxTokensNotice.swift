@@ -4,7 +4,7 @@ import SwiftUI
 @testable import GlassSpec
 #endif
 
-/// Native RC8 `TurnMaxTokensItem`: a persistent warning anchored by the Core
+/// Native rc.1 `TurnMaxTokensItem`: a persistent warning anchored by the Core
 /// node at the official closing assistant/raw end sequence decision.
 struct NativeTurnMaxTokensNotice: View {
     var body: some View {

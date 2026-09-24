@@ -138,9 +138,13 @@ struct NativeJobsHeaderAction: View {
         language: String,
         replacements: [String: String] = [:]
     ) -> String {
-        var value = OfficialUISpec.LocaleCatalog.value(namespace: "ui-jobs", key: key, language: language) ?? key
-        for (token, replacement) in replacements { value = value.replacingOccurrences(of: "{\(token)}", with: replacement) }
-        return value
+        OfficialUISpec.LocaleCatalog.string(
+            namespace: "ui-jobs",
+            key: key,
+            language: language,
+            fallback: key,
+            replacing: replacements
+        )
     }
     private func stateDotState(_ status: NativeSessionStore.BackgroundJob.Status) -> NativeStateDot.State {
         switch status {

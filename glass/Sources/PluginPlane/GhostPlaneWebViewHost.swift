@@ -18,20 +18,29 @@ public final class GhostPlaneWebViewHost: NSObject {
     public let webView: WKWebView
     private let policy: GhostPlaneLoopbackPolicy
     private let responsePolicy: GhostPlaneResponsePolicy
+    private let externalNavigation: GhostPlaneExternalNavigationAdapter
+    private let temporaryFiles: GhostPlaneTemporaryFileStore
     private var skeletonReady = false
     /// The main-frame request is retained only until its matching response
     /// policy callback. It lets Core reject even same-origin redirects rather
     /// than treating the final endpoint as a fresh capability.
     private var pendingMainFrameRequestURL: URL?
     private var eventFence = GhostPlaneEventBridgeFence(documentEpoch: 1)
+    private var documentEpoch: UInt64 = 1
     /// Optional native sink receives only wire-decoded, fence-admitted plane events.
     /// It never receives raw WKScriptMessage bodies or page objects.
     public var onPlaneEvent: ((GhostPlaneBridgeEvent) -> Void)?
 
-    public init(policy: GhostPlaneLoopbackPolicy) {
+    public init(
+        policy: GhostPlaneLoopbackPolicy,
+        externalNavigation: GhostPlaneExternalNavigationAdapter = .init()
+    ) {
         self.policy = policy
         responsePolicy = GhostPlaneResponsePolicy(loopback: policy)
+        self.externalNavigation = externalNavigation
+        temporaryFiles = GhostPlaneTemporaryFileStore()
         let configuration = WKWebViewConfiguration()
+        configuration.setURLSchemeHandler(temporaryFiles, forURLScheme: GhostPlaneTemporaryFileStore.scheme)
         configuration.websiteDataStore = .nonPersistent()
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = false
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
@@ -49,6 +58,7 @@ public final class GhostPlaneWebViewHost: NSObject {
     @discardableResult
     public func loadSkeleton(_ html: String) -> WKNavigation? {
         skeletonReady = false
+        temporaryFiles.revokeAll()
         pendingMainFrameRequestURL = policy.origin
         guard let securedHTML = GhostPlaneContentSecurityPolicy.inject(into: html) else {
             pendingMainFrameRequestURL = nil
@@ -73,7 +83,7 @@ public final class GhostPlaneWebViewHost: NSObject {
             if (ghostPlane === undefined || typeof ghostPlane.applyTapIndex !== 'function') {
               throw new Error('Ghost Plane tapIndex bootstrap is unavailable');
             }
-            return ghostPlane.applyTapIndex(arguments.records);
+            return ghostPlane.applyTapIndex(records);
             """,
             arguments: ["records": replay.rendererPayload()],
                         contentWorld: .page
@@ -94,11 +104,59 @@ public final class GhostPlaneWebViewHost: NSObject {
             if (ghostPlane === undefined || typeof ghostPlane.promoteModuleFactories !== 'function') {
               throw new Error('Ghost Plane module promotion bootstrap is unavailable');
             }
-            return ghostPlane.promoteModuleFactories(arguments.pluginIDs);
+            return ghostPlane.promoteModuleFactories(pluginIDs);
             """,
             arguments: ["pluginIDs": ids],
                         contentWorld: .page
         )
+    }
+
+
+    /// Rebinds every bridge fence to a new native document generation. Old
+    /// asynchronous scroll/event work may still complete, but the page-side
+    /// epoch fence will reject it after this transition.
+    public func beginDocument(epoch: UInt64) {
+        guard epoch > 0 else { return }
+        documentEpoch = epoch
+        eventFence = GhostPlaneEventBridgeFence(documentEpoch: epoch)
+        temporaryFiles.revokeAll()
+    }
+
+    @discardableResult
+    public func leaseTemporaryFile(
+        at url: URL, id: UUID, suggestedName: String, mediaType: String
+    ) throws -> URL {
+        try temporaryFiles.lease(
+            fileURL: url, id: id, suggestedName: suggestedName, mediaType: mediaType
+        ).url
+    }
+
+    @discardableResult
+    public func leaseTemporaryData(
+        _ data: Data, id: UUID, suggestedName: String, mediaType: String
+    ) throws -> URL {
+        try temporaryFiles.lease(
+            data: data, id: id, suggestedName: suggestedName, mediaType: mediaType
+        ).url
+    }
+
+    public func releaseTemporaryFile(id: UUID) { temporaryFiles.revoke(id) }
+
+    public func emitNativeKeyEvent(
+        _ event: NSEvent,
+        phase: GhostPlaneBridgeEvent.Keyboard.Phase,
+        isComposing: Bool = false
+    ) async throws {
+        try await emitNativeBridgeEvent(
+            GhostPlaneAppKitEventAdapter.keyboard(from: event, phase: phase, isComposing: isComposing)
+        )
+    }
+
+    @discardableResult
+    public func emitNativePasteboardImages(_ pasteboard: NSPasteboard = .general) async throws -> Int {
+        let events = GhostPlaneAppKitEventAdapter.imagePasteEvents(from: pasteboard, host: self)
+        for event in events { try await emitNativeBridgeEvent(event) }
+        return events.count
     }
 
     /// Emits a Core-fenced native event as a fixed JSON DTO. The document can
@@ -109,17 +167,37 @@ public final class GhostPlaneWebViewHost: NSObject {
         guard let message = eventFence.emitNative(event),
               let object = try JSONSerialization.jsonObject(with: GhostPlaneBridgeWireEncoder.encode(message)) as? [String: Any]
         else { throw TapIndexApplicationError.invalidNativeBridgeEvent }
+        let ids: [UUID]
+        switch event {
+        case .imagePaste(let image): ids = [image.attachmentID]
+        case .drag(let drag): ids = drag.attachmentIDs
+        default: ids = []
+        }
+        var descriptors: [[String: String]] = []
+        descriptors.reserveCapacity(ids.count)
+        for id in ids {
+            guard let descriptor = temporaryFiles.descriptor(for: id) else {
+                throw TapIndexApplicationError.invalidNativeBridgeEvent
+            }
+            descriptors.append(descriptor.rendererPayload)
+        }
         _ = try await webView.callAsyncJavaScript(
             """
             const ghostPlane = window.__DSH_GHOST_PLANE__;
             if (ghostPlane === undefined || typeof ghostPlane.applyNativeBridgeEvent !== 'function') {
               throw new Error('Ghost Plane native bridge bootstrap is unavailable');
             }
-            return ghostPlane.applyNativeBridgeEvent(arguments.message);
+            return await ghostPlane.applyNativeBridgeEvent(message, files);
             """,
-            arguments: ["message": object],
+            arguments: ["message": object, "files": descriptors],
                         contentWorld: .page
         )
+        switch event {
+        case .imagePaste(let image): temporaryFiles.revoke(image.attachmentID)
+        case .drag(let drag) where drag.phase == .drop || drag.phase == .leave:
+            for id in drag.attachmentIDs { temporaryFiles.revoke(id) }
+        default: break
+        }
     }
 
     /// Delivers the native-authoritative scalar to the one Ghost Plane document.
@@ -134,7 +212,9 @@ public final class GhostPlaneWebViewHost: NSObject {
             if (ghostPlane === undefined || typeof ghostPlane.applyScrollOffset !== 'function') {
               throw new Error('Ghost Plane scroll bootstrap is unavailable');
             }
-            return ghostPlane.applyScrollOffset(arguments.scrollOffset);
+            return ghostPlane.applyScrollOffset(
+              documentEpoch, sequence, scrollOffset
+            );
             """,
             arguments: scalar.rendererArguments,
                         contentWorld: .page
@@ -144,7 +224,7 @@ public final class GhostPlaneWebViewHost: NSObject {
     private func allow(_ url: URL?) -> Bool {
         guard let url else { return false }
         switch policy.decision(for: url) {
-        case .allowSkeletonDocument, .allowPluginResource:
+        case .allowSkeletonDocument, .allowPluginResource, .allowPluginCombo:
             return true
         case .deny:
             return false
@@ -164,15 +244,15 @@ public final class GhostPlaneWebViewHost: NSObject {
             let mode = { value: 'queue' };
             const pendingQueue = [];
             const factories = new Map();
+            const validPackageID = (id) => typeof id === 'string' && id.length > 0 && id.length <= 128
+              && (/^[A-Za-z0-9._-]+$/.test(id) || /^@[A-Za-z0-9._-]+\\/[A-Za-z0-9._-]+$/.test(id));
             const validRegistration = (registration) => registration !== null
               && typeof registration === 'object'
-              && typeof registration.id === 'string' && registration.id.length > 0
-              && registration.id.length <= 128
-              && /^[A-Za-z0-9._-]+(?:\\/client)?$/.test(registration.id)
+              && validPackageID(registration.id)
               && typeof registration.factory === 'function';
             const load = (registration) => {
               if (!validRegistration(registration)) throw new Error('Ghost Plane module registration was rejected');
-              const id = registration.id.endsWith('/client') ? registration.id.slice(0, -'/client'.length) : registration.id;
+              const id = registration.id;
               if (mode.value === 'queue') {
                 pendingQueue.push(Object.freeze({ id, factory: registration.factory }));
                 return;
@@ -183,7 +263,7 @@ public final class GhostPlaneWebViewHost: NSObject {
             const promote = (pluginIDs) => {
               if (mode.value !== 'queue') throw new Error('Ghost Plane module loader is already live');
               if (!Array.isArray(pluginIDs) || pluginIDs.length === 0 || new Set(pluginIDs).size !== pluginIDs.length
-                  || !pluginIDs.every(id => typeof id === 'string' && /^[A-Za-z0-9._-]+$/.test(id))) {
+                  || !pluginIDs.every(validPackageID)) {
                 throw new Error('Ghost Plane native module permits were rejected');
               }
               const permitted = new Set(pluginIDs);
@@ -209,7 +289,7 @@ public final class GhostPlaneWebViewHost: NSObject {
           const targetIDs = new Set([
             'ghost-plane-root', 'ghost-session-header', 'ghost-conversation-scroll',
             'ghost-chat-flow', 'ghost-composer-seat', 'ghost-turn-tail',
-            'ghost-toolview', 'ghost-details-tool',
+            'ghost-details-tool',
           ]);
           const lowerToken = (value, maximum) => typeof value === 'string'
             && value.length > 0 && value.length <= maximum && /^[a-z0-9-]+$/.test(value);
@@ -259,17 +339,51 @@ public final class GhostPlaneWebViewHost: NSObject {
             }
             return true;
           };
-          const applyScrollOffset = (scrollOffset) => {
-            if (typeof scrollOffset !== 'number' || !Number.isFinite(scrollOffset)) {
-              throw new Error('Ghost Plane scroll offset was rejected');
+          let scrollEpoch = 0;
+          let scrollSequence = 0;
+          const applyScrollOffset = (documentEpoch, sequence, scrollOffset) => {
+            if (!Number.isSafeInteger(documentEpoch) || documentEpoch < 1
+                || !Number.isSafeInteger(sequence) || sequence < 1
+                || typeof scrollOffset !== 'number' || !Number.isFinite(scrollOffset)) {
+              throw new Error('Ghost Plane scroll sample was rejected');
             }
+            if (documentEpoch < scrollEpoch) return false;
+            if (documentEpoch > scrollEpoch) {
+              scrollEpoch = documentEpoch;
+              scrollSequence = 0;
+            }
+            if (sequence <= scrollSequence) return false;
             const content = document.getElementById('ghost-scroll-content');
             if (content === null) throw new Error('Ghost Plane scroll content is absent');
+            scrollSequence = sequence;
             content.style.transform = `translate3d(0, ${-scrollOffset}px, 0)`;
             content.style.setProperty('--ghost-scroll-offset', String(scrollOffset));
+            content.dataset.ghostScrollEpoch = String(documentEpoch);
+            content.dataset.ghostScrollSequence = String(sequence);
             return true;
           };
-          const applyNativeBridgeEvent = (message) => {
+          const buildFileTransfer = async (files) => {
+            if (!Array.isArray(files)) throw new Error('Ghost Plane file descriptors were rejected');
+            const transfer = new DataTransfer();
+            for (const descriptor of files) {
+              if (descriptor === null || typeof descriptor !== 'object'
+                  || typeof descriptor.url !== 'string' || !descriptor.url.startsWith('dsh-glass-attachment://')
+                  || typeof descriptor.suggestedName !== 'string' || descriptor.suggestedName.length < 1
+                  || typeof descriptor.mediaType !== 'string' || descriptor.mediaType.length < 1) {
+                throw new Error('Ghost Plane temporary file descriptor was rejected');
+              }
+              const response = await fetch(descriptor.url, { cache: 'no-store' });
+              const bytes = await response.blob();
+              transfer.items.add(new File([bytes], descriptor.suggestedName, { type: descriptor.mediaType }));
+            }
+            return transfer;
+          };
+          const bridgeTarget = () => document.activeElement instanceof HTMLElement
+            ? document.activeElement
+            : (document.body ?? document.documentElement);
+          let bridgeEpoch = 0;
+          let bridgeSequence = 0;
+          const applyNativeBridgeEvent = async (message, files) => {
             if (message === null || typeof message !== 'object'
                 || message.direction !== 'nativeToPlane'
                 || !Number.isSafeInteger(message.documentEpoch) || message.documentEpoch < 1
@@ -277,6 +391,66 @@ public final class GhostPlaneWebViewHost: NSObject {
                 || message.event === null || typeof message.event !== 'object'
                 || !['keyboard', 'imagePaste', 'selection', 'drag'].includes(message.event.kind)) {
               throw new Error('Ghost Plane native bridge event was rejected');
+            }
+            if (message.documentEpoch < bridgeEpoch) return false;
+            if (message.documentEpoch > bridgeEpoch) {
+              bridgeEpoch = message.documentEpoch;
+              bridgeSequence = 0;
+            }
+            if (message.sequence <= bridgeSequence) return false;
+            bridgeSequence = message.sequence;
+            const stillCurrent = () => message.documentEpoch === bridgeEpoch && message.sequence === bridgeSequence;
+            const event = message.event;
+            switch (event.kind) {
+              case 'keyboard': {
+                const modifiers = event.modifiers >>> 0;
+                const type = event.phase === 'down' ? 'keydown' : event.phase === 'up' ? 'keyup' : null;
+                if (type === null) throw new Error('Ghost Plane keyboard phase was rejected');
+                bridgeTarget().dispatchEvent(new KeyboardEvent(type, {
+                  key: event.key, code: event.code, location: event.location, repeat: event.isRepeat,
+                  isComposing: event.isComposing, shiftKey: (modifiers & 1) !== 0,
+                  ctrlKey: (modifiers & 2) !== 0, altKey: (modifiers & 4) !== 0,
+                  metaKey: (modifiers & 8) !== 0, bubbles: true, cancelable: true, composed: true,
+                }));
+                break;
+              }
+              case 'imagePaste': {
+                const transfer = await buildFileTransfer(files);
+                if (!stillCurrent()) return false;
+                if (transfer.files.length !== 1) throw new Error('Ghost Plane image paste requires one File');
+                bridgeTarget().dispatchEvent(new ClipboardEvent('paste', {
+                  clipboardData: transfer, bubbles: true, cancelable: true, composed: true,
+                }));
+                break;
+              }
+              case 'selection': {
+                const anchor = document.getElementById(event.anchorID);
+                const focus = document.getElementById(event.focusID);
+                const selection = window.getSelection();
+                if (anchor === null || focus === null || selection === null
+                    || !Number.isSafeInteger(event.anchorOffset) || event.anchorOffset < 0
+                    || !Number.isSafeInteger(event.focusOffset) || event.focusOffset < 0
+                    || event.anchorOffset > anchor.childNodes.length || event.focusOffset > focus.childNodes.length) {
+                  throw new Error('Ghost Plane selection was rejected');
+                }
+                selection.setBaseAndExtent(anchor, event.anchorOffset, focus, event.focusOffset);
+                document.dispatchEvent(new Event('selectionchange'));
+                break;
+              }
+              case 'drag': {
+                const transfer = await buildFileTransfer(files);
+                if (!stillCurrent()) return false;
+                const types = { enter: 'dragenter', over: 'dragover', leave: 'dragleave', drop: 'drop' };
+                const type = types[event.dragPhase];
+                if (type === undefined) throw new Error('Ghost Plane drag phase was rejected');
+                transfer.dropEffect = ['copy', 'move', 'link', 'none'].includes(event.operation) ? event.operation : 'none';
+                const target = document.elementFromPoint(event.x, event.y) ?? bridgeTarget();
+                target.dispatchEvent(new DragEvent(type, {
+                  dataTransfer: transfer, clientX: event.x, clientY: event.y,
+                  bubbles: true, cancelable: true, composed: true,
+                }));
+                break;
+              }
             }
             document.dispatchEvent(new CustomEvent('dsh-ghost-plane-native-event', { detail: message }));
             return true;
@@ -315,10 +489,24 @@ extension GhostPlaneWebViewHost: WKNavigationDelegate {
     ) {
         let url = navigationAction.request.url
         let permitted = allow(url)
-        if permitted && (navigationAction.targetFrame?.isMainFrame ?? true) {
-            pendingMainFrameRequestURL = url
+        if permitted {
+            if navigationAction.targetFrame?.isMainFrame ?? true {
+                pendingMainFrameRequestURL = url
+            }
+            decisionHandler(.allow)
+            return
         }
-        decisionHandler(permitted ? .allow : .cancel)
+
+        // rc.1 WebBlock emits credential-free HTTP(S) anchors with
+        // target=_blank. Keep the external document out of WebKit and hand the
+        // exact user-activated target to the native confirmation boundary.
+        if navigationAction.targetFrame == nil,
+           navigationAction.navigationType == .linkActivated,
+           let url, externalNavigation.open(url) {
+            decisionHandler(.cancel)
+            return
+        }
+        decisionHandler(.cancel)
     }
 
     public func webView(
@@ -341,7 +529,7 @@ extension GhostPlaneWebViewHost: WKNavigationDelegate {
             statusCode: http.statusCode,
             mimeType: navigationResponse.response.mimeType
         ) {
-        case .allowSkeletonDocument, .allowPluginResource:
+        case .allowSkeletonDocument, .allowPluginResource, .allowPluginCombo:
             decisionHandler(.allow)
         case .deny:
             skeletonReady = false

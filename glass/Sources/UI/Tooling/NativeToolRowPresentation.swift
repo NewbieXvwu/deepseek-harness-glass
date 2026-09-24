@@ -5,7 +5,7 @@ import Foundation
 @testable import GlassSpec
 #endif
 
-/// Native rc.2 `tool-call-model` summary derivation. File tools deliberately use
+/// Native rc.1 `tool-call-model` summary derivation. File tools deliberately use
 /// `path`/`file_path` rather than showing their raw JSON arguments in the
 /// collapsed row; this is also the summary that a file-mutation tool view uses.
 enum NativeToolRowModel {
@@ -14,7 +14,7 @@ enum NativeToolRowModel {
         return isGeneric && !toolName.isEmpty ? "\(toolName) \(separator) \(base)" : base
     }
 
-    /// Mirrors the rc.2 `tool-call-model` summary order without granting a non-file
+    /// Mirrors the rc.1 `tool-call-model` summary order without granting a non-file
     /// invocation an openable project path. The collapsed row can abbreviate a URL
     /// or command, but only the verified file-path seam becomes a workspace action.
     static func filePath(toolName: String, arguments: String) -> String? {
@@ -62,6 +62,11 @@ enum NativeToolRowModel {
         ["web_search", "grep", "glob"].contains(toolName)
     }
 
+    /// Web tools the native card projector renders: search and fetch.
+    static func isWebTool(_ toolName: String) -> Bool {
+        toolName == "web_search" || toolName == "web_fetch"
+    }
+
     private static func isFileTool(_ toolName: String) -> Bool {
         ["read", "web_fetch", "cordis_package_inspect", "cordis_runtime_inspect", "write", "edit"].contains(toolName)
     }
@@ -71,7 +76,7 @@ enum NativeToolRowModel {
     }
 }
 
-/// rc.2 `tool-call-model` expanded input projection. It deliberately keeps this
+/// rc.1 `tool-call-model` expanded input projection. It deliberately keeps this
 /// generic row model separate from specialized card selection: the Host has not
 /// yet supplied an admitted typed `view`, so all data remains text/JSON.
 enum NativeToolRowPresentation {

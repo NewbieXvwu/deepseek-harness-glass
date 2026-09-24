@@ -5,7 +5,7 @@ import SwiftUI
 @testable import GlassSpec
 #endif
 
-/// RC8's new-session preset seat. It is intentionally absent from a started
+/// rc.1's new-session preset seat. It is intentionally absent from a started
 /// session: Host composition is fixed once the session is no longer blank.
 struct NativeAgentPresetSeat: View {
     let session: SessionSummaryDTO

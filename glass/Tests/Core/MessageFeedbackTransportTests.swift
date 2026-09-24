@@ -15,7 +15,7 @@ final class MessageFeedbackTransportTests: XCTestCase {
         XCTAssertEqual(value?["sessionId"] as? String, "session-1")
         XCTAssertEqual(value?["messageId"] as? String, "message-1")
         XCTAssertEqual(value?["rating"] as? String, "positive")
-        XCTAssertTrue(value?["ifVersion"] is NSNull, "RC8 put must carry null to require an absent feedback item")
+        XCTAssertTrue(value?["ifVersion"] is NSNull, "rc.1 put must carry null to require an absent feedback item")
         XCTAssertNil(value?["note"], "an omitted note preserves the stored explanation")
     }
 

@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 LINK_RE = re.compile(r"(?<!!)\[[^\]]*\]\(([^()\s]+(?:\([^()]*\)[^()\s]*)*)\)")
 # Fenced code spans/tables are skipped: their content is not a real link.
 FENCE_RE = re.compile(r"```.*?```", re.DOTALL)
-SKIP_PREFIXES = ("http://", "https://", "mailto:", "tel:", "#")
+SKIP_PREFIXES = ("http://", "https://", "mailto:", "tel:", "file:", "#")
 
 
 def local_target(raw: str) -> str | None:

@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "id": "replacement-deltas-and-reconnect",
+      "streams": [
+        [
+          {
+            "type": "baseline",
+            "value": {
+              "queues": {
+                "fixture-session": [
+                  {
+                    "id": "fixture-q-old",
+                    "placement": "queued",
+                    "message": {"id": "fixture-message-old", "content": []}
+                  }
+                ]
+              },
+              "jobs": {
+                "fixture-session": [
+                  {
+                    "id": "fixture-job-old",
+                    "kind": "bash",
+                    "label": "fixture job",
+                    "status": "running",
+                    "startedAt": 1700000000000
+                  }
+                ]
+              },
+              "projections": {
+                "fixture-session": {
+                  "asOfSeq": 1,
+                  "values": {"running": true}
+                }
+              }
+            }
+          },
+          {
+            "type": "queue",
+            "sessionId": "fixture-session",
+            "items": [
+              {
+                "id": "fixture-q-new",
+                "placement": "steering",
+                "message": {"id": "fixture-message-new", "content": []}
+              }
+            ]
+          },
+          {
+            "type": "jobs",
+            "sessionId": "fixture-session",
+            "jobs": [
+              {
+                "id": "fixture-job-new",
+                "kind": "bash",
+                "label": "fixture job",
+                "status": "completed",
+                "startedAt": 1700000000000,
+                "finishedAt": 1700000000100
+              }
+            ]
+          },
+          {
+            "type": "projection",
+            "sessionId": "fixture-session",
+            "key": "running",
+            "value": false,
+            "seq": 2
+          }
+        ],
+        [
+          {
+            "type": "baseline",
+            "value": {"queues": {}, "jobs": {}, "projections": {}}
+          }
+        ]
+      ]
+    },
+    {
+      "id": "empty-opening-baseline",
+      "streams": [
+        [
+          {
+            "type": "baseline",
+            "value": {"queues": {}, "jobs": {}, "projections": {}}
+          }
+        ]
+      ]
+    }
+  ]
+}

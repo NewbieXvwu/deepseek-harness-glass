@@ -21,21 +21,10 @@ enum GlassPolicy: String, CaseIterable, Sendable {
     /// one regular glass treatment when it improves a pre-existing affordance.
     case regularGlassCustomControl
 
-    /// Reserved for an official media overlay that needs translucent controls
-    /// over live visual content. It is intentionally unused until such an
-    /// official surface is implemented and reviewed.
-    case clearGlassMediaOverlay
-
     /// Only an implemented, reviewed control can request the scarce custom
-    /// glass budget. The media-overlay case stays an explicit taxonomy value,
-    /// but is reserved until its official surface and accessibility behavior are
-    /// separately implemented and reviewed.
+    /// glass budget.
     var permitsCustomGlassEffect: Bool {
         self == .regularGlassCustomControl
-    }
-
-    var ownsSystemNavigationMaterial: Bool {
-        self == .systemNavigation
     }
 }
 
@@ -85,7 +74,7 @@ enum NativeGlassNavigationAnimation {
     }
 }
 
-/// RC8's sidebar changes between its expanded column and the 56px rail using
+/// rc.1's sidebar changes between its expanded column and the 56px rail using
 /// the established 0.3-second easing. This decision remains separate from the
 /// custom-glass control animation because the sidebar itself is AppKit-owned
 /// system navigation, but it follows the same Reduce Motion contract.

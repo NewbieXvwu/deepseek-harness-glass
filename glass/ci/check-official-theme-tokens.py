@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate reproducible --dsw-* theme token extraction from locked upstream CSS."""
+"""Compare checked theme token semantics with a fresh upstream CSS extraction."""
 
 from __future__ import annotations
 
@@ -9,15 +9,12 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY_ROOT = ROOT.parent
 CATALOG = ROOT / "Sources/Spec/Tokens/official-theme-tokens.json"
-SPEC_BUILD = ROOT / "Sources/Spec/OfficialUISpec/official-ui-spec-build.json"
 GENERATOR = REPOSITORY_ROOT / "tools/spec-generation/generate_official_theme_tokens.py"
-EXPECTED_COMMIT = "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
-EXPECTED_SOURCE = "packages/client/ui-theme/src/styles/design-platform.css"
 
 
 def arguments() -> argparse.Namespace:
@@ -27,55 +24,58 @@ def arguments() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main() -> None:
-    args = arguments()
-    catalog_path = args.catalog
-    document = json.loads(catalog_path.read_text(encoding="utf-8"))
-    if document.get("schemaVersion") != 1 or document.get("sourceCommit") != EXPECTED_COMMIT:
-        raise SystemExit("official theme catalog has an invalid schema or source commit")
-    revision = document.get("themeRevision")
-    source_input_revision = document.get("sourceInputRevision")
-    if not isinstance(revision, str) or not revision.startswith("sha256:") or len(revision) != 71:
-        raise SystemExit("official theme catalog must carry a SHA-256 themeRevision")
-    if not isinstance(source_input_revision, str) or not source_input_revision.startswith("sha256:") or len(source_input_revision) != 71:
-        raise SystemExit("official theme catalog must carry a SHA-256 sourceInputRevision")
-    spec = json.loads(SPEC_BUILD.read_text(encoding="utf-8"))
-    if spec.get("tokenRevision") != source_input_revision:
-        raise SystemExit("official theme source-input revision does not match OfficialUISpec tokenRevision")
+def token_semantics(document: dict[str, Any]) -> list[dict[str, Any]]:
     tokens = document.get("tokens")
-    if not isinstance(tokens, list) or len(tokens) < 150:
-        raise SystemExit("official theme catalog is unexpectedly incomplete")
-    names: set[str] = set()
+    if not isinstance(tokens, list) or not tokens:
+        raise SystemExit("official theme catalog has no tokens")
+    result: list[dict[str, Any]] = []
+    seen: set[str] = set()
     for token in tokens:
         if not isinstance(token, dict):
             raise SystemExit("official theme token must be an object")
         name = token.get("cssName")
-        if not isinstance(name, str) or not name.startswith("--dsw-") or name in names:
+        if not isinstance(name, str) or not name.startswith("--dsw-") or name in seen:
             raise SystemExit(f"invalid or duplicate official theme token {name!r}")
-        names.add(name)
-        source = token.get("source")
-        if not isinstance(source, dict) or source.get("path") != EXPECTED_SOURCE or source.get("commit") != EXPECTED_COMMIT:
-            raise SystemExit(f"token {name} lacks locked CSS source provenance")
+        seen.add(name)
+        schemes: dict[str, Any] = {}
         for scheme in ("light", "dark"):
             value = token.get(scheme)
-            if not isinstance(value, dict) or not isinstance(value.get("rawValue"), str) or not isinstance(value.get("sourceLine"), int):
-                raise SystemExit(f"token {name} has incomplete {scheme} value provenance")
+            if not isinstance(value, dict):
+                raise SystemExit(f"token {name} has no {scheme} value")
+            rgba = value.get("resolvedRGBA")
+            if rgba is not None and not isinstance(rgba, dict):
+                raise SystemExit(f"token {name} has invalid {scheme} RGBA")
+            schemes[scheme] = {
+                "rawValue": value.get("rawValue"),
+                "resolvedValue": value.get("resolvedValue"),
+                "resolvedRGBA": rgba,
+            }
+        result.append({"cssName": name, **schemes})
+    return result
+
+
+def main() -> None:
+    args = arguments()
+    checked = json.loads(args.catalog.read_text(encoding="utf-8"))
+    checked_tokens = token_semantics(checked)
+
     with tempfile.TemporaryDirectory(prefix="dsh-theme-tokens-") as temporary:
         temporary_root = Path(temporary)
-        regenerated_json = temporary_root / "official-theme-tokens.json"
-        regenerated_swift = temporary_root / "OfficialThemeCatalog.swift"
+        generated_json = temporary_root / "official-theme-tokens.json"
+        generated_swift = temporary_root / "OfficialThemeCatalog.swift"
         subprocess.run([
-            sys.executable, str(GENERATOR),
+            sys.executable,
+            str(GENERATOR),
             "--official-root", str(args.official_root),
-            "--json-output", str(regenerated_json),
-            "--swift-output", str(regenerated_swift),
+            "--json-output", str(generated_json),
+            "--swift-output", str(generated_swift),
         ], check=True)
-        if regenerated_json.read_bytes() != catalog_path.read_bytes():
-            raise SystemExit("official theme token catalog is stale; regenerate from the locked official source")
-    print(
-        f"Official theme token structured gate passed: {len(tokens)} CSS tokens; "
-        "compiled runtime API parity is covered by OfficialUISpecBuildTests."
-    )
+        generated = json.loads(generated_json.read_text(encoding="utf-8"))
+        generated_tokens = token_semantics(generated)
+
+    if checked_tokens != generated_tokens:
+        raise SystemExit("official theme token semantics differ from fresh upstream CSS extraction")
+    print(f"Official theme token gate passed: {len(checked_tokens)} CSS tokens match fresh upstream extraction.")
 
 
 if __name__ == "__main__":

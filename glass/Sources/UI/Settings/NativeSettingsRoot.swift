@@ -52,7 +52,7 @@ struct NativeSettingsRoot: View {
     let savePluginCard: (NativePluginCardDraft) async -> Bool
     @State private var selection: SectionID? = .general
 
-    /// rc.2 settings.section registrations: general=0, models=10,
+    /// rc.1 settings.section registrations: general=0, models=10,
     /// plugins=15, agent-presets=20. The row list is deliberately limited to
     /// native renderers that exist in this build; it never exposes an unknown
     /// Host/plugin section with no approved native body.
@@ -82,7 +82,7 @@ struct NativeSettingsRoot: View {
     @State private var discoveryProvider: LLMProviderDTO?
     @State private var selectedDiscoveredModelIDs: Set<String> = []
     @State private var discoveryAdoptionInFlight = false
-    /// Mirrors rc.2 SettingsPanel: opening the settings surface lands focus on
+    /// Mirrors rc.1 SettingsPanel: opening the settings surface lands focus on
     /// its shell-owned close control.
     @FocusState private var closeFocused: Bool
 
@@ -354,7 +354,7 @@ struct NativeSettingsRoot: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .failed:
             VStack(spacing: OfficialUISpec.Spacing.p12) {
-                Text(NativeModelDirectoryFailurePresentation.title)
+                Text(Self.official(namespace: "ui-settings-models", key: "loadFailed"))
                 Button(Self.official(namespace: "ui-settings-models", key: "retry")) {
                     Task { await refreshModelDirectory() }
                 }
@@ -383,28 +383,6 @@ struct NativeSettingsRoot: View {
                                     setCredential: setCredential,
                                     unsetCredential: unsetCredential
                                 )
-                            }
-                        }
-                    }
-                }
-                Section(Self.official(namespace: "ui-settings-models", key: "models")) {
-                    ForEach(modelDirectoryStore.groups) { group in
-                        VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p4) {
-                            Text(group.name)
-                            Text(group.models.map(\.name).joined(separator: ", "))
-                                .font(OfficialUISpec.Typography.xs13)
-                                .foregroundStyle(OfficialUISpec.Token.caption)
-                        }
-                    }
-                }
-                if !modelDirectoryStore.failures.isEmpty {
-                    Section(NativeModelDirectoryFailurePresentation.title) {
-                        ForEach(modelDirectoryStore.failures) { failure in
-                            VStack(alignment: .leading, spacing: OfficialUISpec.Spacing.p4) {
-                                Text(failure.name)
-                                Text(failure.message)
-                                    .font(OfficialUISpec.Typography.xs13)
-                                    .foregroundStyle(OfficialUISpec.Token.caption)
                             }
                         }
                     }
@@ -539,7 +517,7 @@ struct NativeSettingsRoot: View {
         )
     }
 
-    private static func official(namespace: String, key: String) -> String {
+    private nonisolated static func official(namespace: String, key: String) -> String {
         OfficialUISpec.LocaleCatalog.value(namespace: namespace, key: key, language: "en") ?? ""
     }
 }

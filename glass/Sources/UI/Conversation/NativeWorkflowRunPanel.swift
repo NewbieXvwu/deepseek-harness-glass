@@ -5,7 +5,7 @@ import SwiftUI
 @testable import GlassSpec
 #endif
 
-/// Pure RC8 presentation rules shared by the native workflow renderer and
+/// Pure rc.1 presentation rules shared by the native workflow renderer and
 /// regressions. A member never gains navigation from its label or a summary.
 enum NativeWorkflowRunPresentation {
     enum DisclosureMode: Equatable {
@@ -36,7 +36,7 @@ enum NativeWorkflowRunPresentation {
         })
     }
 
-    /// Source: RC8 `phaseDisclosureFacts`; failed/cancelled/interrupted outrank
+    /// Source: rc.1 `phaseDisclosureFacts`; failed/cancelled/interrupted outrank
     /// running and all other phase states settle cleanly.
     static func phaseFacts(_ phase: CoreWorkflowRunNode.Phase) -> DisclosureFacts {
         let statuses = phase.members.map(\.status)
@@ -51,7 +51,7 @@ enum NativeWorkflowRunPresentation {
         return .init(mode: mode, activityCount: phase.members.count)
     }
 
-    /// Source: RC8 `runDisclosureFacts`; status or phase abnormality outranks
+    /// Source: rc.1 `runDisclosureFacts`; status or phase abnormality outranks
     /// running, and the activity count is the typed phase-member total.
     static func runFacts(_ workflow: CoreWorkflowRunNode) -> DisclosureFacts {
         let phases = workflow.phases.map(phaseFacts)
@@ -66,7 +66,7 @@ enum NativeWorkflowRunPresentation {
         return .init(mode: mode, activityCount: phases.reduce(0) { $0 + $1.activityCount })
     }
 
-    /// RC8 initializes clean disclosures closed and active/abnormal work open.
+    /// rc.1 initializes clean disclosures closed and active/abnormal work open.
     static func initialDisclosureState(_ facts: DisclosureFacts) -> DisclosureState {
         .init(
             mode: facts.mode,
@@ -76,7 +76,7 @@ enum NativeWorkflowRunPresentation {
         )
     }
 
-    /// RC8 `advanceDisclosureState`. A disclosure that settles clean while its
+    /// rc.1 `advanceDisclosureState`. A disclosure that settles clean while its
     /// contents retain focus remains open until the focus boundary is exited.
     static func advanceDisclosureState(
         _ current: DisclosureState,
@@ -108,7 +108,7 @@ enum NativeWorkflowRunPresentation {
     }
 }
 
-/// Native RC8 `workflow-run` chat renderer. It retains only typed run/phase
+/// Native rc.1 `workflow-run` chat renderer. It retains only typed run/phase
 /// facts. Member navigation is a shell-owned intent and is offered only for a
 /// live member explicitly projected by the durable workflow run.
 struct NativeWorkflowRunPanel: View {
@@ -264,7 +264,7 @@ struct NativeWorkflowRunPanel: View {
         )
     }
 
-    /// RC8 `useLayoutEffect` equivalent. Any transition into clean state defers
+    /// rc.1 `useLayoutEffect` equivalent. Any transition into clean state defers
     /// collapse while a focusable live child remains inside its content.
     private func synchronizeDisclosures() {
         let currentRun = runDisclosure ?? NativeWorkflowRunPresentation.initialDisclosureState(NativeWorkflowRunPresentation.runFacts(workflow))

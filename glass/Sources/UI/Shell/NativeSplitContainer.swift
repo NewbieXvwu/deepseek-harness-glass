@@ -6,7 +6,7 @@ import SwiftUI
 @testable import GlassCore
 @testable import GlassSpec
 #endif
-/// Source: RC8 `packages/client/ui-layout/src/client/stores.ts` (`LayoutState`,
+/// Source: rc.1 `packages/client/ui-layout/src/client/stores.ts` (`LayoutState`,
 /// `toggleSidebar`, and `setNarrow`). A narrow viewport derives a collapsed
 /// rail by default. Its manual re-expansion is an override only: it never
 /// rewrites the wide-window collapsed preference or dragged width.
@@ -34,7 +34,7 @@ struct NativeSidebarLayoutState: Equatable {
     }
 }
 
-/// RC8 `WorkspaceRuntime.connectWorkspace` only reuses a blank session from
+/// rc.1 `WorkspaceRuntime.connectWorkspace` only reuses a blank session from
 /// the requested workspace's canonical cwd. The pure predicate keeps this
 /// Host-authoritative condition independently testable from task coalescing.
 enum NativeWorkspaceBlankSessionReuse {
@@ -64,21 +64,19 @@ final class NativeShellPresentation: ObservableObject {
     @Published var detailsPreference: CGFloat = OfficialUISpec.Layout.detailsDefault
     @Published private(set) var sidebarLayout = NativeSidebarLayoutState()
     @Published var detailsVisible = false
-    /// Host-owned RC8 display context. It is fetched only after the endpoint has
-    /// passed the build-trust gate and cleared on disconnect/restart.
-    @Published private(set) var hostDescription: HostDescribeResponse?
+    /// Host-owned home path announced by the authenticated rc.1 `$events.ready` frame.
+    /// It is generation-scoped and cleared on disconnect/restart.
+    @Published private(set) var hostHome: String?
+    /// Host capability reported by rc.1 `session/canOpenWorkspacePath`.
+    /// The async result is accepted only for the currently bound Remote generation.
+    @Published private(set) var canOpenWorkspacePath = false
     /// Snapshot exports normally have no Host. This opt-in exists only for a
-    /// recorded official state that includes an already verified loopback
-    /// `host.describe.canOpenPath=true`; production never sets it.
+    /// recorded official state that includes path-open capability; production never sets it.
     private let snapshotCanOpenProjectPath: Bool
-    /// The recorded RC8 Deliverables capture selects the session at a wide
-    /// viewport, then shrinks to 780px while retaining the user's explicit
-    /// narrow-sidebar expansion. Production has no snapshot override.
-    private let snapshotSidebarNarrowExpanded: Bool
     private let releaseFeaturePolicy: NativeReleaseFeaturePolicy
 
     var canOpenProjectPath: Bool {
-        hostDescription?.canOpenPath == true || snapshotCanOpenProjectPath
+        canOpenWorkspacePath || snapshotCanOpenProjectPath
     }
 
     enum WorkspaceManagementDialog: Equatable {
@@ -98,7 +96,7 @@ final class NativeShellPresentation: ObservableObject {
     let modelDiscoveryStore: NativeModelDiscoveryStore
     let agentPresetStore: NativeAgentPresetStore
     @Published var settingsPresented = false
-    /// Window-resident native counterparts of RC8's contribution ledgers.
+    /// Window-resident native counterparts of rc.1's contribution ledgers.
     /// They deliberately outlive individual SwiftUI root-view assignments.
     let conversationViewRegistry = NativeConversationViewRegistry()
     let conversationHeaderContributions = NativeConversationHeaderContributionRegistry()
@@ -107,10 +105,17 @@ final class NativeShellPresentation: ObservableObject {
     let jobsPopoverInitiallyOpen: Bool
     /// Optional capture-only locale for Jobs; production uses the system locale.
     let jobsSnapshotLanguageCode: String?
-    private var apis: HarnessAPIs?
+    private var controllers: HarnessControllers?
+    private var workspaceRuntime: WorkspaceRuntime?
+    private var eventRuntime: RemoteEventRuntime?
+    private var sessionControlRuntime: SessionControlRuntime?
+    private var modelCatalogRepository: ModelCatalogRepository?
+    private var settingsRepository: SettingsRepository?
+    private var credentialRepository: CredentialRepository?
+    private var remoteGeneration: RemoteConnectionGeneration?
     private var selectedToolObservation: AnyCancellable?
     private var observedEndpoint: URL?
-    /// Source: RC8 `WorkspaceRuntime.connecting`. Concurrent New Session
+    /// Source: rc.1 `WorkspaceRuntime.connecting`. Concurrent New Session
     /// requests for one workspace share the same blank lookup/create work.
     private let blankConnectionCoordinator = NativeWorkspaceConnectionCoordinator()
     /// Cancels navigation from stale blank-connect completions after a newer
@@ -130,7 +135,6 @@ final class NativeShellPresentation: ObservableObject {
         jobsPopoverInitiallyOpen: Bool = false,
         jobsSnapshotLanguageCode: String? = nil,
         snapshotCanOpenProjectPath: Bool = false,
-        snapshotSidebarNarrowExpanded: Bool = false,
         releaseFeaturePolicy: NativeReleaseFeaturePolicy = .releaseCandidate
     ) {
         self.mode = mode
@@ -145,15 +149,14 @@ final class NativeShellPresentation: ObservableObject {
         self.jobsPopoverInitiallyOpen = jobsPopoverInitiallyOpen
         self.jobsSnapshotLanguageCode = jobsSnapshotLanguageCode
         self.snapshotCanOpenProjectPath = snapshotCanOpenProjectPath
-        self.snapshotSidebarNarrowExpanded = snapshotSidebarNarrowExpanded
         self.releaseFeaturePolicy = releaseFeaturePolicy
         self.detailsVisible = self.sessionStore.selectedToolCallID != nil
         if releaseFeaturePolicy.permits(.trajectoryTab) {
             do {
-                // Source: RC8 `ui-trajectory/src/client/index.ts`: the trajectory
+                // Source: rc.1 `ui-trajectory/src/client/index.ts`: the trajectory
                 // contribution is a real `conversation.view` tab, ordered after
                 // Chat and backed by its target-specific inspection snapshot.
-                try conversationViewRegistry.register(
+                _ = try conversationViewRegistry.register(
                     id: "trajectory",
                     order: 10,
                     label: OfficialUISpec.Text.trajectory
@@ -166,9 +169,9 @@ final class NativeShellPresentation: ObservableObject {
         }
         if releaseFeaturePolicy.permits(.subagentCatalogAction) {
             do {
-                // Source: RC8 `ui-subagent/src/client/index.ts:60-68`: direct-child
+                // Source: rc.1 `ui-subagent/src/client/index.ts:60-68`: direct-child
                 // catalog is a session-header action at order 10.
-                try conversationHeaderContributions.register(
+                _ = try conversationHeaderContributions.register(
                     slot: .actions,
                     id: "subagent-catalog",
                     order: 10
@@ -199,64 +202,94 @@ final class NativeShellPresentation: ObservableObject {
         }
     }
 
-    /// Called only after `HarnessHostController` has verified host.describe on
-    /// the pinned bundled Host. The browser obtains its truth from list RPCs
-    /// and the official Host SSE stream, never from a web surface.
+    /// Called only after `HarnessHostController` has established an authenticated
+    /// rc.1 Host context. The browser obtains its truth from Remote controllers
+    /// and the authenticated `$events` stream, never from a web surface.
     func connectVerifiedHost(_ connection: HostConnection) {
-        if observedEndpoint == connection.endpoint {
-            // A Host process can recover on the same loopback endpoint. RC8
-            // resyncs every resident session on this new ready generation;
-            // treating endpoint equality as a no-op leaves stale history and
-            // pending waits attached to the prior Host process.
-            sessionStore.resyncActiveSession()
-            return
+        // A ready HostConnection is generation-scoped even when the loopback
+        // endpoint is reused. Tear down the previous streams before binding the
+        // new authoritative Remote generation.
+        let previousWorkspaceRuntime = workspaceRuntime
+        let previousEventRuntime = eventRuntime
+        let previousControlRuntime = sessionControlRuntime
+        Task {
+            await previousWorkspaceRuntime?.stop()
+            await previousEventRuntime?.close()
+            await previousControlRuntime?.invalidate()
         }
-        // Preserve the user-selected session across an owned Host restart. The
-        // new port means all old HTTP/WebSocket carriers are invalid; reopen()
-        // creates only fresh typed facades and uses the Host's official
-        // read-only cold-resume path before observing the new mux endpoint.
-        let selectedSessionID = sessionStore.selectedSessionID
-        newSessionGeneration &+= 1
-        blankConnectionCoordinator.cancelAll()
-        workspaceStore.stopObservingHostEvents()
-        let apis = HarnessAPIs(
-            baseURL: connection.endpoint,
-            accessPolicy: HostRPCAccessPolicy(trust: .verified(connection.build)),
-            diagnostics: connection.diagnostics
+
+        let controllers = HarnessControllers(remote: connection.context.remote)
+        let workspaceRuntime = WorkspaceRuntime(controller: controllers.workspaces)
+        let eventRuntime = RemoteEventRuntime(channel: connection.context.events, sessions: controllers.sessions)
+        let sessionControlRuntime = SessionControlRuntime(
+            controller: controllers.sessions,
+            generation: connection.context.events.generation
         )
-        self.apis = apis
-        observedEndpoint = connection.endpoint
+        let modelCatalogRepository = ModelCatalogRepository(controller: controllers.sessions)
+        let settingsRepository = SettingsRepository(source: controllers.settings)
+        let credentialRepository = CredentialRepository(source: controllers.credentials)
+        self.controllers = controllers
+        self.workspaceRuntime = workspaceRuntime
+        self.eventRuntime = eventRuntime
+        self.sessionControlRuntime = sessionControlRuntime
+        self.modelCatalogRepository = modelCatalogRepository
+        self.settingsRepository = settingsRepository
+        self.credentialRepository = credentialRepository
+        remoteGeneration = connection.context.events.generation
+        hostHome = connection.context.events.ready.host.home
+        canOpenWorkspacePath = false
+        let pathCapabilityGeneration = connection.context.events.generation
         Task { [weak self] in
-            do {
-                let description = try await apis.host.describe()
-                guard !Task.isCancelled, self?.observedEndpoint == connection.endpoint else { return }
-                self?.hostDescription = description
-            } catch {
-                // The endpoint has passed its transport-level verification. A
-                // later description refresh is permitted; absence only disables
-                // display abbreviation and never invents a local home path.
-                guard self?.observedEndpoint == connection.endpoint else { return }
-                self?.hostDescription = nil
-            }
+            let canOpen = (try? await controllers.sessions.canOpenWorkspacePath()) ?? false
+            guard let self, self.remoteGeneration == pathCapabilityGeneration else { return }
+            self.canOpenWorkspacePath = canOpen
         }
-        workspaceStore.refresh(using: apis)
-        Task { [weak self] in await self?.agentPresetStore.refresh(using: apis.agentPresets) }
+        sessionStore.bindCommandService(SessionCommandService(
+            controller: controllers.sessions,
+            interactions: eventRuntime
+        ))
+        sessionStore.bindSessionController(controllers.sessions)
+        sessionStore.bindModelCatalogRepository(modelCatalogRepository)
+        sessionStore.bindGoalController(controllers.goals)
+        sessionStore.bindSubagentController(controllers.subagents)
+        sessionStore.bindMessageFeedbackController(controllers.messageFeedback)
+        sessionStore.bindEventRuntime(eventRuntime)
+        sessionStore.bindControlRuntime(sessionControlRuntime)
+
+        observedEndpoint = connection.endpoint
+
+        workspaceStore.bind(
+            workspaceRuntime: workspaceRuntime,
+            eventRuntime: eventRuntime,
+            generation: connection.context.events.generation
+        )
+
+        Task { [weak self] in await self?.agentPresetStore.refresh(using: controllers.agentPresets) }
         if settingsPresented {
-            settingsStore.load(using: apis.settings)
-            Task { [weak self] in await self?.modelDirectoryStore.refresh(using: apis.llm) }
+            settingsStore.load(using: settingsRepository)
+            Task { [weak self] in await self?.modelDirectoryStore.refresh(using: controllers.llm) }
         }
-        workspaceStore.observeHostEvents(at: connection.endpoint, using: apis, diagnostics: connection.diagnostics)
-        if let selectedSessionID {
+
+        // The conversation store remains on its transitional facade until its
+        // journal/control binding is migrated in the next cut. The facade uses
+        // the authenticated cookie session above, so no unauthenticated parallel
+        // client is created.
+        if let selectedSessionID = sessionStore.selectedSessionID {
             sessionStore.open(
                 sessionID: selectedSessionID,
-                using: apis.sessions,
                 endpoint: connection.endpoint,
-                hostPathAPI: apis.host,
-                goalAPI: apis.commands,
-                subagentCatalogAPI: apis.subagents,
-                subagentContinuationAPI: apis.subagents,
-                messageFeedbackAPI: apis.feedback,
-                sessionCWD: sessionCWD(for: selectedSessionID)
+                sessionCWD: sessionCWD(for: selectedSessionID),
+                sessionRuntime: SessionRuntime(
+                    controller: controllers.sessions,
+                    generation: connection.context.events.generation,
+                    address: NativeSessionRuntimeAddressResolver.resolve(
+                        sessionID: selectedSessionID,
+                        subagentRoute: sessionStore.subagentRoute
+                    ),
+                    controlRuntime: sessionControlRuntime,
+                    interactions: eventRuntime,
+                    subagents: controllers.subagents
+                )
             )
         }
     }
@@ -264,11 +297,6 @@ final class NativeShellPresentation: ObservableObject {
     func setSidebarViewportNarrow(_ isNarrow: Bool) {
         var updated = sidebarLayout
         updated.setNarrow(isNarrow)
-        // Equivalent to RC8's user toggle after AppFrame's narrow breakpoint
-        // computed the rail. It is present only in an evidence fixture.
-        if isNarrow, snapshotSidebarNarrowExpanded {
-            updated.setCollapsed(false)
-        }
         guard updated != sidebarLayout else { return }
         sidebarLayout = updated
     }
@@ -280,7 +308,7 @@ final class NativeShellPresentation: ObservableObject {
         sidebarLayout = updated
     }
 
-    /// Source: RC8 `createLayoutStore.closeDetails/openDetails`. Closing writes
+    /// Source: rc.1 `createLayoutStore.closeDetails/openDetails`. Closing writes
     /// the zero-width preference; reopening restores the contract default rather
     /// than an old dragged width.
     func closeDetails() {
@@ -298,9 +326,27 @@ final class NativeShellPresentation: ObservableObject {
     func disconnectHost() {
         newSessionGeneration &+= 1
         blankConnectionCoordinator.cancelAll()
-        apis = nil
+        let previousWorkspaceRuntime = workspaceRuntime
+        let previousEventRuntime = eventRuntime
+        let previousControlRuntime = sessionControlRuntime
+        Task {
+            await previousWorkspaceRuntime?.stop()
+            await previousEventRuntime?.close()
+            await previousControlRuntime?.invalidate()
+        }
+        controllers = nil
+        workspaceRuntime = nil
+        eventRuntime = nil
+        sessionControlRuntime = nil
+        let previousModelCatalogRepository = modelCatalogRepository
+        modelCatalogRepository = nil
+        settingsRepository = nil
+        credentialRepository = nil
+        Task { await previousModelCatalogRepository?.invalidate() }
+        remoteGeneration = nil
         observedEndpoint = nil
-        hostDescription = nil
+        hostHome = nil
+        canOpenWorkspacePath = false
         workspaceStore.detachHost()
         sessionStore.disconnect()
         settingsStore.load(using: nil)
@@ -314,9 +360,9 @@ final class NativeShellPresentation: ObservableObject {
 
     func openSettings() {
         settingsPresented = true
-        settingsStore.load(using: apis?.settings)
-        Task { [weak self] in await self?.modelDirectoryStore.refresh(using: self?.apis?.llm) }
-        Task { [weak self] in await self?.agentPresetStore.refresh(using: self?.apis?.agentPresets) }
+        settingsStore.load(using: settingsRepository)
+        Task { [weak self] in await self?.modelDirectoryStore.refresh(using: self?.controllers?.llm) }
+        Task { [weak self] in await self?.agentPresetStore.refresh(using: self?.controllers?.agentPresets) }
     }
 
     func closeSettings() {
@@ -327,11 +373,11 @@ final class NativeShellPresentation: ObservableObject {
     /// view itself has no transport access; on failure, a fresh Host descriptor
     /// remains authoritative and no local durable preference is manufactured.
     func refreshModelDirectory() async {
-        await modelDirectoryStore.refresh(using: apis?.llm)
+        await modelDirectoryStore.refresh(using: controllers?.llm)
     }
 
     func discoverModels(_ request: LLMDiscoverModelsRequest) async {
-        await modelDiscoveryStore.discover(request, using: apis?.llm)
+        await modelDiscoveryStore.discover(request, using: controllers?.llm)
     }
 
     func adoptDiscoveredModels(
@@ -339,7 +385,7 @@ final class NativeShellPresentation: ObservableObject {
         selectedIDs: Set<String>,
         for provider: LLMProviderDTO
     ) async -> Bool {
-        guard let settingsAPI = apis?.settings else { return false }
+        guard let settingsAPI = settingsRepository else { return false }
         do {
             let adopted = try await settingsStore.adoptDiscoveredModels(
                 candidates,
@@ -347,7 +393,7 @@ final class NativeShellPresentation: ObservableObject {
                 for: provider,
                 using: settingsAPI
             )
-            if adopted { await modelDirectoryStore.refresh(using: apis?.llm) }
+            if adopted { await modelDirectoryStore.refresh(using: controllers?.llm) }
             return adopted
         } catch {
             return false
@@ -355,42 +401,42 @@ final class NativeShellPresentation: ObservableObject {
     }
 
     func refreshAgentPresets() async {
-        await agentPresetStore.refresh(using: apis?.agentPresets)
+        await agentPresetStore.refresh(using: controllers?.agentPresets)
     }
 
     func readAgentPreset(_ agentPreset: String) async -> Bool {
-        await agentPresetStore.read(agentPreset: agentPreset, using: apis?.agentPresets)
+        await agentPresetStore.read(agentPreset: agentPreset, using: controllers?.agentPresets)
     }
 
     func openAgentPresetDocument(_ agentPreset: String) async -> Bool {
-        await agentPresetStore.openDocument(agentPreset: agentPreset, using: apis?.agentPresets)
+        await agentPresetStore.openDocument(agentPreset: agentPreset, using: controllers?.agentPresets)
     }
 
     func copyAgentPreset(_ request: AgentPresetCopyRequest) async -> Bool {
-        await agentPresetStore.copy(request, using: apis?.agentPresets)
+        await agentPresetStore.copy(request, using: controllers?.agentPresets)
     }
 
     func removeAgentPreset(_ agentPreset: String) async -> Bool {
-        await agentPresetStore.remove(agentPreset: agentPreset, using: apis?.agentPresets)
+        await agentPresetStore.remove(agentPreset: agentPreset, using: controllers?.agentPresets)
     }
 
-    /// RC8 seat selection is legal only while the Host projects this session as
+    /// rc.1 seat selection is legal only while the Host projects this session as
     /// blank. Running-session histories cannot be recomposed locally.
     func selectAgentPreset(sessionID: String, presetID: String) async -> Bool {
-        guard let apis,
+        guard let agentPresets = controllers?.agentPresets,
               workspaceStore.snapshot.sessions.contains(where: { $0.sessionId == sessionID && $0.blank })
         else { return false }
-        let selected = await agentPresetStore.select(sessionID: sessionID, agentPreset: presetID, using: apis.agentPresets)
-        if selected { workspaceStore.refresh(using: apis) }
+        let selected = await agentPresetStore.select(sessionID: sessionID, agentPreset: presetID, using: agentPresets)
+        if selected { workspaceStore.applyAgentPresetSelection(sessionID: sessionID, agentPreset: presetID) }
         return selected
     }
 
     func selectAgentPresetDefault(_ preset: AgentPresetEntryDTO) async -> Bool {
-        guard let settingsAPI = apis?.settings else { return false }
+        guard let settingsAPI = settingsRepository else { return false }
         do {
             try await settingsStore.selectAgentPresetDefault(preset, using: settingsAPI)
             guard settingsStore.agentPresetDefault.current == preset.id else { return false }
-            await agentPresetStore.refresh(using: apis?.agentPresets)
+            await agentPresetStore.refresh(using: controllers?.agentPresets)
             return agentPresetStore.presets.contains(where: { $0.id == preset.id && $0.isDefault })
         } catch {
             return false
@@ -398,7 +444,7 @@ final class NativeShellPresentation: ObservableObject {
     }
 
     func selectThemePreference(_ preference: CoreThemePreference) {
-        guard let api = apis?.settings else { return }
+        guard let api = settingsRepository else { return }
         Task { [weak self] in
             do {
                 try await self?.settingsStore.selectThemePreference(preference, using: api)
@@ -417,7 +463,7 @@ final class NativeShellPresentation: ObservableObject {
     /// Presents no local success state: card drafts are cleared by their view
     /// only after this method returns the Host-accepted namespace update.
     func savePluginCardDraft(_ draft: NativePluginCardDraft) async -> Bool {
-        guard let api = apis?.settings else { return false }
+        guard let api = settingsRepository else { return false }
         do {
             return try await settingsStore.savePluginCardDraft(draft, using: api)
         } catch {
@@ -430,38 +476,49 @@ final class NativeShellPresentation: ObservableObject {
     }
 
     func refreshCredentials(_ references: [String]) async {
-        await credentialStore.refresh(refs: references, using: apis?.credentials)
+        await credentialStore.refresh(refs: references, using: credentialRepository)
     }
 
     func setCredential(reference: String, value: String) async -> Bool {
-        await credentialStore.set(reference: reference, value: value, using: apis?.credentials)
+        await credentialStore.set(reference: reference, value: value, using: credentialRepository)
     }
 
     func unsetCredential(reference: String) async -> Bool {
-        await credentialStore.unset(reference: reference, using: apis?.credentials)
+        await credentialStore.unset(reference: reference, using: credentialRepository)
     }
 
     func selectSession(_ sessionID: String, workspaceID: String?) {
         let didSwitchSession = sessionStore.selectedSessionID != sessionID
         workspaceStore.select(sessionID: sessionID, workspaceID: workspaceID)
-        if let apis, let observedEndpoint {
+        if let observedEndpoint {
+            let runtime: SessionRuntime?
+            if let controllers, let remoteGeneration {
+                runtime = SessionRuntime(
+                    controller: controllers.sessions,
+                    generation: remoteGeneration,
+                    address: NativeSessionRuntimeAddressResolver.resolve(
+                        sessionID: sessionID,
+                        subagentRoute: sessionStore.subagentRoute
+                    ),
+                    controlRuntime: sessionControlRuntime,
+                    interactions: eventRuntime,
+                    subagents: controllers.subagents
+                )
+            } else {
+                runtime = nil
+            }
             sessionStore.open(
                 sessionID: sessionID,
-                using: apis.sessions,
                 endpoint: observedEndpoint,
-                hostPathAPI: apis.host,
-                goalAPI: apis.commands,
-                subagentCatalogAPI: apis.subagents,
-                subagentContinuationAPI: apis.subagents,
-                messageFeedbackAPI: apis.feedback,
-                sessionCWD: sessionCWD(for: sessionID)
+                sessionCWD: sessionCWD(for: sessionID),
+                sessionRuntime: runtime
             )
         }
         mode = .conversation
         synchronizeDetailsAfterSessionSelection(didSwitchSession: didSwitchSession)
     }
 
-    /// Source: RC8 `AppFrame` closes the details panel when the current session
+    /// Source: rc.1 `AppFrame` closes the details panel when the current session
     /// changes, even if the newly resident session contains a tool selection.
     /// Staying in the same session may surface its selected tool normally.
     func synchronizeDetailsAfterSessionSelection(didSwitchSession: Bool) {
@@ -476,13 +533,13 @@ final class NativeShellPresentation: ObservableObject {
         workspaceStore.snapshot.sessions.first(where: { $0.sessionId == sessionID })?.cwd
     }
 
-    /// Source: RC8 `workspaces/service.ts:startSession` and
+    /// Source: rc.1 `workspaces/service.ts:startSession` and
     /// `connectWorkspace`. Explicit workspace wins, then the selected session's
     /// workspace, then the Host-order stable recent-workspace projection. A
     /// missing target clears only selection; it does not create an unscoped
     /// synthetic session or disconnect the Host.
     func createSession(in workspaceID: String?) {
-        guard let apis, let endpoint = observedEndpoint else { return }
+        guard let controllers, let endpoint = observedEndpoint else { return }
         let snapshot = workspaceStore.snapshot
         let currentWorkspaceID = snapshot.selectedSessionID.flatMap { selectedID in
             snapshot.workspaces.first(where: { $0.sessionIds.contains(selectedID) })?.workspaceId
@@ -502,25 +559,24 @@ final class NativeShellPresentation: ObservableObject {
         Task { @MainActor [weak self] in
             guard let self else { return }
             do {
-                let sessionID = try await connectWorkspace(target, using: apis)
+                let sessionID = try await connectWorkspace(target, using: controllers.sessions)
                 guard !Task.isCancelled,
                       newSessionGeneration == generation,
                       observedEndpoint == endpoint
                 else { return }
                 selectSession(sessionID, workspaceID: target)
-                workspaceStore.refresh(using: apis)
             } catch {
-                // RC8 treats a rejected blank connection as non-fatal: keep the
+                // rc.1 treats a rejected blank connection as non-fatal: keep the
                 // current selection usable and wait for the next Host authority.
             }
         }
     }
 
-    /// Source: RC8 `WorkspaceRuntime.connectWorkspace`. Only a blank session
+    /// Source: rc.1 `WorkspaceRuntime.connectWorkspace`. Only a blank session
     /// that is both accounted by the workspace and has the workspace canonical
     /// cwd is reusable; archived blanks are intentionally invisible and cannot
     /// be opened. A create is coalesced per workspace until it settles.
-    private func connectWorkspace(_ workspaceID: String, using apis: HarnessAPIs) async throws -> String {
+    private func connectWorkspace(_ workspaceID: String, using sessions: any SessionControllerAPI) async throws -> String {
         try await blankConnectionCoordinator.connect(workspaceID: workspaceID) { [weak self] in
             guard let self else { throw CancellationError() }
             guard self.workspaceStore.snapshot.workspaces.contains(where: { $0.workspaceId == workspaceID }) else {
@@ -532,60 +588,55 @@ final class NativeShellPresentation: ObservableObject {
             ) {
                 return reusable
             }
-            return try await apis.sessions.create(workspaceID: workspaceID).sessionId
+            return try await sessions.create(.init(workspaceId: workspaceID)).sessionId
         }
     }
 
     /// Source: `workspace.schema.ts:workspaceRenameRequestSchema`.
     func renameWorkspace(_ workspaceID: String, title: String) async throws {
-        guard let apis else { throw URLError(.notConnectedToInternet) }
-        _ = try await apis.workspaces.rename(workspaceID: workspaceID, title: title)
-        guard !Task.isCancelled else { return }
-        workspaceStore.refresh(using: apis)
+        guard let workspaceRuntime else { throw URLError(.notConnectedToInternet) }
+        _ = try await workspaceRuntime.rename(workspaceID: workspaceID, title: title)
     }
 
     /// Source: `workspace.schema.ts:workspaceDeleteRequestSchema`.
     func deleteWorkspace(_ workspaceID: String) async throws {
-        guard let apis else { throw URLError(.notConnectedToInternet) }
-        _ = try await apis.workspaces.delete(workspaceID: workspaceID)
-        guard !Task.isCancelled else { return }
-        workspaceStore.refresh(using: apis)
+        guard let workspaceRuntime else { throw URLError(.notConnectedToInternet) }
+        _ = try await workspaceRuntime.delete(workspaceID: workspaceID)
     }
 
     /// Source: `workspace.schema.ts:workspaceInsertBeforeRequestSchema`.
     func moveWorkspace(_ workspaceID: String, beforeWorkspaceID: String?) async throws {
-        guard let apis else { throw URLError(.notConnectedToInternet) }
-        _ = try await apis.workspaces.insertBefore(workspaceID: workspaceID, beforeWorkspaceID: beforeWorkspaceID)
-        guard !Task.isCancelled else { return }
-        workspaceStore.refresh(using: apis)
+        guard let workspaceRuntime else { throw URLError(.notConnectedToInternet) }
+        _ = try await workspaceRuntime.insertBefore(workspaceID: workspaceID, beforeWorkspaceID: beforeWorkspaceID)
     }
 
     /// Source: `workspace.schema.ts:workspaceInsertSessionBeforeRequestSchema`.
     func moveSession(_ sessionID: String, in workspaceID: String, beforeSessionID: String?) async throws {
-        guard let apis else { throw URLError(.notConnectedToInternet) }
-        _ = try await apis.workspaces.insertSessionBefore(workspaceID: workspaceID, sessionID: sessionID, beforeSessionID: beforeSessionID)
-        guard !Task.isCancelled else { return }
-        workspaceStore.refresh(using: apis)
+        guard let workspaceRuntime else { throw URLError(.notConnectedToInternet) }
+        _ = try await workspaceRuntime.insertSessionBefore(
+            workspaceID: workspaceID,
+            sessionID: sessionID,
+            beforeSessionID: beforeSessionID
+        )
     }
 
     /// Source: `sessions.schema.ts:sessionRenameRequestSchema`.
     func renameSession(_ sessionID: String, title: String) async throws {
-        guard let apis else { throw URLError(.notConnectedToInternet) }
-        _ = try await apis.sessions.rename(sessionID: sessionID, title: title)
+        guard let controllers else { throw URLError(.notConnectedToInternet) }
+        let renamed = try await controllers.sessions.rename(sessionID: sessionID, title: title)
         guard !Task.isCancelled else { return }
-        workspaceStore.refresh(using: apis)
+        workspaceStore.applySessionRename(sessionID: sessionID, value: renamed)
     }
 
     /// Source: `sessions.schema.ts:sessionForkRequestSchema`.
     func forkSession(_ sessionID: String) {
-        guard let apis else { return }
+        guard let controllers else { return }
         let workspaceID = workspaceStore.snapshot.workspaces.first { $0.sessionIds.contains(sessionID) }?.workspaceId
         Task { [weak self] in
             guard let self else { return }
             do {
-                let forked = try await apis.sessions.fork(sessionID: sessionID)
+                let forked = try await controllers.sessions.fork(sessionID: sessionID, atSeq: nil)
                 guard !Task.isCancelled else { return }
-                workspaceStore.refresh(using: apis)
                 selectSession(forked.sessionId, workspaceID: workspaceID)
             } catch {
                 DispatchQueue.main.async { self.userVisibleError = String(describing: error) }
@@ -595,13 +646,11 @@ final class NativeShellPresentation: ObservableObject {
 
     /// Source: `workspace.schema.ts:workspaceArchiveSessionRequestSchema`.
     func archiveSession(_ sessionID: String) {
-        guard let apis else { return }
+        guard let workspaceRuntime else { return }
         Task { [weak self] in
             guard let self else { return }
             do {
-                _ = try await apis.workspaces.archiveSession(sessionID: sessionID)
-                guard !Task.isCancelled else { return }
-                workspaceStore.refresh(using: apis)
+                _ = try await workspaceRuntime.archiveSession(sessionID: sessionID)
             } catch {
                 DispatchQueue.main.async { self.userVisibleError = String(describing: error) }
             }
@@ -609,7 +658,7 @@ final class NativeShellPresentation: ObservableObject {
     }
 
     func searchSessions(_ query: String) {
-        workspaceStore.search(query: query, using: apis?.sessions)
+        workspaceStore.search(query: query, using: controllers?.sessions)
     }
 
     func presentWorkspaceRename(workspaceID: String, title: String) {
@@ -631,7 +680,7 @@ final class NativeShellPresentation: ObservableObject {
     /// Source: `workspace.schema.ts:workspaceCreateRequestSchema`. macOS uses
     /// a native directory panel rather than a browser-mediated file picker.
     func addWorkspace() {
-        guard let apis else { return }
+        guard let workspaceRuntime else { return }
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
@@ -640,9 +689,7 @@ final class NativeShellPresentation: ObservableObject {
         Task { [weak self] in
             guard let self else { return }
             do {
-                _ = try await apis.workspaces.create(path: url.path)
-                guard !Task.isCancelled else { return }
-                workspaceStore.refresh(using: apis)
+                _ = try await workspaceRuntime.create(path: url.path)
             } catch {
                 DispatchQueue.main.async { self.userVisibleError = String(describing: error) }
             }
@@ -724,7 +771,7 @@ final class NativeShellController: NativeSplitViewController {
         return presentation.workspaceStore.snapshot.workspaces.first { $0.workspaceId == workspaceID }?.title
     }
 
-    /// RC8 hierarchy navigation reopens the Host session through the ordinary
+    /// rc.1 hierarchy navigation reopens the Host session through the ordinary
     /// session-selection path. A subagent may be ungrouped, so the workspace id
     /// is optional rather than inferred from its breadcrumb title.
     private static func workspaceID(for sessionID: String, in presentation: NativeShellPresentation) -> String? {
@@ -854,7 +901,7 @@ final class NativeShellController: NativeSplitViewController {
         settingsWindow = window
     }
 
-    /// Source: RC8 `ui-renderer/DocumentTitle.tsx`. The native titlebar remains
+    /// Source: rc.1 `ui-renderer/DocumentTitle.tsx`. The native titlebar remains
     /// visually hidden, but standard AppKit document title state stays aligned
     /// with the selected durable Host session for system restoration/accessibility.
     private func updateDocumentTitle() {
@@ -874,7 +921,7 @@ final class NativeShellController: NativeSplitViewController {
     ) -> NativeSidebarView {
         NativeSidebarView(
             workspaceStore: presentation.workspaceStore,
-            hostHome: presentation.hostDescription?.home,
+            hostHome: presentation.hostHome,
             settingsPresented: presentation.settingsPresented,
             collapsed: collapsed,
             setCollapsed: { presentation.setSidebarCollapsed($0) },
@@ -930,7 +977,7 @@ extension NativeShellController: NSWindowDelegate {
 /// deterministic T5.2 regression tests. It mirrors the official columns
 /// constraints rather than relying on AppKit's implicit proportional resize.
 struct NativeSplitLayoutPolicy {
-    /// Mirrors RC8 AppFrame's ResizeObserver contract: column concessions are
+    /// Mirrors rc.1 AppFrame's ResizeObserver contract: column concessions are
     /// recomputed on a real frame-width change, but never reapplied during the
     /// nested same-width AppKit layout pass caused by divider placement.
     static func needsViewportReconciliation(
@@ -1012,6 +1059,9 @@ class NativeSplitViewController: NSSplitViewController {
         conversationItem.canCollapse = false
         detailsItem.canCollapse = true
         detailsItem.collapseBehavior = .useConstraints
+        // The sidebar may be dragged down to the official collapsed rail; set
+        // the floor once at composition instead of mutating the parent during layout.
+        sidebarItem.minimumThickness = OfficialUISpec.Layout.sidebarCollapsed
         addSplitViewItem(sidebarItem)
         addSplitViewItem(conversationItem)
         addSplitViewItem(detailsItem)
@@ -1456,7 +1506,7 @@ private struct NativeWorkspaceManagementDialogOverlay: View {
     }
 
     private func submitWorkspaceRename() {
-        guard case .workspaceRename(let workspaceID, let originalTitle)? = presentation.workspaceManagementDialog else { return }
+        guard case .workspaceRename(let workspaceID, _)? = presentation.workspaceManagementDialog else { return }
         submit {
             try await presentation.renameWorkspace(
                 workspaceID,

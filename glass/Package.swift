@@ -20,7 +20,10 @@ let package = Package(
         .target(
             name: "GlassSpec",
             path: "Sources/Spec",
-            resources: [.process("Fixtures"), .process("Locales")],
+            resources: [
+                .process("Locales"),
+                .process("Tokens"),
+            ],
             swiftSettings: [.define("DEEPSEEK_HARNESS_PACKAGE"), .unsafeFlags(["-enable-testing"])]
         ),
         .target(
@@ -52,8 +55,6 @@ let package = Package(
             path: "Sources/Snapshot",
             swiftSettings: [.define("DEEPSEEK_HARNESS_PACKAGE"), .unsafeFlags(["-enable-testing"])]
         ),
-        // The only target permitted to import/use WebKit for the registered
-        // Ghost Plane. Core/UI/App do not depend on it.
         .target(
             name: "GlassPluginPlane",
             dependencies: ["GlassCore", "GlassSpec"],
@@ -69,7 +70,8 @@ let package = Package(
         .testTarget(
             name: "GlassSpecTests",
             dependencies: ["GlassSpec"],
-            path: "Tests/Spec"
+            path: "Tests/Spec",
+            resources: [.process("Resources")]
         ),
         .testTarget(
             name: "GlassPortableCoreTests",
@@ -79,7 +81,8 @@ let package = Package(
         .testTarget(
             name: "GlassCoreTests",
             dependencies: ["GlassCore", "GlassSpec", "GlassPortableCore"],
-            path: "Tests/Core"
+            path: "Tests/Core",
+            resources: [.process("Resources")]
         ),
         .testTarget(
             name: "GlassAppTests",

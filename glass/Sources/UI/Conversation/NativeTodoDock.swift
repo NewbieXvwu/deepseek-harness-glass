@@ -5,12 +5,12 @@ import SwiftUI
 @testable import GlassSpec
 #endif
 
-/// Pure RC8 TodoPanel decisions shared by the native dock and its regression
+/// Pure rc.1 TodoPanel decisions shared by the native dock and its regression
 /// tests. The Host remains the only source of todo rows and checked state.
 enum NativeTodoDockPresentation {
     static let startsCollapsed = true
 
-    /// RC8 CSS uses a 1s linear in-progress spin. Reduce Motion returns nil so
+    /// rc.1 CSS uses a 1s linear in-progress spin. Reduce Motion returns nil so
     /// the glyph remains visible but statically oriented.
     static func progressSpinDuration(reduceMotion: Bool) -> Double? {
         reduceMotion ? nil : 1
@@ -34,7 +34,7 @@ enum NativeTodoDockPresentation {
     }
 }
 
-/// Native equivalent of the RC8 `conversation.input.dock` TodoPanel. The view
+/// Native equivalent of the rc.1 `conversation.input.dock` TodoPanel. The view
 /// deliberately owns only presentation collapse state; its todo values are a
 /// Host replacement snapshot obtained from `SessionTodoProjectionReader`.
 struct NativeTodoDock: View {

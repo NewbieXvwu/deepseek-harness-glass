@@ -5,14 +5,14 @@ import SwiftUI
 @testable import GlassSpec
 #endif
 
-/// One registered native conversation view. The shape mirrors RC8
+/// One registered native conversation view. The shape mirrors rc.1
 /// `contract/views.ts:ViewTab`; only renderable native entries are listed.
 struct NativeConversationViewTab: Identifiable, Equatable {
     let id: String
     let label: String
 }
 
-/// Presentation-only projection of the strict RC8 session header. Its inputs
+/// Presentation-only projection of the strict rc.1 session header. Its inputs
 /// are the Host-authoritative session list snapshot and Core-owned session
 /// state; it never reparses event payloads or owns durable session metadata.
 @MainActor
@@ -32,7 +32,7 @@ struct NativeSessionHeaderPresentation: Equatable {
     let tabs: [NativeConversationViewTab]
     let activeTab: NativeConversationViewTab?
 
-    /// RC8 `ConversationSessionHeader.hideChrome`: a truly blank session keeps
+    /// rc.1 `ConversationSessionHeader.hideChrome`: a truly blank session keeps
     /// the hero/composer resident but removes the header from layout.
     var hidesChrome: Bool { blank && composerIsBlank }
 
@@ -45,7 +45,7 @@ struct NativeSessionHeaderPresentation: Equatable {
     ) {
         self.sessionID = sessionID
         self.composerIsBlank = composerIsBlank
-        let sessionByID = Dictionary(uniqueKeysWithValues: snapshot.sessions.map { ($0.sessionId, $0) })
+        let sessionByID = Dictionary(snapshot.sessions.map { ($0.sessionId, $0) }, uniquingKeysWith: { _, latest in latest })
         let selected = sessionID.flatMap { sessionByID[$0] }
         blank = selected?.blank ?? false
         agentPreset = selected?.agentPreset
@@ -57,7 +57,7 @@ struct NativeSessionHeaderPresentation: Equatable {
         )
     }
 
-    /// Source: RC8 `ConversationSession.deriveAncestry`. Only a subagent
+    /// Source: rc.1 `ConversationSession.deriveAncestry`. Only a subagent
     /// summary climbs `parentSessionId`; arbitrary parent pointers never become
     /// a user-visible hierarchy on their own.
     private static func deriveAncestry(
@@ -84,7 +84,7 @@ struct NativeSessionHeaderPresentation: Equatable {
     }
 }
 
-/// Strict native counterpart of RC8 `ConversationSessionHeader`. It owns
+/// Strict native counterpart of rc.1 `ConversationSessionHeader`. It owns
 /// breadcrumb/title/tabs and composes additive actions independently; the
 /// resident root remains responsible for the scroll body and composer seat.
 struct NativeConversationHeader: View {
@@ -219,7 +219,7 @@ struct NativeConversationHeader: View {
     }
 }
 
-/// RC8 `AgentPresetLabel` display fallback. The stable built-in `standard`
+/// rc.1 `AgentPresetLabel` display fallback. The stable built-in `standard`
 /// maps through the generated agent-preset locale. Unknown Host ids remain
 /// addressing strings, matching upstream when roster metadata is unavailable.
 private struct NativeSessionAgentPresetLabel: View {

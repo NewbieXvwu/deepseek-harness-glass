@@ -5,7 +5,7 @@ import XCTest
 
 @MainActor
 final class NativeWorkspaceStoreTests: XCTestCase {
-    func testRecentWorkspaceProjectionMatchesRC8ActivityCreationAndHostOrder() {
+    func testRecentWorkspaceProjectionMatchesRC1ActivityCreationAndHostOrder() {
         let sessions = [
             SessionSummaryDTO(
                 sessionId: "session-latest", updatedAt: 1_800_000_000_000, running: false, blank: false,
@@ -51,7 +51,7 @@ final class NativeWorkspaceStoreTests: XCTestCase {
         XCTAssertEqual(NativeWorkspaceStore.recentWorkspaceID(in: emptyOnly), "newer")
     }
 
-    func testBrowserVisibilityMatchesRC8OrdinaryBlankSubagentArchivedAndUngroupedRules() {
+    func testBrowserVisibilityMatchesRC1OrdinaryBlankSubagentArchivedAndUngroupedRules() {
         func session(
             _ id: String,
             blank: Bool = false,
@@ -184,6 +184,59 @@ final class NativeWorkspaceStoreTests: XCTestCase {
         XCTAssertEqual(store.snapshot.sessions(in: workspaceA).map(\.sessionId), ["first"])
     }
 
+    func testAgentPresetSelectionUpdatesOnlyTheTargetSessionPresentation() {
+        let first = SessionSummaryDTO(
+            sessionId: "first", updatedAt: 1, running: false, blank: true,
+            pendingInteraction: nil, parentSessionId: nil, origin: nil, cwd: "/tmp/first",
+            agentPreset: nil, projections: nil
+        )
+        let second = SessionSummaryDTO(
+            sessionId: "second", updatedAt: 2, running: false, blank: true,
+            pendingInteraction: nil, parentSessionId: nil, origin: nil, cwd: "/tmp/second",
+            agentPreset: "standard", projections: nil
+        )
+        let store = NativeWorkspaceStore(initialSnapshot: .init(
+            workspaces: [], sessions: [first, second], archivedSessionIDs: [],
+            selectedSessionID: "first", selectedWorkspaceID: nil
+        ))
+
+        store.applyAgentPresetSelection(sessionID: "first", agentPreset: "research")
+
+        XCTAssertEqual(store.snapshot.sessions[0].agentPreset, "research")
+        XCTAssertEqual(store.snapshot.sessions[1].agentPreset, "standard")
+    }
+
+    func testSessionRenameAppliesAcceptedTitleOnlyAtHigherProjectionSequence() {
+        let store = NativeWorkspaceStore(initialSnapshot: .init(
+            workspaces: [],
+            sessions: [
+                SessionSummaryDTO(
+                    sessionId: "session", updatedAt: 1, running: false, blank: false,
+                    pendingInteraction: nil, parentSessionId: nil, origin: nil, cwd: "/tmp",
+                    agentPreset: nil,
+                    projections: .init(asOfSeq: 4, values: ["title": .string("old")])
+                ),
+            ],
+            archivedSessionIDs: [],
+            selectedSessionID: "session",
+            selectedWorkspaceID: nil
+        ))
+
+        store.applySessionRename(
+            sessionID: "session",
+            value: .init(title: "accepted", seq: .init(rawValue: 5))
+        )
+        XCTAssertEqual(store.snapshot.sessions[0].displayTitle, "accepted")
+        XCTAssertEqual(store.snapshot.sessions[0].projections?.asOfSeq, 5)
+
+        store.applySessionRename(
+            sessionID: "session",
+            value: .init(title: "stale", seq: .init(rawValue: 4))
+        )
+        XCTAssertEqual(store.snapshot.sessions[0].displayTitle, "accepted")
+        XCTAssertEqual(store.snapshot.sessions[0].projections?.asOfSeq, 5)
+    }
+
     func testRailSearchArmsWideInputAndFocusesOnlyAfterExpansionSettles() {
         let armed = NativeWorkspaceBrowserSearchOnExpand.armedState()
         XCTAssertEqual(armed, .init(searchExpanded: true, awaitsWideFocus: true))
@@ -209,7 +262,7 @@ final class NativeWorkspaceStoreTests: XCTestCase {
         let store = NativeWorkspaceStore()
         store.searchQuery = "host-authoritative"
 
-        store.search(query: store.searchQuery, using: nil)
+        store.search(query: store.searchQuery, using: nil as SessionController?)
 
         XCTAssertEqual(store.remoteSearch.query, "host-authoritative")
         XCTAssertEqual(store.remoteSearch.status, .failed)
@@ -217,7 +270,7 @@ final class NativeWorkspaceStoreTests: XCTestCase {
         XCTAssertFalse(store.remoteSearch.hasMore)
     }
 
-    func testSearchSanitizerMatchesRC8NULAndUTF16BoundaryContract() {
+    func testSearchSanitizerMatchesRC1NULAndUTF16BoundaryContract() {
         XCTAssertEqual(
             NativeWorkspaceStore.sanitizeSearchQuery("before\u{0000}after"),
             "beforeafter"
@@ -227,7 +280,7 @@ final class NativeWorkspaceStoreTests: XCTestCase {
         XCTAssertEqual(NativeWorkspaceStore.sanitizeSearchQuery(withinBoundary), withinBoundary)
 
         // 499 BMP code units followed by a two-code-unit scalar crosses the
-        // 500-unit wire edge. RC8 backs up one unit so a dangling high
+        // 500-unit wire edge. rc.1 backs up one unit so a dangling high
         // surrogate never reaches the Host search request.
         let pairAtBoundary = String(repeating: "a", count: 499) + "😀" + "z"
         let sanitizedBoundary = NativeWorkspaceStore.sanitizeSearchQuery(pairAtBoundary)

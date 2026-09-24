@@ -1,9 +1,9 @@
-/// Pure, browser-local projection of RC8 `WorkspaceBrowser` drag ordering.
+/// Pure, browser-local projection of rc.1 `WorkspaceBrowser` drag ordering.
 /// It deliberately has no SwiftUI or transport dependency so the same decision
 /// is testable before a view commits a Host ordering RPC.
 enum NativeWorkspaceBrowserOrdering {
     static let ungroupedAccountKey = ""
-    /// Source: RC8 `stores.ts:10-16`; this account is browser-local and never
+    /// Source: rc.1 `stores.ts:10-16`; this account is browser-local and never
     /// represents a Host workspace membership bucket.
     static let flatSessionOrderKey = "__flat_session_order__"
 
@@ -29,7 +29,7 @@ enum NativeWorkspaceBrowserOrdering {
 
     enum SessionDecision: Equatable {
         case noOp
-        /// RC8 keeps an editable browser-local account for every group, even
+        /// rc.1 keeps an editable browser-local account for every group, even
         /// when the same move is also persisted through the Workspace Host.
         case host(sessionID: String, workspaceID: String, beforeSessionID: String?, viewOrder: [String])
         /// Ungrouped and `updated` account ordering must never write a Host
@@ -37,7 +37,7 @@ enum NativeWorkspaceBrowserOrdering {
         case local(order: [String])
     }
 
-    /// RC8 `reconciledSessionOrder`: retain each live stored id once, then
+    /// rc.1 `reconciledSessionOrder`: retain each live stored id once, then
     /// append live Host ids that were not in the local ordering account.
     static func reconciledOrder(hostIDs: [String], storedOrder: [String]?) -> [String] {
         guard let storedOrder else { return hostIDs }
@@ -60,7 +60,7 @@ enum NativeWorkspaceBrowserOrdering {
         [sessionID] + existingOrder.filter { $0 != sessionID }
     }
 
-    /// Maps the target row half to RC8's `insertWorkspaceBefore` anchor and
+    /// Maps the target row half to rc.1's `insertWorkspaceBefore` anchor and
     /// rejects self, original-position, and adjacent no-op drops.
     static func workspaceDecision(
         workspaceID: String,
@@ -74,7 +74,7 @@ enum NativeWorkspaceBrowserOrdering {
         return .host(workspaceID: workspaceID, beforeWorkspaceID: anchor)
     }
 
-    /// Maps the target row half to RC8's `insertSessionBefore` anchor. A
+    /// Maps the target row half to rc.1's `insertSessionBefore` anchor. A
     /// successful move always updates the browser-local account, but only
     /// manually ordered real workspaces may write the Host order.
     static func sessionDecision(

@@ -5,7 +5,7 @@ import SwiftUI
 @testable import GlassSpec
 #endif
 
-/// Native RC8 message-feedback action subset. It is mounted only for a settled
+/// Native rc.1 message-feedback action subset. It is mounted only for a settled
 /// assistant node carrying a typed message ID; mutation state remains Store/Host
 /// owned, and this view never writes a local rating on click.
 struct NativeMessageFeedbackActions: View {

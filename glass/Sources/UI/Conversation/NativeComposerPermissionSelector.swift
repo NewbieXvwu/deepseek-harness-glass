@@ -5,7 +5,7 @@ import SwiftUI
 @testable import GlassSpec
 #endif
 
-/// Native rc.2 `conversation.input.access` seat. The complete session-level
+/// Native rc.1 `conversation.input.access` seat. The complete session-level
 /// `permissions` projection remains Host authority; changing a preset delegates
 /// only to the Store's `/permission <preset>` command seam and waits for the
 /// next projection push to update visible state.
@@ -114,7 +114,7 @@ struct NativeComposerPermissionSelector: View {
     }
 
 
-    /// Product text remains in the locked rc.2 `ui-conversation` locale catalog.
+    /// Product text remains in the locked rc.1 `ui-conversation` locale catalog.
     private func t(_ key: String, replacements: [String: String] = [:]) -> String {
         Self.localizedValue(key: key, language: language, replacements: replacements)
     }
@@ -124,19 +124,17 @@ struct NativeComposerPermissionSelector: View {
         language: String,
         replacements: [String: String] = [:]
     ) -> String {
-        var value = OfficialUISpec.LocaleCatalog.value(
+        OfficialUISpec.LocaleCatalog.string(
             namespace: "ui-conversation",
             key: key,
-            language: language
-        ) ?? key
-        for (token, replacement) in replacements {
-            value = value.replacingOccurrences(of: "{\(token)}", with: replacement)
-        }
-        return value
+            language: language,
+            fallback: key,
+            replacing: replacements
+        )
     }
 }
 
-/// Native rc.2 confirmation content for the `danger-full-access` access preset.
+/// Native rc.1 confirmation content for the `danger-full-access` access preset.
 /// It is separate from the selector menu only to permit direct macOS AX testing;
 /// the owning selector still presents this exact view in its native popover.
 @MainActor

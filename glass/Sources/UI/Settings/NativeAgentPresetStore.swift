@@ -102,7 +102,7 @@ final class NativeAgentPresetStore: ObservableObject {
     }
 
     /// Creates a preset solely through a Host-side copy then reloads the whole
-    /// directory, matching RC8's roster-re-read contract.
+    /// directory, matching rc.1's roster-re-read contract.
     @discardableResult
     func copy(_ request: AgentPresetCopyRequest, using api: (any NativeAgentPresetAPI)?) async -> Bool {
         guard let api, presets.contains(where: { $0.id == request.from }) else { return false }

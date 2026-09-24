@@ -1,6 +1,6 @@
 import Foundation
 
-/// Persisted default agent preset from RC8 `ui-agent-preset/settings-store.ts`.
+/// Persisted default agent preset from rc.1 `ui-agent-preset/settings-store.ts`.
 /// The Host roster remains the source for valid choices; this state only
 /// projects the official settings namespace and never creates an option list.
 struct CoreAgentPresetDefaultState: Equatable, Sendable {

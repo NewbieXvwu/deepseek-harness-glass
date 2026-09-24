@@ -27,7 +27,7 @@ final class NativeTodoDockTests: XCTestCase {
         XCTAssertEqual(
             NativeTodoDockPresentation.progressLabel(for: [.init(content: "Ship", status: .completed)]),
             OfficialUISpec.Text.todoProgressDone(1),
-            "zero-count segments are omitted exactly as in RC8 TodoPanel"
+            "zero-count segments are omitted exactly as in rc.1 TodoPanel"
         )
     }
 

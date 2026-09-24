@@ -1,0 +1,19 @@
+{
+  "materialDifferenceChannelThreshold": 12,
+  "defaultPolicy": {
+    "mode": "report-only",
+    "strict": {
+      "maxMateriallyChangedRatio": 0.008,
+      "maxMeanAbsoluteChannelDifference": 1.15,
+      "maxExactChangedRatio": 0.2
+    },
+    "systemRenderingExceptions": [
+      "WindowServer-owned system material and font rasterization differences require human review; geometry, content, state and accessibility remain strict."
+    ],
+    "humanReviewRequired": true,
+    "humanReviewCriteria": [
+      "Compare the official and native images, amplified diff, geometry and accessibility evidence for the same captured state.",
+      "Classify every material difference as an implementation defect or a specific system-rendering exception before treating the scene as complete."
+    ]
+  }
+}

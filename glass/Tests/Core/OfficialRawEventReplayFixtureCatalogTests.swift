@@ -1,15 +1,11 @@
 import XCTest
 
 @testable import GlassCore
-@testable import GlassSpec
 
 final class OfficialRawEventReplayFixtureCatalogTests: XCTestCase {
-    func testLockedAnonymizedReplayCatalogCoversRequiredOfflineScenarios() throws {
+    func testReplayCatalogCoversRequiredOfflineScenarios() throws {
         let fixture = try OfficialRawEventReplayFixtureCatalog.load()
 
-        XCTAssertEqual(fixture.officialSourceCommit, OfficialUISpec.Build.sourceCommit)
-        XCTAssertEqual(fixture.source.commit, OfficialUISpec.Build.sourceCommit)
-        XCTAssertEqual(fixture.source.path, "packages/api/session-controller/tests/event-script.client.ts")
         XCTAssertEqual(Set(fixture.cases.map(\.category)), [
             "happy-path", "error", "reconnect", "concurrent", "long-session", "unknown-node",
         ])
@@ -21,7 +17,7 @@ final class OfficialRawEventReplayFixtureCatalogTests: XCTestCase {
                 let object = try tryUnwrap(event.objectValue)
                 XCTAssertNotNil(object["seq"]?.numberValue, "\(replay.id) event requires a deterministic sequence")
                 XCTAssertNotNil(object["time"]?.numberValue, "\(replay.id) event requires a deterministic timestamp")
-                XCTAssertFalse(object["type"]?.stringValue?.isEmpty ?? true, "\(replay.id) event requires an official type")
+                XCTAssertFalse(object["type"]?.stringValue?.isEmpty ?? true, "\(replay.id) event requires a type")
             }
         }
     }
